@@ -1,0 +1,21 @@
+#include <iostream>
+#include <iomanip> 
+#include <math.h>
+#include <cmath>
+#include <limits>
+#include <stdio.h>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <ctype.h>
+#include <time.h>
+#include "eqbrm.h"
+#include "IO.h"
+#include "PITZcalc.h"
+#include "WATEQdata.h"
+#include "IAPWS-IF97.h"
+#include "species.h"
+#include "logk.h"
+#include "Activity.h"
+using namespace std;
