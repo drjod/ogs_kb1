@@ -1,4 +1,3 @@
-
 #NUMERICS
  $PCS_TYPE
   LIQUID_FLOW
@@ -6,8 +5,7 @@
   2
  $LINEAR_SOLVER
   ;method error_tolerance max_iteration theta precond storage
-  2 6 1.0e-7 10000 1.0 100 2
-
+ 2 2 1.0e-14 10000 1.0 1 2
 #NUMERICS
  $PCS_TYPE
   HEAT_TRANSPORT
@@ -15,7 +13,6 @@
   2
  $LINEAR_SOLVER
   ;method error_tolerance max_iteration theta precond storage
-  2 6 1.0e-7 10000 1.0 100 2
-
+  2 0 1.0e-14 10000 1.0 1 2
 #STOP
 
