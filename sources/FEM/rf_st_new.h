@@ -143,6 +143,7 @@ public:
 	bool isCoupled () const { return _coupled; }
 	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
 	double getNormalDepthSlope () const { return normaldepth_slope; }
+	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface JODNEW
 
 	// constrain a ST by other process
 	bool isConstrainedST() const { return _isConstrainedST; }

@@ -107,6 +107,8 @@ CSourceTerm::CSourceTerm() :
    time_contr_function = "";
    _isConstrainedST = false;
 
+   everyoneWithEveryone = false;  // JODNEW
+
    this->connected_geometry = false;
    this->connected_geometry_verbose_level = 0;
    this->connected_geometry_exchange_term = 0.0;
@@ -532,6 +534,13 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >> connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >> connected_geometry_minimum_velocity_abs;
 		  this->connected_geometry = true;
 		  in.clear();
+		  continue;
+	  }
+
+	  if (line_string.find("$EVERYONE_WITH_EVERYONE") != std::string::npos)
+	  {       // JODNEW
+		  in.clear();
+		  everyoneWithEveryone = true;
 		  continue;
 	  }
 	  //....................................................................
@@ -3421,6 +3430,9 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
    std::vector<double> sfc_nod_val_vector;
    Surface* m_sfc = NULL;
 
+   double total_val_cond = 0;
+   std::vector<long>::iterator pos;
+
    m_sfc = GEOGetSFCByName(m_st->geo_name);       //CC
 
    if (m_sfc)
@@ -3437,6 +3449,55 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector,
          sfc_nod_val_vector);
+
+	  ///////////////////////////////
+	  if (m_st->everyoneWithEveryone)  // JODNEW
+	  {
+
+		  std::vector<double> sfc_nod_val_vector_cond_original;
+
+		  SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector_cond,
+			  sfc_nod_val_vector_cond_original);
+
+
+		  for (int i = 0; i < sfc_nod_val_vector_cond_original.size(); i++)
+			  total_val_cond += sfc_nod_val_vector_cond_original[i];
+
+		  int nod_vector_size = (int)sfc_nod_vector.size();
+		  int nod_vector_cond_size = (int)sfc_nod_vector_cond.size();
+
+		  for (int i = 0; i < nod_vector_size; i++)  // extend nod_vector
+		  {
+			  for (int j = 1; j < nod_vector_cond_size; j++)
+			  {
+				  pos = sfc_nod_vector.begin() + i * nod_vector_size + j;
+				  sfc_nod_vector.insert(pos, sfc_nod_vector[i * nod_vector_size + j - 1]);
+
+			  }
+		  }
+
+		  for (int i = 1; i < nod_vector_size; i++)  // extend nod_vector_cond
+		  {
+			  for (int j = 0; j < nod_vector_cond_size; j++)
+			  {
+				  sfc_nod_vector_cond.push_back(sfc_nod_vector_cond[j]);
+			  }
+		  }
+
+		  // extend nod_val_vector
+		  std::vector<double> sfc_nod_val_vector_original(sfc_nod_val_vector);
+		  sfc_nod_val_vector.resize(nod_vector_size * nod_vector_cond_size);
+
+
+		  for (int i = 0; i < nod_vector_size; i++)
+		  {
+			  for (int j = 0; j < nod_vector_cond_size; j++)
+			  {
+				  sfc_nod_val_vector[i*nod_vector_size + j] = sfc_nod_val_vector_original[i] * sfc_nod_val_vector_cond_original[j] / total_val_cond;
+			  }
+		  }
+	  }
+	  ///////////////////////////////
 
 	  if (m_st->distribute_volume_flux)   // 5.3.07 JOD
 		  DistributeVolumeFlux(m_st, sfc_nod_vector, sfc_nod_val_vector);

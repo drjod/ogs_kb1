@@ -28,7 +28,7 @@
  $CONNECT_MODE
   0 ; mode  ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
   ;  2  ref_element_number   n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs 
-
+ ; $EVERYONE_WITH_EVERYONE
 
 #SOURCE_TERM
  $PCS_TYPE
@@ -47,7 +47,7 @@
   2 226 0 0 1 1.e-10
   ; mode  ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
   ;  2  ref_element_number   n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs 
-
+  ;  $EVERYONE_WITH_EVERYONE
 #STOP
 
 
