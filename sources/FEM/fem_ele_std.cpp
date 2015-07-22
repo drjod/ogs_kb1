@@ -5366,7 +5366,7 @@ void CFiniteElementStd::CalcLaplace()
                  for(l=0; l< (int)dim; l++)
                  {
 					 (*Laplace)(iish, jjsh) += fkt * dshapefct[ksh] \
-						 * mat[km + l] * dshapefct[l*nnodes + j];// / (MediaProp->ElementLengthMultiplyer_vector[k] * MediaProp->ElementLengthMultiplyer_vector[l]); // JODNEW
+						 * mat[km + l] * dshapefct[l*nnodes + j] / sqrt(MediaProp->ElementLengthMultiplyer_vector[k]*MediaProp->ElementLengthMultiplyer_vector[l]); // JODNEW
                  } 
               }
            } // j: nodes
@@ -5746,7 +5746,7 @@ void CFiniteElementStd::CalcAdvection()
 		  for (j = 0; j < nnodes; j++)
 		  for (size_t k = 0; k < dim; k++)
 			  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
-			  * dshapefct[k * nnodes + j];// / MediaProp->ElementLengthMultiplyer_vector[k]; // JODNEW
+			  * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; // JODNEW
 #endif
 		if (pcs->m_num->ele_supg_method > 0) //NW
 		{
