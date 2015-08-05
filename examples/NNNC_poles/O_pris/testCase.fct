@@ -1,0 +1,15 @@
+
+#FUNCTION
+ $TYPE
+  Time_ST_curve
+ $VARIABLES
+  TIME FLOWRATE
+ $DATA
+  0        1
+  200      1
+  200.001  0
+  1000     0
+
+#STOP
+  
+  

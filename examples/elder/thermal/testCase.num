@@ -1,0 +1,38 @@
+$OVERALL_COUPLING
+2 25
+
+#NUMERICS
+ $PCS_TYPE
+  LIQUID_FLOW
+ $ELE_MASS_LUMPING
+  1
+ $LINEAR_SOLVER 
+  ; method error_tolerance max_iterations theta precond storage
+  2      2 1e-014       1000           1.0   100       2      ; small error tolerance!!!!!
+ $NON_LINEAR_SOLVER  
+  ; method error_tolerance max_iterations relaxation
+  PICARD 1e-3           25           0.0
+ $COUPLING_CONTROL
+ LMAX 1e-1
+
+#NUMERICS
+ $PCS_TYPE
+  HEAT_TRANSPORT
+ $LINEAR_SOLVER 
+  ; method error_tolerance max_iterations theta precond storage
+  2      0 1e-014       1000           1.0   100        2      ; small error tolerance!!!!!
+ $ELE_GAUSS_POINTS
+  2
+ $NON_LINEAR_SOLVER  
+  ; method error_tolerance max_iterations relaxation
+  PICARD 1e-3          25          0.0
+ $COUPLING_CONTROL
+  LMAX 1e-1
+
+#STOP
+
+
+
+
+
+

@@ -1,0 +1,11 @@
+
+#COMPONENT_PROPERTIES  
+ $NAME
+  CONCENTRATION1
+ $MOBILE 
+  1; MOBIL-Flag: 0=immobile, 1=mobile/transported
+ $DIFFUSION
+  1	1.e-5
+
+#STOP
+

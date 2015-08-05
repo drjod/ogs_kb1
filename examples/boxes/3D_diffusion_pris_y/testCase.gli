@@ -1,0 +1,89 @@
+#POINTS
+0   0        0  0   $MD 2 $NAME P0 
+1   0        0  100 $MD 2 $NAME P1 
+2   50       0  0   $MD 2 $NAME P2 
+3   50       0  100 $MD 2 $NAME P3 
+4   100      0  0   $MD 2 $NAME P4 
+5   100      0  100 $MD 2 $NAME P5 
+6   0        0  50  $MD 2 $NAME P6 
+7   0      100  0   $MD 2 $NAME P7 
+8   0      100  100 $MD 2 $NAME P8 
+9   100    100  0   $MD 2 $NAME P9 
+10  100    100  100 $MD 2 $NAME P10 
+11   50    100  0   $MD 2 $NAME P11
+12   50    100  100 $MD 2 $NAME P12
+13    0     50  0   $MD 2 $NAME P13 
+14    0     50  50  $MD 2 $NAME P14  
+#POLYLINE
+ $NAME
+  LEFT
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  1
+  8
+  7
+  0
+#POLYLINE
+ $NAME
+  MIDDLE
+ $EPSILON
+  0.0001
+ $POINTS
+  2
+  3
+  12
+  11
+  2
+#POLYLINE
+ $NAME
+  RIGHT
+ $EPSILON
+  0.0001
+ $POINTS
+  4
+  5
+  10
+  9
+  4
+#POLYLINE
+ $NAME
+  LEFT_QUARTER
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  6
+  14
+  13
+  0
+#SURFACE
+ $NAME
+  RIGHT
+ $POLYLINES
+  RIGHT
+ $EPSILON
+  0.0001  
+#SURFACE
+ $NAME
+  LEFT
+ $POLYLINES
+  LEFT
+ $EPSILON
+  0.0001          
+#SURFACE
+ $NAME
+  LEFT_QUARTER
+ $POLYLINES
+  LEFT_QUARTER
+ $EPSILON
+  0.0001  
+#SURFACE
+ $NAME
+  MIDDLE
+ $POLYLINES
+  MIDDLE
+ $EPSILON
+  0.0001          
+#STOP

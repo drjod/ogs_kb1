@@ -1,0 +1,4190 @@
+
+          ###################################################
+          ##                                               ##
+          ##               OpenGeoSys-Project              ##
+          ##                                               ##
+          ##  Helmholtz Center for Environmental Research  ##
+          ##    UFZ Leipzig - Environmental Informatics    ##
+          ##                  TU Dresden                   ##
+          ##              University of Kiel               ##
+          ##            University of Edinburgh            ##
+          ##         University of Tuebingen (ZAG)         ##
+          ##       Federal Institute for Geosciences       ##
+          ##          and Natural Resources (BGR)          ##
+          ##                                               ##
+          ##    Version 5.5(WW/MW/NW)  Date 08.12.2014     ##
+          ##                                               ##
+          ###################################################
+
+          File name (without extension): F:\ogs\ogs_kb1\examples\boxes\2D_xz_advection_tri\OGS_FEM\testCase
+            
+---------------------------------------------
+Data input:
+GEOLIB::readGLIFile open stream from file F:\ogs\ogs_kb1\examples\boxes\2D_xz_advection_tri\OGS_FEM\testCase.gli ... done
+read points from stream ...  ok, 7 points read
+read polylines from stream ...  ok, 4 polylines read
+PCSRead ... done, read 3 processes
+MFPRead
+CPRead
+BCRead ... done, read 3 boundary conditions
+STRead ... done, read 1 source terms
+ICRead
+OUTRead
+TIMRead
+MSPRead
+MMPRead ... done, read 2 medium properties
+NUMRead
+-> Mass lumping selected for LIQUID_FLOW
+MSHRead:  ASCII file
+Executing ConstructGrid() ...  done.
+Kleinste Zahl: 2.22045e-016
+DOMRead: no DDC file
+---------------------------------------------
+Create PCS processes
+CRFProcess::Config LIQUID_FLOW
+.............................................
+Create: LIQUID_FLOW
+
+->Create MMP
+->Create NUM
+->Create EQS
+->Create TIM
+->Create BC
+	[BC] set BC took 0
+	[BC] set transient BC took 0
+->Create ST
+->Config ELE values
+->Config NOD values
+->Assign IC
+->  Gass flow is formulated as mass balance.
+.............................................
+Create: HEAT_TRANSPORT
+
+->Create MMP
+->Create NUM
+->Create EQS
+->Create TIM
+->Create BC
+	[BC] set BC took 0.001
+	[BC] set transient BC took 0
+->Create ST
+->Config ELE values
+->Config NOD values
+->Assign IC
+.............................................
+Create: MASS_TRANSPORT
+ for CONCENTRATION1  pcs_component_number 0
+->Create MMP
+->Create NUM
+->Create EQS
+->Create TIM
+->Create BC
+	[BC] set BC took 0
+	[BC] set transient BC took 0
+->Create ST
+->Config ELE values
+->Config NOD values
+->Assign IC
+pcscreatedRFR: no restart data
+Checking output data 
+
+
+***Start time steps
+Data output: Domain
+
+
+#############################################################
+Time step: 1|  Time: 1e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 1 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 668.426
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 1 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 17/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 1 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 2|  Time: 2e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 2 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 32/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.70923
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 2 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0106885
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 2 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.174013
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 3|  Time: 3e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 3 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 26/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00637113
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 3 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0104669
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 3 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.120092
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 4|  Time: 4e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 4 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 9/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 2.50402e-005
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 4 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0102525
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 4 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0877421
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 5|  Time: 5e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 5 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 1/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 3.57395e-008
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 5 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0100448
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 5 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0669894
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 6|  Time: 6e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 6 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 6 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0098437
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 6 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0529461
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 7|  Time: 7e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 7 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 7 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00964884
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 7 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0430258
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 8|  Time: 8e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 8 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 8 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00946002
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 8 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0357663
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 9|  Time: 9e+006|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 9 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 9 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00927699
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 9 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0302943
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 10|  Time: 1e+007|  Time step size: 1e+006
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 10 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 10 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 16/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00909952
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 10 dt_pcs 1e+006
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 7/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0260646
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 11|  Time: 2e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 11 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 11 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 12/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0772657
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 11 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 21/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.152629
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 12|  Time: 3e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 12 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 12 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 13/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0664713
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 12 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 21/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.100677
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 13|  Time: 4e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 13 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 13 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 13/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0578516
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 13 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 22/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0705988
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 14|  Time: 5e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 14 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 14 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 13/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0508662
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 14 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 24/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0563199
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 15|  Time: 6e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 15 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 15 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 12/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0451269
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 15 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 19/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.046288
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 16|  Time: 7e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 16 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 16 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 13/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0403517
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 16 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 20/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0386403
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 17|  Time: 8e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 17 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 17 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 13/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0363328
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 17 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 20/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0335694
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 18|  Time: 9e+007|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 18 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 18 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 12/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0329154
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 18 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 21/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.029908
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 19|  Time: 1e+008|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 19 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 19 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 12/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0299825
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 19 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 22/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0268236
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 20|  Time: 1.1e+008|  Time step size: 1e+007
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 20 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 20 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 12/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0274446
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 20 dt_pcs 1e+007
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 22/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0242597
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 21|  Time: 2.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 21 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 21 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.161297
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 21 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.169478
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 22|  Time: 3.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 22 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 22 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.106056
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 22 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 38/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.147579
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 23|  Time: 4.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 23 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 23 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.074499
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 23 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 38/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.122754
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 24|  Time: 5.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 24 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 24 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0631112
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 24 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 36/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0995359
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 25|  Time: 6.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 25 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 25 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.054829
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 25 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0799463
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 26|  Time: 7.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 26 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 26 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0476579
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 26 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0639811
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 27|  Time: 8.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 27 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 27 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0416184
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 27 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0511337
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 28|  Time: 9.1e+008|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 28 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 28 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.036606
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 28 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0408446
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 29|  Time: 1.01e+009|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 29 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 29 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0324695
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 29 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0326194
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 30|  Time: 1.11e+009|  Time step size: 1e+008
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 30 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 30 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 10/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0300618
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 30 dt_pcs 1e+008
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0260485
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 31|  Time: 2.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 31 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 31 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 27/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.18348
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 31 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 39/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0739373
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 32|  Time: 3.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 32 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 32 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 27/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.129172
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 32 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 39/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0209863
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 33|  Time: 4.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 33 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 33 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 27/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.100014
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 33 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 39/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00595671
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 34|  Time: 5.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 34 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 34 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 28/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.083801
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 34 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 38/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00169074
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 35|  Time: 6.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 35 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 35 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 28/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0754668
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 35 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 38/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.000479896
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 36|  Time: 7.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 36 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 36 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 26/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0721894
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 36 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.000136213
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 37|  Time: 8.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 37 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 37 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 27/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0677162
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 37 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 33/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 3.86624e-005
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 38|  Time: 9.11e+009|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 38 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 38 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 26/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0630303
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 38 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 33/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.09739e-005
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 39|  Time: 1.011e+010|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 39 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 39 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 27/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0584541
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 39 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 30/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 3.1148e-006
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 40|  Time: 1.111e+010|  Time step size: 1e+009
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 40 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 40 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 26/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0535432
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 40 dt_pcs 1e+009
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 28/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 8.84097e-007
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 41|  Time: 2.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 41 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 41 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.249831
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 41 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 28/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 3.37038e-007
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 42|  Time: 3.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 42 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 42 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 37/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.112494
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 42 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 25/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.28487e-008
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 43|  Time: 4.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 43 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 43 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 36/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.0500082
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 43 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 15/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 4.89867e-010
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 44|  Time: 5.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 44 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 44 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 36/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.022121
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 44 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.8846e-011
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 45|  Time: 6.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 45 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 45 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 36/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00976558
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 45 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 4/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 6.23945e-013
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 46|  Time: 7.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 46 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 46 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 36/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00430745
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 46 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 47|  Time: 8.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 47 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 47 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 33/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00189924
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 47 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 48|  Time: 9.111e+010|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 48 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 48 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 32/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.00083727
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 48 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 49|  Time: 1.0111e+011|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 49 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 49 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 32/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.000369077
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 49 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 50|  Time: 1.1111e+011|  Time step size: 1e+010
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 50 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 50 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 32/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.000162687
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 50 dt_pcs 1e+010
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 51|  Time: 2.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 51 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 51 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 32/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0.000118864
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 51 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 52|  Time: 3.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 52 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 52 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 30/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 8.68443e-006
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 52 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 53|  Time: 4.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 53 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 53 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 28/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 6.34499e-007
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 53 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 54|  Time: 5.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 54 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 54 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 21/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 4.63573e-008
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 54 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 55|  Time: 6.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 55 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 55 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 21/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 3.38694e-009
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 55 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 56|  Time: 7.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 56 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 56 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 11/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 2.47341e-010
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 56 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 57|  Time: 8.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 57 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 57 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 8/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.81573e-011
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 57 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 58|  Time: 9.1111e+011|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 58 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 58 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 5/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 1.37412e-012
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 58 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 59|  Time: 1.01111e+012|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 59 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 59 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 59 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+
+#############################################################
+Time step: 60|  Time: 1.11111e+012|  Time step size: 1e+011
+
+      ================================================
+    ->Process 0: LIQUID_FLOW
+      time step 60 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+->Calculate velocity
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process 1: HEAT_TRANSPORT
+      time step 60 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+      ================================================
+    ->Process   2: MASS_TRANSPORT
+    ->Component 0: CONCENTRATION1
+      time step 60 dt_pcs 1e+011
+      ================================================
+    PCS non-linear iteration: 0/1
+      Assembling equation system...
+      Calling linear solver...
+	  SpBICGSTAB iteration: 0/3000 
+      -->LINEAR solution complete. 
+         PCS error DOF[0]: 0
+
+This step is accepted.
+Data output: Domain
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX MIDDLE
+Data output: LIQUID_FLOW TOTAL_FLUX MIDDLE
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX LEFT
+Data output: LIQUID_FLOW TOTAL_FLUX LEFT
+->Calculate velocity
+Data output: HEAT_TRANSPORT TOTAL_FLUX RIGHT
+->Calculate velocity
+Data output: MASS_TRANSPORT TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_FLUX RIGHT
+Data output: LIQUID_FLOW TOTAL_CONTENT -1
+Data output: LIQUID_FLOW TOTAL_CONTENT 0
+Data output: LIQUID_FLOW TOTAL_CONTENT 1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT -1
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 0
+Data output: HEAT_TRANSPORT TOTAL_CONTENT 1
+Data output: MASS_TRANSPORT TOTAL_CONTENT -1
+Data output: MASS_TRANSPORT TOTAL_CONTENT 0
+Data output: MASS_TRANSPORT TOTAL_CONTENT 1
+
+#############################################################
+
+----------------------------------------------------
+
+For process: LIQUID_FLOW
+No time control for this process.
+
+For process: HEAT_TRANSPORT
+No time control for this process.
+
+For process: MASS_TRANSPORT
+No time control for this process.
+
+----------------------------------------------------
+GetRFProcessProcessingAndActivation - to be removed
+
+^O^: Your simulation is terminated normally ^O^ 
+Simulation time: 1s
