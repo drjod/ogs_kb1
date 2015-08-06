@@ -346,6 +346,8 @@ DistributionType convertDisType(const std::string& dis_type_string)
 		return CONSTANT_GEO;
 	if (dis_type_string.compare("GRADIENT") == 0)
 		return GRADIENT;
+	if (dis_type_string.compare("BOUNDED") == 0)  // JODNEW
+		return BOUNDED;
 	if (dis_type_string.compare("RESTART") == 0)
 		return RESTART;
 	if (dis_type_string.compare("LINEAR") == 0)

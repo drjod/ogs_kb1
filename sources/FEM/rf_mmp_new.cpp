@@ -1941,59 +1941,27 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  //------------------------------------------------------------------------
 	  if (line_string.find("$ELEMENT_VOLUME_MULTIPLYER") != std::string::npos)
 	  {
-		  std::string ElementVolumeMultiplyer_vector_type_name;
-		  in.str(GetLineFromFile1(mmp_file));
-		  in >> ElementVolumeMultiplyer_vector_type_name;
-		  switch (ElementVolumeMultiplyer_vector_type_name[0])
-		  {
-		  case 'I':     // isotropic
-			  in >> ElementVolumeMultiplyer;
-				  
-			  if (geo_dimension == 1){
-				  ElementLengthMultiplyer_vector[0] = ElementVolumeMultiplyer;
-			  }
-			  else if (geo_dimension == 2){
-				  ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1] = pow(ElementVolumeMultiplyer, 0.5);
-			  }
-			  else if (geo_dimension == 3){
-				  ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1] 
-					  = ElementLengthMultiplyer_vector[2] = pow(ElementVolumeMultiplyer, 0.333333333333333);
-			  }
-			  else
-			  {
-				  std::cout <<
-					  "Error in CMediumProperties::Read: no geometric dimension"
-					  << "\n";
-			  }
-			  break;
-		  case 'O':     // orthotropic
-			  if (geo_dimension == 1){
-				  std::cout <<
-					  "Error in CMediumProperties::Take isotropic"
-					  << "\n";
-			  }
-			  else if (geo_dimension == 2)
-			  {
-				  in >> ElementLengthMultiplyer_vector[0];
-				  in >> ElementLengthMultiplyer_vector[1];
-				  ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
-			  }
-			  else if (geo_dimension == 3)
-			  {
-				  in >> ElementLengthMultiplyer_vector[0];
-				  in >> ElementLengthMultiplyer_vector[1];
-				  in >> ElementLengthMultiplyer_vector[2];
-				  ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
-			  }
-			  else
-			  {
-				  std::cout <<
-					  "Error in CMediumProperties::Read: no geometric dimension"
-					  << "\n";
-			  }
+		 std::string ElementVolumeMultiplyer_vector_type_name;
+		 in.str(GetLineFromFile1(mmp_file));
 
-			  break;
-		  }
+	     if (geo_dimension == 1){
+			in >> ElementLengthMultiplyer_vector[0];
+			ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
+	     }
+		 else if (geo_dimension == 2)
+		 {
+			in >> ElementLengthMultiplyer_vector[0];
+		    in >> ElementLengthMultiplyer_vector[1];
+		    ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
+		 }
+		 else if (geo_dimension == 3)
+		 {
+			in >> ElementLengthMultiplyer_vector[0];
+			in >> ElementLengthMultiplyer_vector[1];
+		    in >> ElementLengthMultiplyer_vector[2];
+			ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
+		 }
+			 
 			
 
 		  in.clear();

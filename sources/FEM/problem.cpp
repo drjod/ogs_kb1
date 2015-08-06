@@ -1677,7 +1677,7 @@ inline double Problem::LiquidFlow()
 #ifdef RESET_4410
 		PCSCalcSecondaryVariables(); // PCS member function
 #endif
-		m_pcs->CalIntegrationPointValue(); //WW , removed by JOD - somebody put this also into execute() and now it's calculated twice
+		//m_pcs->CalIntegrationPointValue(); //WW , removed by JOD - somebody put this also into execute() and now it's calculated twice
 		if(m_pcs->tim_type == TimType::STEADY)
 			m_pcs->selected = false;
 	}

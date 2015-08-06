@@ -325,6 +325,15 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 				in >> gradient_ref_depth_value; //CMCD
 				in >> gradient_ref_depth_gradient; //CMCD
 			}
+			else if (this->getProcessDistributionType() == FiniteElement::BOUNDED) // JODNEW
+			{
+				in >> gradient_ref_depth;         // z-coord of lower bound
+				in >> gradient_ref_depth_value;   // lower bound value
+				in.clear();
+				in.str(GetLineFromFile1(ic_file));
+				in >> gradient_ref_depth1;         // z-coord of upper bound
+				in >> gradient_ref_depth_value1;   // upper bound value
+			}
 			else if (this->getProcessDistributionType() == FiniteElement::RESTART)
 				in >> rfr_file_name;
 			else if (this->getProcessDistributionType() == FiniteElement::DIRECT)
@@ -810,14 +819,14 @@ void CInitialCondition::SetDomain(int nidx)
 			// if (this->getProcess()->pcs_type_name.compare("OVERLAND_FLOW") == 0)
 			if (this->getProcess()->getProcessType() == FiniteElement::OVERLAND_FLOW)
 				//OK MSH
-				for (i = 0; i < this->getProcess()->m_msh->GetNodesNumber(false);
-				     i++)
-				{
-					node_val = geo_node_value +
-					           this->getProcess()->m_msh->nod_vector[i]->
-					           getData()[2];
-					this->getProcess()->SetNodeValue(i, nidx, node_val);
-				}
+			for (i = 0; i < this->getProcess()->m_msh->GetNodesNumber(false);
+				i++)
+			{
+				node_val = geo_node_value +
+					this->getProcess()->m_msh->nod_vector[i]->
+					getData()[2];
+				this->getProcess()->SetNodeValue(i, nidx, node_val);
+			}
 			else
 			{
 				//................................................................
@@ -832,19 +841,42 @@ void CInitialCondition::SetDomain(int nidx)
 		// Remove unused stuff by WW
 		if (this->getProcessDistributionType() == FiniteElement::GRADIENT)
 			//WW
+		for (i = 0; i < m_msh->GetNodesNumber(true); i++)
+		{
+			if (onZ == 1) //2D
+				node_depth = m_msh->nod_vector[i]->getData()[1];
+			if (onZ == 2) //3D
+				node_depth = m_msh->nod_vector[i]->getData()[2];
+			node_val = gradient_ref_depth_gradient * (gradient_ref_depth
+				- node_depth) +
+				gradient_ref_depth_value;
+			this->getProcess()->SetNodeValue(
+				m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
+		}
+		//----------------------------------------------------------------------
+		if (this->getProcessDistributionType() == FiniteElement::BOUNDED)  // JODNEW
+		{
 			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
 			{
 				if (onZ == 1) //2D
 					node_depth = m_msh->nod_vector[i]->getData()[1];
 				if (onZ == 2) //3D
 					node_depth = m_msh->nod_vector[i]->getData()[2];
-				node_val = gradient_ref_depth_gradient * (gradient_ref_depth
-				                                          - node_depth) +
-				           gradient_ref_depth_value;
-				this->getProcess()->SetNodeValue(
-				        m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
+
+				node_val = gradient_ref_depth_value + (node_depth - gradient_ref_depth)  * (gradient_ref_depth_value1 - gradient_ref_depth_value) / (gradient_ref_depth1 - gradient_ref_depth);
+				// y = y0 + (x-x0) (y1 - y0) / (x1-x0)	
+				/*if (node_val < gradient_ref_depth_value)   // bound
+					node_val = gradient_ref_depth_value;
+				if (node_val > gradient_ref_depth_value1)
+					node_val = gradient_ref_depth_value1;*/
+
+				if (node_val >= gradient_ref_depth_value && node_val <= gradient_ref_depth_value1) // bound
+				{
+					this->getProcess()->SetNodeValue(
+						m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
+				}
 			}
-		//if(dis_type_name.find("GRADIENT")!=string::npos)
+		}
 		//----------------------------------------------------------------------
 		if (this->getProcessDistributionType() == FiniteElement::RESTART)
 		{

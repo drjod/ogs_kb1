@@ -16533,12 +16533,13 @@ Task:  loops over elements and prepares integration, checks mmp_index, all eleme
 Used in COutput::AccumulateContent
 Programming:
 12/2014 JOD Implementation
+7/2015 JOD consider geoArea
 **************************************************************************/
 
 double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
 {
 
-	double nodesVal[8], content = 0;
+	double nodesVal[8], z_coord[8], content = 0, geoArea;
 	CNode* e_node;
 	int nidx1;
 	if (_nod_value_vector.size() == 1)
@@ -16554,17 +16555,18 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 			CElem* elem(m_msh->ele_vector[i]);
 			if (!elem->GetMark())
 				continue;
-
+			
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
-			fem->ConfigElement(elem, false);
+			fem->ConfigElement(elem, false); 
+			geoArea = elem->GetFluxArea();
 			size_t nn = elem->GetNodesNumber(m_msh->getOrder());
 			for (size_t j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
-
-			content += fem->CalculateContent(nodesVal);
+			content += fem->CalculateContent(nodesVal, z_coord) * geoArea;
 		}
 	}
 

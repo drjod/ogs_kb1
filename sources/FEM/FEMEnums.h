@@ -183,6 +183,7 @@ const std::list<std::string> getAllPrimaryVariableNames();
 	RECHARGE_DIRECT,
 	FUNCTION,
 	GRADIENT,                             // IC
+	BOUNDED,                              // IC
 	GREEN_AMPT,                           // ST
 	RESTART,                              // IC
 	LINEAR,                               // BC, ST

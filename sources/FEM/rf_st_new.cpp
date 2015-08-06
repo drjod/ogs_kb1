@@ -4005,6 +4005,8 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
 		   || st->getProcessDistributionType() == FiniteElement::GREEN_AMPT
 		   || st->getProcessDistributionType() == FiniteElement::RECHARGE)
    {
+
+
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
          st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements

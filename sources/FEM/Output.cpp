@@ -36,7 +36,6 @@
 // MathLib
 #include "MathTools.h"
 #include "matrix_class.h" // JOD 2014-11-10
-#include "InterpolationAlgorithms/PiecewiseLinearInterpolation.h"// JOD 02/2015 - especially 4 special axisymmetry function InterpolatePoints2Nodes()
 #include "LegacyVtkInterface.h" // JODNEW
 
 #include "mathlib.h"
@@ -4135,6 +4134,14 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 	string tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_";
 	if (_nod_value_vector.size() > 0)
 		tec_file_name += _nod_value_vector[0] + "_"; 
+
+	if (this->getGeoType() == GEOLIB::POLYLINE)
+		tec_file_name += "ply_";
+	else if (this->getGeoType() == GEOLIB::SURFACE)
+		tec_file_name += "surf_";
+	else
+		cout << "WARNING - geotype not supported in TOTAL_FLUX calculation";
+
 	tec_file_name += geo_name + "_TOTAL_FLUX";
 
 #if defined(USE_PETSC)  // JODNEW
@@ -4271,6 +4278,7 @@ Programing:
 void COutput::WriteContent(double time_current, int time_step_number)
 {
 
+	double factor;
 	CFEMesh* m_msh = NULL;
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	CRFProcess* m_pcs = NULL;
@@ -4279,6 +4287,11 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	else
 		m_pcs = PCSGet(getProcessType());
 	bool output = false;
+
+	if (m_pcs->m_msh->isAxisymmetry())
+		factor = 6.283185307; // 2 Pi 
+	else
+		factor = 1;
 	//--------------------------------------------------------------------
 	// File handling
 	string tec_file_name;
@@ -4324,7 +4337,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 		if (output == true)
 		{
-			tec_file << time_current << "    " << m_pcs->AccumulateContent(mmp_index, _nod_value_vector) << "\n";
+			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index, _nod_value_vector) << "\n";
 			cout << "Data output: " << convertProcessTypeToString(getProcessType());
 			if (_nod_value_vector.size() == 1)
 				cout << " " << _nod_value_vector[0]; 
@@ -4344,7 +4357,7 @@ provisional - needs to be put to GEO together with integration in ST
 Programming:
 2/2015 JOD Implementation
 **************************************************************************/
-
+/*
 void COutput::InterpolatePoints2Nodes(std::vector<double>&nod_val_vector)
 {
 
@@ -4372,19 +4385,20 @@ void COutput::InterpolatePoints2Nodes(std::vector<double>&nod_val_vector)
 
 	}
 }
-
+*/
 
 /**************************************************************************
 OpenGeoSys - Funktion
 Task:  Gives advection and diffusion fluxes at nodes - Used in COutput::AccumulateTotalFlux
 Programming:
 2/2015 JOD Implementation
+7/2015 JOD axisymmetry
 **************************************************************************/
 
 void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* nodesFace, int nfn, double *NodeVal, double *NodeVal_adv)
 {
 
-	double flux[3], flux_normal;
+	double flux[3], flux_normal, factor;
 	CNode* e_node;
 	CRFProcess *m_pcs_flow = NULL;
 	for (size_t i = 0; i < pcs_vector.size(); i++)
@@ -4397,6 +4411,14 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 	for (int k = 0; k < nfn; k++) {
 
 		e_node = elem->GetNode(nodesFace[k]);
+
+		if (m_pcs->m_msh->isAxisymmetry())
+		{
+			factor = elem->GetFluxArea() * m_pcs->m_msh->nod_vector[e_node->GetIndex()]->getData()[0] * 6.283185307; // 2 Pi x (x is radius) 
+		}
+		else
+			factor = elem->GetFluxArea();
+
 
 		if (m_pcs_flow == NULL)
 			flux[0] = flux[1] = flux[2] = 0;
@@ -4411,12 +4433,12 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 		switch (m_pcs->getProcessType())
 		{
 		case FiniteElement::LIQUID_FLOW:
-			NodeVal[k] = flux_normal;
+			NodeVal[k] = flux_normal * factor;
 			break;
 
 		case FiniteElement::MASS_TRANSPORT: case FiniteElement::HEAT_TRANSPORT:
 
-			NodeVal_adv[k] = m_pcs->GetNodeValue(e_node->GetIndex(), ndx1) * flux_normal;				// advection
+			NodeVal_adv[k] = m_pcs->GetNodeValue(e_node->GetIndex(), ndx1) * flux_normal * factor;				// advection
 
 			if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
 				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
@@ -4425,7 +4447,7 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 			flux[1] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Y1"));
 			flux[2] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Z1"));
 
-			NodeVal[k] = PointProduction(flux, face->normal_vector);  // Fick / Fourrier
+			NodeVal[k] = PointProduction(flux, face->normal_vector) * factor;  // Fick / Fourrier
 			break;
 
 		default:
@@ -4447,7 +4469,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 {
 
 	int nfaces, nfn, nodesFace[8], count;
-	double fac, nodesFVal[8], nodesFVal_adv[8];
+	double fac, nodesFVal[8], nodesFVal_adv[8], geoArea;
 	int Axisymm = 1;                               // ani-axisymmetry
 	if (m_pcs->m_msh->isAxisymmetry())
 		Axisymm = -1;                               // Axisymmetry is true
@@ -4462,8 +4484,8 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	SetTotalFluxNodes(nodes_on_geo);  //get  nodes on geo object (put in preprocess)
 	std::vector<double> nod_val_vector;
 	nod_val_vector.resize(nodes_on_geo.size());
-	if (dis_type == "LINEAR")  //  used in radial Wärmesonde example with axisymmetry keyword - INACTIVE RIGHT NOW
-		InterpolatePoints2Nodes(nod_val_vector);
+	//if (dis_type == "LINEAR")  //  used in radial Wärmesonde example with axisymmetry keyword - INACTIVE RIGHT NOW
+	//	InterpolatePoints2Nodes(nod_val_vector);
 
 	face->SetFace();
 	for (long i = 0; i < (long)nodes_on_geo.size(); i++)
@@ -4489,7 +4511,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			continue;
 		nfaces = elem->GetFacesNumber();
 		elem->SetOrder(m_pcs->m_msh->getOrder());
-
+		
 		for (long j = 0; j < nfaces; j++) {
 
 			e_nei = elem->GetNeighbor(j);
@@ -4542,93 +4564,6 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	}
 }
 
-/*
-void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, double* normal_flux_adv) //const
-{
-
-	int nfaces, nfn, nodesFace[8], count;
-	double fac, nodesFVal[8], nodesFVal_adv[8];
-	int Axisymm = 1;                               // ani-axisymmetry
-	if (m_pcs->m_msh->isAxisymmetry())
-		Axisymm = -1;                               // Axisymmetry is true
-	CNode* e_node;
-	CElem *elem = NULL, *e_nei = NULL, *face = new CElem(1);
-	FiniteElement::CElement* element = new FiniteElement::CElement(Axisymm * m_pcs->m_msh->GetCoordinateFlag());
-	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
-	vector<long> nodes_on_geo, elements_at_geo;
-	set<long> set_nodes_on_geo;
-
-	// ----- initialize --------------------------------------------------------------------
-	SetTotalFluxNodes(nodes_on_geo);  //get  nodes on geo object (put in preprocess)
-	std::vector<double> nod_val_vector;
-	nod_val_vector.resize(nodes_on_geo.size());
-	if (dis_type == "LINEAR")  //  used in radial Wärmesonde example with axisymmetry keyword - INACTIVE RIGHT NOW
-		InterpolatePoints2Nodes(nod_val_vector);
-
-	face->SetFace();
-	for (long i = 0; i < (long)nodes_on_geo.size(); i++)
-		set_nodes_on_geo.insert(nodes_on_geo[i]);
-	m_pcs->m_msh->GetConnectedElements(nodes_on_geo, elements_at_geo);
-
-	if ((m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)) {
-		m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
-		m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
-	}
-
-	// face integration
-	for (long i = 0; i < (long)elements_at_geo.size(); i++) {
-
-		elem = m_pcs->m_msh->ele_vector[elements_at_geo[i]];
-		if (!elem->GetMark())
-			continue;
-		nfaces = elem->GetFacesNumber();
-		elem->SetOrder(m_pcs->m_msh->getOrder());
-
-		for (long j = 0; j < nfaces; j++) {
-
-			e_nei = elem->GetNeighbor(j);
-			nfn = elem->GetElementFaceNodes(j, nodesFace);
-			// is element face on surface? 1st check
-			if (elem->selected < nfn)
-				continue;
-			//2nd check
-			count = 0;
-			for (int k = 0; k < nfn; k++)
-			{
-				e_node = elem->GetNode(nodesFace[k]);
-				if (set_nodes_on_geo.count(e_node->GetIndex()) > 0)
-					count++;
-			}
-			if (count != nfn)
-				continue;
-			// --------
-			fac = 1.0;
-			if (elem->GetDimension() == e_nei->GetDimension())
-				fac = 0.5;   // Not a surface face
-			face->SetFace(elem, j);
-			face->SetOrder(m_pcs->m_msh->getOrder());
-			face->ComputeVolume();
-			face->SetNormalVector();
-			face->DirectNormalVector();
-			element->ConfigElement(face, true); // 2D fem	
-			//element->setOrder(m_pcs->m_msh->getOrder() + 1);
-			//face->ComputeVolume();    
-			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
-			element->CalculateFluxThroughFace(elements_at_geo[i], fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
-
-		} // end j, faces
-	} // end i, elements at surface
-
-	delete element;
-	delete face;
-	delete fem;
-
-}
-*/
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//
-// JODNEW
 
 //// PVD
 

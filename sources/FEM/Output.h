@@ -168,7 +168,7 @@ public:
 	void SetTotalFluxNodesSURF(std::vector<long>& nodes_vector); // JOD 2014-11-10
 	void SetTotalFluxNodesDOM(std::vector<long>& nodes_vector); // JOD 2014-11-10
 	void NODCalcFlux(CRFProcess*, MeshLib::CElem *, MeshLib::CElem*, int*, int, double *, double *);   // JOD 2/2015
-	void InterpolatePoints2Nodes(std::vector<double>&);   // JOD 2/2015
+	//void InterpolatePoints2Nodes(std::vector<double>&);   // JOD 2/2015
     //------------------------------------------------------
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 	void setMPI_Info(const int rank, const int size, std::string rank_str);
