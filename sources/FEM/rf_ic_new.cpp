@@ -329,8 +329,6 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 			{
 				in >> gradient_ref_depth;         // z-coord of lower bound
 				in >> gradient_ref_depth_value;   // lower bound value
-				in.clear();
-				in.str(GetLineFromFile1(ic_file));
 				in >> gradient_ref_depth1;         // z-coord of upper bound
 				in >> gradient_ref_depth_value1;   // upper bound value
 			}
