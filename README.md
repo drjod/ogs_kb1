@@ -51,20 +51,23 @@ numberOfPartitions = 2, 3, 4,... <br>
 
 ##### Linear solver options
 
+With OGS_FEM, OGS_FEM_SP: <br>
 1 Gauss <br>
-2 BiCGStab OGS_FEM_MPI <br>
-3 BiCG OGS_FEM_MPI <br>
+2 BiCGStab (OGS_FEM_MPI) <br>
+3 BiCG (OGS_FEM_MPI) <br>
 4 QMRGG Stab <br>
-5 CG OGS_FEM_MPI <br>
+5 CG (OGS_FEM_MPI) <br>
 6 CGNR <br>
-7 CGS OGS_FEM_MPI <br>
+7 CGS (OGS_FEM_MPI) <br>
 8 Richardson <br>
 9 JOR <br>
 10 SOR <br>
 11 AMG1R5 <br>
 12 UMF <br>
 13 GMRes <br>
-805 Pardiso MKL <br>
+
+With OGS_FEM_MKL
+805 Pardiso <br>
 
 ##### Preconditioners
 
