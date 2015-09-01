@@ -3,7 +3,7 @@
 
 
 
-### Cheatsheet 
+### Cheat sheet 
 
 for OGS on RZ cluster Kiel
 
@@ -121,13 +121,13 @@ petsc solver preconditioner errorTolerance maxInterations Theta
 
 ##### Convergence
 
-0 r<e
-1 r/b<e
-2 r_n1/r_n<e
-3 if r_n1>1 then r_n1/r_n < e else r<e
-4 r/x<e
-5 r_n1/max(x,b,r_n)<e
-6 ???
+0 r<e <br>
+1 r/b<e <br>
+2 r_n1/r_n<e <br>
+3 if r_n1>1 then r_n1/r_n < e else r<e <br>
+4 r/x<e <br>
+5 r_n1/max(x,b,r_n)<e <br>
+6 ??? <br>
 
 ##### Matrix storage
 
