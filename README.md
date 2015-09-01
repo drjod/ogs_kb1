@@ -8,69 +8,69 @@
 for OGS on RZ cluster Kiel
 
 #### PBS
-qstat
-qstat –u $LOGIN
-qstat –q angus
-qdel –f $JOBID
-mpi: #PBS -l select=1:ncpus=2:mpiprocs=2:mem=1gb:place=scatter
-omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host
+qstat <br>
+qstat –u $LOGIN <br>
+qstat –q angus <br>
+qdel –f $JOBID <br>
+mpi: #PBS -l select=1:ncpus=2:mpiprocs=2:mem=1gb:place=scatter <br>
+omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host <br>
 
 #### Compilation
 
-Script compileInKiel.sh for RZ (and NEC) cluster Kiel in repository tUNIX
+Script compileInKiel.sh for RZ (and NEC) cluster Kiel in repository tUNIX <br>
 
 ##### Compiler
-icc, icpc: /cluster/Software/intel14/composer_xe_2013_sp1/bin
-     /cluster/Software/intel14/composer_xe_2013_sp1/bin/compilervars.sh intel64
-mpiicc, mpiicpc: /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin
-     /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin/mpivars.sh
+icc, icpc: /cluster/Software/intel14/composer_xe_2013_sp1/bin <br>
+     /cluster/Software/intel14/composer_xe_2013_sp1/bin/compilervars.sh intel64 <br>
+mpiicc, mpiicpc: /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin <br>
+     /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin/mpivars.sh <br>
 
-Composer: /cluster/Software/intel14/composer_xe_2013_sp1.0.080
-export PATH=$PATH:/cluster/Software/intel14/composer_xe_2013_sp1.0.080/compiler/lib/intel64
+Composer: /cluster/Software/intel14/composer_xe_2013_sp1.0.080 <br>
+export PATH=$PATH:/cluster/Software/intel14/composer_xe_2013_sp1.0.080/compiler/lib/intel64 <br>
 
 #### Libs
 
 ##### MKL
-/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl
-/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl/bin/mklvars.sh intel64
+/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl <br>
+/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl/bin/mklvars.sh intel64 <br>
 
 #####PETSC 
-/work_j/SoftwareSL/Dpetsc/Dintel14/petsc-3.3-p4
-module load petsc-3.3-p4-intel	
+/work_j/SoftwareSL/Dpetsc/Dintel14/petsc-3.3-p4 <br>
+module load petsc-3.3-p4-intel <br>	
 
 #### Mesh partitioning 
 
-Script partition.sh for domain decomposition with METIS in repository icbc/remote/easyPeasy (calls partmesh from  ufz/mesh_partition)
+Script partition.sh for domain decomposition with METIS in repository icbc/remote/easyPeasy (calls partmesh from  ufz/mesh_partition) <br>
 
-For OGE_FEM_MPI: ./partition.sh numberOfPartitions –e –asci path (or no path)
-For OGS_FEM_PETSC: ./partition.sh numberOfPartitions –n –bin path (or no path)
+For OGE_FEM_MPI: ./partition.sh numberOfPartitions –e –asci path (or no path) <br>
+For OGS_FEM_PETSC: ./partition.sh numberOfPartitions –n –bin path (or no path) <br>
 
-numberOfPartitions = 2, 3, 4,...
+numberOfPartitions = 2, 3, 4,... <br>
 
 #### Numerics
 
 ##### Linear solver options
 
-1 Gauss
-2 BiCGStab OGS_FEM_MPI
-3 BiCG OGS_FEM_MPI
-4 QMRGG Stab
-5 CG OGS_FEM_MPI
-6 CGNR
-7 CGS OGS_FEM_MPI
-8 Richardson
-9 JOR
-10 SOR
-11 AMG1R5
-12 UMF
-13 GMRes
-805 Pardiso MKL
+1 Gauss <br>
+2 BiCGStab OGS_FEM_MPI <br>
+3 BiCG OGS_FEM_MPI <br>
+4 QMRGG Stab <br>
+5 CG OGS_FEM_MPI <br>
+6 CGNR <br>
+7 CGS OGS_FEM_MPI <br>
+8 Richardson <br>
+9 JOR <br>
+10 SOR <br>
+11 AMG1R5 <br>
+12 UMF <br>
+13 GMRes <br>
+805 Pardiso MKL <br>
 
 ##### Preconditioners
 
-0 No
-1 Jacobi (for OGS_FEM_MPI)
-100 ILU
+0 No <br>
+1 Jacobi (for OGS_FEM_MPI) <br>
+100 ILU <br>
 
 ##### Coupled Simulation
 
@@ -112,7 +112,7 @@ LMAX 1e-1  ; Error tolerance in coupling loop
 
 ##### PETSC
 
-Solver bcgs, gmres, etc.
+Solver bcgs, gmres, etc. <br>
 Preconditioner jacobi, bjacobi, sor, asm, mg
 ```
 $LINEAR_SOLVER
@@ -131,18 +131,18 @@ petsc solver preconditioner errorTolerance maxInterations Theta
 
 ##### Matrix storage
 
-1) vollbesetzte Matrix
-( param1 = Dimension )
-(2) nur A[i,j]!=0 werden gespeichert (Sparse)
-( param1 = Dimension )
-(3) symmetrische sparse Matrix
-fuer Preconditioner "incomplete Cholesky"
-nur Aik !=0 mit k>=i werden gespeichert
-( param1 = Dimension )
-(4) unsymmetrische sparse Matrix
-fuer Preconditioner "incomplete LDU-Zerlegung"
-nur Aik !=0 werden gespeichert
-( param1 = Dimension )
+1) vollbesetzte Matrix <br>
+( param1 = Dimension ) <br>
+(2) nur A[i,j]!=0 werden gespeichert (Sparse) <br>
+( param1 = Dimension ) <br>
+(3) symmetrische sparse Matrix <br>
+fuer Preconditioner "incomplete Cholesky" <br>
+nur Aik !=0 mit k>=i werden gespeichert <br>
+( param1 = Dimension ) <br>
+(4) unsymmetrische sparse Matrix <br>
+fuer Preconditioner "incomplete LDU-Zerlegung" <br>
+nur Aik !=0 werden gespeichert <br>
+( param1 = Dimension ) <br>
 
 ##### Flux corrected transport (FCT)
 
@@ -151,9 +151,9 @@ In *num:
 $FEM_FCT
 method prelimiterType const_alpha
 ```
-method 1: linearized FCT
-prelimiterType 0: just cancel, 1: minmod, 2: superbee
-fct_const_apha -1: off (is default), [0.0, 1.0] 0: upwind, 1: galerkin
+method 1: linearized FCT <br>
+prelimiterType 0: just cancel, 1: minmod, 2: superbee <br>
+fct_const_apha -1: off (is default), [0.0, 1.0] 0: upwind, 1: galerkin <br>
 
 #### Adaptive time stepping
 
@@ -182,7 +182,8 @@ COUPLED ; for outer coupling loop (take keyword LINEAR for solver, NONLINEAR for
 
 #### Large pore volume cells (LPVC)
 
-See [wiki page](https://github.com/drjod/ogs_kb1/wiki/LPVC)
+See [wiki page](https://github.com/drjod/ogs_kb1/wiki/LPVC) <br>
+Example:
 ```
 #MEDIUM PROPERTIES
 …
@@ -201,9 +202,9 @@ GRADIENT ref_depth ref_depth_value ref_depth_gradient
 
 ##### Fluxes
 
-Darcy flux
-1st phase at nodes: VELOCITY_X1 VELOCITY_Y1 VELOCITY_Z1
-1st phase at gauss point nr 0: VELOCITY1_X VELOCITY1_Y VELOCITY1_Z
+Darcy flux <br>
+1st phase at nodes: VELOCITY_X1 VELOCITY_Y1 VELOCITY_Z1 <br>
+1st phase at gauss point nr 0: VELOCITY1_X VELOCITY1_Y VELOCITY1_Z <br>
 
 To get fick flux,add 
 ```
@@ -215,7 +216,7 @@ and to get fourier flux, add
 $PCS_TYPE
   HEAT_TRANSPORT
 ```  
-to output instance. 
+to output instance.  <br>
 
 ##### Change to initial state
 
@@ -233,7 +234,7 @@ DELTA_CONCENTRATION1
 
 ##### Mass balancing toolkit
 
-See [wiki page](https://github.com/drjod/ogs_kb1/wiki/Balancing-toolkit)
+See [wiki page](https://github.com/drjod/ogs_kb1/wiki/Balancing-toolkit) <br>
 
 Example:
 ```
@@ -255,7 +256,7 @@ STEPS 1
 
 ##### Nom-neighbor node connections
 
-See [wiki page] (https://github.com/drjod/ogs_kb1/wiki/NNNC)
+See [wiki page] (https://github.com/drjod/ogs_kb1/wiki/NNNC) <br>
 
 Example:
 ```
