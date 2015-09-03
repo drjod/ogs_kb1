@@ -1,3 +1,4 @@
+
 #SOURCE_TERM
   $PCS_TYPE
    LIQUID_FLOW
@@ -7,4 +8,5 @@
    POLYLINE BC_RIGHT_FLOW
   $DIS_TYPE
    CONSTANT_NEUMANN -2.48e-6 ; entspricht q*GA*Breite/Breite [m/s] 
+
 #STOP

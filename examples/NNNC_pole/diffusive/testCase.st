@@ -1,3 +1,8 @@
+GeoSys-ST: Source Terms ------------------------------------------------
+
+
+
+
 
 #SOURCE_TERM
  $PCS_TYPE
@@ -7,9 +12,11 @@
  $GEO_TYPE
   SURFACE SURF_3  
  $DIS_TYPE
-  CONSTANT_NEUMANN      2000.0 
+  CONSTANT_NEUMANN      2000.0  ; // 2000  
  $FCT_TYPE
   Time_ST_curve
+
+
 
 #SOURCE_TERM
  $PCS_TYPE
@@ -33,3 +40,49 @@
 #STOP
 
 
+
+
+
+
+
+#SOURCE_TERM
+ $PCS_TYPE
+  MASS_TRANSPORT
+ $PRIMARY_VARIABLE 
+  Tracer
+ $GEO_TYPE
+  SURFACE SURF_3   ;;POLYLINE PLY_2
+ $DIS_TYPE
+  CONSTANT_NEUMANN      2.0  ; // 2000  
+; $FCT_TYPE
+;  Time_ST_curve
+
+
+
+#SOURCE_TERM
+ $PCS_TYPE
+  MASS_TRANSPORT
+ $PRIMARY_VARIABLE 
+  Tracer
+ $GEO_TYPE
+  SURFACE SURF_1   ;;POLYLINE PLY_2
+ $DIS_TYPE
+  CONSTANT_NEUMANN      1.0
+; $COPY_VALUE
+; POINT P_OUT 0
+ $CONNECTED_GEOMETRY
+  SURFACE SURF_2  1000 1 0 ; alpha verbosity geomodel
+
+
+#STOP
+
+
+#SOURCE_TERM
+ $PCS_TYPE
+  LIQUID_FLOW
+ $PRIMARY_VARIABLE 
+  PRESSURE1
+ $GEO_TYPE
+  SURFACE SURF_2   ;;POLYLINE PLY_2
+ $DIS_TYPE
+  CONSTANT_NEUMANN      -5e-4  ; // 5e-4

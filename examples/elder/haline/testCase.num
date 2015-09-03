@@ -9,10 +9,10 @@ $OVERALL_COUPLING
   1
  $LINEAR_SOLVER
   ; method error_tolerance max_iterations theta precond storage
-  2      6 1e-014       1000           1.0   1       2                 ; small error tolerance!!!!!
+  2      6 1e-014       5000           1.0   1       2                 ; small error tolerance!!!!!
  $NON_LINEAR_ITERATIONS
   ;type -- error_method -- max_iterations -- relaxation -- tolerance(s)
-  PICARD LMAX 25 0.0 1.
+  PICARD LMAX 100 0.0 1.
  $ELE_GAUSS_POINTS
   2
  $COUPLING_CONTROL
@@ -25,11 +25,11 @@ $OVERALL_COUPLING
   2
  $LINEAR_SOLVER
   ; method error_tolerance max_iterations theta precond storage
-  2      6 1e-014       1000           1.0   1       2                  ; small error tolerance!!!!!
+  2      6 1e-014       5000           1.0   1       2                  ; small error tolerance!!!!!
  $NON_LINEAR_ITERATIONS
   ;type -- error_method -- max_iterations -- relaxation -- tolerance(s)
-  PICARD LMAX 25 0.0 1e-4
+  PICARD LMAX 100 0.0 1.e-3
  $COUPLING_CONTROL
-  LMAX 1e-4
+  LMAX 1e-3
 
 #STOP

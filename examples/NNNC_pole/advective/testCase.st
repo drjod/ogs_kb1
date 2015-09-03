@@ -1,3 +1,8 @@
+GeoSys-ST: Source Terms ------------------------------------------------
+
+
+
+
 
 #SOURCE_TERM
  $PCS_TYPE
@@ -7,9 +12,11 @@
  $GEO_TYPE
   SURFACE SURF_3  
  $DIS_TYPE
-  CONSTANT_NEUMANN      2000.0  
+  CONSTANT_NEUMANN      2000.0  ; // 2000  
  $FCT_TYPE
   Time_ST_curve
+
+
 
 #SOURCE_TERM
  $PCS_TYPE
@@ -19,7 +26,10 @@
  $GEO_TYPE
   SURFACE SURF_3   
  $DIS_TYPE
-  CONSTANT_NEUMANN      2.0 
+  CONSTANT_NEUMANN      2.0  ; // 2000  
+; $FCT_TYPE
+;  Time_ST_curve
+
 
 
 #SOURCE_TERM
@@ -43,3 +53,13 @@
 
 #STOP
 
+
+#SOURCE_TERM
+ $PCS_TYPE
+  LIQUID_FLOW
+ $PRIMARY_VARIABLE 
+  PRESSURE1
+ $GEO_TYPE
+  SURFACE SURF_2   ;;POLYLINE PLY_2
+ $DIS_TYPE
+  CONSTANT_NEUMANN      -5e-4  ; // 5e-4

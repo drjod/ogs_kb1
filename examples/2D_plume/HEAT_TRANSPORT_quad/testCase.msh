@@ -1,6 +1,6 @@
 #FEM_MSH
  $PCS_TYPE
- NO_PCS
+  NO_PCS
  $NODES
    6867   
  0  0  0  0

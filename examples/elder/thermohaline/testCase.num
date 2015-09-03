@@ -11,7 +11,7 @@ $OVERALL_COUPLING
   2      6 1.e-014       1000           1.0   1       2
  $NON_LINEAR_SOLVER  
   ; method error_tolerance max_iterations relaxation
-  PICARD 1e-1            25             0.0
+  PICARD LMAX 100 0.0 1.
  $COUPLING_CONTROL
   LMAX 1e-1
 
@@ -25,7 +25,7 @@ $OVERALL_COUPLING
   2
  $NON_LINEAR_SOLVER  
   ; method error_tolerance max_iterations relaxation
-  PICARD 1e-3            25             0.0
+  PICARD LMAX 100 0.0 1.e-3
  $COUPLING_CONTROL
   LMAX 1e-3
 
@@ -38,7 +38,7 @@ $OVERALL_COUPLING
   2        6 1.0e-014       1000           1.0   1      2
  $NON_LINEAR_ITERATIONS
   ;type -- error_method -- max_iterations -- relaxation -- tolerance(s)
-  PICARD LMAX 100 0.0 1.0e-3
+  PICARD LMAX 100 0.0 1.e-3
  $COUPLING_CONTROL
   LMAX 1e-3
 
