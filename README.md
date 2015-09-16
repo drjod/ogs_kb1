@@ -17,26 +17,7 @@ omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host <br>
 
 #### Compilation
 
-Script compileInKiel.sh for RZ (and NEC) cluster Kiel in repository tUNIX <br>
-
-##### Compiler
-icc, icpc: /cluster/Software/intel14/composer_xe_2013_sp1/bin <br>
-     /cluster/Software/intel14/composer_xe_2013_sp1/bin/compilervars.sh intel64 <br>
-mpiicc, mpiicpc: /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin <br>
-     /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin/mpivars.sh <br>
-
-Composer: /cluster/Software/intel14/composer_xe_2013_sp1.0.080 <br>
-export PATH=$PATH:/cluster/Software/intel14/composer_xe_2013_sp1.0.080/compiler/lib/intel64 <br>
-
-#### Libs
-
-##### MKL
-/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl <br>
-/cluster/Software/intel14/composer_xe_2013_sp1.0.080/mkl/bin/mklvars.sh intel64 <br>
-
-#####PETSC 
-/work_j/SoftwareSL/Dpetsc/Dintel14/petsc-3.3-p4 <br>
-module load petsc-3.3-p4-intel <br>	
+Script compileInKiel.sh for RZ cluster, NEC Cluster, Lokstedt server Kiel in repository tUNIX <br>
 
 #### Mesh partitioning 
 
@@ -123,15 +104,15 @@ petsc solver preconditioner errorTolerance maxInterations Theta
 ```
 
 ##### Convergence
-
-0 r<e <br>
-1 r/b<e <br>
-2 r_n1/r_n<e <br>
-3 if r_n1>1 then r_n1/r_n < e else r<e <br>
-4 r/x<e <br>
-5 r_n1/max(x,b,r_n)<e <br>
-6 ??? <br>
-
+```
+0 r<e 
+1 r/b<e
+2 r_n1/r_n<e
+3 if r_n1>1 then r_n1/r_n < e else r<e
+4 r/x<e
+5 r_n1/max(x,b,r_n)<e 
+6 ??? 
+```
 ##### Matrix storage
 
 1) vollbesetzte Matrix <br>
