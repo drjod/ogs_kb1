@@ -36,7 +36,7 @@
 // MathLib
 #include "MathTools.h"
 #include "matrix_class.h" // JOD 2014-11-10
-#include "LegacyVtkInterface.h" // JODNEW
+#include "LegacyVtkInterface.h" // JOD 8/2015
 
 #include "mathlib.h"
 #include "fem_ele.h"
@@ -123,7 +123,7 @@ void COutput::CreateVTKInstance(void)
 }
 void COutput::init()
 {
-	if (getProcessType () == FiniteElement::INVALID_PROCESS)
+	/*if (getProcessType () == FiniteElement::INVALID_PROCESS)
 	{
 		std::cerr <<
 		"COutput::init(): could not initialize process pointer (process type INVALID_PROCESS) and appropriate mesh"
@@ -145,12 +145,12 @@ void COutput::init()
 		else
 			std::cerr << " failed" << "\n";
 	}
-
+	*/  // removed by JOD 8/2015 since WARNIMG for common case
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 
     setInternalVarialbeNames(m_msh); //NW
 
-	for (size_t j = 0; j < _nod_value_vector.size(); j++) { // JODNEW for DELTA_ output
+	for (size_t j = 0; j < _nod_value_vector.size(); j++) { // 8/2015 JOD for DELTA_ output
 		if (_nod_value_vector[j].find("DELTA") == 0) {
 			_pcs = GetPCS(_nod_value_vector[j]);
 			_pcs->StoreInitialValues(_nod_value_vector[j]);
@@ -1183,7 +1183,7 @@ void COutput::WriteTECHeader(fstream &tec_file, int e_type, string e_type_name)
 	
 	//--------------------------------------------------------------------
     // Write Header III: solution time			; BG 05/2011
-	tec_file << "STRANDID=1, SOLUTIONTIME=";  // JODNEW
+	tec_file << "STRANDID=1, SOLUTIONTIME=";  // 8/2015 JOD
     tec_file << _time;			// << "s\"";
     tec_file << "\n";
 
@@ -1224,7 +1224,7 @@ void COutput::ELEWriteDOMDataTEC()
 	if(msh_type_name.size() > 1)          // MSH
 		tec_file_name += "_" + msh_type_name;
 
-#if defined(USE_PETSC)  //JODNEW
+#if defined(USE_PETSC)  //  8/2015 JOD 
 	tec_file_name += "_" + mrank_str;
 #endif
 
@@ -1266,7 +1266,7 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 	tec_file << "C=BLACK";
 	tec_file << "\n";
 	//--------------------------------------------------------------------
-	// Write Header III: solution time			// JODNEW
+	// Write Header III: solution time			// 8/2015 JOD
 	tec_file << "STRANDID=1, SOLUTIONTIME=";  
 	tec_file << _time;			// << "s\"";
 	tec_file << "\n";
@@ -1292,7 +1292,7 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 
 
 
-	if (getProcessType() == FiniteElement::HEAT_TRANSPORT || getProcessType() == FiniteElement::MASS_TRANSPORT) // JODNEW
+	if (getProcessType() == FiniteElement::HEAT_TRANSPORT || getProcessType() == FiniteElement::MASS_TRANSPORT) // 8/2015 JOD
 	{
 		ele_gp_flux.clear();
 		const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
@@ -1388,7 +1388,7 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 		tec_file << "\n";
 	}
 
-	if (ele_gp_flux.size() > 0)  // release memory JODNEW
+	if (ele_gp_flux.size() > 0)  // release memory 8/2015 JOD
 	{
 		for (int i = 0; i < (long)ele_gp_flux.size(); i++)
 		{
@@ -1422,7 +1422,7 @@ void COutput::BLOCKWriteDOMDataTEC()
 	//----------------------------------------------------------------------
 	// Tests
 	//OK4704
-	if ((_nod_value_vector.size() == 0) && (mfp_value_vector.size() == 0)
+	if ((_nod_value_vector.size() == 0) && (mfp_value_vector.size() == 0) && (mmp_value_vector.size() == 0)
 		&& (_ele_value_vector.size() == 0))
 		return;
 	//......................................................................
@@ -1551,16 +1551,18 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 		//MX
 		tec_file << ", " << _pcon_value_vector[k] << "";
 
-	//ELement value
-	const size_t ele_value_vector_size(_ele_value_vector.size());
-	for (size_t k = 0; k < ele_value_vector_size; k++)
-		tec_file << ", \"" << _ele_value_vector[k] << "\"";
-	tec_file << "\n";
+
 
 	//MMP Value
 	const size_t mmp_value_vector_size(mmp_value_vector.size());
 	for (size_t k = 0; k < mmp_value_vector_size; k++)
 		tec_file << ", \"" << mmp_value_vector[k] << "\"";
+
+
+	//ELement value
+	const size_t ele_value_vector_size(_ele_value_vector.size());
+	for (size_t k = 0; k < ele_value_vector_size; k++)
+		tec_file << ", \"" << _ele_value_vector[k] << "\"";
 	tec_file << "\n";
 
 	//--------------------------------------------------------------------
@@ -1571,14 +1573,23 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 	tec_file << "Elements=" << no_elements << ", ";
 	tec_file << "ZONETYPE=" << "FEBrick" << ", ";
 	tec_file << "DATAPACKING=" << "BLOCK" << ", ";
-	if (ele_value_vector_size == 1)
+
+	if (ele_value_vector_size > 0 || mmp_value_vector_size > 0)
 	{
-		tec_file << "VARLOCATION=" << "(["
-			<< nName + mfp_value_vector_size + nPconName + 4
-			<< "]=CELLCENTERED)";
-	}
-	else if (ele_value_vector_size > 0)
-	{
+		if ((ele_value_vector_size == 1 && mmp_value_vector_size == 0))
+		{
+			tec_file << "VARLOCATION=" << "(["
+				<< nName + mfp_value_vector_size + nPconName + 4
+				<< "]=CELLCENTERED)";
+		}
+
+		if ((ele_value_vector_size == 0 && mmp_value_vector_size == 1))
+		{
+			tec_file << "VARLOCATION=" << "(["
+				<< nName + mfp_value_vector_size + nPconName + 4
+				<< "]=CELLCENTERED)";
+		}
+
 		tec_file << "VARLOCATION=" << "(["
 			<< nName + mfp_value_vector_size + nPconName + 4
 			<< "-"
@@ -1769,6 +1780,47 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
 		}
 	}
 
+
+	MeshLib::CElem* m_ele = NULL;
+	FiniteElement::ElementValue* gp_ele = NULL;
+	//MMP values
+	size_t no_mmp_values = mmp_value_vector.size();
+	CMediumProperties* m_mmp;
+	double *tensor = NULL;
+	int group;
+	for (size_t j = 0; j < no_mmp_values; j++)
+	{
+		for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+		{
+			m_ele = m_msh->ele_vector[i];
+			group = m_ele->GetPatchIndex();
+			m_mmp = mmp_vector[group];
+			if (mmp_value_vector[j].compare("PERMEABILITY") == 0)
+			{
+				tensor = m_mmp->PermeabilityTensor(i);
+				tec_file << tensor[0] << " ";
+			}
+			if (mmp_value_vector[j].compare("PERMEABILITY_Y") == 0)
+			{
+				tensor = m_mmp->PermeabilityTensor(i);
+				tec_file << tensor[4] << " ";
+			}
+			if (mmp_value_vector[j].compare("PERMEABILITY_Z") == 0)
+			{
+				tensor = m_mmp->PermeabilityTensor(i);
+				tec_file << tensor[8] << " ";
+			}
+			if (mmp_value_vector[j].compare("POROSITY") == 0)
+				tec_file << m_mmp->Porosity(i, 1) << " ";
+			if (mmp_value_vector[j].compare("MATERIAL_GROUP") == 0)
+				tec_file << group << " ";
+
+			if ((i + 1) % 5 == 0)
+				tec_file << '\n';
+		}
+	}
+
+
 	//Element values
 	//CRFProcess* m_pcs_2 = NULL;
 	//if (!_ele_value_vector.empty())
@@ -1803,11 +1855,10 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
 	GetELEValuesIndexVector(ele_value_index_vector);
 
 
-	MeshLib::CElem* m_ele = NULL;
-	FiniteElement::ElementValue* gp_ele = NULL;
 
 
-	if (out_element_vel) {
+	if (out_element_vel)
+	{
 		//for (size_t j = 0; j < 3; j++){
 		//	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
 		//	{
@@ -1866,41 +1917,6 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
 	}
 	ele_value_index_vector.clear();
 	skip.clear();
-
-	//MMP values
-	size_t no_mmp_values = mmp_value_vector.size();
-	CMediumProperties* m_mmp;
-	double *tensor = NULL;
-	int group;
-	for (size_t j = 0; j < no_mmp_values; j++)
-	{
-		for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-		{
-			m_ele = m_msh->ele_vector[i];
-			group = m_ele->GetPatchIndex();
-			m_mmp = mmp_vector[group];
-			if (mmp_value_vector[j].compare("PERMEABILITY") == 0)
-			{
-				tensor = m_mmp->PermeabilityTensor(i);
-				tec_file << tensor[0] << " ";
-			}
-			if (mmp_value_vector[j].compare("PERMEABILITY_Y") == 0)
-			{
-				tensor = m_mmp->PermeabilityTensor(i);
-				tec_file << tensor[4] << " ";
-			}
-			if (mmp_value_vector[j].compare("PERMEABILITY_Z") == 0)
-			{
-				tensor = m_mmp->PermeabilityTensor(i);
-				tec_file << tensor[8] << " ";
-			}
-			if (mmp_value_vector[j].compare("POROSITY") == 0)
-				tec_file << m_mmp->Porosity(i, 1) << " ";
-
-			if ((i + 1) % 5 == 0)
-				tec_file << '\n';
-		}
-	}
 }
 
 /**************************************************************************
@@ -1949,7 +1965,7 @@ double COutput::NODWritePLYDataTEC(int number)
 	if (msh_type_name.size() > 0)
 		tec_file_name += "_" + msh_type_name;
 
-#if defined(USE_PETSC)  // JODNEW
+#if defined(USE_PETSC)  // JOD 8/2015
 	tec_file_name += "_" + mrank_str;
 	std::cout << "Tecplot filename: " << tec_file_name << "\n";
 #endif
@@ -2057,7 +2073,7 @@ double COutput::NODWritePLYDataTEC(int number)
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
 	tec_file << " ZONE T=\"TIME=" << _time << "\"";// << "\n";
 	//----------------------------------------------------------------------
-	tec_file << " SOLUTIONTIME="; // JODNEW to link frames
+	tec_file << " SOLUTIONTIME="; // JOD 8/2015 to link frames
 	tec_file << _time;			// << "s\"";
 	tec_file << "\n";
 	// Write data
@@ -2172,7 +2188,7 @@ double COutput::NODWritePLYDataTEC(int number)
 void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
 {
 
-#if defined(USE_PETSC)  // JODNEW
+#if defined(USE_PETSC)  // JOD 8/2015
 	std::cout << "point_" + mrank_str;
 #endif
 
@@ -2194,7 +2210,7 @@ void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
 	std::string tec_file_name(file_base_name + "_time_");
 	addInfoToFileName(tec_file_name, true, true, true);
 
-#if defined(USE_PETSC)  // JODNEW
+#if defined(USE_PETSC)  // JOD 8/2015
 	std::cout << "point2_" + mrank_str;
 #endif
 
@@ -4564,8 +4580,12 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	}
 }
 
-
-//// PVD
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:  PVD output
+Programming:
+8/2015 JOD Introduce function
+**************************************************************************/
 
 void COutput::WritePVD(double time_current, int time_step_number, bool output_by_steps, size_t no_times)
 {
@@ -4637,7 +4657,13 @@ void COutput::WritePVD(double time_current, int time_step_number, bool output_by
 	}
 
 }
-//// VTK
+
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:  VTK output
+Programming:
+8/2015 JOD Introduce function
+**************************************************************************/
 
 void COutput::WriteVTK(double time_current, int time_step_number, bool output_by_steps, size_t no_times)
 {
@@ -4721,12 +4747,12 @@ void COutput::WriteVTK(double time_current, int time_step_number, bool output_by
 
 }
 
-
-//////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////////
-//  TECPLOT / BINARY / MATLAB
-
+/**************************************************************************
+OpenGeoSys - Funktion
+Task: TECPLOT / BINARY / MATLAB output
+Programming:
+8/2015 JOD Introduce function
+**************************************************************************/
 
 void COutput::WriteTEC(double time_current, int time_step_number, bool output_by_steps, size_t no_times)
 {
@@ -4743,7 +4769,7 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			else
 			{
 				for (size_t j = 0; j < no_times; j++)
-				if (// (time_current > time_vector[j]) ||   JODNEW
+				if (// (time_current > time_vector[j]) ||  // removed by JOD  8/2015
 					fabs(time_current - time_vector[j])
 					< MKleinsteZahl) //WW MKleinsteZahl
 				{
@@ -4763,7 +4789,7 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			else
 			{
 				for (size_t j = 0; j < no_times; j++)
-				if (//(time_current > time_vector[j]) ||   JODNEW
+				if (//(time_current > time_vector[j]) ||  // removed by JOD  8/2015
 					fabs(time_current - time_vector[j])
 					< MKleinsteZahl) //WW MKleinsteZahl
 				{
@@ -4813,7 +4839,7 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 				else
 				{
 					for (size_t j = 0; j < no_times; j++)
-					if (// (time_current >time_vector[j]) || JODNEW 
+					if (// (time_current >time_vector[j]) ||     // removed by JOD  8/2015
 						fabs(time_current -time_vector[j])< MKleinsteZahl) 
 						//WW MKleinsteZahl                m_out->NODWriteSFCDataTEC(j);
 					{
@@ -4863,10 +4889,12 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//
-//
+/**************************************************************************
+OpenGeoSys - Funktion
+Task: TECPLOT domain output
+Programming:
+8/2015 JOD Introduce function
+**************************************************************************/
 
 void COutput::WriteTEC_DOMAIN()
 {
@@ -4911,10 +4939,12 @@ void COutput::WriteTEC_DOMAIN()
 		_new_file_opened = true;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//
-//
+/**************************************************************************
+OpenGeoSys - Funktion
+Task: TECPLOT polyline output
+Programming:
+8/2015 JOD Introduce function
+**************************************************************************/
 
 void COutput::WriteTEC_POLYLINE(int time_step_number)
 {

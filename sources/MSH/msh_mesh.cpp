@@ -438,7 +438,7 @@ bool CFEMesh::Read(std::ifstream* fem_file)
 			for (size_t i = 0; i < no_elements; i++)
 			{
 				CElem* newElem(new CElem(i));
-				newElem->Read(*fem_file);
+				newElem->Read(*fem_file, 0, nod_vector);
 				setElementType(newElem->geo_type); //CC02/2006
 				if (newElem->GetPatchIndex() > max_mmp_groups)
 					max_mmp_groups = newElem->GetPatchIndex();
@@ -731,6 +731,7 @@ void CFEMesh::ConstructGrid()
 		// Resize is true
 		elem->SetNodes(e_nodes0, true);
 	} // Over elements
+
 
 	// Set faces on surfaces and others
 	_msh_n_lines = 0; // Should be members of mesh
@@ -1768,6 +1769,8 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
   }
 
 #else
+
+	
 	const size_t nodes_in_usage((size_t) NodesInUsage());
 	for (size_t j(0); j < nodes_in_usage; j++) {
 		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length / 2.0)) {
@@ -1776,6 +1779,7 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 			}
 		}
 	}
+	
 #endif
 
 #ifdef TIME_MEASUREMENT

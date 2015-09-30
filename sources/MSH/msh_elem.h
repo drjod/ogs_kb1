@@ -331,7 +331,7 @@ public:
 	}                                         // PCH
 	//------------------------------------------------------------------
 	// I/O
-	void Read(std::istream& is = std::cin, int fileType = 0);
+	void Read(std::istream& is = std::cin, int fileType = 0, std::vector<MeshLib::CNode*> = std::vector<MeshLib::CNode*>());
 
 	void WriteIndex(std::ostream& os = std::cout) const;
 	void WriteIndex_TEC(std::ostream& os = std::cout) const;

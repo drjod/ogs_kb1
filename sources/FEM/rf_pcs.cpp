@@ -8267,7 +8267,7 @@ void CRFProcess::getNodeVelocityVector(const long node_id, double * vel_nod)
 			if(m_st->getTimeContrCurve() > 0){
 				val = GetCurveValue(m_st->getTimeContrCurve(),0,aktuelle_zeit,&valid);
 				//std::cout << " val: " << val << "\n";
-				if(val < MKleinsteZahl){
+				if( fabs(val) < MKleinsteZahl){
 					//std::cout << " Omitting BC " << "\n";
 					continue;
 				}
@@ -8278,7 +8278,7 @@ void CRFProcess::getNodeVelocityVector(const long node_id, double * vel_nod)
 	
 			if(test_fct_name.length() > 0){
 				m_fct = FCTGet(test_fct_name);
-				if(m_fct)
+				if (m_fct) 
 					val = m_fct->GetValue(aktuelle_zeit,&is_valid);
 				//std::cout << " val: " << val << "\n";
 				if(val < MKleinsteZahl){

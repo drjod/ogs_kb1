@@ -14,6 +14,9 @@
 //WW#include "MSHEnums.h" // KR 2010/11/15
 #include "msh_elem.h"
 
+#include "MathTools.h"
+// JODNEW
+
 namespace MeshLib
 {
 /**************************************************************************
@@ -538,7 +541,7 @@ std::string CElem::GetName() const
    08/2005 WW/OK Extension for GMS/SOL files
    10/2008 OK FEFLOW
 **************************************************************************/
-void CElem::Read(std::istream& is, int fileType)
+void CElem::Read(std::istream& is, int fileType, std::vector<MeshLib::CNode*> nod_vector)
 {
 	//fileType=0: msh
 	//fileType=1: rfi
@@ -687,14 +690,61 @@ void CElem::Read(std::istream& is, int fileType)
 	//----------------------------------------------------------------------
 	// 2 Element configuration
 	this->setElementProperties(geo_type);
-
+	static int counter = 0;
 	//----------------------------------------------------------------------
 	// 3 Reading element node data
 	switch (fileType)
 	{
 	case 0: // msh
-		for (int i = 0; i < nnodes; i++)
+		for (int i = 0; i < nnodes; i++) {
 			is >> nodes_index[i];
+			//std::cout << nodes_index[i] << " ";
+		}
+		/*std::cout << std::endl;
+		double x10[3], x20[3], x30[3], z[3];
+		double value;
+		long nodes_index_temp;
+
+		
+
+		
+			x10[0] = nod_vector[nodes_index[1]]->getData()[0] - nod_vector[nodes_index[0]]->getData()[0];
+			x10[1] = nod_vector[nodes_index[1]]->getData()[1] - nod_vector[nodes_index[0]]->getData()[1];
+			x10[2] = nod_vector[nodes_index[1]]->getData()[2] - nod_vector[nodes_index[0]]->getData()[2];
+
+			x20[0] = nod_vector[nodes_index[2]]->getData()[0] - nod_vector[nodes_index[0]]->getData()[0];
+			x20[1] = nod_vector[nodes_index[2]]->getData()[1] - nod_vector[nodes_index[0]]->getData()[1];
+			x20[2] = nod_vector[nodes_index[2]]->getData()[2] - nod_vector[nodes_index[0]]->getData()[2];
+
+			x30[0] = nod_vector[nodes_index[3]]->getData()[0] - nod_vector[nodes_index[0]]->getData()[0];
+			x30[1] = nod_vector[nodes_index[3]]->getData()[1] - nod_vector[nodes_index[0]]->getData()[1];
+			x30[2] = nod_vector[nodes_index[3]]->getData()[2] - nod_vector[nodes_index[0]]->getData()[2];
+
+		MathLib::crossProd(x10, x20, z);
+		
+		value = MathLib::scpr(z, x30, 3);
+		if (value >0)
+		{
+			std::cout << "Turn element " << counter << " - ";
+			
+			nodes_index_temp = nodes_index[1];
+			nodes_index[1] = nodes_index[2];
+			nodes_index[2] = nodes_index_temp;
+
+			nodes_index_temp = nodes_index[4];
+			nodes_index[4] = nodes_index[5];
+			nodes_index[5] = nodes_index_temp;
+			for (int i = 0; i < nnodes; i++) {
+				std::cout << nodes_index[i] << " ";
+			}
+			std::cout << std::endl;
+		}
+		counter++;*/
+
+		
+			
+	
+
 		break;
 	case 1: // rfi
 		for (int i = 0; i < nnodes; i++)

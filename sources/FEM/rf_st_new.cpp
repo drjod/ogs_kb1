@@ -851,11 +851,11 @@ const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name)
             st_vector.push_back(st);
 
          }
-         else
+         /*else   removed by JODNEW
          {
             std::cerr << "WARNING: in STRead: could not read source term" << "\n";
             delete st;
-         }
+         }*/
          st_file.seekg(position, std::ios::beg);
       }                                           // keyword found
    }                                              // eof

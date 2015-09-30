@@ -236,7 +236,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 	{
 	    OutputBySteps = false; // reset this flag for each COutput
 		m_out = out_vector[i];
-		// MSH
+		// MSH               8/2016 removed by JOD since WARNING for common case
 		//		m_msh = m_out->GetMSH();
 		//m_msh = m_out->getMesh();
 		//if (!m_msh)
@@ -267,7 +267,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		    || m_out->dat_type_name.compare("MATLAB") == 0 
 		    || m_out->dat_type_name.compare("BINARY") == 0 // 08.2012. WW
            )
-			m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times);
+			m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times); // 8/2015 JOD 
 		
 		//--------------------------------------------------------------------
 		// vtk

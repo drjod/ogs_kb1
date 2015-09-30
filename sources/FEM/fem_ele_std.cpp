@@ -5366,7 +5366,7 @@ void CFiniteElementStd::CalcLaplace()
                  for(l=0; l< (int)dim; l++)
                  {
 					 (*Laplace)(iish, jjsh) += fkt * dshapefct[ksh] \
-						 * mat[km + l] * dshapefct[l*nnodes + j] / sqrt(MediaProp->ElementLengthMultiplyer_vector[k]*MediaProp->ElementLengthMultiplyer_vector[l]); // JODNEW
+						 * mat[km + l] * dshapefct[l*nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[l]; // JODNEW
                  } 
               }
            } // j: nodes
