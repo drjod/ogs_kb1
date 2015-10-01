@@ -186,11 +186,11 @@ GRADIENT ref_depth ref_depth_value ref_depth_gradient
 
 ##### Fluxes
 
-Darcy flux <br>
-1st phase at nodes: VELOCITY_X1 VELOCITY_Y1 VELOCITY_Z1 <br>
-1st phase at gauss point nr 0: VELOCITY1_X VELOCITY1_Y VELOCITY1_Z <br>
+Darcy flux for LIQUID_FLOW, GROUNDWATER_FLOW, RICHARDS_FLOW<br>
+at nodes: VELOCITY_X1 VELOCITY_Y1 VELOCITY_Z1 <br>
+at gauss point nr 0: VELOCITY1_X VELOCITY1_Y VELOCITY1_Z <br>
 
-To get fick flux,add 
+To get fick flux, add 
 ```
 $PCS_TYPE
   MASS_TRANSPORT
