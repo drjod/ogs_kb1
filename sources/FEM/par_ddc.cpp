@@ -23,9 +23,6 @@
 //#undef SEEK_END  //WW
 //#undef SEEK_CUR  //WW
 #include <mpi.h>
-int size;
-int myrank;
-int mysize;
 char t_fname[3];
 double time_ele_paral;
 #endif
@@ -42,7 +39,6 @@ using namespace std;
 #include "matrix_routines.h"
 #endif
 #include "files0.h"
-#include "gs_project.h"
 #include "rf_num_new.h"
 #ifdef NEW_EQS
 // Solver WW
@@ -898,171 +894,6 @@ void DOMCreate()
    FEMLib-Method:
    Task:
    Programing:
-   01/2005 OK Implementation
-   09/2005 OK MSH
-   last modification:
-**************************************************************************/
-	void CPARDomain::WriteTecplot(string msh_name)
-	{
-		long i;
-		string element_type;
-		//----------------------------------------------------------------------
-		// GSP
-		CGSProject* m_gsp = NULL;
-		m_gsp = GSPGetMember("msh");
-		if(!m_gsp)
-			return;
-		//--------------------------------------------------------------------
-		// file handling
-		char name[10];
-		sprintf(name,"%i",ID);
-		string dom_name = "DOMAIN";
-		dom_name += name;
-		string dom_file_name = m_gsp->path + dom_name + TEC_FILE_EXTENSION;
-		fstream dom_file (dom_file_name.data(),ios::trunc | ios::out);
-		dom_file.setf(ios::scientific,ios::floatfield);
-		dom_file.precision(12);
-		//--------------------------------------------------------------------
-		// MSH
-		CFEMesh* m_msh = NULL;
-		MeshLib::CElem* m_ele = NULL;
-		m_msh = FEMGet(msh_name);
-		if(!m_msh)
-			return;
-		//--------------------------------------------------------------------
-		if (!dom_file.good())
-			return;
-		dom_file.seekg(0L,ios::beg);
-		//--------------------------------------------------------------------
-		for(i = 0; i < (long)elements.size(); i++)
-		{
-			m_ele = m_msh->ele_vector[elements[i]];
-			if(!m_ele)
-				continue;
-			switch(m_ele->GetElementType())
-			{
-			case MshElemType::LINE:
-				element_type = "ET = QUADRILATERAL";
-				break;
-			case MshElemType::QUAD:
-				element_type = "ET = QUADRILATERAL";
-				break;
-			case MshElemType::HEXAHEDRON:
-				element_type = "ET = BRICK";
-				break;
-			case MshElemType::TRIANGLE:
-				element_type = "ET = TRIANGLE";
-				break;
-			case MshElemType::TETRAHEDRON:
-				element_type = "ET = TETRAHEDRON";
-				break;
-			case MshElemType::PRISM:
-				element_type = "ET = BRICK";
-				break;
-			default:
-				std::cerr << "CPARDomain::WriteTecplot MshElemType not handled" <<
-				"\n";
-			}
-		}
-		//--------------------------------------------------------------------
-		dom_file << "VARIABLES = X,Y,Z,DOM" << "\n";
-		long no_nodes = (long)m_msh->nod_vector.size();
-		dom_file << "ZONE T = " << dom_name << ", " \
-		         << "N = " << no_nodes << ", " \
-		         << "E = " << (long)elements.size() << ", " \
-		         << "F = FEPOINT" << ", " << element_type << "\n";
-		//......................................................................
-		for(i = 0; i < no_nodes; i++)
-		{
-			double const* const coords (m_msh->nod_vector[i]->getData());
-			dom_file << coords[0] << " " << coords[1] << " " << coords[2] << " " <<
-			ID << "\n";
-//      m_nod = m_msh->nod_vector[i];
-//      dom_file << m_nod->X() << " " << m_nod->Y() << " " << m_nod->Z() << " " << ID << "\n";
-		}
-		//......................................................................
-		for(i = 0; i < (long)elements.size(); i++)
-		{
-			m_ele = m_msh->ele_vector[elements[i]];
-			if(!m_ele)
-				continue;
-			switch(m_ele->GetElementType())
-			{
-			case MshElemType::LINE:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[1] + 1 <<
-				" " << m_ele->getNodeIndices()[1] + 1 << " " << m_ele->getNodeIndices()[0] +
-				1 << "\n";
-				element_type = "ET = QUADRILATERAL";
-				break;
-			case MshElemType::QUAD:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[1] + 1 <<
-				" " << m_ele->getNodeIndices()[2] + 1 << " " << m_ele->getNodeIndices()[3] +
-				1 << "\n";
-				element_type = "ET = QUADRILATERAL";
-				break;
-			case MshElemType::HEXAHEDRON:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[1] + 1 <<
-				" " << m_ele->getNodeIndices()[2] + 1 << " " << m_ele->getNodeIndices()[3] +
-				1 << " " \
-				<< m_ele->getNodeIndices()[4] + 1 << " " << m_ele->getNodeIndices()[5] + 1 <<
-				" " << m_ele->getNodeIndices()[6] + 1 << " " << m_ele->getNodeIndices()[7] +
-				1 << "\n";
-				element_type = "ET = BRICK";
-				break;
-			case MshElemType::TRIANGLE:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[1] + 1 <<
-				" " << m_ele->getNodeIndices()[2] + 1 << "\n";
-				element_type = "ET = TRIANGLE";
-				break;
-			case MshElemType::TETRAHEDRON:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[1] + 1 <<
-				" " << m_ele->getNodeIndices()[2] + 1 << " " << m_ele->getNodeIndices()[3] +
-				1 << "\n";
-				element_type = "ET = TETRAHEDRON";
-				break;
-			case MshElemType::PRISM:
-				dom_file \
-				<< m_ele->getNodeIndices()[0] + 1 << " " << m_ele->getNodeIndices()[0] + 1 <<
-				" " << m_ele->getNodeIndices()[1] + 1 << " " << m_ele->getNodeIndices()[2] +
-				1 << " " \
-				<< m_ele->getNodeIndices()[3] + 1 << " " << m_ele->getNodeIndices()[3] + 1 <<
-				" " << m_ele->getNodeIndices()[4] + 1 << " " << m_ele->getNodeIndices()[5] +
-				1 << "\n";
-				element_type = "ET = BRICK";
-				break;
-			default:
-				std::cerr << "CPARDomain::WriteTecplot MshElemType not handled" <<
-				"\n";
-			}
-		}
-	}
-
-/**************************************************************************
-   FEMLib-Method:
-   Task:
-   Programing:
-   10/2005 OK Implementation
-   last modification:
-**************************************************************************/
-	void DOMWriteTecplot(string msh_name)
-	{
-		CPARDomain* m_dom = NULL;
-		for(int i = 0; i < (int)dom_vector.size(); i++)
-		{
-			m_dom = dom_vector[i];
-			m_dom->WriteTecplot(msh_name);
-		}
-	}
-
-/**************************************************************************
-   FEMLib-Method:
-   Task:
-   Programing:
    07/2006 WW Implementation
    last modification:
 **************************************************************************/
@@ -1259,52 +1090,7 @@ void DOMCreate()
 #ifndef USE_MPI
 	}
 #endif
-	}
-
-/**************************************************************************
-   DDCLib-Function
-   07/2007 OK Encapsulation
-   10/2010 TF changed access to process type
- ***************************************************************************/
-	void DDCCreate()
-	{
-		//----------------------------------------------------------------------
-		// DDC
-		if(dom_vector.size() > 0)
-		{
-			//WW ----- Domain decomposition ------------------
-			int i;
-			int no_processes = (int)pcs_vector.size();
-			CRFProcess* m_pcs = NULL;
-			bool DOF_gt_one = false;
-			//----------------------------------------------------------------------
-			for(i = 0; i < no_processes; i++)
-			{
-				m_pcs = pcs_vector[i];
-				//if(m_pcs->pcs_type_name.find("DEFORMATION")!=string::npos) { // TF 10/2010
-				if(m_pcs->getProcessType () == FiniteElement::DEFORMATION ||
-				   m_pcs->getProcessType() == FiniteElement::DEFORMATION_FLOW)
-				{
-					DOF_gt_one = true;
-					break;
-				}
-			}
-			if(!DOF_gt_one)
-				m_pcs = pcs_vector[0];
-			// -----------------------
-			DOMCreate();
-			//
-			for(i = 0; i < no_processes; i++)
-			{
-				m_pcs = pcs_vector[i];
-				// Config boundary conditions for domain decomposition
-				m_pcs->SetBoundaryConditionSubDomain(); //WW
-			}
-			//
-			node_connected_doms.clear();
-		}
-		// PA PCSProcessDependencies();
-	}
+}
 
 #if defined(USE_MPI)                              //WW
 //------------------------For parallel solvers------------------------------

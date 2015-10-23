@@ -249,6 +249,13 @@ double IF97::S(double T, double P){
 	return res;
 }
 
+//
+double IF97::cp(double T, double P){
+	int rg = region(T, P);
+	double dens, res;
+	res = NR::dfridrX(H, T, P);
+	return res;
+}
 
 //density (kg m^-3) (T K, P Mpa)
 double IF97::density(double T, double P){

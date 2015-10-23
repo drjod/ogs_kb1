@@ -6,6 +6,7 @@
 //#define reactions_INC
 #include <string>
 #include <vector>
+#include "GEOObjects.h"
 //Water moles per kg of water
 #define MOLH2OPERKG 55.50843506
 #define REI_FILE_EXTENSION ".rei"
@@ -59,6 +60,36 @@ class REACTINT{
 	std::vector <int> sp_varind; // store node_value_idx+timelevel of all species
     std::vector <bool> dried_out_nodes; // for eclipse coupling
 
+    std::vector<std::string> NoReactGeoName;
+    std::vector<size_t> NoReactGeoID;
+    std::vector<std::string> NoReactGeoType;
+    std::vector<std::string> AllowReactGeoName;
+    std::vector<size_t> AllowReactGeoID;
+    std::vector<std::string> AllowReactGeoType;
+    std::vector<std::string> ReAllowReactGeoName;
+    std::vector<size_t> ReAllowReactGeoID;
+    std::vector<std::string> ReAllowReactGeoType;
+    // CB ReactDeact no reaction switch
+    bool ReactDeactFlag;                  // method flag
+    int ReactDeactPlotFlag;               // flag for tecplot plots of flags each timestep
+    double ReactDeactEpsilon;             // treshhold
+    double ReactDeactCThresh;
+    std::vector<bool> ReactDeact;         // flags for individual nodes
+    std::vector<double> React_dCdT;       // Sum of reaction rates for individual nodes
+    // node indices of local neighborhood around individual nodes
+    std::vector<std::vector<int> > ReactNeighborhood;
+    int ReactDeactMode;
+    bool ReactDeactRelative;
+    double** concentrationmatrix;
+
+    // copy conc
+    bool copy_concentrations; //SB 01.2011 Flag for copying concentrations in radial models to save reaction simulation time
+    std::vector<long> copy_nodes; //SB 01.2011
+    bool radial; // default case
+    bool batch;
+    bool TwoDinThreeD;
+
+
 	int nodenumber;
 	std::vector<std::string>               pcs_rename0_init,      pcs_rename0_pre,       pcs_rename0_post;
 	std::vector<int>                       pcs_rename0_idx_init,  pcs_rename0_idx_pre,   pcs_rename0_idx_post;
@@ -82,8 +113,8 @@ class REACTINT{
 // Member functions
     
     REACTINT* GetREACTINT(void);  
-    bool Read(std::ifstream*);
-	void InitREACTINT(void);
+    bool Read(std::ifstream* in, const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name);
+    void InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name);
     void CalcWaterConc(void);
     void CalcUnitConversionFactors(long index, double *fl, double *fs, bool molal);
     double GetCO2SolubilityDuan(long node);
@@ -110,12 +141,19 @@ class REACTINT{
     double LiquidViscosity_Yaws_1976(double );
     double LiquidDensity_Busch(double);
     void Heatpump_2DhTO2Dv_Mapping(bool);
+    // CB ReactDeact
+    void ReactionDeactivation(long);      // Sets nodes active / inactive
+    void ReactDeactPlotFlagsToTec();
+    void ReactDeactSetOldReactionTerms(long nonodes);
 
+    void CopyConcentrations(void); //SB 01.2011
+    void PrintGCCdata(void);
 
 };
 extern std::vector <REACTINT*> REACTINT_vec;
 extern double GetNodePhaseVolume(long , double , int );
-extern bool REACINTRead(std::string);
+extern bool REACINTRead(std::string, const GEOLIB::GEOObjects& geo_obj,
+  const std::string& unique_name);
 
 // CB moved here from rf_pcs.h file
 typedef struct // CB DL CO2 phase transition

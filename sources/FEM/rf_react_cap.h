@@ -61,6 +61,10 @@ class REACT_CAP{
 	std::vector<int>                  pcs_rename_idx0, pcs_rename_idx0_pre;
 	std::vector<std::vector<int> >         pcs_rename_idx1, pcs_rename_idx1_pre;
 
+    // the next two are always defined, such that it also works in serial version    
+    int myrank;
+    int mysize;
+
 	int current_node; // for Kin Reaction calc
 	double current_TT, current_PP; // for Kin Reaction calc
 	typedef struct
@@ -196,10 +200,15 @@ class REACT_CAP{
 		std::vector<double> ODE(std::vector<double>, std::vector<double>, int, double);
 		void KinParamUpdata(int, int, std::vector <double> & spvc);
 		void KinParamUpdataHKF(int,double T, double P, int err);
+        void KinParamUpdataNew(int, int, std::vector <double> & spvc, double *m_KIN, double *m_SAC);
+        void KinParamUpdataHKFNew(int, double T, double P, int err, double *m_HKF);
 	void LoopNodeReact_Liquid_Vapor(int, int);
 	void LoopNodeReact_Liquid_Solid(int, int);
+  void LoopNodeReactNew(int, int, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim);
+  void LoopNodeReact_Liquid_VaporNew(int f, int nodeflag, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim);
 
 	void ExecuteReactionsChemApp(int, int); //DL 28,10,08
+  void ExecuteReactionsChemAppNew(int, int); // CB parallel MPI
 
 	void ShowDataFile(void);
 	void SetAllSolidAsDormant(void);

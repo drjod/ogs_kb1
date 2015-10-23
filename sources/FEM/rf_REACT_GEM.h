@@ -18,7 +18,7 @@
 //#include <thread.hpp>
 #include "rf_pcs.h"
 // #include "rfmat_cp.h"
-#include "node.h"
+#include "GEM/node.h"
 #include "rf_mfp_new.h"
 
 #if defined(USE_PETSC)

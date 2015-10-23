@@ -5,12 +5,21 @@
  */
 
 #include "FileTools.h"
+#include "StringTools.h"
 
 #include <iostream>
 #include <fstream>
 #include <cstdio>
 
 #include <sys/stat.h>
+
+// for getCwd
+#ifdef WIN32
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
+
 
 /**
  * Returns true if given file exists. From http://www.techbytes.ca/techbyte103.html
@@ -66,3 +75,73 @@ bool HasCRInLineEnding(std::string const& strFilename)
 	return foundCR;
 }
 
+
+inline char getDirSep()
+{
+#ifdef WIN32
+    return '\\';
+#else
+    return '/';
+#endif
+}
+
+
+std::string pathJoin(const std::string& path1, const std::string& path2)
+{
+	if (path1.empty()) return path2;
+	if (path2.empty()) return path1;
+
+	const char dirSep = getDirSep();
+
+	const std::string s = rtrim(path1, dirSep) + dirSep + ltrim(path2, dirSep);
+
+	return s;
+}
+
+
+std::string pathBasename(const std::string& path)
+{
+	if (path.empty()) return "";
+
+	const char dirSep = getDirSep();
+	const std::string p = rtrim(path, dirSep);
+
+	const size_t idx = p.find_last_of(dirSep);
+	if (idx == std::string::npos) {
+		return path; // no dirSep in path
+	} else {
+		return p.substr(idx+1);
+	}
+}
+
+
+std::string pathDirname(const std::string& path)
+{
+	if (path.empty()) return ".";
+
+	const char dirSep = getDirSep();
+	const std::string p = rtrim(path, dirSep);
+
+	const size_t idx = p.find_last_of(dirSep);
+	if (idx == std::string::npos) {
+		return "."; // no dirSep in path
+	} else if (idx == 0) {
+		return std::string(1, dirSep); // only one dirSep at the beginning of path
+	} else {
+		return p.substr(0, idx);
+	}
+}
+
+
+std::string getCwd()
+{
+    char cwd[FILENAME_MAX];
+
+#ifdef WIN32
+    _getcwd(cwd, FILENAME_MAX);
+#else
+    getcwd(cwd, FILENAME_MAX);
+#endif
+
+    return cwd;
+}

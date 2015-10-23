@@ -60,6 +60,9 @@ public:
 	int diffusion_function_name;
 	/* Zugriff auf Number of Parameters */
 	int GetNumberDiffusionValuesCompProperties(int );
+  double CalcMolarDensityOfGas(double, double);
+  std::string gas_type;
+  bool molar_gas_dens;
 
 	/* Zerfallsmodelle und zugehoerige Beschreibungswerte in der geloesten Phase */
 	int decay_model;                      /* Zerfallsmodell in geloester Phase */

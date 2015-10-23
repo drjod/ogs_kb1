@@ -76,6 +76,16 @@ if  [ $RUN_EXCEEDING ]; then
 		returncode=1
 	fi
 
+	cd "$BUILD_LOCATION/build_ipqc"
+	ctest -R 'EXCEED' -E 'Tests|FILE' --output-on-failure -j $NUM_PROCESSORS
+	if [ "${?}" -ne "0" ] ; then
+		returncode=1
+	fi
+	ctest -R 'EXCEEDING_FILECOMPARE'
+	if [ "${?}" -ne "0" ] ; then
+		returncode=1
+	fi
+
 	cd "$BUILD_LOCATION/build_gems"
 	ctest -R 'EXCEED' -E 'Tests|FILE' --output-on-failure -j $NUM_PROCESSORS
 	if [ "${?}" -ne "0" ] ; then
@@ -118,6 +128,10 @@ else
 	ctest -R 'FILECOMPARE' -E 'EXCEED' >> ../benchOut.txt
 
 	cd "$BUILD_LOCATION/build_pqc"
+	ctest -E 'FILE|EXCEED|Tests' --output-on-failure -j $NUM_PROCESSORS >> ../benchOut.txt
+	ctest -R 'FILECOMPARE' -E 'EXCEED' >> ../benchOut.txt
+
+	cd "$BUILD_LOCATION/build_ipqc"
 	ctest -E 'FILE|EXCEED|Tests' --output-on-failure -j $NUM_PROCESSORS >> ../benchOut.txt
 	ctest -R 'FILECOMPARE' -E 'EXCEED' >> ../benchOut.txt
 

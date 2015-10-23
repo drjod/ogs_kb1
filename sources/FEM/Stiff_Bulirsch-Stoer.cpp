@@ -592,7 +592,10 @@ bool stifbs(double y[], double dydx[], int nv, double *xx, double htry, double e
          if (k != 1)
          {
             errmax=TINY;
-            for (i=1;i<=nv;i++) errmax=DMAX(errmax,fabs(yerr[i]/yscal[i]));
+            for (i=1;i<=nv;i++)
+			{
+				errmax=DMAX(errmax,fabs(yerr[i]/yscal[i]));
+			}
 				// scale error relative to tolerance
             errmax /= eps;
             km=k-1;
@@ -772,7 +775,7 @@ bool rkqs(double y[], double dydx[], int n, double *x, double htry, double eps,
 
    // failed, truncation error too large
    htemp=SAFETY*h*pow(errmax,PSHRNK);                 // reduce step size
-   h=(h >= 0.0 ?  (htemp,0.1*h) : DMIN(htemp,0.1*h)); // no more than factor of 1/10
+   h=(h >= 0.0 ?  DMAX(htemp,0.1*h) : DMIN(htemp,0.1*h)); // no more than factor of 1/10
 	  xnew=(*x)+h;
     if (xnew == *x){ 
       std::cout << "step size underflow in rkqs" << "\n";

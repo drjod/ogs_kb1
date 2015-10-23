@@ -5,11 +5,19 @@
  *      Author: TF
  */
 
+#ifndef NDBEUG
+#include <fstream>
+#endif
+
 #include "SurfaceGrid.h"
 #include "Surface.h"
 #include "Triangle.h"
 
 #include <algorithm>
+
+#ifndef NDBEUG
+#include "StringTools.h"
+#endif
 
 namespace GEOLIB {
 
@@ -111,6 +119,16 @@ SurfaceGrid::SurfaceGrid(Surface const*const sfc) :
 		_inverse_step_sizes[k] = 1.0 / _step_sizes[k];
 	}
 
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+	// write the grid as gli file
+	std::string fname("SurfaceGrid.gli");
+	std::ofstream os_sfc(fname.c_str());
+	writeSurfaceGridData(os_sfc);
+	os_sfc.close();
+#endif
+#endif
+
 	// fill the grid vectors
 	size_t i_min, i_max, j_min, j_max, k_min, k_max;
 	for (size_t l(0); l<n_triangles; l++) {
@@ -150,7 +168,96 @@ SurfaceGrid::SurfaceGrid(Surface const*const sfc) :
 			}
 		}
 	}
+
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+	// write the triangles per grid cell as gli
+	if (_n_steps[2]*_n_steps[1]*_n_steps[0] > 1000)
+		return;
+	for (std::size_t k(0); k<_n_steps[2]; k++) {
+		for (std::size_t j(0); j<_n_steps[1]; j++) {
+			for (std::size_t i(0); i<_n_steps[0]; i++) {
+				const std::size_t cell_id(
+					k*_n_steps[0]*_n_steps[1] + j*_n_steps[0] + i
+				);
+				if (_triangles_in_grid_box[cell_id].empty())
+					continue;
+				std::string fname("SurfaceGrid-");
+				fname += number2str(sfc) + "-";
+				fname += number2str(i) + "-";
+				fname += number2str(j) + "-";
+				fname += number2str(k) + ".tin";
+				std::ofstream os_tri(fname.c_str());
+				writeTrianglesInGridCell(i,j,k,os_tri);
+				os_tri.close();
+			}
+		}
+	}
+#endif
+#endif
+
 }
+
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+void SurfaceGrid::writeSurfaceGridData(std::ostream & os) const
+{
+	const std::size_t n_grid_plane((_n_steps[0]+1)*(_n_steps[1]+1));
+	os << "#POINTS\n";
+	for (std::size_t k=0; k<=_n_steps[2]; k++) {
+		for (std::size_t j=0; j<=_n_steps[1]; j++) {
+			for (std::size_t i=0; i<=_n_steps[0]; i++) {
+				os << k*n_grid_plane + j*(_n_steps[0]+1) + i << " "
+					<< _min_pnt[0] + i * _step_sizes[0] << " "
+					<< _min_pnt[1] + j * _step_sizes[1] << " "
+					<< _min_pnt[2] + k * _step_sizes[2] << "\n";
+			}
+		}
+	}
+
+	const std::size_t n_steps_0(_n_steps[0]+1);
+	for (std::size_t k=0; k<_n_steps[2]; k++) {
+		for (std::size_t j=0; j<_n_steps[1]; j++) {
+			for (std::size_t i=0; i<_n_steps[0]; i++) {
+				os << "#POLYLINE\n";
+				os << "  $NAME\n";
+				os << "    QUAD-" << k*n_grid_plane+j*n_steps_0+i << "\n";
+				os << "  $POINTS\n";
+				os << "    " << k*n_grid_plane + j*n_steps_0 + i << "\n";
+				os << "    " << k*n_grid_plane + j*n_steps_0 + i+1 << "\n";
+				os << "    " << k*n_grid_plane + (j+1)*n_steps_0 + i+1  << "\n";
+				os << "    " << k*n_grid_plane + (j+1)*n_steps_0 + i << "\n";
+				os << "    " << k*n_grid_plane + j*n_steps_0 + i << "\n";
+				os << "    " << (k+1)*n_grid_plane + j*n_steps_0 + i  << "\n";
+				os << "    " << (k+1)*n_grid_plane + j*n_steps_0 + i+1  << "\n";
+				os << "    " << k*n_grid_plane + j*n_steps_0 + i+1  << "\n";
+				os << "    " << (k+1)*n_grid_plane + j*n_steps_0 + i+1  << "\n";
+				os << "    " << (k+1)*n_grid_plane + (j+1)*n_steps_0 + i+1  << "\n";
+				os << "    " << k*n_grid_plane + (j+1)*n_steps_0 + i+1  << "\n";
+				os << "    " << (k+1)*n_grid_plane + (j+1)*n_steps_0 + i+1  << "\n";
+				os << "    " << (k+1)*n_grid_plane + (j+1)*n_steps_0 + i << "\n";
+				os << "    " << k*n_grid_plane + (j+1)*n_steps_0 + i << "\n";
+				os << "    " << (k+1)*n_grid_plane + (j+1)*n_steps_0 + i << "\n";
+				os << "    " << (k+1)*n_grid_plane + j*n_steps_0 + i << "\n";
+			}
+		}
+	}
+	os << "#STOP\n";
+}
+
+void SurfaceGrid::writeTrianglesInGridCell(
+	std::size_t i, std::size_t j, std::size_t k,
+	std::ostream & os) const
+{
+	const std::size_t cell_id(k*_n_steps[0]*_n_steps[1] + j*_n_steps[0] + i);
+	std::vector<GEOLIB::Triangle const*> const& tris(_triangles_in_grid_box[cell_id]);
+	if (! tris.empty()) {
+		for(std::size_t k(0); k<tris.size(); k++)
+			os << k << " " << *(tris[k]) << "\n";
+	}
+}
+#endif
+#endif
 
 bool SurfaceGrid::isPntInSurface(const double* pnt, double eps) const
 {

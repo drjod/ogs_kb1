@@ -1,0 +1,178 @@
+Determining if the pthread_create exist failed with the following output:
+Change Dir: F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp
+
+Run Build Command:C:\PROGRA~2\MSBuild\12.0\Bin\MSBuild.exe cmTryCompileExec1015126978.vcxproj /p:Configuration=Debug /p:VisualStudioVersion=12.0
+Microsoft (R) Build Engine version 12.0.21005.1
+[Microsoft .NET Framework, version 4.0.30319.18444]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 23.10.2015 17:22:14.
+Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "cmTryCompileExec1015126978.dir\Debug\".
+  Creating directory "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\".
+  Creating directory "cmTryCompileExec1015126978.dir\Debug\cmTryCom.EEA6A9DC.tlog\".
+InitializeBuildStatus:
+  Creating "cmTryCompileExec1015126978.dir\Debug\cmTryCom.EEA6A9DC.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec1015126978.dir\Debug\\" /Fd"cmTryCompileExec1015126978.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue CheckSymbolExists.c
+  Microsoft (R) C/C++-Optimierungscompiler Version 18.00.21005.1 fr x86
+  Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+  
+  cl /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec1015126978.dir\Debug\\" /Fd"cmTryCompileExec1015126978.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue CheckSymbolExists.c
+  
+  CheckSymbolExists.c
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:QUEUE /OUT:"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\cmTryCompileExec1015126978.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec1015126978.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec1015126978.lib" /MACHINE:X86 /SAFESEH  /machine:X86 /debug cmTryCompileExec1015126978.dir\Debug\CheckSymbolExists.obj
+CheckSymbolExists.obj : error LNK2019: Verweis auf nicht aufgelöstes externes Symbol "__imp__pthread_create" in Funktion "_main". [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj]
+F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\cmTryCompileExec1015126978.exe : fatal error LNK1120: 1 nicht aufgelöste Externe [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj]
+Done Building Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj" (default targets) -- FAILED.
+
+Build FAILED.
+
+"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj" (default target) (1) ->
+(Link target) -> 
+  CheckSymbolExists.obj : error LNK2019: Verweis auf nicht aufgelöstes externes Symbol "__imp__pthread_create" in Funktion "_main". [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj]
+  F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\cmTryCompileExec1015126978.exe : fatal error LNK1120: 1 nicht aufgelöste Externe [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1015126978.vcxproj]
+
+    0 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:00.56
+
+File F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp
+
+Run Build Command:C:\PROGRA~2\MSBuild\12.0\Bin\MSBuild.exe cmTryCompileExec1921780927.vcxproj /p:Configuration=Debug /p:VisualStudioVersion=12.0
+Microsoft (R) Build Engine version 12.0.21005.1
+[Microsoft .NET Framework, version 4.0.30319.18444]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 23.10.2015 17:22:15.
+Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1921780927.vcxproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "cmTryCompileExec1921780927.dir\Debug\".
+  Creating directory "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\".
+  Creating directory "cmTryCompileExec1921780927.dir\Debug\cmTryCom.EFD055F8.tlog\".
+InitializeBuildStatus:
+  Creating "cmTryCompileExec1921780927.dir\Debug\cmTryCom.EFD055F8.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec1921780927.dir\Debug\\" /Fd"cmTryCompileExec1921780927.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckFunctionExists.c"
+  Microsoft (R) C/C++-Optimierungscompiler Version 18.00.21005.1 fr x86
+  Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+  
+  cl /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec1921780927.dir\Debug\\" /Fd"cmTryCompileExec1921780927.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckFunctionExists.c"
+  
+  CheckFunctionExists.c
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:QUEUE /OUT:"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\cmTryCompileExec1921780927.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib pthreads.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec1921780927.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec1921780927.lib" /MACHINE:X86 /SAFESEH  /machine:X86 /debug cmTryCompileExec1921780927.dir\Debug\CheckFunctionExists.obj
+LINK : fatal error LNK1104: Datei "pthreads.lib" kann nicht geöffnet werden. [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1921780927.vcxproj]
+Done Building Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1921780927.vcxproj" (default targets) -- FAILED.
+
+Build FAILED.
+
+"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1921780927.vcxproj" (default target) (1) ->
+(Link target) -> 
+  LINK : fatal error LNK1104: Datei "pthreads.lib" kann nicht geöffnet werden. [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec1921780927.vcxproj]
+
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.48
+
+
+Determining if the function pthread_create exists in the pthread failed with the following output:
+Change Dir: F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp
+
+Run Build Command:C:\PROGRA~2\MSBuild\12.0\Bin\MSBuild.exe cmTryCompileExec3976760822.vcxproj /p:Configuration=Debug /p:VisualStudioVersion=12.0
+Microsoft (R) Build Engine version 12.0.21005.1
+[Microsoft .NET Framework, version 4.0.30319.18444]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 23.10.2015 17:22:15.
+Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec3976760822.vcxproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "cmTryCompileExec3976760822.dir\Debug\".
+  Creating directory "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\".
+  Creating directory "cmTryCompileExec3976760822.dir\Debug\cmTryCom.1398B1DA.tlog\".
+InitializeBuildStatus:
+  Creating "cmTryCompileExec3976760822.dir\Debug\cmTryCom.1398B1DA.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec3976760822.dir\Debug\\" /Fd"cmTryCompileExec3976760822.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckFunctionExists.c"
+  Microsoft (R) C/C++-Optimierungscompiler Version 18.00.21005.1 fr x86
+  Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+  
+  cl /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D CHECK_FUNCTION_EXISTS=pthread_create /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec3976760822.dir\Debug\\" /Fd"cmTryCompileExec3976760822.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckFunctionExists.c"
+  
+  CheckFunctionExists.c
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:QUEUE /OUT:"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\cmTryCompileExec3976760822.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib pthread.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec3976760822.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp/Debug/cmTryCompileExec3976760822.lib" /MACHINE:X86 /SAFESEH  /machine:X86 /debug cmTryCompileExec3976760822.dir\Debug\CheckFunctionExists.obj
+LINK : fatal error LNK1104: Datei "pthread.lib" kann nicht geöffnet werden. [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec3976760822.vcxproj]
+Done Building Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec3976760822.vcxproj" (default targets) -- FAILED.
+
+Build FAILED.
+
+"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec3976760822.vcxproj" (default target) (1) ->
+(Link target) -> 
+  LINK : fatal error LNK1104: Datei "pthread.lib" kann nicht geöffnet werden. [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec3976760822.vcxproj]
+
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.45
+
+
+Determining if compiler accepts -pthread failed with the following output:
+Change Dir: F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM/CMakeFiles/CMakeTmp
+
+Run Build Command:C:\PROGRA~2\MSBuild\12.0\Bin\MSBuild.exe cmTryCompileExec80556059.vcxproj /p:Configuration=Debug /p:VisualStudioVersion=12.0
+Microsoft (R) Build Engine version 12.0.21005.1
+[Microsoft .NET Framework, version 4.0.30319.18444]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Build started 23.10.2015 17:22:16.
+Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec80556059.vcxproj" on node 1 (default targets).
+PrepareForBuild:
+  Creating directory "cmTryCompileExec80556059.dir\Debug\".
+  Creating directory "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\Debug\".
+  Creating directory "cmTryCompileExec80556059.dir\Debug\cmTryCom.2B9836DA.tlog\".
+InitializeBuildStatus:
+  Creating "cmTryCompileExec80556059.dir\Debug\cmTryCom.2B9836DA.tlog\unsuccessfulbuild" because "AlwaysCreate" was specified.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec80556059.dir\Debug\\" /Fd"cmTryCompileExec80556059.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckForPthreads.c"
+  Microsoft (R) C/C++-Optimierungscompiler Version 18.00.21005.1 fr x86
+  Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+  
+  cl /c /Zi /W3 /WX- /Od /Ob0 /Oy- /D WIN32 /D _WINDOWS /D _DEBUG /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"cmTryCompileExec80556059.dir\Debug\\" /Fd"cmTryCompileExec80556059.dir\Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:queue "C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckForPthreads.c"
+  
+  CheckForPthreads.c
+C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckForPthreads.c(3): fatal error C1083: Datei (Include) kann nicht ge”ffnet werden: "unistd.h": No such file or directory [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec80556059.vcxproj]
+Done Building Project "F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec80556059.vcxproj" (default targets) -- FAILED.
+
+Build FAILED.
+
+"F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec80556059.vcxproj" (default target) (1) ->
+(ClCompile target) -> 
+  C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CheckForPthreads.c(3): fatal error C1083: Datei (Include) kann nicht ge”ffnet werden: "unistd.h": No such file or directory [F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM\CMakeFiles\CMakeTmp\cmTryCompileExec80556059.vcxproj]
+
+    0 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:00.40
+
+

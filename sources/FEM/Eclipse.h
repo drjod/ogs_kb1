@@ -175,6 +175,7 @@ class CECLIPSEData
 public:
 	std::string pathECLProject; // WTP 04/2014
 	std::string pathECLFolder;
+	std::string nameECLProject;
 	std::string pathECLFFile;
 	std::string pathECLWellFile;
 	long elements;
@@ -182,6 +183,7 @@ public:
 	long columns;
 	long layers;
 	//WTP long times;
+	int timestep_adjustment; // WTP useful if the (first) eclipse run is already a restart of some other simulation
 	int numberOutputParameters;
 	int activeCells;
 	// Adjust for counting the number of Eclipse grid appears in OGS mesh,BW
@@ -208,7 +210,8 @@ public:
 	bool E100;
 	bool option_CO2STORE;
 	bool phase_shift_flag;
-	double sumCO2removed;
+	bool reservoir_conditions; //WTP bool flag to request surface conditions (default=reservoir cond)
+	//WTP double sumCO2removed;
 	int ProcessIndex_CO2inLiquid;
 	int ProcessIndex_GasinLiquid;
 	int ProcessIndex_CO2inGas; //KB 
@@ -217,6 +220,7 @@ public:
 	bool existWells;
 	bool UsePrecalculatedFiles;
 	bool UseSaveEclipseDataFiles;
+	int verbosity;
 
 	bool UseEclrun; // WTP 02/15
     
@@ -299,7 +303,7 @@ public:
 	double** Data; //array of points, times and variables
 	std::vector <std::string> WellRates; // KB, abspeichern der neuen Raten f�r einen bestimmten Zeitschritt
 	
-	process::CRFProcessDeformation* dm_pcs; //KB0714
+	process::CRFProcessDeformation* dm_pcs; //KB0815 in der RunEclipse() gesetzt
 	//CFiniteElementStd* fem; //KB0714
 	//CFiniteElementVec* fem_dm; //KB0714
 
@@ -435,6 +439,8 @@ public:
 
 	bool CleanUpEclipseFiles(std::string folder, std::string projectname);
 
+	bool SaveEclipseInputFiles(std::string folder, std::string projectname);
+
 	int RunEclipse(long Timestep, CRFProcess* m_pcs);
 
 	void ReadWellData(std::string Filename_Wells);
@@ -447,4 +453,5 @@ public:
 
 	void FaceGenerator(long elccellindex, int facenodeindex[], int category);
 
+	std::string GetECLFlowVariableName(int phase, int direction);
 };

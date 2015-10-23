@@ -267,7 +267,7 @@ vector<int> IO::formula2index_total(std::string formula){
 	//get Chemical Element list from species.h
 	vector<string> Chemical_Element, pies;
 	Chemical_Element.clear();
-	for (i=0;i<(unsigned)sizeof(ELEMENTS)/(unsigned)sizeof(ELEMENTS[0]);i++){
+	for (i=0;(size_t)i<(sizeof(ELEMENTS)/sizeof(ELEMENTS[0]));i++){
 		pies= IO::string2vector(ELEMENTS[i]);
 		Chemical_Element.push_back(pies[2]);
 	}

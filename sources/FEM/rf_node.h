@@ -54,7 +54,8 @@ class CNodeValue
       std::string tim_type_name;
                                                   //WW
       void Write(std::ostream& os=std::cout) const;
-      void Read(std::istream& is=std::cin);       //WW
+      void Write_data(double, std::ostream& os = std::cout) const;
+      void Read(std::istream& is = std::cin);       //WW
       bool check_me;                              //OK
       bool _isConstrainedSTNode;
 

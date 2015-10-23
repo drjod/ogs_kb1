@@ -28,6 +28,9 @@ public:
 	long elenumber;                       //number of elements
 	/* hier später arrays of reactions reinhängen ?*/
 
+  // the next two are always defined, such that it also works in serial version    
+  int myrank;
+  int mysize;
 	// rcml moved here
 	int rcml_number_of_master_species;    /* number of master species (inorgan. equilibrium) */
 	int rcml_number_of_equi_phases;       /* number of phases (in equilibrium) */
@@ -46,6 +49,7 @@ public:
       std::string file_name_database;             // Name of pqc database file in GeoSys project (*.pqc)
 	std::string outfile_name;
 	std::string results_file_name;
+  std::string pqc_outfile_name;
 	std::vector < std::string > pqc_names; // species names in *-pqc input file
 	std::vector < int > pqc_index;        // index in process array
 	std::vector < int > pqc_process;      // process number in pcs_vector
@@ -65,9 +69,9 @@ public:
 	int  ReadReactionModelNew(std::ifstream*);
 	//fsout removed 3912
 	int  ReadInputPhreeqc( long index, FILE* fpqc, FILE* Fphinp);
-	int  WriteInputPhreeqc(long, /*ifstream*,*/ std::ofstream*);
+	int  WriteInputPhreeqc(long, /*ifstream*,*/ std::ofstream*, bool);
 	int  ReadOutputPhreeqc(char* fout);
-	int  ReadOutputPhreeqcNew(void);
+  int  ReadOutputPhreeqcNew(std::vector<int> ranknodelist, double *m_Conc);
 	void ResetpHpe(void);
 	void CalculateReactionRates(void);
 	void SetConcentrationResults(void);

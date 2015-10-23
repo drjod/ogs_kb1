@@ -8,6 +8,8 @@
 #ifndef rf_pcs_INC
 #define rf_pcs_INC
 
+#include <valarray>
+
 #include "makros.h"
 
 // MSHLib
@@ -34,7 +36,6 @@
 #if defined(USE_PETSC) // || defined(using other parallel scheme)
 namespace petsc_group {class  PETScLinearSolver;}
 #endif
-
 
 namespace FiniteElement
 {
@@ -233,7 +234,6 @@ protected:                                        //WW
 	long size_unknowns;
 	// Assembler
 	CFiniteElementStd* fem;
-	CFiniteElementVec* fem_dm; //KB0714
 	// Time step control
 	bool accepted;                        //25.08.1008. WW
 	int accept_steps;                     //27.08.1008. WW
@@ -310,6 +310,8 @@ public:
 	// 2: Read
 	int WriteSourceNBC_RHS;
 	int WriteProcessed_BC;
+  int bc_out_step;
+  int st_out_step;
 	// Write the current solutions/Read the previous solutions WW
 	// -1, default. Do nothing
 	// 1. Write
@@ -318,6 +320,7 @@ public:
 	int reload;
 	long nwrite_restart;
 	void  WriteRHS_of_ST_NeumannBC();
+  void WriteRHS_of_ST_NeumannBC_transient(int, double *);
 	void  ReadRHS_of_ST_NeumannBC();
 	void  Write_Processed_BC(); // 05.08.2011. WW
 	void  Read_Processed_BC(); // 05.08.2011. WW
@@ -355,7 +358,6 @@ public:
 	int Phase_Transition_Model;           //BG, NB flag of Phase_Transition_Model (1...CO2-H2O-NaCl)
 	                                      // BG 11/2010 Sets the initial conditions for multi phase flow if Phase_Transition_CO2 is used
 	void CalculateFluidDensitiesAndViscositiesAtNodes(CRFProcess* m_pcs);
-    
 	/**
 	 * Sets the value for pointer _problem.
 	 * @param problem the value for _problem
@@ -457,6 +459,7 @@ public:
 	void CreateBCGroup();
 	void SetBC();                         //OK
 	void WriteBC();                       //15.01.2008. WW
+  void WriteBC_transient(int, double *);   // CB
 	//....................................................................
 	// 6-ST
 	void CreateSTGroup();
@@ -507,15 +510,16 @@ public:
 	std::string simulator_path;           // path for executable of external simulator
 	std::string simulator_model_path;     // path to exclipse input data file (*.data), with extension
 	bool PrecalculatedFiles;              // defines if Eclipse or dumux is calculated or if precalculated files are used
-	bool SaveEclipseDataFiles;		  // WTP: save Eclipse data input files for benchmarking on systems with no Eclipse licenses; use in combination with Precalculated Files
-	bool heat_update;
+	bool SaveEclipseDataFiles;		      // WTP: save Eclipse data input files for benchmarking on systems with no Eclipse licenses; use in combination with Precalculated Files
+	bool JTE_considered;
 	bool auto_water_vapor;
-    	bool HU_fct_file_flag;
-    	double hu_pressure_threshold;
-    	int HU_ident;
+	bool JTC_fct_file_flag;
+	bool ECLunits_reservoir_conditions;
 
 	std::string simulator_well_path;      // path to well schedule ( *.well), with extension
 	std::vector <std::vector < std::string > > vec_component_pcs_names;   // WTP 04/2014 new data structure for coupling the ogs pcs names to ECL component names
+	int ecl_time_adjust; // variable to adjust # of current timestep in ecl
+	int ecl_verbosity;
 	// WTP: obsolete
 	std::string dissolved_co2_pcs_name; // Keyword DISSOLVED_CO2_PCS_NAME; Name of MASS_TRANSPORT Process which is used to store total dissolved CO2 from ECLIPSE
 	std::string dissolved_co2_ingas_pcs_name;
@@ -526,6 +530,9 @@ public:
 	char pcs_name[MAX_ZEILE];             //string pcs_name;
 	int pcs_number;
 	int mobile_nodes_flag;
+    bool print_times;
+    bool napl_dissolution;
+    bool gasnapl_dissolution;
 
 	int pcs_type_number;
 	int type;
@@ -628,15 +635,13 @@ public:
 	int GetElementValueIndex(const std::string&, bool reverse_order = false);
 	//CB-----------------------------
 	int flow_pcs_type;
+	double Get_dt_pcs() {	return Tim->time_step_length;	}//Tim->time_AdaptiveKRC; }
 	//----------------------------------------------------------------------
 	// Methods
 	// Access to PCS
 	CRFProcess* GetProcessByFunctionName(char* name);
 	CRFProcess* GetProcessByNumber(int);
 	CFiniteElementStd* GetAssembler() {return fem; }
-	//CFiniteElementVec* GetFEM_Assembler() { //KB0714
-	//	return fem_dm;
-	//}
 	int GetDOF() {return dof;}
 	bool pcs_is_cpl_overlord;
 	bool pcs_is_cpl_underling;
@@ -660,7 +665,8 @@ public:
 	void ConfigMultiPhaseFlow();
 	void ConfigPS_Global();               // PCH
 	void ConfigMULTI_COMPONENTIAL_FLOW();                // AKS/NB
-	  void ConfigTNEQ();						//HS,TN
+	void ConfigTNEQ();						//HS,TN
+	void ConfigTES();						//HS,TN
 	// Configuration 1 - NOD
 #if defined(USE_PETSC) // || defined(other parallel libs)//03.3012. WW
         void setSolver( petsc_group::PETScLinearSolver *petsc_solver );
@@ -710,7 +716,6 @@ public:
 	void GlobalAssembly_std(bool is_quad, bool Check2D3D = false);
 	/// Assemble EQS for deformation process.
       virtual void GlobalAssembly_DM() {};
-
 #if defined (NEW_EQS) && defined(JFNK_H2M)
 	/// Jacobian free methid to calculate J*v.
 	//11.08.2010.
@@ -728,7 +733,8 @@ public:
 	bool cal_integration_point_value;     //WW
 	void CalGPVelocitiesfromFluidMomentum(); //SB 4900
 	bool use_velocities_for_transport;    //SB4900
-
+    int ReturnReload(){ return reload; }  //CB
+    int ReturnReloadStepsize(){ return nwrite_restart; }  //CB
 	//---
 	double Execute();
 	double ExecuteNonLinear(int loop_process_number, bool print_pcs=true);
@@ -757,8 +763,8 @@ public:
 
 	// ST
 	void IncorporateSourceTerms(const int rank = -1);
-	bool CalcHeatUpdate(CRFProcess* h_pcs, std::vector < std::vector < double > > data_in, bool multi_phase); // WTP 04/2013
-	void IncorporateHeatUpdate(void);
+	bool CalcHeatST_JT(CRFProcess* h_pcs, std::vector < std::vector < double > > data_in, bool multi_phase); // WTP 04/2013
+	void IncorporateJouleThomsonEffect(void);
 	//WW void CheckSTGroup(); //OK
 #ifdef GEM_REACT
 	void IncorporateSourceTerms_GEMS(void); //HS: dC/dt from GEMS chemical solver.
@@ -800,6 +806,7 @@ public:
 	double pcs_absolute_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store error for each DOF
 	double pcs_unknowns_norm;
 	double cpl_max_relative_error;				// JT2012: For CPL, we just store the maximum, not each dof value
+	double nls_max_relative_error;
 	double cpl_absolute_error[DOF_NUMBER_MAX];	// JT2012:
 	double temporary_absolute_error[DOF_NUMBER_MAX];	// JT2012:
 	int temporary_num_dof_errors;
@@ -850,11 +857,11 @@ public:
 	std::vector <double> var_values_delta_max;
 	double delta_max_pv_max;
 
-	  void CalcSecondaryVariablesTNEQ();      //HS
+	void CalcSecondaryVariablesTNEQ();      //HS
+	void CalcSecondaryVariablesTES(const bool initial = true);      //HS
 	void CalcSecondaryVariablesUnsaturatedFlow(bool initial = false);
 	void CalcSecondaryVariablesPSGLOBAL(); // PCH
-    void CalcSecondaryVariablesLiquidFlow();                                                  // PCH
-	void CalcSecondaryVariablesMultiComponentialFlow(); // JODNEW
+	void CalcSecondaryVariablesLiquidFlow();                                                  // PCH
 	double GetCapillaryPressureOnNodeByNeighobringElementPatches(int nodeIdx,
 	                                                             int meanOption,
 	                                                             double Sw);
@@ -920,7 +927,7 @@ public:
 	int PCS_ExcavState;                   //WX
 	int Neglect_H_ini;                    //WX
 	int UpdateIniState;                   //WX
-	int M_feedback;				//KB1014
+	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014
 	int therzagi;				//KB1014
 #if defined(USE_MPI) || defined (USE_PETSC)                                 //WW
@@ -958,7 +965,7 @@ private:
 	bool checkConstrainedST(std::vector<CSourceTerm*> & st_vector, CSourceTerm const & st, CNodeValue const & st_node);
 	// method to check on constrained boundary conditions
 	bool checkConstrainedBC(CBoundaryCondition const & bc, CBoundaryConditionNode const & bc_node, double & bc_value);
-	void getNodeVelocityVector(const long node_id, double * vel_nod);
+	std::valarray<double> getNodeVelocityVector(const long node_id);
 
 };
 
@@ -966,7 +973,7 @@ private:
 // PCS
 extern std::vector<CRFProcess*>pcs_vector;
 extern std::vector<ElementValue*> ele_gp_value;   // Gauss point value for velocity. WW
-extern std::vector<ElementValue*> ele_gp_flux;   // Gauss point value for Fick / Fourier flux. JODNEW
+extern std::vector<ElementValue*> ele_gp_flux;   // Gauss point value for Fick / Fourier flux. JOD 8/2015
 extern bool PCSRead(std::string);
 extern void PCSWrite(std::string);
 extern void RelocateDeformationProcess(CRFProcess* m_pcs);
@@ -1113,6 +1120,7 @@ extern bool pcs_created;
 extern std::vector<LINEAR_SOLVER*> PCS_Solver;    //WW
                                                   //OK
 extern void MMPCalcSecondaryVariablesNew(CRFProcess* m_pcs, bool NAPLdiss);
+extern void CalcSecondaryVariableDensity(CRFProcess* m_pcs);
 extern void SetFlowProcessType();                 //CB 01/08
 extern void CopyTimestepNODValuesSVTPhF();        //CB 13/08
 #if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW

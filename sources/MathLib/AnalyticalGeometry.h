@@ -84,9 +84,9 @@ double calcTriangleArea(GEOLIB::Point const& a,
  * spaned by triangle)
  * @return true if the test point p is within the 'epsilon'-neighbourhood of the triangle
  */
-bool isPointInTriangle (const GEOLIB::Point* p,
-                        const GEOLIB::Point* a, const GEOLIB::Point* b, const GEOLIB::Point* c,
-                        double eps = std::numeric_limits<float>::epsilon());
+bool isPointInTriangle (const GEOLIB::Point* p, const GEOLIB::Point* a,
+						const GEOLIB::Point* b, const GEOLIB::Point* c,
+						double eps = std::numeric_limits<float>::epsilon());
 
 /**
  * test for intersections of the line segments of the Polyline

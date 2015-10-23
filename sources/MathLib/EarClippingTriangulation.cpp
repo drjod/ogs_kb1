@@ -21,6 +21,9 @@ namespace MathLib
 EarClippingTriangulation::EarClippingTriangulation(const GEOLIB::Polygon* polygon,
                                                    std::list<GEOLIB::Triangle> &triangles, bool rot)
 {
+	if (polygon->getNumberOfPoints()<4)
+		return;
+
 	copyPolygonPoints (polygon);
 
 	if (rot)

@@ -55,6 +55,8 @@ ProcessType convertProcessType ( const std::string& pcs_type_string)
 		return MULTI_COMPONENTIAL_FLOW;
 	if (pcs_type_string.compare ("TNEQ") == 0)
 		return TNEQ;
+	if (pcs_type_string.compare ("TES") == 0)
+		return TES;
 	//else
 		//std::cout << "WARNING in convertProcessType: process type #" << pcs_type_string <<
 		//"# unknown" << "\n";
@@ -64,63 +66,80 @@ ProcessType convertProcessType ( const std::string& pcs_type_string)
 
 std::string convertProcessTypeToString ( ProcessType pcs_type )
 {
-	if (pcs_type == LIQUID_FLOW)
+	switch (pcs_type)
+	{
+	case LIQUID_FLOW:
 		return "LIQUID_FLOW";
-	if (pcs_type == FLUID_FLOW)
+	case FLUID_FLOW:
 		return "FLUID_FLOW";
-	if (pcs_type == TWO_PHASE_FLOW)
+	case TWO_PHASE_FLOW:
 		return "TWO_PHASE_FLOW";
-	if (pcs_type == RICHARDS_FLOW)
+	case RICHARDS_FLOW:
 		return "RICHARDS_FLOW";
-	if (pcs_type == OVERLAND_FLOW)
+	case OVERLAND_FLOW:
 		return "OVERLAND_FLOW";
-	if (pcs_type == GROUNDWATER_FLOW)
+	case GROUNDWATER_FLOW:
 		return "GROUNDWATER_FLOW";
-	if (pcs_type == HEAT_TRANSPORT)
+	case HEAT_TRANSPORT:
 		return "HEAT_TRANSPORT";
-	if (pcs_type == DEFORMATION)
+	case DEFORMATION:
 		return "DEFORMATION";
-	if (pcs_type == DEFORMATION_FLOW)
+	case DEFORMATION_FLOW:
 		return "DEFORMATION_FLOW";
-	if (pcs_type == DEFORMATION_DYNAMIC)
+	case DEFORMATION_DYNAMIC:
 		return "DEFORMATION_DYNAMIC";
-	if (pcs_type == MASS_TRANSPORT)
+	case MASS_TRANSPORT:
 		return "MASS_TRANSPORT";
-	if (pcs_type == MULTI_PHASE_FLOW)
+	case MULTI_PHASE_FLOW:
 		return "MULTI_PHASE_FLOW";
-	if (pcs_type == DEFORMATION_H2)
+	case DEFORMATION_H2:
 		return "DEFORMATION_H2";
-	if (pcs_type == AIR_FLOW)
+	case AIR_FLOW:
 		return "AIR_FLOW";
-	if (pcs_type == FLUID_MOMENTUM)
+	case FLUID_MOMENTUM:
 		return "FLUID_MOMENTUM";
-	if (pcs_type == RANDOM_WALK)
+	case RANDOM_WALK:
 		return "RANDOM_WALK";
-	if (pcs_type == FLUX)
+	case FLUX:
 		return "FLUX";
-	if (pcs_type ==   PS_GLOBAL)
+	case PS_GLOBAL:
 		return "PS_GLOBAL";
-	if (pcs_type == MULTI_COMPONENTIAL_FLOW)
+	case MULTI_COMPONENTIAL_FLOW:
 		return "MULTI_COMPONENTIAL_FLOW";
-    if (pcs_type == TNEQ)
-	    return "TNEQ";
-	if (pcs_type ==   NO_PCS)
+	case TNEQ:
+		return "TNEQ";
+	case TES:
+		return "TES";
+	case NO_PCS:
 		return "NO_PCS";
-	return "INVALID_PROCESS";
+	default:
+		return "INVALID_PROCESS";
+	}
 }
 
 
 bool isFlowProcess (ProcessType pcs_type)
 {
-	if (   pcs_type == LIQUID_FLOW || pcs_type == FLUID_FLOW 
-		|| pcs_type == RICHARDS_FLOW || pcs_type == GROUNDWATER_FLOW
-		|| pcs_type == PS_GLOBAL || pcs_type == MULTI_PHASE_FLOW
-		|| pcs_type == DEFORMATION_FLOW || pcs_type == DEFORMATION_H2
-	    || pcs_type == TWO_PHASE_FLOW || pcs_type == OVERLAND_FLOW 
-	    || pcs_type == AIR_FLOW || pcs_type == MULTI_COMPONENTIAL_FLOW
-		|| pcs_type == TNEQ)
+	switch (pcs_type)
+	{
+	case LIQUID_FLOW:
+	case FLUID_FLOW:
+	case RICHARDS_FLOW:
+	case GROUNDWATER_FLOW:
+	case PS_GLOBAL:
+	case MULTI_PHASE_FLOW:
+	case DEFORMATION_FLOW:
+	case DEFORMATION_H2:
+	case TWO_PHASE_FLOW:
+	case OVERLAND_FLOW:
+	case AIR_FLOW:
+	case MULTI_COMPONENTIAL_FLOW:
+	case TNEQ:
+	case TES:
 		return true;
-	return false;
+	default:
+		return false;
+	}
 }
 
 bool isMultiFlowProcess (ProcessType pcs_type)
@@ -509,6 +528,8 @@ SolidReactiveSystem convertSolidReactiveSystem( const std::string& reactive_stri
 		return CaOH2;
 	if (reactive_string.compare("Mn3O4") == 0)
 		return Mn3O4;
+	if (reactive_string.compare("Z13XBF") == 0)
+		return Z13XBF;
 
 	std::cout << "Convert error: " << reactive_string << " not found. \n";
 	return INVALID_REACTIVE_SYSTEM;
@@ -524,6 +545,8 @@ std::string convertSolidReactiveSystemToString(SolidReactiveSystem reactive_syst
 		return "CaOH2";
 	if (reactive_system == Mn3O4)
 		return "Mn3O4";
+	if (reactive_system == Z13XBF)
+		return "Z13XBF";
 
 	std::cout << "Invalid reactive system type. \n";
 	return "INVALID_REACTIVE_SYSTEM";
@@ -597,6 +620,10 @@ TimeControlType::type convertTimeControlType(const std::string &str)
         return TimeControlType::ERROR_CONTROL_ADAPTIVE;
     else if (str.find("SELF_ADAPTIVE")!=std::string::npos)
         return TimeControlType::SELF_ADAPTIVE;
+    else if (str == "STABLE_ERROR_ADAPTIVE")
+        return TimeControlType::STABLE_ERROR_ADAPTIVE;
+	else if (str == "MAX_PV_CHANGE")
+		return TimeControlType::MAX_PV_CHANGE;
 
     return TimeControlType::INVALID;
 }
@@ -621,6 +648,8 @@ std::string convertTimeControlTypeToString(TimeControlType::type tc_type)
         return "ERROR_CONTROL_ADAPTIVE";
     else if (tc_type == TimeControlType::SELF_ADAPTIVE)
         return "SELF_ADAPTIVE";
+    else if (tc_type == TimeControlType::STABLE_ERROR_ADAPTIVE)
+        return "STABLE_ERROR_ADAPTIVE";
     return "INVALID";
 
 }

@@ -34,7 +34,10 @@
 //F: Fluid momentum
 //A: Gas flow
 //N: Thermal nonequilibrium
-enum EnumProcessType { L, U, G, T, C, H, M, O, R, F, A, V, P, S, N};
+enum EnumProcessType { EPT_LIQUID_FLOW, EPT_UNCONFINED_FLOW, EPT_GROUNDWATER_FLOW, EPT_TWOPHASE_FLOW, EPT_COMPONENTAL_FLOW,
+                       EPT_HEAT_TRANSPORT, EPT_MASS_TRANSPORT, EPT_OVERLAND_FLOW, EPT_RICHARDS_FLOW, EPT_FLUID_MOMENTUM,
+                       EPT_GAS_FLOW, EPT_MULTIPHASE_FLOW, EPT_PSGLOBAL, EPT_MULTI_COMPONENTIAL_FLOW,
+                       EPT_THERMAL_NONEQUILIBRIUM, EPT_TES };
 //-----------------------------------------------------
 
 namespace process
@@ -57,16 +60,12 @@ using Math_Group::DiagonalMatrix;
 using Math_Group::Vec;
 using process::CRFProcessDeformation;
 using ::CRFProcess;
-//using MeshLib::CFEMesh;
 
 class CFiniteElementStd : public CElement
 {
 public:
 	CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order = 1);
 	~CFiniteElementStd();
-
-	//FiniteElement::CFiniteElementVec* GetFEM_Assembler() const { return fem_dm; }; // KB0714 removed by JOD to get wih PETSC compiled
-	//CElement* m_ele; //KB0714
 
 	// Set material data
 	void SetMaterial(const int phase = 0);
@@ -84,10 +83,12 @@ public:
 	void CalcMass2();
 	void CalcMassMCF();                   //AKS/NB
 	void CalcMassTNEQ();                      //AKS/NB
+	void CalcMassTES();                       //AKS/NB
 	void CalcMassPSGLOBAL();              // PCH
 	// 2. Lumped mass matrix
 	void CalcLumpedMass();
 	void CalcLumpedMass2();
+	void CalcLumpedMassTES();
 	void CalcLumpedMassMCF();  //AKS
 	void CalcLumpedMassPSGLOBAL();        // PCH
 	// 3. Laplace matrix
@@ -97,13 +98,13 @@ public:
 	void CalcGravity();
 	// 5. Strain coupling matrix
 	void CalcStrainCoupling(int phase = 0);
-	//double VolumeStrainIntegrationForEclipse(process::CRFProcessDeformation* dm_pcs); //KB07/14
 	// 6. Thermal coupling
 	void CalcRHS_by_ThermalDiffusion();
 	// 7. Advection matrix
 	void CalcAdvection();
 	void CalcAdvectionMCF();
 	void CalcAdvectionTNEQ();
+	void CalcAdvectionTES();
 	// 8. Storage matrix
 	void CalcStorage();
 	// 9. Content matrix
@@ -111,6 +112,7 @@ public:
 	double CalculateContent(double *, double *);       // for budgets JOD 2/2015
 	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
 	void CalcContentTNEQ(); //NW
+	void CalcContentTES(); //NW
 	//
 	void CalcSatution();                  //WW
 	//
@@ -199,8 +201,8 @@ public:
 	// Gauss value
 	void ExtropolateGauss(CRFProcess* m_pcs, const int idof);
 	// Extrapolate reaction rates on TNEQ flow
-	void ExtrapolateGauss_ReactRate_TNEQ(CRFProcess *m_pcs);
-	void UpdateSolidDensity(size_t elem_idx);       // HS
+	void ExtrapolateGauss_ReactRate_TNEQ_TES(CRFProcess *m_pcs);
+	void UpdateSolidDensity(size_t elem_idx, const bool initial = true);       // HS
 	// CB _ctx_ CB_merge_0513
 	//void Set_ctx_(long ele_index, double val, int gaussp, int i_dim);
 	//double Get_ctx_(long ele_index, int gaussp, int i_dim);
@@ -229,7 +231,6 @@ private:
 	double* eqs_rhs;                      //For DDC WW
 	bool heat_phase_change;
 
-	char pcsT;
 	//     /**
 	//      * process type, \sa enum ProcessType
 	//      */
@@ -237,7 +238,6 @@ private:
 
 	bool dynamic;
 	CRFProcess* mfp_pcs;
-	//FiniteElement::CFiniteElementVec* fem_dm; //KB0714 // KB0714 removed by JOD to get with PETSC compiled
 	SolidProp::CSolidProperties* SolidProp;
 	CFluidProperties* FluidProp;
 	CFluidProperties* GasProp;
@@ -292,13 +292,16 @@ private:
 	// 10 2008 PCH
 	void CalCoefLaplaceMultiphase(int phase, int ip = 0);
 	void CalCoefLaplace2(bool Gravity, int dof_index);
-	void CalCoefLaplaceTNEQ(int dof_index);
+	void CalCoefLaplaceTNEQ(const int dof_index);
+	void CalCoefLaplaceTES(const int dof_index);
 	void CalCoefLaplacePSGLOBAL(bool Gravity, int dof_index);
 	double CalCoefAdvection();        //SB4200 OK/CMCD
 	//AKS/NB
-	double CalCoefAdvectionTNEQ(int dof_index);
+	double CalCoefAdvectionTNEQ(const int dof_index);
+	double CalCoefAdvectionTES(const int dof_index);
 
-	double CalCoefMassTNEQ(int dof_index);
+	double CalCoefMassTNEQ(const int dof_index);
+	double CalCoefMassTES(const int dof_index);
 	void CalCoefMassMCF();
 	void CalCoefAdvectionMCF();
 	void CalCoefLaplaceMCF(int ip);
@@ -307,13 +310,15 @@ private:
 
 	double CalCoefStorage();       //SB4200
 	double CalCoefContent();
-	double CalCoefContentTNEQ(int dof_index); //NW
+	double CalCoefContentTNEQ(const int dof_index); //NW
+	double CalCoefContentTES(const int dof_index);
 	double CalCoefStrainCouping(const int phase = 0);
 
 	double  CalcCoefDualTransfer();
 	// 27.2.2007 WW
 	double CalCoef_RHS_T_MPhase(int dof_index);
-	double CalCoef_RHS_TNEQ(int dof_index);
+	double CalCoef_RHS_TNEQ(const int dof_index);
+	double CalCoef_RHS_TES(const int dof_index);
 	// 27.2.2007 WW
 	double CalCoef_RHS_M_MPhase(int dof_index);
 	double CalCoef_RHS_PSGLOBAL(int dof_index);
@@ -380,6 +385,7 @@ private:
 	void Assemble_RHS_AIR_FLOW();         //AKS
 	void Assemble_RHS_HEAT_TRANSPORT();   //AKS
 	void Assemble_RHS_TNEQ();      //AKS
+	void Assemble_RHS_TES();      //AKS
 	void Assemble_RHS_HEAT_TRANSPORT2();  //AKS
 	void Assemble_RHS_T_PSGlobal();       // Assembly of RHS by temperature for PSGlobal
 	void AssembleRHS(int dimension);      // PCH
@@ -425,8 +431,7 @@ private:
 	double *NodalVal_t2_0;                   // FOR TEMPERATURE2 previous time step
 	double *NodalVal_t2_1;                   // for TEMPERATURE2 current time step
 	double *NodalVal_X0;                     // for CONCENTRATION previous time step
-	double *NodalVal_X1;                     // for CONCENTRATION current time step
-	double *disp;							// KB0714 for volume strain integration 
+	double *NodalVal_X1;                     // for CONCENTRATION current time step 
 	double* weight_func;                  //NW
 	void CalcFEM_FCT();                   //NW
 	//
@@ -444,7 +449,8 @@ public:
 	void getIPvalue_vec_phase(const int IP, int phase, double* vec);
 	void GetEleVelocity(double* vec);
 	Matrix Velocity;
-    Matrix Velocity_g;
+	Matrix Velocity_g; // WTP
+
 	// HS Thermal Storage parameters---------------
 	// Array of parameters on each Gauss point
 	double *rho_s_prev, *rho_s_curr;
@@ -459,7 +465,7 @@ private:
 	// Process
 	CRFProcess* pcs;
 	// Data
-	//Matrix Velocity_g;
+	//WTP Matrix Velocity_g;
 	// CB _ctx_ CB_merge_0513
 	//Matrix _ctx_Gauss;
 };

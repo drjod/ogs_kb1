@@ -1233,7 +1233,7 @@ void CDUMUXData::WriteDataToGeoSys(CRFProcess* m_pcs)
 			m_ele = m_msh->ele_vector[i]; // get element
 			if (m_ele->GetMark()) // Marked for use
 			{ // Configure Element for interpolation of node velocities to GP velocities
-				fem->ConfigElement(m_ele);
+				fem->ConfigElement(m_ele, m_pcs->m_num->ele_gauss_points);
 
 				std::string tempstring;
 				tempstring = "";

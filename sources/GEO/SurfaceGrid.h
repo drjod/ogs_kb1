@@ -9,6 +9,7 @@
 #define SURFACEGRID_H_
 
 #include <vector>
+#include <algorithm>
 
 // GEOLIB
 #include "AxisAlignedBoundingBox.h"
@@ -27,6 +28,13 @@ public:
 	bool isPntInSurface(const double* pnt, double eps = 0) const;
 
 private:
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+	void writeSurfaceGridData(std::ostream &os) const;
+	void writeTrianglesInGridCell(std::size_t i, std::size_t j, std::size_t k,
+		std::ostream & os) const;
+#endif
+#endif
 	double _step_sizes[3];
 	double _inverse_step_sizes[3];
 	size_t _n_steps[3];

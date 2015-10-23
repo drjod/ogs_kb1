@@ -1,27 +1,20 @@
-
-SET ( SOURCES
-	ExtractMeshNodes.h
-	ExtractMeshNodes.cpp
-)
-
-# include directories
-INCLUDE_DIRECTORIES(
-	${CMAKE_SOURCE_DIR}/MSHGEOTOOLS
+include_directories(
 	${CMAKE_SOURCE_DIR}/Base
-	${CMAKE_SOURCE_DIR}/GEO
-	${CMAKE_SOURCE_DIR}/MSH
-	${CMAKE_SOURCE_DIR}/MathLib
-	${CMAKE_SOURCE_DIR}/FileIO
 	${CMAKE_SOURCE_DIR}/FEM
+	${CMAKE_SOURCE_DIR}/FileIO
+	${CMAKE_SOURCE_DIR}/GEO
+	${CMAKE_SOURCE_DIR}/MathLib
+	${CMAKE_SOURCE_DIR}/MSH
+	${CMAKE_SOURCE_DIR}/MSHGEOTOOLS
 )
 
 # create library
-ADD_LIBRARY( MSHGEOTOOLS STATIC ${SOURCES} )
+add_library( MSHGEOTOOLS STATIC ExtractMeshNodes.h ExtractMeshNodes.cpp )
 
-TARGET_LINK_LIBRARIES (
-        MSHGEOTOOLS
-        MSH
-        GEO
-        ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries (
+	MSHGEOTOOLS
+	${CMAKE_THREAD_LIBS_INIT}
+	GEO
+	MSH
 )
 

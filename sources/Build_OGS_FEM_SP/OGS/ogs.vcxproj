@@ -1,0 +1,269 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="RelWithDebInfo|Win32">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGUID>{373F26FA-ACB4-48C3-A620-E66EFE41D5F1}</ProjectGUID>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>Win32</Platform>
+    <ProjectName>ogs</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+    <PropertyGroup>
+      <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\bin\RelWithDebInfo\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">ogs.dir\RelWithDebInfo\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">ogs</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">true</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">true</GenerateManifest>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\bin\Release\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ogs.dir\Release\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ogs</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateManifest>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\bin\Debug\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ogs.dir\Debug\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ogs</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateManifest>
+    </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>RelWithDebInfo/</AssemblerListingLocation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4290;4267</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR="RelWithDebInfo";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR=\"RelWithDebInfo\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 /debug %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\lib\RelWithDebInfo\Base.lib;..\lib\RelWithDebInfo\FEM.lib;..\lib\RelWithDebInfo\FileIO.lib;..\lib\RelWithDebInfo\GEO.lib;..\lib\RelWithDebInfo\MathLib.lib;..\lib\RelWithDebInfo\MSH.lib;..\lib\RelWithDebInfo\FEM.lib;..\lib\RelWithDebInfo\FileIO.lib;..\lib\RelWithDebInfo\GEO.lib;..\lib\RelWithDebInfo\MSH.lib;..\lib\RelWithDebInfo\GCC.lib;..\lib\RelWithDebInfo\MathLib.lib;..\lib\RelWithDebInfo\Base.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ImportLibrary>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/RelWithDebInfo/ogs.lib</ImportLibrary>
+      <ProgramDataBaseFile>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/RelWithDebInfo/ogs.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>Release/</AssemblerListingLocation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4290;4267</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat></DebugInformationFormat>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\lib\Release\Base.lib;..\lib\Release\FEM.lib;..\lib\Release\FileIO.lib;..\lib\Release\GEO.lib;..\lib\Release\MathLib.lib;..\lib\Release\MSH.lib;..\lib\Release\FEM.lib;..\lib\Release\FileIO.lib;..\lib\Release\GEO.lib;..\lib\Release\MSH.lib;..\lib\Release\GCC.lib;..\lib\Release\MathLib.lib;..\lib\Release\Base.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <ImportLibrary>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/Release/ogs.lib</ImportLibrary>
+      <ProgramDataBaseFile>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/Release/ogs.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>Debug/</AssemblerListingLocation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4290;4267</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_CRT_XNONSTDC_NO_WARNINGS;NEW_EQS;MSVC;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\ThirdParty;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Base;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FEM;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\FileIO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\GEO;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MathLib;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\MSH;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 /debug %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\lib\Debug\Base.lib;..\lib\Debug\FEM.lib;..\lib\Debug\FileIO.lib;..\lib\Debug\GEO.lib;..\lib\Debug\MathLib.lib;..\lib\Debug\MSH.lib;..\lib\Debug\FEM.lib;..\lib\Debug\FileIO.lib;..\lib\Debug\GEO.lib;..\lib\Debug\MSH.lib;..\lib\Debug\GCC.lib;..\lib\Debug\MathLib.lib;..\lib\Debug\Base.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ImportLibrary>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/Debug/ogs.lib</ImportLibrary>
+      <ProgramDataBaseFile>F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/bin/Debug/ogs.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\OGS\CMakeLists.txt">
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">Building Custom Rule F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HF:/testingEnvironment/amak/ogs/ogs_kb1/sources -BF:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP --check-stamp-file F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Building Custom Rule F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HF:/testingEnvironment/amak/ogs/ogs_kb1/sources -BF:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP --check-stamp-file F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Building Custom Rule F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HF:/testingEnvironment/amak/ogs/ogs_kb1/sources -BF:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP --check-stamp-file F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">F:/testingEnvironment/amak/ogs/ogs_kb1/sources/OGS/CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;F:\testingEnvironment\amak\ogs\ogs_kb1\sources\OGS\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">F:\testingEnvironment\amak\ogs\ogs_kb1\sources\Build_OGS_FEM_SP\OGS\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\OGS\ogs_display.h" />
+    <ClCompile Include="..\..\OGS\rf.cpp"  />
+    <ClCompile Include="..\..\OGS\ogs_display.cpp"  />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/Base/Base.vcxproj">
+      <Project>FF9BA541-A457-4AF9-A373-D6687632AA22</Project>
+    </ProjectReference>
+    <ProjectReference Include="F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/GCC/GCC.vcxproj">
+      <Project>57BB369E-C175-4108-981E-0406ECC3A711</Project>
+    </ProjectReference>
+    <ProjectReference Include="F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/GEO/GEO.vcxproj">
+      <Project>07486552-9204-4A78-87FB-D67B6E50E546</Project>
+    </ProjectReference>
+    <ProjectReference Include="F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/MathLib/MathLib.vcxproj">
+      <Project>082A54AA-DE2B-4318-8C0C-8DC3A12C8F5D</Project>
+    </ProjectReference>
+    <ProjectReference Include="F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/ZERO_CHECK.vcxproj">
+      <Project>07099279-CE4F-4B7F-B6B5-57595FFE9C71</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

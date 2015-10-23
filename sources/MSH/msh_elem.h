@@ -1,5 +1,5 @@
 /**************************************************************************
-   MSHLib - Object:class Matrix
+   MSHLib - Object:
    Task:
    Programing:
    08/2005 WW/OK Encapsulation from rf_ele_msh
@@ -331,7 +331,7 @@ public:
 	}                                         // PCH
 	//------------------------------------------------------------------
 	// I/O
-	void Read(std::istream& is = std::cin, int fileType = 0, std::vector<MeshLib::CNode*> = std::vector<MeshLib::CNode*>());
+	void Read(std::istream& is = std::cin, int fileType = 0);
 
 	void WriteIndex(std::ostream& os = std::cout) const;
 	void WriteIndex_TEC(std::ostream& os = std::cout) const;

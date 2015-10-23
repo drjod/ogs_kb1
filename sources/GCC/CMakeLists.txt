@@ -1,7 +1,5 @@
-# Source files 
 set( HEADERS
-#	Activity.h
-	Density.h	
+	Density.h
 	DiffAL.h
 	DiffOH.h
 	dllheader.h
@@ -23,8 +21,7 @@ set( HEADERS
 )
 
 set ( SOURCES
-#	Activity.cpp
-	Density.cpp	
+	Density.cpp
 	DiffAL.cpp
 	DiffOH.cpp
 	eqbrm.cpp
@@ -42,21 +39,13 @@ set ( SOURCES
 )
 
 # Create the library
-add_library( GCC STATIC 
-	     ${SOURCES}
-             ${HEADERS} 
-)
-include_directories(
-        ${CMAKE_SOURCE_DIR}/GCC
-)
+add_library( GCC STATIC ${HEADERS} ${SOURCES} )
+include_directories( ${CMAKE_SOURCE_DIR}/GCC )
 
+if (WIN32)
+	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIPMGEMPLUGIN")
+endif ()
 
-##SET_TARGET_PROPERTIES(GCC PROPERTIES LINKER_LANGUAGE CXX)
-
-IF (WIN32)
-	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIPMGEMPLUGIN")
-ENDIF (WIN32)
-
-IF (UNIX)
-	SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIPMGEMPLUGIN -D__unix")
-ENDIF (UNIX)
+if (UNIX)
+	set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIPMGEMPLUGIN -D__unix")
+endif ()

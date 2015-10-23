@@ -8,7 +8,7 @@
    10/2004   SB  First Implemented
  */
 /**************************************************************************/
-#ifdef WINDOWS
+#ifdef WIN32
 #pragma warning (disable:4786)                    /*Visual C++ 6.0*/
 #endif
 // C
@@ -24,6 +24,7 @@ using namespace std;
 
 #include "files0.h"
 #include "makros.h"
+#include "display.h"
 #include "rf_mfp_new.h"
 #include "rf_mmp_new.h"
 #include "rf_msp_new.h"
@@ -34,6 +35,8 @@ using namespace std;
 #include "tools.h"
 #include "rf_react.h"
 #include "rf_react_int.h"
+#include "VLE.h"
+#include "Fluid.h"
 
 #ifdef GEM_REACT
 #include "rf_REACT_GEM.h"
@@ -84,7 +87,13 @@ CompProperties::CompProperties(/* int n // HS we do not need this. */)
    molar_density = 0;
    molar_weight = 0;
    max_solubility = 0;
+   molar_gas_dens = false;
+   
+   omega=0;
+   Tc=0;
+   pc=0;
 
+   gas_type = "blub";
 //// CB _ctx_
 //   _ctx_ = false;
 //   ct_substratename = "";
@@ -134,6 +143,10 @@ bool CPRead(std::string file_base_name)
 			DisplayMsgLn("ERROR. TNEQ requires specification of inert and reactive components in mcp file.");
 			exit(1);
 		}
+		if (pcs_vector[0]->getProcessType() == FiniteElement::TES){
+			DisplayMsgLn("ERROR. TES requires specification of inert and reactive components in mcp file.");
+			exit(1);
+		}
 		return false;
 	}
 	cp_file.seekg(0L,ios::beg);
@@ -177,15 +190,19 @@ bool CPRead(std::string file_base_name)
 	}
 	if ( pcs_rwpt_count == 0) // HS, no random walk detected.
 	{
-		if ( (pcs_mt_count != cp_vec.size() || pcs_mt_count != cp_name_2_idx.size()) && !pcs_vector[0]->getProcessType() == FiniteElement::TNEQ)
+		if ((pcs_mt_count != cp_vec.size() || pcs_mt_count != cp_name_2_idx.size())
+		    && pcs_vector[0]->getProcessType() != FiniteElement::TNEQ
+		    && pcs_vector[0]->getProcessType() != FiniteElement::TES
+		    )
 		{
 			DisplayMsgLn(
 			        "Mass transport components and Mass transport processes do not fit!");
 			exit(1);
 		}
-		else if (cp_vec.size() < 2 && pcs_vector[0]->getProcessType() == FiniteElement::TNEQ)
+		else if (cp_vec.size() < 2
+		         && (pcs_vector[0]->getProcessType() == FiniteElement::TNEQ || pcs_vector[0]->getProcessType() == FiniteElement::TES))
 		{
-			DisplayMsgLn("ERROR. TNEQ requires specification of inert and reactive components in mcp file.");
+			DisplayMsgLn("ERROR. TNEQ/TES requires specification of inert and reactive components in mcp file.");
 			exit(1);
 		}
 		else
@@ -198,13 +215,15 @@ bool CPRead(std::string file_base_name)
 					cp_iter->second->setProcess( pcs_vector[i] );
 					++cp_iter;
 				}
-				if (pcs_vector[i]->getProcessType() == FiniteElement::TNEQ)
-					std::cout << "Warning! For TNEQ, the component order in the mcp file needs to be INERT, REACTIVE!\n";
+				if (pcs_vector[i]->getProcessType() == FiniteElement::TNEQ
+				    || pcs_vector[i]->getProcessType() == FiniteElement::TES)
+					std::cout << "Warning! For TNEQ/TES, the component order in the mcp file needs to be INERT, REACTIVE!\n";
 			}
 		} // end of else
 
 		//Assign fluid id's for use in fluid property calculation
-		if (pcs_vector[0]->getProcessType() == FiniteElement::TNEQ)
+		if (pcs_vector[0]->getProcessType() == FiniteElement::TNEQ
+		    || pcs_vector[0]->getProcessType() == FiniteElement::TES)
 			for (i=0;i<cp_vec.size();i++)
 			{
 				if (cp_vec[i]->compname == "N2")
@@ -216,7 +235,7 @@ bool CPRead(std::string file_base_name)
 					std::cout << "Warning: The thermal conductivity critical enhancement model for oxygen has not been implemented. Dilute and residual parts only.\n";
 				}
 				else
-					std::cout << "Warning: Component name unknown to TNEQ.\n";
+					std::cout << "Warning: Component name unknown to TNEQ/TES.\n";
 			}
 	}
 	return true;
@@ -378,6 +397,14 @@ ios::pos_type CompProperties::Read(ifstream* rfd_file)
  	  in.str(GetLineFromFile1(rfd_file));
 	  in >> mineral_density;
 	  in.clear();
+    }
+    //....................................................................
+    // subkeyword found
+    if (line_string.find("$GAS_MOLAR_DENSITY_MODEL") != std::string::npos) { // subkeyword found
+      in.str(GetLineFromFile1(rfd_file));
+      in >> gas_type; //sub_line
+      molar_gas_dens = true;
+      in.clear();
     }
 
 		//....................................................................
@@ -597,7 +624,7 @@ ios::pos_type CompProperties::Read(ifstream* rfd_file)
      DisplayMsgLn("Error in VALENCE - setting valence to 0!");
 		   valence = 0;
 	  }
- } 
+ }
 	if(line_string.find("$A_ZERO")!=std::string::npos) { // subkeyword found
 	  in.str(GetLineFromFile1(rfd_file));
     in >> a_zero;
@@ -606,7 +633,7 @@ ios::pos_type CompProperties::Read(ifstream* rfd_file)
      // DisplayMsgLn("Error in A_ZERO - setting valence to 0!");
 	    //a_zero = 0.0;
 	  }
- } 
+ }
 	}                                     //end while
 	return position;
 }
@@ -740,7 +767,7 @@ if(mineral_density>0){
 	*rfe_file << "$MINERAL_DENSITY" << "\n";
 	*rfe_file << mineral_density << "  ";
 	*rfe_file << "\n";
-} 
+}
 
 
 	*rfe_file << "\n";
@@ -892,7 +919,7 @@ double CompProperties::CalcDiffusionCoefficientCP(long index,double theta,CRFPro
                 }
                 // Attention....this does not work for gas phase/non wetting phase ....tr_phase=10
                 dummy *=saturation; // account for "mean element" saturation in Archies law ....better would be to get node saturations!
-                Dm = k[0] * pow(dummy,k[1]) * dummy; //node based diffusion coefficient---last porosity is for effective diffusion coefficient                
+                Dm = k[0] * pow(dummy,k[1]) * dummy; //node based diffusion coefficient---last porosity is for effective diffusion coefficient
                 // then get the values for initial porosity from nodes
                 dummy = m_vec_GEM->REACT_GEM::GetNodePorosityValueInitial(m_Elem->GetNodeIndex ( i ));   //ATTENTION: This does not include initial saturation different from 1
                 Dm /= pow(dummy,k[1]); //node based diffusion coefficient with modified Archies relation
@@ -971,7 +998,7 @@ double CompProperties::CalcDiffusionCoefficientCP(long index,double theta,CRFPro
             return Dm;
         }
 #endif
-      case 10:  // Temperature dependence Yaws 
+      case 10:  // Temperature dependence Yaws
         {
         if (count_of_diffusion_model_values < 2)
           return 0.0;
@@ -993,9 +1020,9 @@ double CompProperties::CalcDiffusionCoefficientCP(long index,double theta,CRFPro
         }
         //else
         //  return 0;
-        if(temperature_average >0) 
-          Dm = pow(10, (k[0]+k[1]/temperature_average))  / 10000; //cm²/s -> m²/s;
-        else{ 
+        if(temperature_average >0)
+          Dm = pow(10, (k[0]+k[1]/temperature_average))  / 10000; //cm^2/s -> m^2/s;
+        else{
           Dm = 0;
           DisplayMsgLn("Something wrong in diffusion model 10! T = 0.");
         }
@@ -1213,7 +1240,7 @@ int CompProperties::GetNumberDiffusionValuesCompProperties(int diffusion_model)
 		break;                    /* Archies Law */
     case 10:
         n = 2;   break;                          /* Yaws empirical model*/
-		
+
 	}                                     /* switch */
 
 	/* switch */
@@ -1595,6 +1622,65 @@ double CompProperties::CalcElementDecayRateNew( long index, CRFProcess* m_pcs)
 	// if(index < 0){DisplayMsg(" Decay Rate lambda: "); DisplayDouble(lambda,0,0); DisplayMsgLn(" ");}
 	return lambda;
 }
+
+
+double CompProperties::CalcMolarDensityOfGas(double T, double P){
+  double V; // m³/mol 
+  double Z, lnphi ;
+  
+  if (this->gas_type.compare("N2") == 0){
+    P /= 10; // P bar -> mPa
+    V = NIST_N2::volume(T, P); // L/mol
+    V *= 1.0e-3; // dm³ -> m³
+  }
+  else if (this->gas_type.compare("H2") == 0){
+    P /= 10; // P bar -> mPa
+    V = NIST_H2::volume(T, P); // L/mol
+    V *= 1.0e-3; // dm³ -> m³
+  }
+  else if (this->gas_type.compare("O2") == 0){
+    P /= 10; // P bar -> mPa
+    V = NIST_O2::volume(T, P); // L/mol
+    V *= 1.0e-3; // dm³ -> m³
+  }
+  else if (this->gas_type.compare("CH4") == 0){
+    P /= 10; // P bar -> mPa
+    V = NIST_CH4::volume(T, P); // L/mol
+    V *= 1.0e-3; // dm³ -> m³
+  }
+  else if (this->gas_type.compare("CO2") == 0){
+    P /= 10; // P bar -> mPa
+    V = NIST_CO2::volume(T, P); // L/mol
+    V *= 1.0e-3; // dm³ -> m³
+  }
+  else if (this->gas_type.compare("TCE") == 0){
+    // P already in bar
+    VLE::EoS_PR_TCE(T, P, V, Z, lnphi); // cm³
+    V *= 1.0e-6; // cm³ -> m³
+  }
+  else if (this->gas_type.compare("Ar") == 0){
+    // P already in bar
+    VLE::EoS_PR_Ar(T, P, V, Z, lnphi); // cm³
+    V *= 1.0e-6; // cm³ -> m³
+  }
+  else if (this->gas_type.compare("General") == 0){
+    // P already in bar
+
+    if (omega + Tc + pc == 0)
+    {
+      std::cout << " Error in CompProperties::CalcMolarDensityOfGas(double T, double P)" << "/n";
+      std::cout << " Accentric Factor, critical P & T are not set for component " << compname << "/n";
+      std::cout << " Quitting now! " << "/n";
+      exit(0);
+    }
+    
+    VLE::EoS_PR_General(omega, Tc, pc, T, P, V, Z, lnphi); // cm³
+    V *= 1.0e-6; // cm³ -> m³
+  }
+
+  return 1.0/V; // mol / m³
+};
+
 
 //SB:todo Wie kann ich die gut ersetzen (wird nur in loop_pcs gebraucht, um zu schauen ob der process mobil ist ??
 int CPGetMobil(long comp)

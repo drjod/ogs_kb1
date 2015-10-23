@@ -15,6 +15,7 @@
 #endif
 
 
+
 #include <cfloat>
 #include <iostream>
 #include <sstream>
@@ -25,6 +26,8 @@
 /*------------------------------------------------------------------------*/
 /* Pre-processor definitions */
 #include "makros.h"
+#include "display.h"
+#include "MemWatch.h"
 /*------------------------------------------------------------------------*/
 // MSHLib
 #include "msh_lib.h"
@@ -64,6 +67,7 @@ extern int ReadData(char*, GEOLIB::GEOObjects& geo_obj, std::string& unique_name
 #include "rf_node.h"
 #include "rf_out_new.h"
 #include "tools.h"
+#include "timer.h"
 #include "rf_msp_new.h"//WX:01.2013
 //
 #ifdef CHEMAPP
@@ -88,10 +92,6 @@ namespace process
 {class CRFProcessDeformation;
 }
 using process::CRFProcessDeformation;
-
-//NW: moved the following variables from rf.cpp to avoid linker errors
-std::string FileName;                             //WW
-std::string FilePath;                             //23.02.2009. WW
 
 /**************************************************************************
    GeoSys - Function: Constructor
@@ -129,6 +129,13 @@ Problem::Problem (char* filename) :
 		if (hasAnyProcessDeactivatedSubdomains)
 			break;
 	}
+    print_times = false;
+    for (size_t i = 0; i < pcs_vector.size(); i++){
+      if(pcs_vector[i]->print_times==true){
+        print_times = true;
+        break;
+      }
+    }
 	//----------------------------------------------------------------------
 	// Create ST
 	//OK STCreateFromPNT();
@@ -154,7 +161,6 @@ Problem::Problem (char* filename) :
 	//----------------------------------------------------------------------
 	// Create PCS processes
 	PCSCreate();
-	std::cout << "pcscreated";
 	if (!PCSCheck())                      //OK4910 reactivated
 	{
 		print_result = false;     //OK
@@ -218,7 +224,8 @@ Problem::Problem (char* filename) :
      }
    }
    //if(MASS_TRANSPORT_Process) // if(MASS_TRANSPORT_Process&&NAPL_Dissolution) //CB Todo
-   CreateClockTime(); // CB time
+   if (this->PrintTimes())
+     CreateClockTime(); // CB time
 	if(transport_processes.size() > 0)    //12.12.2008. WW
 	{
     // set the id variable flow_pcs_type for Saturation and velocity calculation
@@ -235,7 +242,7 @@ Problem::Problem (char* filename) :
         if( flow_pcs->type==1212) // in case of mutlltiphase flow, sat water must be calculated here, required by pgc interface
           flow_pcs->CalcSecondaryVariables(true);  
       }
-      REACTINT_vec[0]->InitREACTINT();
+      REACTINT_vec[0]->InitREACTINT(*_geo_obj, _geo_name);
     }
     //----------------------------------------------------------------------
     if(KinReactData_vector.size() > 0){
@@ -243,9 +250,14 @@ Problem::Problem (char* filename) :
       KBlobConfig(*_geo_obj, _geo_name);
       KBlobCheck();
       // in case of Twophaseflow before the first time step 
-      if(total_processes[3] || total_processes[4]) 
-        if(KNaplDissCheck())  // 3: TWO_PHASE_FLOW. 12.12.2008. WW     
-          KNaplCalcDensity(); 	                     //PCSCalcSecondaryVariables(); 
+      //if(total_processes[3] || total_processes[4]){ 
+      //  if(KNaplDissCheck())  // 3: TWO_PHASE_FLOW. 12.12.2008. WW     
+      //    KNaplCalcDensity();
+      //}
+      //else 
+      if (KNaplDissCheck())          
+        SetIniNAPLSatAndDens();
+//PCSCalcSecondaryVariables(); 
       // CB _drmc_ data for microbes
       if(MicrobeData_vector.size()>0)
         MicrobeConfig();
@@ -342,7 +354,8 @@ Problem::Problem (char* filename) :
   // Initialize using ChemApp
   if(REACT_CAP_vec.size() > 0) {
 	  // SB 10/2009 do a first equilibrium calculation
-	  REACT_CAP_vec[0]->ExecuteReactionsChemApp(0, -1); // DL/SB 11/2008 //DL 2011.11.24 comment for AGU
+    //REACT_CAP_vec[0]->ExecuteReactionsChemApp(0, -1); // DL/SB 11/2008 //DL 2011.11.24 comment for AGU
+    REACT_CAP_vec[0]->ExecuteReactionsChemAppNew(0, -1); // DL/SB 11/2008 //DL 2011.11.24 comment for AGU
 	  // Copy new timelevel to old time level
 	  REACT_CAP_vec[0]->ConvertIC2BC(*_geo_obj, _geo_name);
   }
@@ -396,7 +409,7 @@ Problem::Problem (char* filename) :
 		// Release memory of other domains. WW
 		for(size_t i = 0; i < dom_vector.size(); i++)
 		{
-			if(i != myrank)
+			if(i != (size_t)myrank)
 			{
 				// If shared memory, skip the following line
 #if defined(NEW_BREDUCE2)
@@ -471,7 +484,7 @@ Problem::Problem (char* filename) :
 
 		//check maximum number of coupling iterations against maximum time step increase
 		if (m_tim->time_control_type == TimeControlType::SELF_ADAPTIVE
-				&& m_tim->adapt_itr_type == IterationType::COUPLED
+				&& (m_tim->adapt_itr_type == IterationType::COUPLED || m_tim->adapt_itr_type==IterationType::COUPLED_STABLE_ERROR)
 				&& cpl_overall_max_iterations < m_tim->time_adapt_tim_vector.back())
 			std::cout << "Warning: Maximum number of coupling iterations is smaller than maximum time step increase!!!" << std::endl;
 	}
@@ -500,14 +513,9 @@ Problem::Problem (char* filename) :
 	CRFProcessDeformation* dm_pcs = NULL;
 
 	//  //WW
-	bool fluid_mom_pcs = false;
 	for (size_t i = 0; i < no_processes; i++)
 	{
 		m_pcs = pcs_vector[i];
-		if(m_pcs->getProcessType() == FiniteElement::FLUID_MOMENTUM) //09.2012 WW
-		{
-			fluid_mom_pcs = true;
-		}
 		m_pcs->CalcSecondaryVariables(true); //WW
 		m_pcs->Extropolation_MatValue(); //WW
 	}
@@ -520,12 +528,22 @@ Problem::Problem (char* filename) :
 
 #ifdef OGS_DELETE_EDGES_AFTER_INIT
 	// Free memory occupied by edges. 09.2012. WW
+	bool fluid_mom_pcs = false;
+	for (size_t i = 0; i < no_processes; i++)
+	{
+		m_pcs = pcs_vector[i];
+		if(m_pcs->getProcessType() == FiniteElement::FLUID_MOMENTUM) //09.2012 WW
+		{
+			fluid_mom_pcs = true;
+			break;
+		}
+	}
 	if(!fluid_mom_pcs)
 	{
-       for(size_t k = 0; k < fem_msh_vector.size(); k++)
-       {
-		  fem_msh_vector[k]->FreeEdgeMemory();
-}
+		for(size_t k = 0; k < fem_msh_vector.size(); k++)
+		{
+			fem_msh_vector[k]->FreeEdgeMemory();
+		}
 	}
 #endif
 }
@@ -582,7 +600,7 @@ Problem::~Problem()
 	delete m_vec_BRNS;
 #endif
 
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC)
 	if(mrank == 0)
 #endif
 	std::cout << "\n^O^: Your simulation is terminated normally ^O^ " << "\n";
@@ -596,7 +614,7 @@ Problem::~Problem()
     3: PS_GLOBAL   | 4: MULTI_PHASE_FLOW  | 5: COMPONENTAL_FLOW
     6: OVERLAND_FLOW   | 7: AIR_FLOW          | 8: HEAT_TRANSPORT
     9: FLUID_MOMENTUM  |10: RANDOM_WALK       |11: MASS_TRANSPORT
-   12: DEFORMATION     | 14: TNEQ
+   12: DEFORMATION     | 14: TNEQ             |15: TES
    Return:
    Programming:
    07/2008 WW
@@ -739,15 +757,23 @@ inline int Problem::AssignProcessIndex(CRFProcess* m_pcs, bool activefunc)
 		active_processes[5] = &Problem::MULTI_COMPONENTIAL_FLOW;
 		return 5;
 	}
-   else if (m_pcs->getProcessType() == FiniteElement::TNEQ)
-   {
-      if (!activefunc)
-         return 14;
-      total_processes[14] = m_pcs;
-      active_processes[14] = &Problem::TNEQ;
-      return 14;
-   }
-   std::cout << "Error: no process is specified. " << '\n';
+	else if (m_pcs->getProcessType() == FiniteElement::TNEQ)
+	{
+		if (!activefunc)
+			return 14;
+		total_processes[14] = m_pcs;
+		active_processes[14] = &Problem::TNEQ;
+		return 14;
+	}
+	else if (m_pcs->getProcessType() == FiniteElement::TES)
+	{
+		if (!activefunc)
+			return 15;
+		total_processes[15] = m_pcs;
+		active_processes[15] = &Problem::TES;
+		return 15;
+	}
+	std::cout << "Error: no process is specified. " << '\n';
 	return -1;
 }
 
@@ -760,7 +786,7 @@ inline int Problem::AssignProcessIndex(CRFProcess* m_pcs, bool activefunc)
     3: TWO_PHASE_FLOW  | 4: MULTI_PHASE_FLOW  | 5: COMPONENTAL_FLOW
     6: OVERLAND_FLOW   | 7: AIR_FLOW          | 8: HEAT_TRANSPORT
     9: FLUID_MOMENTUM  |10: RANDOM_WALK       |11: MASS_TRANSPORT
-   12: DEFORMATION     |13: PS_GLOBAL         |14: TNEQ
+   12: DEFORMATION     |13: PS_GLOBAL         |14: TNEQ              | 15: TES
    Return:
    Programming:
    07/2008 WW
@@ -769,28 +795,26 @@ inline int Problem::AssignProcessIndex(CRFProcess* m_pcs, bool activefunc)
    --------------------------------------------------------------------*/
 void Problem::SetActiveProcesses()
 {
-	int i;
 	CRFProcess* m_pcs = NULL;
-   const int max_processes = 15;                  // PCH, TN
 	total_processes.resize(max_processes);
 	active_processes = new ProblemMemFn[max_processes];
 	coupled_process_index.resize(max_processes);
 	exe_flag = new bool[max_processes];
 	//
-	for(i = 0; i < max_processes; i++)
+	for(size_t i = 0; i < max_processes; i++)
 	{
 		total_processes[i] = NULL;
 		active_processes[i] = NULL;
 		coupled_process_index[i] = -1;
 	}
 	//
-	for(i = 0; i < (int)pcs_vector.size(); i++)
+	for(size_t i = 0; i < pcs_vector.size(); i++)
 	{
 		m_pcs = pcs_vector[i];
 		AssignProcessIndex(m_pcs);
 	}
 	//
-	for(i = 0; i < max_processes; i++)
+	for(size_t i = 0; i < max_processes; i++)
 		if(total_processes[i])
 		{
 			// JT: Check for a coupled variable or process (variable is probably necessary for multiple component transport situations.
@@ -827,11 +851,11 @@ void Problem::SetActiveProcesses()
 			transport_processes.push_back(m_pcs);
 		//		if (m_pcs->pcs_type_name.compare("TWO_PHASE_FLOW") == 0) //09.01.2008. WW
 		// TF
-      if ((m_pcs->getProcessType() == FiniteElement::TWO_PHASE_FLOW) || (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW)) //BG 04/2011
-         multiphase_processes.push_back(m_pcs);
+		if ((m_pcs->getProcessType() == FiniteElement::TWO_PHASE_FLOW) || (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW)) //BG 04/2011
+			multiphase_processes.push_back(m_pcs);
 
-	  if ((m_pcs->getProcessType() == FiniteElement::GROUNDWATER_FLOW) || (m_pcs->getProcessType() == FiniteElement::LIQUID_FLOW))	//BG 04/2011
-		  singlephaseflow_process.push_back(m_pcs);
+		if ((m_pcs->getProcessType() == FiniteElement::GROUNDWATER_FLOW) || (m_pcs->getProcessType() == FiniteElement::LIQUID_FLOW))	//BG 04/2011
+			singlephaseflow_process.push_back(m_pcs);
 	}
 }
 
@@ -858,14 +882,16 @@ void Problem::SetActiveProcesses()
  ***************************************************************************/
 void Problem::PCSCreate()
 {
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
+
 	if(mrank == 0)
-	{	 
+	{
 #endif
 	std::cout << "---------------------------------------------" << "\n";
 	std::cout << "Create PCS processes" << "\n";
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
-    }
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
+
+	}
 #endif
 
 	size_t no_processes = pcs_vector.size();
@@ -877,12 +903,13 @@ void Problem::PCSCreate()
 	}
 
 #if defined(NEW_EQS) 
-       CreateEQS_LinearSolver();  
+	CreateEQS_LinearSolver();
 #endif
 
 	for (size_t i = 0; i < no_processes; i++)
 	{
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
+
 	if(mrank == 0)
 	{	 
 #endif
@@ -900,22 +927,22 @@ void Problem::PCSCreate()
 			pcs_vector[i]->pcs_component_number;
 		}
 		std::cout << "\n";
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
+
 	}	 
 #endif
 
 		pcs_vector[i]->Create();
-		
 	}
 
 
 #if defined(USE_PETSC) // || defined(other solver libs)//03.3012. WW
-       CreateEQS_LinearSolver();  
+	CreateEQS_LinearSolver();
 #endif
-	  ;
+
 	for (size_t i = 0; i < no_processes; i++)
 		MMP2PCSRelation(pcs_vector[i]);
-	
+
 	for (size_t i = 0; i < no_processes; i++) //WW
 
 		pcs_vector[i]->ConfigureCouplingForLocalAssemblier();
@@ -923,7 +950,6 @@ void Problem::PCSCreate()
 	for (size_t i = 0; i < out_vector.size(); i++)
 		// initialize process and mesh attributes of COutput objects
 		out_vector[i]->init();
-	
 }
 
 /*-------------------------------------------------------------------------
@@ -1043,11 +1069,11 @@ void Problem::Euler_TimeDiscretize()
 	// Output zero time initial values
 #if defined(USE_MPI)  || defined(USE_MPI_KRC) 
 	if(mrank == 0)
-		{
+	{
 #endif
 	OUTData(current_time,aktueller_zeitschritt,true);
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
-		}
+	}
 #endif
 
 	// check if this is a steady state simulation
@@ -1095,7 +1121,7 @@ void Problem::Euler_TimeDiscretize()
 		aktuelle_zeit = current_time;
 		//
 		// Print messsage
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
 		if(mrank == 0)
 		{
 #endif
@@ -1103,9 +1129,10 @@ void Problem::Euler_TimeDiscretize()
 		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
 		current_time << "|  Time step size: " << dt << "\n";
 		if(dt_rec > dt){
-			std::cout << "This time step size was modified to match a critical time!" << "\n";
+      double diff = dt_rec - dt;
+      std::cout << "This time step size was modified by " << diff << " to match a critical time!" << "\n";
 		}
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
 		}
 #endif
 		if(CouplingLoop())
@@ -1114,7 +1141,7 @@ void Problem::Euler_TimeDiscretize()
 			// TIME STEP ACCEPTED
 			// ---------------------------------
 			last_dt_accepted = true;
-#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)
+#if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
 			if(mrank == 0)
 #endif
 			ScreenMessage("This step is accepted.\n");
@@ -1131,7 +1158,7 @@ void Problem::Euler_TimeDiscretize()
 #endif
 					//
 				OUTData(current_time, aktueller_zeitschritt,force_output);
-#if defined(USE_MPI)
+#if defined(USE_MPI) || defined(USE_MPI_KRC) 
 				}
 #endif
 			}
@@ -1241,265 +1268,284 @@ void Problem::Euler_TimeDiscretize()
    -------------------------------------------------------------------------*/
 bool Problem::CouplingLoop()
 {
-	int i, index, cpl_index;
-	double max_outer_error, max_inner_error; //, error;
-    bool transient_bc = false;
-	bool run_flag[14];
-	int outer_index, inner_index, inner_max; //, inner_min;
-	//
-	CRFProcess* a_pcs = NULL;
-	CRFProcess* b_pcs = NULL;
-	CRFProcess* m_pcs2 = NULL;
-	double delta=0.0;
-	int max_delta_index=-1;
-	CTimeDiscretization* m_tim = NULL;
-	//
-	print_result = false;
-	int acounter = 0;
-	//
-   for(i=0; i<(int)pcs_vector.size(); i++){
-      pcs_vector[i]-> UpdateTransientBC();
-      if(pcs_vector[i]->bc_transient_index.size() != 0)
-        transient_bc = true;
-   }
-   if(transient_bc) 
-     pcs_vector[0]->WriteBC();
+  int i, index, cpl_index;
+  double max_outer_error, max_inner_error; //, error;
+  bool transient_bc = false;
+  bool run_flag[max_processes];
+  int outer_index, inner_index, inner_max; //, inner_min;
+  //
+  CRFProcess* a_pcs = NULL;
+  CRFProcess* b_pcs = NULL;
+  CRFProcess* m_pcs2 = NULL;
+  double delta = 0.0;
+  int max_delta_index = -1;
+  CTimeDiscretization* m_tim = NULL;
+  //
+  print_result = false;
+  int acounter = 0;
+  //
+  for (i = 0; i < (int)pcs_vector.size(); i++){
+    pcs_vector[i]->UpdateTransientBC();
+    if (pcs_vector[i]->bc_transient_index.size() != 0)
+      transient_bc = true;
+  }
+  if (transient_bc)
+    pcs_vector[0]->WriteBC();
 
-	for(i = 0; i < (int)total_processes.size(); i++)
-	{
-		if(active_processes[i] && total_processes[i]->selected)
-		{
-			exe_flag[i] = true;
-			m_tim = total_processes[i]->Tim;
-			total_processes[i]->SetDefaultTimeStepAccepted();
-			acounter++;
-			m_tim->step_current++;
-			// reset
-			total_processes[i]->iter_nlin_max = 0;
-			total_processes[i]->iter_lin_max = 0;
-		}
-		else
-		{   //21.05.2010.  WW
-			if(total_processes[i] && total_processes[i]->tim_type == TimType::STEADY) {
-				acounter++;
-				m_tim = total_processes[i]->Tim;
-				m_tim->step_current++; //NW increment needed to get correct time step length in CTimeDiscretization::CalcTimeStep()
-			}
-			exe_flag[i] = false;
-		}
-	}
-	int num_processes = (int)active_process_index.size();
-	//
-    // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-    for(i=0; i<(int)total_processes.size(); i++){
-	    run_flag[i] = exe_flag[i];
+  for (i = 0; i < (int)total_processes.size(); i++)
+  {
+    if (active_processes[i] && total_processes[i]->selected)
+    {
+      exe_flag[i] = true;
+      m_tim = total_processes[i]->Tim;
+      total_processes[i]->SetDefaultTimeStepAccepted();
+      acounter++;
+      m_tim->step_current++;
+      // reset
+      total_processes[i]->iter_nlin_max = 0;
+      total_processes[i]->iter_lin_max = 0;
     }
-	//if (m_tim->step_current == 1)
-	//{
-		for (i = 0; i < num_processes; i++){
-			index = active_process_index[i];
-			total_processes[index]->first_coupling_iteration = true;
-		}
-	//}
-	//else // KB0714: Hardcoding Prozessaustausch Liquid flow und Deformation
-	//{
-	//	for (i = 0; i < num_processes; i++){
-	//		if (i == 0)
-	//		{
-	//			index = 12;
-	//			active_process_index[i] = index;
-	//			total_processes[index]->first_coupling_iteration = true;
-	//		}
-	//		if (i == 1)
-	//		{
-	//			index = 6;
-	//			active_process_index[i] = index;
-	//			total_processes[index]->first_coupling_iteration = true;
-	//		}
-	//	}
-	//}
-	//
-	// To do
-	//SB->WW I do not understand this condition, why switch off output?
-	//WW Reason:
-	/// Make output when all defined processes are activated.
-	//JT->WW->SB:  I agree with SB. Just b/c one process is deactivated doesn't mean we don't want output for the others.
-	//if(acounter == num_processes)
-	print_result = true;
-	//
-	bool accept = true;
-	max_outer_error = 0.0;
-	for(outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
-	{
-	    // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-	    for(i=0; i<num_processes; i++){
-			index = active_process_index[i];
-		    run_flag[index] = exe_flag[index];
-	    }
-	    for(i=0; i<num_processes; i++){
-		  index = active_process_index[i];
-		  m_tim = total_processes[index]->Tim;
-		  if(!m_tim->time_active) run_flag[index] = false;
-	    }
-	/*	// Debug output //SB
-		std::cout << " -- Coupling Loop --" << "\n";
-	    for(i=0; i<num_processes; i++){
-		  index = active_process_index[i];
-		  m_tim = total_processes[index]->Tim;
-		  std::cout << " index: " << std::cout.width(4) <<  index << " :  run_flag[]: " << std::boolalpha << run_flag[index] ;
-		  std::cout << " , exe_flag[]: " << std::boolalpha << exe_flag[index] <<  "\n";
-	    } // end output SB  */
+    else
+    {   //21.05.2010.  WW
+      if (total_processes[i] && total_processes[i]->tim_type == TimType::STEADY) {
+        acounter++;
+        m_tim = total_processes[i]->Tim;
+        m_tim->step_current++; //NW increment needed to get correct time step length in CTimeDiscretization::CalcTimeStep()
+      }
+      exe_flag[i] = false;
+    }
+  }
+  int num_processes = (int)active_process_index.size();
+  //
+  // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
+  for (i = 0; i < (int)total_processes.size(); i++){
+    run_flag[i] = exe_flag[i];
+  }
+  //if (m_tim->step_current == 1)
+  //{
+  for (i = 0; i < num_processes; i++){
+    index = active_process_index[i];
+    total_processes[index]->first_coupling_iteration = true;
+  }
+  //}
+  //else // KB0714: Hardcoding Prozessaustausch Liquid flow und Deformation
+  //{
+  //	for (i = 0; i < num_processes; i++){
+  //		if (i == 0)
+  //		{
+  //			index = 12;
+  //			active_process_index[i] = index;
+  //			total_processes[index]->first_coupling_iteration = true;
+  //		}
+  //		if (i == 1)
+  //		{
+  //			index = 6;
+  //			active_process_index[i] = index;
+  //			total_processes[index]->first_coupling_iteration = true;
+  //		}
+  //	}
+  //}
+  //
+  // To do
+  //SB->WW I do not understand this condition, why switch off output?
+  //WW Reason:
+  /// Make output when all defined processes are activated.
+  //JT->WW->SB:  I agree with SB. Just b/c one process is deactivated doesn't mean we don't want output for the others.
+  //if(acounter == num_processes)
+  print_result = true;
+  //
+  bool accept = true;
+  max_outer_error = 0.0;
+  for (outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
+  {
+    // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
+    for (i = 0; i < num_processes; i++){
+      index = active_process_index[i];
+      run_flag[index] = exe_flag[index];
+    }
+    for (i = 0; i < num_processes; i++){
+      index = active_process_index[i];
+      m_tim = total_processes[index]->Tim;
+      if (!m_tim->time_active) run_flag[index] = false;
+    }
+    /*	// Debug output //SB
+      std::cout << " -- Coupling Loop --" << "\n";
+      for(i=0; i<num_processes; i++){
+      index = active_process_index[i];
+      m_tim = total_processes[index]->Tim;
+      std::cout << " index: " << std::cout.width(4) <<  index << " :  run_flag[]: " << std::boolalpha << run_flag[index] ;
+      std::cout << " , exe_flag[]: " << std::boolalpha << exe_flag[index] <<  "\n";
+      } // end output SB  */
 
-        max_outer_error = 0.0; //NW reset error for each iteration
-		for(i = 0; i < num_processes; i++)
-		{
-			index = active_process_index[i];
-			if(!run_flag[index]) continue; //JT: may have been turned off after an inner loop!
-			cpl_index = coupled_process_index[index];
-			//
-			// PERFORM AN INNER COUPLING
-			// ---------------------------------------
-			if(cpl_index >= 0 && run_flag[cpl_index])
-			{
-				a_pcs = total_processes[index];
-				b_pcs = total_processes[cpl_index];
-				//
-				inner_max = a_pcs->m_num->cpl_max_iterations;
-//				inner_min = a_pcs->m_num->cpl_min_iterations; // variable set but never used
-				//
-				a_pcs->iter_outer_cpl = outer_index;
-				b_pcs->iter_outer_cpl = outer_index;
-				//
-				max_inner_error = 0.0;
-				for(inner_index=0; inner_index < a_pcs->m_num->cpl_max_iterations; inner_index++)
-				{
-					 a_pcs->iter_inner_cpl = inner_index;
-					 b_pcs->iter_inner_cpl = inner_index;
-					 //
-					 // FIRST PROCESS
-					 loop_process_number = i;
-					 if(a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
-//					 error = Call_Member_FN(this, active_processes[index])();
-					 Call_Member_FN(this, active_processes[index])();
-					 if(!a_pcs->TimeStepAccept()){
-					   accept = false;
-					   break;
-					 }
-					 //
-					 // COUPLED PROCESS
-					 loop_process_number = i+1;
-					 if(b_pcs->first_coupling_iteration) PreCouplingLoop(b_pcs);
-//					 error = Call_Member_FN(this, active_processes[cpl_index])();
-					 Call_Member_FN(this, active_processes[cpl_index])();
-					 if(!b_pcs->TimeStepAccept()){
-					   accept = false;
-					   break;
-					 }
-					 //
-					 // Check for break criteria
-					 max_inner_error = MMax(a_pcs->cpl_max_relative_error,b_pcs->cpl_max_relative_error);
-					 a_pcs->first_coupling_iteration = false; // No longer true (JT: these are important, and are also used elswhere).
-					 b_pcs->first_coupling_iteration = false; // No longer true.
-					 //
-					 // Store the outer loop error
-					 if(inner_index==0)
-						max_outer_error = MMax(max_outer_error,max_inner_error);
-					 //
-					 std::cout << "\n======================================================\n";
-					 std::cout << "Inner coupling loop " << inner_index+1 << "/" << inner_max << " complete."<<"\n";
-					 std::cout << "Max coupling error (relative to tolerance): " << max_inner_error << "\n";
-					 std::cout << "======================================================\n";
-					 //
-					 // Coupling convergence criteria (use loop minimum from a_pcs because this is where the coupled process was called)
-					 if(max_inner_error <= 1.0 && inner_index+2 > a_pcs->m_num->cpl_min_iterations) // JT: error is relative to the tolerance.
-						 break;
-				}
-				run_flag[cpl_index] = false; // JT: CRUCIAL!!
-			}
-			else
-			{
-				// PERFORM AN OUTER COUPLING
-				// ---------------------------------------
-				a_pcs = total_processes[index];
-				a_pcs->iter_outer_cpl = outer_index;
-				a_pcs->iter_inner_cpl = 0;
-				//
-				loop_process_number = i;
-				if(a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
-//				error = Call_Member_FN(this, active_processes[index])(); // TF: error set, but never used
-				Call_Member_FN(this, active_processes[index])();
-				if(!a_pcs->TimeStepAccept()){
-				   accept = false;
-				   break;
-				}
-				// SB time control 02/2014
-				a_pcs->Tim->last_time_simulated = aktuelle_zeit; //SB
-				if(a_pcs->flag_delta_max){
-					delta = a_pcs->CalcMaxPrimaryVariableChange(); // calulate max variable change
-					// get connected process to be activated
-					for(int ii=0;ii<(int)total_processes.size();ii++){
-						if(this->active_processes[ii])
-							if(this->total_processes[ii]->pcs_type_name_vector[0] == a_pcs->pcs_name_delta_max )
-								max_delta_index = ii;
-					}
+    max_outer_error = 0.0; //NW reset error for each iteration
+    for (i = 0; i < num_processes; i++)
+    {
+      index = active_process_index[i];
+      if (!run_flag[index]) continue; //JT: may have been turned off after an inner loop!
+      cpl_index = coupled_process_index[index];
+      //
+      // PERFORM AN INNER COUPLING
+      // ---------------------------------------
+      if (cpl_index >= 0 && run_flag[cpl_index])
+      {
+        a_pcs = total_processes[index];
+        b_pcs = total_processes[cpl_index];
+        //
+        inner_max = a_pcs->m_num->cpl_max_iterations;
+        //				inner_min = a_pcs->m_num->cpl_min_iterations; // variable set but never used
+        //
+        a_pcs->iter_outer_cpl = outer_index;
+        b_pcs->iter_outer_cpl = outer_index;
+        //
+        max_inner_error = 0.0;
+        for (inner_index = 0; inner_index < a_pcs->m_num->cpl_max_iterations; inner_index++)
+        {
+          a_pcs->iter_inner_cpl = inner_index;
+          b_pcs->iter_inner_cpl = inner_index;
+          //
+          // FIRST PROCESS
+          loop_process_number = i;
+          if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
+          //					 error = Call_Member_FN(this, active_processes[index])();
+          Call_Member_FN(this, active_processes[index])();
+          if (!a_pcs->TimeStepAccept()){
+            accept = false;
+            break;
+          }
+          //
+          // COUPLED PROCESS
+          loop_process_number = i + 1;
+          if (b_pcs->first_coupling_iteration) PreCouplingLoop(b_pcs);
+          //					 error = Call_Member_FN(this, active_processes[cpl_index])();
+          Call_Member_FN(this, active_processes[cpl_index])();
+          if (!b_pcs->TimeStepAccept()){
+            accept = false;
+            break;
+          }
+          //
+          // Check for break criteria
+          max_inner_error = MMax(a_pcs->cpl_max_relative_error, b_pcs->cpl_max_relative_error);
+          a_pcs->first_coupling_iteration = false; // No longer true (JT: these are important, and are also used elswhere).
+          b_pcs->first_coupling_iteration = false; // No longer true.
+          //
+          // Store the outer loop error
+          if (inner_index == 0)
+            max_outer_error = MMax(max_outer_error, max_inner_error);
+          //
+          std::cout << "\n======================================================\n";
+          std::cout << "Inner coupling loop " << inner_index + 1 << "/" << inner_max << " complete." << "\n";
+          std::cout << "Max coupling error (relative to tolerance): " << max_inner_error << "\n";
+          std::cout << "======================================================\n";
+          //
+          // Coupling convergence criteria (use loop minimum from a_pcs because this is where the coupled process was called)
+          if (max_inner_error <= 1.0 && inner_index + 2 > a_pcs->m_num->cpl_min_iterations) // JT: error is relative to the tolerance.
+            break;
+        }
+        run_flag[cpl_index] = false; // JT: CRUCIAL!!
+      }
+      else
+      {
+        // PERFORM AN OUTER COUPLING
+        // ---------------------------------------
+        a_pcs = total_processes[index];
+        a_pcs->iter_outer_cpl = outer_index;
+        a_pcs->iter_inner_cpl = 0;
+        //
+        loop_process_number = i;
+        if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
+        //				error = Call_Member_FN(this, active_processes[index])(); // TF: error set, but never used
+        Call_Member_FN(this, active_processes[index])();
+        if (!a_pcs->TimeStepAccept()){
+          accept = false;
+          break;
+        }
+        // SB time control 02/2014
+        a_pcs->Tim->last_time_simulated = aktuelle_zeit; //SB
+        if (a_pcs->flag_delta_max)
+        {
+          // WTP: var_name_delta_max is not set anywhere except in the constructor. Thus if activated the code will crash in CalcMaxPrimaryVariableChange()
+          delta = a_pcs->CalcMaxPrimaryVariableChange(); // calulate max variable change
+          // get connected process to be activated
+          for (size_t ii = 0; ii<total_processes.size(); ii++){
+            if (this->active_processes[ii])
+            if (this->total_processes[ii]->pcs_type_name_vector[0] == a_pcs->pcs_name_delta_max)
+              max_delta_index = ii;
+          }
 
-					if(delta > a_pcs->delta_max_pv_max){ // Change in variable is high, activate controlled process
-						std::cout << "       -> Activating " << a_pcs->pcs_name_delta_max << " for this timestep " << "\n";
-						// set process active
-						run_flag[max_delta_index] = true;
-						// Set current values to storage 
-						a_pcs->SetMaxPrimaryVariable();
-					}
-					// active process, if this is the last time step
-					if(aktuelle_zeit == a_pcs->Tim->time_end) 
-						run_flag[max_delta_index] = true;
-					// make time step correspondingly
-					m_pcs2 = total_processes[max_delta_index];
-					m_pcs2->Tim->time_step_length = aktuelle_zeit - m_pcs2->Tim->last_time_simulated;
-				}
-				a_pcs->first_coupling_iteration = false; // No longer true.
-				// Check for break criteria
-				max_outer_error = MMax(max_outer_error,a_pcs->cpl_max_relative_error);
+          if (delta > a_pcs->delta_max_pv_max){ // Change in variable is high, activate controlled process
+            std::cout << "       -> Activating " << a_pcs->pcs_name_delta_max << " for this timestep " << "\n";
+            // set process active
+            run_flag[max_delta_index] = true;
+            // Set current values to storage 
+            a_pcs->SetMaxPrimaryVariable();
+          }
+          // active process, if this is the last time step
+          if (aktuelle_zeit == a_pcs->Tim->time_end)
+            run_flag[max_delta_index] = true;
+          // make time step correspondingly
+          m_pcs2 = total_processes[max_delta_index];
+          m_pcs2->Tim->time_step_length = aktuelle_zeit - m_pcs2->Tim->last_time_simulated;
+        }
+        a_pcs->first_coupling_iteration = false; // No longer true.
+        // Check for break criteria
+        max_outer_error = MMax(max_outer_error, a_pcs->cpl_max_relative_error);
 
-				// Reapply BCs if constrained BC
-				if(a_pcs->hasConstrainedBC())
-				{
-#ifdef USE_MPI
-					const int rank = myrank;
-#else
-					const int rank = -1;
+        // Reapply BCs if constrained BC
+#if defined(USE_MPI) || defined(USE_PETSC)
+        bool has_constained_bc_i = a_pcs->hasConstrainedBC();
+        bool has_constained_bc = false;
+        MPI_Allreduce(&has_constained_bc_i, &has_constained_bc, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
+        if(has_constained_bc)   
+#else                                
+        if (a_pcs->hasConstrainedBC())
 #endif
-					a_pcs->IncorporateBoundaryConditions(rank);
-				}
-			}
-			if(!accept) break;
-		}
-		if(!accept){
-			std::cout << "\n";
-			break;
-		}
-		//
-	    if(cpl_overall_max_iterations > 1){
-			std::cout << "\n======================================================\n";
-			std::cout << "Outer coupling loop " << outer_index+1 << "/" << cpl_overall_max_iterations << " complete."<<"\n";
-			std::cout << "Max coupling error (relative to tolerance): " << max_outer_error << "\n";
-			std::cout << "======================================================\n";
-	    }
-	    else{
-			std::cout << "\n";
-	    }
-		// Coupling convergence criteria
-		//if(max_outer_error <= 1.0 && outer_index+2 > cpl_overall_min_iterations) // JT: error is relative to the tolerance.	//MW outer_index + 2 is hard to follow - is it faster to write it like this?
-	    if(max_outer_error <= 1.0 && outer_index+1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
-			break;
+        {
+#if defined(USE_MPI) || defined(USE_PETSC)
+          const int rank = mrank;
+#else
+          const int rank = -1;
+#endif
+          a_pcs->IncorporateBoundaryConditions(rank);
+        }
+      }
+      if (!accept) break;
+    }
+    if (!accept){
+      std::cout << "\n";
+      break;
+    }
+    //
+    if (cpl_overall_max_iterations > 1){
+      std::cout << "\n======================================================\n";
+      std::cout << "Outer coupling loop " << outer_index + 1 << "/" << cpl_overall_max_iterations << " complete." << "\n";
+      std::cout << "Max coupling error (relative to tolerance): " << max_outer_error << "\n";
+      std::cout << "======================================================\n";
+    }
+    else{
+      std::cout << "\n";
+    }
+    // Coupling convergence criteria
+    //if(max_outer_error <= 1.0 && outer_index+2 > cpl_overall_min_iterations) // JT: error is relative to the tolerance.	//MW outer_index + 2 is hard to follow - is it faster to write it like this?
+    if (max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
+      break;
 
-	    //MW
-	    if(max_outer_error > 1 && outer_index+1 == cpl_overall_max_iterations && cpl_overall_max_iterations>1)	//m_tim->step_current>1 &&
-	    {
-	    	accept = false;
-	    	break;
-	    }
-	}
+    //MW
+    if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
+    {
+      accept = false;
+      break;
+    }
+  }
+    if (accept){
+      if (cp_vec.size() > 0){
+        //for (i = 0; i < num_processes; i++){
+        //	index = active_process_index[i];
+        //	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
+        //}
+        PostMassTrasportReact();
+      }
+    }
+	
 	//
 	return accept;
 }
@@ -1573,12 +1619,18 @@ void Problem::PostCouplingLoop()
 
 
   if( (KinReactData_vector.size() > 0) || (REACT_vec.size()>0) || capvec  || prqvec ){  
-    // map concentrations in radial model
-    if( KinReactData_vector.size() > 0)
-      if(KinReactData_vector[0]->copy_concentrations ) 
-        KinReactData_vector[0]->CopyConcentrations();
+    // map concentrations in radial model, batch, or symmetric 2D
+    //if( KinReactData_vector.size() > 0)
+    //  if(KinReactData_vector[0]->copy_concentrations ) 
+    //    KinReactData_vector[0]->CopyConcentrations();
+    if (REACTINT_vec.size() > 0){
+      if (REACTINT_vec[0]->copy_concentrations)
+        REACTINT_vec[0]->CopyConcentrations();
+    }
+
+    // some NAPL dissolution updates
     if(transport_processes.size()>0){ 
-      if(total_processes[3] || total_processes[4])
+      if(total_processes[3] || total_processes[4] || total_processes[6])
         if(KNaplDissCheck()){   // Check if NAPLdissolution is modeled
           // return P_new, and Phase_volumina 
           CalcNewPhasePressure(); 
@@ -1669,6 +1721,7 @@ inline double Problem::LiquidFlow()
 	if(!m_pcs->selected)
 		return error;
 	//  error = m_pcs->Execute();
+	if (ClockTimeVec.size()>0)
 	ClockTimeVec[0]->StartTime(); // SB stop time
 	// Cases: decide, weather to use GEOSYS, ECLIPSE or DuMux; BG 10/2010
 	if((m_pcs->simulator.compare("GEOSYS") == 0)) //         ||(m_pcs->simulator.compare("ECLIPSE")==0)){ // standard: use GeoSys
@@ -1677,7 +1730,7 @@ inline double Problem::LiquidFlow()
 #ifdef RESET_4410
 		PCSCalcSecondaryVariables(); // PCS member function
 #endif
-		//m_pcs->CalIntegrationPointValue(); //WW , removed by JOD - somebody put this also into execute() and now it's calculated twice
+		m_pcs->CalIntegrationPointValue(); //WW
 		if(m_pcs->tim_type == TimType::STEADY)
 			m_pcs->selected = false;
 	}
@@ -1704,8 +1757,12 @@ inline double Problem::LiquidFlow()
 			std::cout << "Error running DuMux!" << "\n";
 	}
 	m_pcs->CalcELEVelocities();// Evaluate the element velocities,10.2014 BW
-   ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
-   ClockTimeVec[0]->StartTime(); // SB time
+    
+	if (ClockTimeVec.size()>0){
+      ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
+      ClockTimeVec[0]->StartTime(); // SB time
+    }
+
 
 	return error;
 }
@@ -1822,7 +1879,7 @@ inline double Problem::MultiPhaseFlow()
 	int index = -1;
 	CRFProcess* m_pcs = total_processes[4];
 //	CRFProcess* m_pcs2 = NULL;
-
+    if (ClockTimeVec.size()>0)
 	ClockTimeVec[0]->StartTime(); // SB time
 	if(!m_pcs->selected)
 		return error;             //12.12.2008 WW
@@ -1856,11 +1913,12 @@ inline double Problem::MultiPhaseFlow()
 		// WTP: change to multi comp
 		//	m_pcs->EclipseData->dissolved_co2_pcs_name_ECL = m_pcs->dissolved_co2_pcs_name; // hand over process name for storing dissolved CO2
 		//	m_pcs->EclipseData->dissolved_co2_ingas_pcs_name_ECL = m_pcs->dissolved_co2_ingas_pcs_name;
-		if(m_pcs->Tim->step_current == 1)
-			for(unsigned int i=0; i<m_pcs->vec_component_pcs_names.size(); i++) 
+		if (m_pcs->Tim->step_current == 1)
+		{
+			for (unsigned int i = 0; i < m_pcs->vec_component_pcs_names.size(); i++)
 			{
 				std::vector <std::string> dummy_vec_str;
-				for(int k=0; k<4; k++)
+				for (int k = 0; k < 4; k++)
 				{
 					std::string dummy_str = m_pcs->vec_component_pcs_names[i][k];
 					dummy_vec_str.push_back(dummy_str);
@@ -1868,7 +1926,8 @@ inline double Problem::MultiPhaseFlow()
 				m_pcs->EclipseData->vec_components_ECL_OGS_pcs_names.push_back(dummy_vec_str);
 				dummy_vec_str.clear();
 			}
-
+			m_pcs->EclipseData->verbosity = m_pcs->ecl_verbosity;
+		}
 		// call ECLIPSE interface
 		success = m_pcs->EclipseData->RunEclipse(m_pcs->Tim->step_current, m_pcs);
 		if (success == 0)
@@ -1937,8 +1996,10 @@ inline double Problem::MultiPhaseFlow()
 
 	m_pcs->CalcELEVelocities();// Evaluate the element velocities,10.2014 BW
 
-    ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
-    ClockTimeVec[0]->StartTime(); // SB time
+    if (ClockTimeVec.size()>0){
+      ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
+      ClockTimeVec[0]->StartTime(); // SB time
+    }
 
 	return error;
 }
@@ -2873,6 +2934,7 @@ inline double Problem::PS_Global()
 {
 	double error = 1.0e+8;
 	CRFProcess* m_pcs = total_processes[3];
+    if (ClockTimeVec.size()>0)
 	ClockTimeVec[0]->StartTime(); // SB time
 
 	if(!m_pcs->selected)
@@ -2884,8 +2946,11 @@ inline double Problem::PS_Global()
 	if (m_pcs->OutputMassOfGasInModel == true)		// 05/2012 BG
 		OutputMassOfGasInModel(m_pcs);
 
-	ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
-    ClockTimeVec[0]->StartTime(); // SB time
+	if (ClockTimeVec.size()>0){
+	  ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
+      ClockTimeVec[0]->StartTime(); // SB time
+    }
+
 
 
 	return error;
@@ -2919,7 +2984,7 @@ Modification:
 -------------------------------------------------------------------------*/
 inline double Problem::TNEQ()
 {
-   double error = 1.0e+8;
+	double error = 1.0e+8;
 	CRFProcess* m_pcs = total_processes[14];
 	if(!m_pcs->selected)
 		return error;
@@ -2928,6 +2993,28 @@ inline double Problem::TNEQ()
 		m_pcs->CalIntegrationPointValue();
 	return error;
 }
+
+
+/*-------------------------------------------------------------------------
+GeoSys - Function: TES()
+Task: Simulate Reactive thermal nonequilibrium flow
+Return: error
+Programming:
+07/2013 HS,TN Implementation
+Modification:
+-------------------------------------------------------------------------*/
+inline double Problem::TES()
+{
+	double error = 1.0e+8;
+	CRFProcess* m_pcs = total_processes[15];
+	if(!m_pcs->selected)
+		return error;
+	error = m_pcs->ExecuteNonLinear(loop_process_number); 
+	if(m_pcs->TimeStepAccept())
+		m_pcs->CalIntegrationPointValue();
+	return error;
+}
+
 
 /*-------------------------------------------------------------------------
    GeoSys - Function: GroundWaterFlow()
@@ -2945,6 +3032,7 @@ inline double Problem::GroundWaterFlow()
 	CRFProcess* m_pcs = total_processes[1];
 	if(!m_pcs->selected)
 		return error;             //12.12.2008 WW
+    if (ClockTimeVec.size()>0)
    ClockTimeVec[0]->StartTime(); // CB time
 
 	//----- For the coupling with the soil column approach. 05.2009. WW
@@ -3057,8 +3145,10 @@ inline double Problem::GroundWaterFlow()
 	}
 #endif
 
-   ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // CB time
-   ClockTimeVec[0]->StartTime(); // CB time
+    if (ClockTimeVec.size()>0){
+      ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // CB time
+      ClockTimeVec[0]->StartTime(); // CB time
+    }
 
    return error;
 }
@@ -3139,6 +3229,7 @@ inline double Problem::HeatTransport()
 {
 	double error = 1.0e+8;
 	CRFProcess* m_pcs = total_processes[8];
+    if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StartTime(); // SB time
 
 	if(!m_pcs->selected)
@@ -3159,8 +3250,10 @@ inline double Problem::HeatTransport()
      if(REACTINT_vec[0]->heatpump_2DhTO2Dv)
        REACTINT_vec[0]->Heatpump_2DhTO2Dv_Mapping(true); // Map Heat plume CL to 2D vertical
    
-   ClockTimeVec[0]->StopTime("Heat_Transport", aktueller_zeitschritt); // SB time
-   ClockTimeVec[0]->StartTime(); // SB time
+   if (ClockTimeVec.size()>0){
+     ClockTimeVec[0]->StopTime("Heat_Transport", aktueller_zeitschritt); // SB time
+     ClockTimeVec[0]->StartTime(); // SB time
+   }
 
 	return error;
 }
@@ -3178,7 +3271,7 @@ inline double Problem::MassTrasport()
 {
 	double error = 1.0e+8;
     bool capvec = false;
-    bool prqvec = false;
+  bool prqvec = false;
 	CRFProcess* m_pcs = total_processes[11];
 	//
 	if(!m_pcs->selected)
@@ -3198,7 +3291,7 @@ inline double Problem::MassTrasport()
 			if (local_richards_flow != NULL)
 			{
 				int nidx1 = local_richards_flow->GetNodeValueIndex("PRESSURE1",0);
-				for (int j=0; j<m_pcs->m_msh->GetNodesNumber(false);j++)
+				for (size_t j=0; j<m_pcs->m_msh->GetNodesNumber(false);j++)
 				{
 					double local_conc = m_pcs->GetNodeValue(j,nidx0+1);
 					double local_pressure = local_richards_flow->GetNodeValue(j,nidx1+1);
@@ -3215,47 +3308,70 @@ inline double Problem::MassTrasport()
 		CompProperties* m_cp = cp_vec[component];
 
 		if (m_cp->OutputMassOfComponentInModel == 1) {			// 05/2012 BG
-			if (singlephaseflow_process.size() >= 0)
+			// TODO: Check
+			if (singlephaseflow_process.size() > 0)
 				OutputMassOfComponentInModel(singlephaseflow_process, m_pcs);
 			else
 				OutputMassOfComponentInModel(multiphase_processes, m_pcs);
 		}
 	}
-    ClockTimeVec[0]->StopTime("Transport", aktueller_zeitschritt); // SB time
-	ClockTimeVec[0]->StartTime(); // SB time
+  if (ClockTimeVec.size()>0){
+    ClockTimeVec[0]->StopTime("Transport", aktueller_zeitschritt); // CB time
+    ClockTimeVec[0]->StartTime(); // CB time
+  }
+#ifdef GEM_REACT
+  	  if (m_vec_GEM->initialized_flag == 1) //when it was initialized.
+	  {
+		  int m_time = 1;           // 0-previous time step results; 1-current time step results
 
-	// Calculate Chemical reactions, after convergence of flow and transport
-	// Move inside iteration loop if couplingwith transport is implemented SB:todo
-	//SB:todo move into Execute Reactions	  if((aktueller_zeitschritt % 1) == 0)
-	//REACT *rc = NULL; //OK
-	//rc = REACT_vec[0]; //OK
-	//				if(rc->flag_pqc) rc->ExecuteReactions();
-	//				delete rc;
-//CB2406 #ifdef OGS_FEM_CAP // CAP_REACT  //CB merge CAP 0311
+		  // Check if the Sequential Iterative Scheme needs to be intergrated
+		  if (m_pcs->m_num->cpl_max_iterations > 1)
+			  m_vec_GEM->flag_iterative_scheme = 1;  // set to standard iterative scheme;
+		  // Move current xDC to previous xDC
+		  m_vec_GEM->CopyCurXDCPre();
+		  // Get info from MT
+		  // m_vec_GEM->ConvPorosityNodeValue2Elem(); //
+		  // second arguments should be one if we work with concentrations
+		  m_vec_GEM->GetReactInfoFromMassTransport(m_time);
+		  // m_vec_GEM->ConcentrationToMass();
+		  m_vec_GEM->Run_MainLoop(); // Run GEM
+		  m_vec_GEM->CopyCurBPre();
+
+		  // m_vec_GEM->MassToConcentration();
+		  // Calculate the different of xDC
+		  m_vec_GEM->UpdateXDCChemDelta();
+		  // Set info in MT
+		  m_vec_GEM->SetReactInfoBackMassTransport(m_time);
+		  //m_vec_GEM->ConvPorosityNodeValue2Elem(); // update element porosity and push back values
+	  }
+#endif                                         // GEM_REACT
+
+	return error;
+}
+
+
+inline double Problem::PostMassTrasportReact()
+{
+  bool capvec = false;
+  bool prqvec = false;
+  //
+  
    if (REACT_CAP_vec.size() > 0) capvec = true;
 
 
   //if( (KinReactData_vector.size() > 0) || (REACT_vec.size()>0) ||  capvec || (REACT_PRQ_vec.size()>0) )  //CB merge CAP 0311
-   if(REACTINT_vec.size()>0)
-     REACTINT_vec[0]->ReactionPreProcessing();
+  if (REACTINT_vec.size()>0)
+    REACTINT_vec[0]->ReactionPreProcessing();
 
-   if(KinReactData_vector.size() > 0)
-   {  // WW moved the following lines into this curly braces. 12.12.2008
-      ClockTimeVec[0]->StopTime("Transport"); // CB time
-      ClockTimeVec[0]->StartTime(); // CB time
-      // Calculate Chemical reactions, after convergence of flow and transport
-      // Move inside iteration loop if couplingwith transport is implemented SB:todo
-      // First calculate kinetic reactions
-
-      //DL --> for liquid phase only, 
-      // this will provide activities and speciation for kinetics
-      if(capvec && KinReactData_vector[0]->NumberMineralkinetics>0)
-        REACT_CAP_vec[0]->ExecuteReactionsChemApp(-1, -1);     
-
-      KinReactData_vector[0]->ExecuteKinReact();
-      ClockTimeVec[0]->StopTime("KinReactions");  // CB time
+  // First calculate kinetic reactions
+  if (KinReactData_vector.size() > 0)
+  { // WW moved the following lines into this curly braces. 12.12.2008
+    KinReactData_vector[0]->ExecuteKinReact();
+    if (ClockTimeVec.size()>0){
+      ClockTimeVec[0]->StopTime("KinReactions", aktueller_zeitschritt);  // CB time
       ClockTimeVec[0]->StartTime();  // CB time
-   }
+    }
+  }
 	if(REACT_vec.size() > 0)              //OK
 	{
 		if(REACT_vec[0]->flag_pqc)
@@ -3276,38 +3392,13 @@ inline double Problem::MassTrasport()
 	}
 
 		if(REACT_CAP_vec.size() > 0){ // use ChemApp
-			REACT_CAP_vec[0]->ExecuteReactionsChemApp(1, -1);  //DL
+    //REACT_CAP_vec[0]->ExecuteReactionsChemApp(1, -1);  //DL
+    REACT_CAP_vec[0]->ExecuteReactionsChemAppNew(1, -1);  //DL
 		//REACT_CAP_vec[0]->ConvertIC2BC();
 		}
 
 
-#ifdef GEM_REACT
-	else                                  // WW moved these pare of curly braces inside  ifdef GEM_REACT
-	if (m_vec_GEM->initialized_flag == 1) //when it was initialized.
-	{
-		int m_time = 1;           // 0-previous time step results; 1-current time step results
 
-		// Check if the Sequential Iterative Scheme needs to be intergrated
-		if (m_pcs->m_num->cpl_max_iterations > 1)
-			m_vec_GEM->flag_iterative_scheme = 1;  // set to standard iterative scheme;
-		// Move current xDC to previous xDC
-		m_vec_GEM->CopyCurXDCPre();
-		// Get info from MT
-		// m_vec_GEM->ConvPorosityNodeValue2Elem(); //
-		// second arguments should be one if we work with concentrations
-		m_vec_GEM->GetReactInfoFromMassTransport(m_time);
-		// m_vec_GEM->ConcentrationToMass();
-		m_vec_GEM->Run_MainLoop(); // Run GEM
-		m_vec_GEM->CopyCurBPre();
-
-		// m_vec_GEM->MassToConcentration();
-		// Calculate the different of xDC
-		m_vec_GEM->UpdateXDCChemDelta();
-		// Set info in MT
-		m_vec_GEM->SetReactInfoBackMassTransport(m_time);
-		//m_vec_GEM->ConvPorosityNodeValue2Elem(); // update element porosity and push back values
-	}
-#endif                                         // GEM_REACT
 
 #ifdef CHEMAPP
 	if(Eqlink_vec.size() > 0)
@@ -3318,10 +3409,11 @@ inline double Problem::MassTrasport()
 		m_vec_BRNS->RUN(  dt /*time value in seconds*/);
 #endif
 
-	// if(KinReactData_vector.size() > 0)  //12.12.2008 WW
-      ClockTimeVec[0]->StopTime("EquiReact"); // CB time
+  // if(KinReactData_vector.size() > 0)  //12.12.2008 WW
+  if (ClockTimeVec.size()>0)
+    ClockTimeVec[0]->StopTime("EquiReact", aktueller_zeitschritt); // CB time
 
-	return error;
+  return 1;
 }
 
 /*-------------------------------------------------------------------------
@@ -3534,9 +3626,9 @@ inline double Problem::RandomWalker()
 inline double Problem::Deformation()
 {
 	CRFProcessDeformation* dm_pcs = NULL;
-	//FiniteElement::CElement* m_ele = NULL;
 	double error = 1.0e+8;
 	CRFProcess* m_pcs = total_processes[12];
+	if (ClockTimeVec.size()>0)
 	ClockTimeVec[0]->StartTime(); // SB stop time
 	//
 	dm_pcs = (CRFProcessDeformation*)(m_pcs);
@@ -3556,8 +3648,10 @@ inline double Problem::Deformation()
 		if(dm_pcs->type == 42) // H2M. 07.2011. WW
 			dm_pcs->CalcSecondaryVariablesUnsaturatedFlow();
 	}
-    ClockTimeVec[0]->StopTime("Mechanics", aktueller_zeitschritt); // SB time
-    ClockTimeVec[0]->StartTime(); // SB time
+	if (ClockTimeVec.size()>0){
+      ClockTimeVec[0]->StopTime("Mechanics", aktueller_zeitschritt); // SB time
+      ClockTimeVec[0]->StartTime(); // SB time
+    }
 
 	// KB0714: volume strain update on flow from deformation
 	for (size_t i = 0; i < pcs_vector.size(); i++){
@@ -3568,7 +3662,6 @@ inline double Problem::Deformation()
 
 		}
 	}
-
 	return error;
 }
 
@@ -3851,6 +3944,10 @@ inline void Problem::LOPExecuteRegionalRichardsFlow(CRFProcess* m_pcs_global, in
 		}
 		//m_pcs->m_msh = FEMGet("RICHARDS_FLOW");
 		// pcs->m_msh->RenumberNodesForGlobalAssembly(); related to Comment 1  // MB/WW
+		if (!m_pcs_local->TimeStepAccept()) {
+			m_pcs_global->accepted = false;
+			break;
+		}
 	}
 #else // ifndef USE_MPI_REGSOIL
 	num_parallel_blocks = no_richards_problems / size;
@@ -4158,7 +4255,8 @@ void Problem::PCSCalcSecondaryVariables()
 			switch (ptype)
 			{
 			case 1:       /* Flow process */
-				// do nothing
+              if(m_pcs->napl_dissolution)
+                CalcSecondaryVariableDensity(m_pcs);
 				break;
 			case 66:
 				//Temp mit pcs, only for test MB

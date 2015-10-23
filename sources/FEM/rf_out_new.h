@@ -16,6 +16,8 @@ class GEOObjects;
 
 extern std::vector<COutput*> out_vector;
 
+extern std::string defaultOutputPath;
+
 /**
  * read file that stores information about output
  * @param file_base_name base file name (without extension)

@@ -477,11 +477,11 @@ int HKF::HelgesonEquation(double T, double P, vector<SpeciesData> &spec){
 				Hw= wr*(T*Y-Tr*Yr+1.0/e-1.0/er);//(A22) Ref.(1)
 			}
 			else{
-				rejr= Z*Z*(eta*Yr-100.0)/(dS-71.5*abs(Z)); //(D1) Ref.(1) & Eq(29) Ref.(4) 
-				rej = rejr+abs(Z)*g; //Eq(6) Ref.(1)
+				rejr= Z*Z*(eta*Yr-100.0)/(dS-71.5*fabs(Z)); //(D1) Ref.(1) & Eq(29) Ref.(4) 
+				rej = rejr+fabs(Z)*g; //Eq(6) Ref.(1)
 				wr  = eta*Z*(Z/rejr-1.0/3.082); //(D5) Ref.(1)
-				w   = eta*Z*(Z/(rejr+abs(Z)*g)-1.0/(3.082+g)); //(D4) Ref.(1)
-				X1  = -eta*(pow(abs(Z),3.0)*pow(rej,-2.0)-Z*pow((3.082+g),-2.0)); //(B19) Ref.(1)
+				w   = eta*Z*(Z/(rejr+fabs(Z)*g)-1.0/(3.082+g)); //(D4) Ref.(1)
+				X1  = -eta*(pow(fabs(Z),3.0)*pow(rej,-2.0)-Z*pow((3.082+g),-2.0)); //(B19) Ref.(1)
 				Sw=                w*Y     -(1.0/e-1.0)*X1*NR::dfridrX(gfunc,T,P)                  -wr*Yr; //(B21) & (B14) Ref.(1)
 				Hw= w*(1.0/e-1.0) +w*T*Y -T*(1.0/e-1.0)*X1*NR::dfridrX(gfunc,T,P) -wr*(1.0/er-1.0) -wr*Tr*Yr;
 				Gw= w*(1.0/e-1.0)                                                 -wr*(1.0/er-1.0) +wr*Yr*(T-Tr);

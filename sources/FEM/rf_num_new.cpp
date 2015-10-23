@@ -5,6 +5,8 @@
    11/2004 OK Implementation
    last modified:
 **************************************************************************/
+#include "rf_num_new.h"
+
 // There is a name conflict between stdio.h and the MPI C++ binding
 // with respect to the names SEEK_SET, SEEK_CUR, and SEEK_END.  MPI
 // wants these in the MPI namespace, but stdio.h will #define these
@@ -21,7 +23,6 @@
 //#undef SEEK_CUR
 #endif
 
-#include "makros.h"
 // C++ STL
 #include <cfloat>
 #include <cmath>
@@ -29,14 +30,16 @@
 #include <iostream>
 #include <list>
 #include <string>
-using namespace std;
+
+#include "makros.h"
+#include "memory.h"
+#include "display.h"
+
 // FEM-Makros
 #include "files0.h"
 #include "makros.h"
-extern ios::pos_type GetNextSubKeyword(ifstream* file,string* line, bool* keyword);
 // GeoSys-GeoLib
 // GeoSys-FEMLib
-#include "rf_num_new.h"
 #ifndef NEW_EQS                                   //WW. 06.11.2008
 #include "matrix_routines.h"
 #endif
@@ -46,6 +49,9 @@ extern ios::pos_type GetNextSubKeyword(ifstream* file,string* line, bool* keywor
 #include "tools.h"
 // GeoSys-MSHLib
 
+using namespace std;
+
+extern std::ios::pos_type GetNextSubKeyword(ifstream* file,string* line, bool* keyword);
 extern size_t max_dim;                            //OK411 todo
 
 //==========================================================================
@@ -136,7 +142,11 @@ CNumerics::CNumerics(string name)
 		ls_storage_method = 4;
 		nls_max_iterations = 25;
 	}
-	//
+
+#ifdef USE_PETSC
+	lsover_name = "bcgs";
+	pres_name = "bjacobi";
+#endif
 }
 
 /**************************************************************************
@@ -178,7 +188,7 @@ bool NUMRead(string file_base_name)
 	num_file.seekg(0L,ios::beg);
 	//========================================================================
 	// Keyword loop
-	cout << "NUMRead" << "\n";
+  std::cout << "NUMRead" << "\n" << std::flush;
 	while (!num_file.eof())
 	{
 		num_file.getline(line,MAX_ZEILE);
@@ -437,30 +447,32 @@ ios::pos_type CNumerics::Read(ifstream* num_file)
 		// subkeyword found
 		if(line_string.find("$LINEAR_SOLVER") != string::npos)
 		{
-		  std::string str_buf = GetLineFromFile1(num_file); //WW
-		  line.str(str_buf);
-                  if(str_buf.find("petsc") != string::npos) //03.2012. WW
-		    {
-		      line >> str_buf 
-			   >> lsover_name
-			   >> pres_name
-			   >> ls_error_tolerance
-			   >> ls_max_iterations
-			   >> ls_theta;
-		    }
-		  else
-		    {
-			line >> ls_method;
-			line >> ls_error_method;
-			line >> ls_error_tolerance;
-			line >> ls_max_iterations;
-			line >> ls_theta;
-			line >> ls_precond;
-			line >> ls_storage_method;
-			/// For GMRES. 06.2010. WW
-			if(ls_method == 13)
-				line >> m_cols;
-		    }
+			std::string str_buf = GetLineFromFile1(num_file); //WW
+			line.str(str_buf);
+#ifdef USE_PETSC
+			if(str_buf.find("petsc") != string::npos) //03.2012. WW
+			{
+				line >> str_buf 
+				>> lsover_name
+				>> pres_name
+				>> ls_error_tolerance
+				>> ls_max_iterations
+				>> ls_theta;
+			}
+			else
+#endif
+			{
+				line >> ls_method;
+				line >> ls_error_method;
+				line >> ls_error_tolerance;
+				line >> ls_max_iterations;
+				line >> ls_theta;
+				line >> ls_precond;
+				line >> ls_storage_method;
+				/// For GMRES. 06.2010. WW
+				if(ls_method == 13)
+					line >> m_cols;
+			}
 			line.clear();
 			continue;
 		}

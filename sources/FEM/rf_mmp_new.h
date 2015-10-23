@@ -209,7 +209,7 @@ public:
 	double permeability_tensor[9];
 	double permeability_porosity_updating_values[5]; //ABM: Maximum of 2 values in Verma-Pruess case
 	std::string permeability_tensor_type_name;
-    std::string permeability_porosity_updating_type_name; //ABM
+	std::string permeability_porosity_updating_type_name; //ABM
 	std::string tortuosity_tensor_type_name;
 	int permeability_tensor_type;
 	int permeability_porosity_updating_type; //ABM
@@ -217,13 +217,13 @@ public:
 	double ElementLengthMultiplyer_vector[3]; // JODNEW
 	double ElementVolumeMultiplyer; // Multiplyer of element volume
 
-	  std::string PhaseHeatedByFriction; //In TNEQ models: dissipated heat due to friction into solid or fluid energy balance
+	std::string PhaseHeatedByFriction; //In TNEQ/TES models: dissipated heat due to friction into solid or fluid energy balance
 
 	int permeability_pressure_model;
 	double permeability_pressure_model_values[10];
 	double permeability_pressure_rel;
 	int permeability_strain_model;        //WX: permeability function strain model. 05.2010
-	int permeability_strain_model_value[3]; //WX:permeability fuction strain model value. 05.2010
+	int permeability_strain_model_value[6]; //WX:permeability fuction strain model value. 05.2010
 	int permeability_effstress_model_value[3];	//AS:perlmeability function eff stress 08.2012
 	int permeability_effstress_model;
 	int storage_effstress_model_value[3];			//AS:storage function eff stress 08.2012
@@ -332,7 +332,6 @@ extern std::list<std::string>mat_name_list;
 
 extern void MMPWrite(std::string);
 extern bool MMPRead(std::string);
-extern void MMPWriteTecplot(std::string);
 extern void MMPDelete();
 extern CMediumProperties* MMPGet(const std::string&);
 extern void MMP2PCSRelation(CRFProcess*);

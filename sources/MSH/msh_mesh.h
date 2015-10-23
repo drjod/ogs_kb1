@@ -351,9 +351,13 @@ public:
 	 * GetNODOnPLY search the nearest nodes along the Polyline object
 	 * @param ply constant pointer to a constant Polyline object
 	 * @param msh_nod_vector the mesh node indices are saved in this vector
+	 * @param automatic use the computed search length
+	 * @param eps if automatic is false use eps as search length
 	 * */
 	void GetNODOnPLY(const GEOLIB::Polyline* const ply,
-	                 std::vector<size_t>& msh_nod_vector);
+	                 std::vector<size_t>& msh_nod_vector,
+					 bool automatic = true,
+					 double eps = std::numeric_limits<double>::epsilon());
 
 	/**
 	 *
@@ -373,7 +377,11 @@ public:
 	/**
 	 * GetNODOnPLY search the nearest nodes to the Polyline
 	 * */
-	void GetNODOnPLY(const GEOLIB::Polyline* const ply, std::vector<long>& msh_nod_vector, const bool for_s_term = false );
+	void GetNODOnPLY(const GEOLIB::Polyline* const ply,
+		std::vector<long>& msh_nod_vector,
+		const bool for_s_term = false,
+		bool automatic = true,
+		double search_radius = std::numeric_limits<double>::epsilon());
 
 	/**
 	 * \brief gives the indices of CElement elements, which have an edge
@@ -384,7 +392,9 @@ public:
 	/**
 	 * \brief gives the indices of nodes, which are contained in the surface
 	 */
-	void GetNODOnSFC(const GEOLIB::Surface* sfc, std::vector<size_t>& msh_nod_vector, const bool for_s_term = false) const;
+	void GetNODOnSFC(const GEOLIB::Surface* sfc,
+		std::vector<size_t>& msh_nod_vector,
+		const bool for_s_term = false) const;
 
 	/** @} */  // close doxygen group
 
@@ -578,8 +588,6 @@ private:
 	inline void Precipitation2NeumannBC(std::string const & fname,
 	                                    std::string const & ofname,
 	                                    double ratio = 0.8);
-
-	std::vector<size_t> connected_nodes_vector; // JODNEW  for NNNC with sparse matrix solver
 
 	/// Store border nodes among different grids.
 	std::vector<GridsTopo*> grid_neighbors;

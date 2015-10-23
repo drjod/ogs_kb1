@@ -25,6 +25,8 @@
 #include <dlfcn.h>
 #endif
 
+#include "display.h"
+
 using namespace std;
 
 REACT_BRNS::REACT_BRNS(void)

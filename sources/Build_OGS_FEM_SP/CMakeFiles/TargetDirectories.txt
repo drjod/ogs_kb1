@@ -1,0 +1,11 @@
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/CMakeFiles/ALL_BUILD.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/Base/CMakeFiles/Base.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/FEM/CMakeFiles/FEM.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/FileIO/CMakeFiles/FileIO.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/GCC/CMakeFiles/GCC.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/GEO/CMakeFiles/GEO.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/MSH/CMakeFiles/MSH.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/MSHGEOTOOLS/CMakeFiles/MSHGEOTOOLS.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/MathLib/CMakeFiles/MathLib.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/CMakeFiles/ZERO_CHECK.dir
+F:/testingEnvironment/amak/ogs/ogs_kb1/sources/Build_OGS_FEM_SP/OGS/CMakeFiles/ogs.dir

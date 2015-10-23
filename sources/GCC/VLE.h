@@ -50,10 +50,15 @@ public:
 
 	static double Henry_const_CO2(double T);
 	static double Henry_const_H2(double T);
+  static double Henry_const_N2(double T);
+  static double Henry_const_General(double T, double A, double B, double C);
 
 	static void EoS_PR_H2(double T, double P, double &V, double &Z, double &lnphi);
 	static double solubility_H2_PR(double T, double P, double a);
 
+  static void EoS_PR_TCE(double T, double P, double &V, double &Z, double &lnphi);
+  static void EoS_PR_Ar(double T, double P, double &V, double &Z, double &lnphi);
+  static void EoS_PR_General(double w, double Tc, double Pc, double T, double P, double &V, double &Z, double &lnphi);
 	static double density_H2(double T, double P);
 	static double pressure_H2(double T, double dens);
 

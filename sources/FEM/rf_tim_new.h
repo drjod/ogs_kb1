@@ -12,7 +12,7 @@
 //#include <fstream>
 #include <iostream>
 //#include <string>
-//#include <vector>
+#include <vector>
 #include "makros.h" // JT2012
 #include "FEMEnums.h"
 // kg44 this is to synchronize time step size  for PETSC
@@ -23,6 +23,7 @@
 typedef Mat PETSc_Mat;
 typedef Vec PETSc_Vec;
 #endif
+using namespace std;
 //----------------------------------------------------------------
 class CRFProcess;                                 //21.08.2008. WW
 class CTimeDiscretization
@@ -100,7 +101,12 @@ public:
 	IterationType::type adapt_itr_type;
 	size_t last_rejected_timestep;
 	size_t stay_steps_after_rejection;
-
+	double desired_error;
+	double max_increase;
+	double min_increase;
+	double last_time_step_length;
+	double dampening;
+	double SEA_a, SEA_b, SEA_c;
 
 	//
 	//WW double minish; // JOD
@@ -143,6 +149,12 @@ public:
 	double ErrorControlAdaptiveTimeControl();
 	double NeumannTimeControl();
 	double SelfAdaptiveTimeControl();
+	double StableErrorAdaptive( void );
+	bool SEA_parameters_are_bad( void );
+	void SEA_calc_parameters( void );
+	double SEA_zbrent(const double tol);
+	double SEA_func(double const c);
+	inline double SEA_SIGN(const double a, const float b);
 	double DynamicVariableTimeControl(); //JT2012
 	double DynamicTimeSmoothing(double suggested_time_step_change);		//JT2012
 	//

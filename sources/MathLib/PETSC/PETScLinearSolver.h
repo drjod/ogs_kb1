@@ -33,7 +33,7 @@ public:
     ~PETScLinearSolver();
 
   void Config(const PetscReal tol, const PetscInt maxits, const KSPType lsol,
-                const PCType prec_type);
+              const PCType prec_type, const std::string &prefix = "");
 
   void Init(const int *sparse_index = NULL);
   
@@ -48,7 +48,7 @@ public:
     int GetLocalRHS(PetscScalar *rhs_l);
     double *GetGlobalSolution() const;
     void  GetVecValues(const int v_type, PetscInt ni, const PetscInt ix[], 
-		       PetscScalar y[]) const;
+                       PetscScalar y[]) const;
     PetscReal GetVecNormRHS(NormType  nmtype= NORM_2);
     PetscReal GetVecNormX(NormType  nmtype= NORM_2);
   
@@ -68,8 +68,8 @@ public:
     void add_bVectorEntry(const int i, const double value, InsertMode mode);
     void addMatrixEntry(const int i, const int j, const double value);
     void addMatrixEntries(const int m,const int idxm[], const int n, 
-			  const int idxn[],const PetscScalar v[]);
- 
+                          const int idxn[],const PetscScalar v[]);
+
     void Initialize();
 
     void zeroRows_in_Matrix(const int nrow, const  PetscInt *rows);
@@ -78,22 +78,20 @@ public:
        MatZeroEntries(A);
     }
 
-
     void set_rank_size(const int m_rank, const int size)
     {
       mpi_size = size;
-      rank = m_rank;  
-    } 
- 
+      rank = m_rank;
+    }
 
-    PetscInt getStartRow() const {return i_start;} 
+    PetscInt getStartRow() const {return i_start;}
     PetscInt getEndRow() const {return i_end;} 
 
-    PetscInt getMPI_Size() const {return mpi_size;} 
+    PetscInt getMPI_Size() const {return mpi_size;}
     PetscInt getMPI_Rank() const {return rank;} 
 
     void EQSV_Viewer(std::string file_name);
-   
+
   private:
     PETSc_Mat  A;
     PETSc_Vec b;

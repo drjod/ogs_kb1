@@ -10,8 +10,7 @@
 #include <string>
 #include <vector>
 
-// FileIO
-#include "MeshIO/GMSHInterface.h"
+#include "memory.h"
 
 // GEOLib
 #include "files0.h"
@@ -27,7 +26,6 @@
 extern void ConfigRenumberProperties(void);
 #endif
 extern int ReadRFIFile(std::string g_strFileNameBase);
-#include "gs_project.h"
 #include "rf_pcs.h"
 
 std::vector<MeshLib::CFEMesh*>fem_msh_vector;
@@ -99,20 +97,11 @@ void FEMRead(const std::string &file_base_name,
 	CFEMesh* mesh (NULL);
 	std::string msh_file_name (file_base_name + FEM_FILE_EXTENSION);
 
-	// test if this is a GMSH mesh
-	if (FileIO::GMSHInterface::isGMSHMeshFile (msh_file_name))
-	{
-		mesh = new CFEMesh();
-		GMSH2MSH(msh_file_name.c_str(), mesh);
-		mesh_vec.push_back(mesh);
-		return;
-	}
-
 	std::ifstream msh_file_ascii (msh_file_name.data(),std::ios::in);
 	if (!msh_file_ascii.is_open())
 		std::cout << "CFEMesh::FEMRead() - Could not open file...\n";
 
-	std::cout << "MSHRead:  ASCII file" << "\n";
+  std::cout << "MSHRead:  ASCII file" << "\n" << std::flush;
 	std::string line_string ("");
 	getline(msh_file_ascii, line_string);
 
@@ -647,10 +636,6 @@ void MSHWriteTecplot()
 	//----------------------------------------------------------------------
 	// File handling
 	std::string file_path = "MSH";
-	CGSProject* m_gsp = NULL;
-	m_gsp = GSPGetMember("msh");
-	if (m_gsp)
-		file_path = m_gsp->path + "MSH";
 	//----------------------------------------------------------------------
 	MeshLib::CFEMesh* m_msh = NULL;
 	for (int j = 0; j < (int) fem_msh_vector.size(); j++)
@@ -1790,188 +1775,3 @@ bool MSHTestMATGroups()
 	return true;
 }
 
-
-
-
-/**************************************************************************
-   MSHLib-Method:
-   Task:
-   Programing:
-   04/2005 OK Implementation based on MSH2RFI by WW
-   08/2005 WW Re-implememtation
-   10/2005 TK proper ordering and closing of gaps
-   09/2011 TF changed std::string::compare to std::string::find for the new gmsh format
-        to avoid dos unix line-ending issues
-**************************************************************************/
-void GMSH2MSH(const char* filename,CFEMesh* m_msh)
-{
-	long id;
-	long i = 0;
-	int NumNodes = 0;
-	int NumElements = 0;
-	double x, y, z;
-	std::string strbuffer;
-
-	//WW  bool quad=false;
-	//WW  CRFProcess* m_pcs = NULL;
-	MeshLib::CNode* node = NULL;
-	MeshLib::CElem* elem = NULL;
-	std::ifstream msh_file(filename, std::ios::in);
-	getline(msh_file, strbuffer);             // Node keyword
-
-	// OLD GMSH  FORMAT----------------------------------------------------------------------
-	if (strbuffer.compare("$NOD") == 0)
-		while (strbuffer.compare("$ENDELM") != 0)
-		{
-			msh_file >> NumNodes >> std::ws;
-			//....................................................................
-			// Node data
-			for (i = 0; i < NumNodes; i++)
-			{
-				msh_file >> id >> x >> y >> z >> std::ws;
-
-				node = new MeshLib::CNode(id, x, y, z);
-				m_msh->nod_vector.push_back(node);
-			}
-
-			getline(msh_file, strbuffer); // End Node keyword
-			//....................................................................
-			// Element data
-			getline(msh_file, strbuffer); // Element keyword
-			msh_file >> NumElements >> std::ws;
-			for (i = 0; i < NumElements; i++)
-			{
-				elem = new MeshLib::CElem(i);
-				elem->Read(msh_file, 2);
-				m_msh->ele_vector.push_back(elem);
-			}
-			getline(msh_file, strbuffer); // END keyword
-
-			// ordering nodes and closing gaps TK
-			std::vector<int> gmsh_id;
-			long new_node_id;
-			int counter = 0;
-			int diff = 0;
-			int j = 0;
-			for (i = 0; i < (int) m_msh->nod_vector.size(); i++)
-			{
-				diff = m_msh->nod_vector[i]->GetIndex() - counter;
-				if (diff == 0)
-				{
-					gmsh_id.push_back(i);
-					counter++;
-				}
-				else
-				{
-					for (j = 0; j < diff; j++)
-					{
-						gmsh_id.push_back(i);
-						counter++;
-					}
-					i--;
-				}
-			}
-
-			for (i = 0; i < (int) m_msh->ele_vector.size(); i++)
-				for (j = 0; j < (int) m_msh->ele_vector[i]->GetVertexNumber(); j++)
-				{
-					new_node_id = gmsh_id[m_msh->ele_vector[i]->GetNodeIndex(j)
-					                      + 1];
-					//m_msh->ele_vector[i]->nodes[j]->SetIndex(new_node_id);/*global*/
-					/*local*/
-					m_msh->ele_vector[i]->getNodeIndices()[j] = new_node_id;
-				}
-			for (i = 0; i < (int) m_msh->nod_vector.size(); i++)
-				m_msh->nod_vector[i]->SetIndex(i);
-			// END OF: ordering nodes and closing gaps TK
-		}                                 /*End while*/
-	// END old GMSH Format----------------------------------------------------------------------
-	msh_file.close();
-
-	FileIO::GMSHInterface::readGMSHMesh(filename, m_msh);
-//   // NEW 2008 GMSH  FORMAT----------------------------------------------------------------------
-//   if (strbuffer.find("$MeshFormat") != std::string::npos)
-//   {
-//      getline(msh_file, strbuffer);               // version-number file-type data-size
-//      getline(msh_file, strbuffer);               //$EndMeshFormat
-//      getline(msh_file, strbuffer);               //$Nodes Keywords
-//
-//      while (strbuffer.find("$EndElements") == std::string::npos)
-//      {
-//         // Node data
-//         msh_file >> NumNodes >> std::ws;
-//         for (i = 0; i < NumNodes; i++)
-//         {
-//            msh_file >> id >> x >> y >> z >> std::ws;
-//            node = new MeshLib::CNode(id, x, y, z);
-//            m_msh->nod_vector.push_back(node);
-//         }
-//         getline(msh_file, strbuffer);            // End Node keyword $EndNodes
-//
-//         // Element data
-//         getline(msh_file, strbuffer);            // Element keyword $Elements
-//         msh_file >> NumElements >> std::ws;      // number-of-elements
-//         for (i = 0; i < NumElements; i++)
-//         {
-//            elem = new MeshLib::CElem(i);
-//            elem->Read(msh_file, 7);
-//            if (elem->GetElementType() != MshElemType::INVALID)
-//               m_msh->ele_vector.push_back(elem);
-//         }
-//         getline(msh_file, strbuffer);            // END keyword
-//
-//         // correct indices TF
-//         const size_t n_elements(m_msh->ele_vector.size());
-//         for (size_t k(0); k < n_elements; k++)
-//         {
-//            m_msh->ele_vector[k]->SetIndex(k);
-//         }
-//
-//         // ordering nodes and closing gaps TK
-//         std::vector<int> gmsh_id;
-//         long new_node_id;
-//         int counter = 0;
-//         int diff = 0;
-//         int j = 0;
-//         for (i = 0; i < (int) m_msh->nod_vector.size(); i++)
-//         {
-//            diff = m_msh->nod_vector[i]->GetIndex() - counter;
-//            if (diff == 0)
-//            {
-//               gmsh_id.push_back(i);
-//               counter++;
-//            }
-//            else
-//            {
-//               for (j = 0; j < diff; j++)
-//               {
-//                  gmsh_id.push_back(i);
-//                  counter++;
-//               }
-//               i--;
-//            }
-//         }
-//
-//         for (i = 0; i < (int) m_msh->ele_vector.size(); i++)
-//         {
-//            for (j = 0; j < (int) m_msh->ele_vector[i]->GetVertexNumber(); j++)
-//            {
-//               new_node_id = gmsh_id[m_msh->ele_vector[i]->GetNodeIndex(j)
-//                  + 1];
-//               //m_msh->ele_vector[i]->nodes[j]->SetIndex(new_node_id);/*global*/
-//                                                  /*local*/
-//               m_msh->ele_vector[i]->nodes_index[j] = new_node_id;
-//            }
-//         }
-//         for (i = 0; i < (int) m_msh->nod_vector.size(); i++)
-//         {
-//            m_msh->nod_vector[i]->SetIndex(i);
-//         }
-//         // END OF: ordering nodes and closing gaps TK
-//
-//      }                                           /*End while*/
-//   }
-//   // END New 2008 GMSH Format----------------------------------------------------------------------
-
-	//  m_msh->ConstructGrid(); // TF
-}

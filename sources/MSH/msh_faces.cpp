@@ -171,25 +171,25 @@ void CFaces::Calculate_FaceGravityCentre(const double Point1[3],
 			// Centroid of the second triangle
 			
 			///�nderung Bastian Point1 -> Point2 ge�ndert
-			double xc2 = (Point1[0] + Point4[0] + Point3[0]) / 3.;
+	/*		double xc2 = (Point1[0] + Point4[0] + Point3[0]) / 3.;
 			double yc2 = (Point1[1] + Point4[1] + Point3[1]) / 3.;
-			double zc2 = (Point1[2] + Point4[2] + Point3[2]) / 3.;
-			//double xc2 = (Point2[0] + Point4[0] + Point3[0]) / 3.;
-			//double yc2 = (Point2[1] + Point4[1] + Point3[1]) / 3.;
-			//double zc2 = (Point2[2] + Point4[2] + Point3[2]) / 3.;
+			double zc2 = (Point1[2] + Point4[2] + Point3[2]) / 3.;*/
+			double xc2 = (Point2[0] + Point4[0] + Point3[0]) / 3.;
+			double yc2 = (Point2[1] + Point4[1] + Point3[1]) / 3.;
+			double zc2 = (Point2[2] + Point4[2] + Point3[2]) / 3.;
 			//	vector point4-point1
 			double vec_c[3];
 			//vec_c[0] = Point4[0] - Point1[0];
 			//vec_c[1] = Point4[1] - Point1[1];
 			//vec_c[2] = Point4[2] - Point1[2];
-			vec_c[0] = Point4[0] - Point2[0];
-			vec_c[1] = Point4[1] - Point2[1];
-			vec_c[2] = Point4[2] - Point2[2];
+			vec_c[0] = Point2[0] - Point4[0];
+			vec_c[1] = Point2[1] - Point4[1];
+			vec_c[2] = Point2[2] - Point4[2];
 			
 			double vec_d[3];
-			vec_d[0] = Point4[0] - Point3[0];
-			vec_d[1] = Point4[1] - Point3[1];
-			vec_d[2] = Point4[2] - Point3[2];
+			vec_d[0] = Point3[0] - Point4[0];
+			vec_d[1] = Point3[1] - Point4[1];
+			vec_d[2] = Point3[2] - Point4[2];
 			
 			// Area of the second triangle
 			double a2 = 0.5 *
@@ -386,7 +386,7 @@ void CFaces::CreateFace(MeshLib::CNode* Point1,
 	//the order of the point was changed to calculate the correct gravity centre
 	//if (this->Calculate_FaceGravityCentre(coord_Point1, coord_Point2, coord_Point4,
 	//	coord_Point3, threenodesflag) == false)
-	this->Calculate_FaceGravityCentre(coord_Point1, coord_Point2, coord_Point4, coord_Point3, threenodesflag);
+	this->Calculate_FaceGravityCentre(coord_Point1, coord_Point2, coord_Point3, coord_Point4, threenodesflag);
 	//	return false;
 	//return true;
 }

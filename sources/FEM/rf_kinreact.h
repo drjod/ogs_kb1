@@ -30,6 +30,17 @@
 #define KRC_FILE_EXTENSION ".krc"
 
 /* New class KinReaction: contains the kinetic reactions and all necessary data structures for them */
+class CompetitionSubstruct
+{
+private:
+public:
+  std::string species;                  // Name of species
+  int speciesnumber;                    // number of species;
+  double concentration;                 //Monod concentration
+  double order;                         // Order of monod term
+  CompetitionSubstruct(void);
+  ~CompetitionSubstruct(void);
+};
 // C++ Class Monodsubstruct
 class MonodSubstruct
 {
@@ -44,6 +55,17 @@ public:
 	bool threshhold;
 	double threshConc;
 	double threshOrder;
+  // for Minimum concentration within Monod term
+  bool MiniConc; 
+  double MinimumConcentration;
+  
+  // for Haldane self inhibition
+  bool Haldaneinhibition;
+  double HalInhibConcentration;
+
+  // for competitive inhibition
+  std::vector <CompetitionSubstruct*>  competition; /* saves competition concentrations and names of species */
+  int number_competition;               /* number of competition terms */
 	MonodSubstruct(void);
 	~MonodSubstruct(void);
 };
@@ -127,17 +149,20 @@ public:
 	double rateorder;                     /* order of reaction */
 	int number_monod;                     /* Number of Monod terms */
 	int number_inhibit;                   /* Number of inhibition terms */
+  int number_expoinhibit;                   /* Number of inhibition terms */
 	int number_production;                /* number of production terms */
 	int number_isotope_couples;           /* number of production terms */
 	std::vector <MonodSubstruct*>  monod; /* saves monod concentrations and names of species */
 	std::vector <MonodSubstruct*>  inhibit; /* saves inhibit concentrations and names of species */
 	std::vector <MonodSubstruct*>  production; /* saves production concentrations, orders and names of species */
+  std::vector <MonodSubstruct*>  expoinhibit; /* saves inhibit concentrations and names of species */
 	int grow;                             /* growth or no growth */
 	std::string bacteria_name;
 	int bacteria_number;
 	std::vector <double>   ProductionStoch; // stochiometry of reaction
 	//    vector <double>	ProductionStoch2; // stochiometry of reaction - short version
 	std::vector <MonodSubstruct*> ProdStochhelp; // store input values
+  std::vector <MonodSubstruct*> FixedActivityhelp; // store input values
       double specif_cap;
 	//CB Isotope fractionation
 	std::string Isotope_light;
@@ -147,6 +172,7 @@ public:
       bool T_dependence;
       int T_model;
       std::vector <double> T_params;
+  std::string VLE_model;
       
 	  // CB _drmc_
       bool _drmc_;
@@ -155,7 +181,10 @@ public:
       int DormTypeIdx;
       int MicrobeData_idx;
       double dG0; // standard Gibbs energy of reaction
+      double dH0; // standard Enthalpy of reaction
       double Yieldcoefficient;
+   double astn ;
+   double dGc ;
 
 	//CB Not this particular reaction on specified GEO-Objects; Data structures
 	std::vector <std::string> NotThisReactGeoName;
@@ -187,13 +216,14 @@ public:
 	int typeflag_napldissolution;         /* set to 1 if reaction is NAPL dissolution */
 	int typeflag_iso_fract;               /* set to 1 if reaction is isotope fractionation */
       int typeflag_mineralkinetics; /* set to 1 if reaction is mineral kinetics */
-      int typeflag_gasdissolution; 
+      int typeflag_CO2gasdissolution;
+      int typeflag_GasMixdissolution;
 
        //CB new parallel computation data structure, replaces double current_Csat;
        std::vector <double> Current_Csat;       /* initial interfacial area, interfacial area of last iteration */
        // Mineral kinetics data
        std::vector <MinkinMech*>  mechvec;	// stores individual mechanisms of this reaction
-       std::vector <int>	minSpeciesIdx;    // stores cp vector index of mineral species
+       std::vector <int>	reacSpeciesIdx;    // stores cp vector index of mineral species
        std::vector <double> Am;                     // initial specific reactive mineral surface area m²/m³ aquifer = Am * rho_b = m²/kg * kg/m³aquifer
        std::vector <double> Km;            // Equilibrium constant
        std::vector <double> Cminini;          // initial mineral concentration
@@ -203,6 +233,7 @@ public:
        bool Km_HKF;
        bool scale_rate;
        bool lagneau ;
+       bool TransientCsat;
 
 
        double Km_default;
@@ -243,18 +274,18 @@ public:
 
 	// CB isotope fractionation + higher order terms
 	double Monod(double, double, double, double);
-	double Inhibition(double, double);
-      double BacteriaGrowth ( int r, double *c, double sumX, int exclude, long node );
+	double Inhibition(double, double, double);
+  double BacteriaGrowth(int r, double *c, double sumX, int exclude, long node, double *myXMI, double *AP, double *TDF);
+  double DistributionCoefficient(long node);
+  double TDForcing(double *c, long node, double *AP, double Temperature);
 	int     GetPhase(int );
-	//   double GetPorosity( int comp, long index );
-	// CB replaced by
-	double GetReferenceVolume( int comp, long index );
 	double GetDensity( int comp, long index );
 	double GetNodePoreVelocity( long node);
       double GetNodeDarcyVelocity( long node);
-	double GetPhaseVolumeAtNode(long node, double theta, int phase);
+	double GetPhaseVolumeAtNodeOld(long node, double theta, int phase);
       double GetSaturation(long node, int theta, int phase);
       double GetMaxSolubility(long node, double density);
+      double GetPhaseDistributionCoeffTemperature(double Temperature, int model);
       double EffectiveYield(long node);
       // MinKin
       double Omega(double *c, int node);
@@ -263,6 +294,9 @@ public:
       //double Arrhenius(double, double, double);
       double MinRate(double *c, int node, double dt, double Om);
       double MinRateConstant(double *c, int node, double disso);
+      double GetHenryCoeffVLE(double);
+      double GetHenryCoeffYaws(double);
+      double GetHenryCoeffVantHoff(double);
 };
 
 //#ds Class for blob properties
@@ -291,6 +325,8 @@ public:
 	double d50;
 	double Sh_factor;
 	double Re_expo;
+  double Imhoff_value;
+  double Im_expo;
 	double Sc_expo;
 	double Geometry_expo;
 	double Mass;
@@ -302,6 +338,7 @@ public:
 	std::vector<double> Interfacial_area;
 	std::vector<std::string> BlobGeoType;
 	std::vector<std::string> BlobGeoName;
+  std::vector<int> ReactionIndices;        /* CB: current Mass transfer coefficient, now saved in node vector*/
      //New-Sherwood-Number 
       int shidx;
       double NContent_expo;
@@ -318,6 +355,7 @@ public:
       double Tort_expo ;
       double Pfannkuch_constant ;
       double beta_4;
+      double beta_user;
       double one_three, two_three, four_nine, fife_nine, elev_nine, fife_three;
       double grain_var;
       double grain_expo;
@@ -335,7 +373,8 @@ public:
       bool modSherwood ;
       bool Sherwood_model ;
       
-      bool gas_dissolution_flag;
+      bool GasMix_dissolution_flag;
+      bool CO2_dissolution_flag;
 private:
 	std::vector<size_t> BlobGeoID;
 };
@@ -349,6 +388,7 @@ public:
 	double minTimestep;
 	double initialTimestep;
 	double usedt;
+	double currentDt;
 	int NumberReactions;
 	int NumberLinear;
 	int NumberLangmuir;
@@ -385,48 +425,38 @@ public:
 	std::vector<std::string> NoReactGeoName;
 	std::vector<size_t> NoReactGeoID;
 	std::vector<std::string> NoReactGeoType;
-	std::vector<bool> is_a_CCBC;
+	//std::vector<bool> is_a_CCBC;
       std::vector<std::string> AllowReactGeoName;
       std::vector<size_t> AllowReactGeoID;
       std::vector<std::string> AllowReactGeoType;
-
-	// CB ReactDeact no reaction switch
-	bool ReactDeactFlag;                  // method flag
-	int ReactDeactPlotFlag;               // flag for tecplot plots of flags each timestep
-	double ReactDeactEpsilon;             // treshhold
-      double ReactDeactCThresh;
-	std::vector<bool> ReactDeact;         // flags for individual nodes
-	std::vector<double> React_dCdT;       // Sum of reaction rates for individual nodes
-	                                      // node indices of local neighborhood around individual nodes
-	std::vector<std::vector<int> > ReactNeighborhood;
-	int ReactDeactMode;
-      bool ReactDeactRelative;
-
-      bool copy_concentrations; //SB 01.2011 Flag for copying concentrations in radial models to save reaction simulation time
-      std::vector<long> copy_nodes; //SB 01.2011
-      bool radial ; // default case
-      bool batch ;
-      bool TwoDinThreeD ;
+  std::vector<std::string> ReAllowReactGeoName;
+  std::vector<size_t> ReAllowReactGeoID;
+  std::vector<std::string> ReAllowReactGeoType;
 
       bool scale_dcdt;          // stabilization for ODE solver in derivs, sclae dcdt vector
       bool lagneau ;            // special configuration of minrate and porosity update for Lagneaubenchmark
       bool sortnodes;
       long *substeps;
+  double *mpitimes;
       long *noderanks;
       double OmegaThresh;
       long noototnodes;
       long noocalcnodes;
+  long noomeshnodes;
+  double **phasevolumina;
 
 	bool debugoutflag;
 	std::string debugoutfilename;
       std::string c_dumpfilename;
 	std::ofstream debugoutstr;
+  bool firstnode;
       std::ofstream c_dump;
 
 	std::vector<double> node_foc;
       std::vector <double> IonicStrengths;
       std::vector <std::vector <double> > ActivityCoefficients; //  For Mineral Dissolution, store gammas in 1 data object
       int activity_model;
+  bool num_jac;
 
 	/* Methods */
 	CKinReactData(void);
@@ -440,32 +470,36 @@ public:
 	 * @param unique_name the name of the project to access the right geometric entities
 	 * @return
 	 */
-	bool Read(std::ifstream* in,
-	          const GEOLIB::GEOObjects& geo_obj,
-	          const std::string& unique_name);
+	bool Read(std::ifstream* in, const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name);
 	void Write(std::ofstream*);           /* Class Write Function */
 	void TestWrite(void);
 	void ExecuteKinReact(void);
       void Biodegradation( double *m_Conc, long node, double eps, double hmin, double *usedtneu, int *nok, int *nbad, int tt, int tsteps);
 
-	// CB ReactDeact
-	void ReactionDeactivation(long);      // Sets nodes active / inactive
-	void ReactDeactPlotFlagsToTec();
-	void ReactDeactSetOldReactionTerms(long nonodes);
-      void SortIterations ( long *iterations, long *indexes, long len);
+  void SortIterations ( long *iterations, long *indexes, long len);
+  void SortIterations ( double *iterations, long *indexes, long len);
 
-	    void CopyConcentrations(void); //SB 01.2011
-	double** concentrationmatrix;
 	void Aromaticum(long nonodes);
 
-      // CB 12/09 new data structures for parallel computation
+  // CB 12/09 new data structures for parallel computation
+  void PhaseVoluminaPreprocessing();
       void NAPLDissolutionPreprocessing();
       void PreprocessMinKin();
       void PostprocessMinKin();
       void Calc_linearized_rates(double *m_Conc, long Number_of_Components,double deltaT, long node);
 
+  double GetPhaseVolumeAtNode(long node, int phase);
+  double GetReferenceVolume(int comp, long index);
+
+
 // CB _drmc_
-      void PreprocessMicrobe_drmc_(double steplength);
+  void PreprocessMicrobe_drmc_(double steplength);
+
+#if defined(OGS_KRC_CVODE)
+  std::ofstream cvode_stats;
+  void * cvode_mem ; 
+  bool cvode_initial ;
+#endif
 
 };
 
@@ -476,6 +510,7 @@ extern std::vector <CKinBlob*> KinBlob_vector;    // declare extern instance of 
 
 // CB _drmc_
 extern std::vector <MicrobeData*> MicrobeData_vector;    // declare extern instance of class Blob
+extern std::vector<bool> is_a_CCBC;
 
 /**
  * read file for kinetic reaction
@@ -513,6 +548,9 @@ extern void CalcNewNAPLSat();         //CB 01/08
 extern void CalcNAPLCompMasses();     
 extern void CalcNewPhasePressure();
 extern bool KMinKinCheck(void);
+extern void SetIniNAPLSatAndDens(void);
+extern double Water_Vapor_Pressure(double, int );
+extern double Water_Surface_Tension(double);
 
 // CB _drmc_
 void MicrobeConfig(void);
@@ -539,10 +577,55 @@ extern bool rkqs(double  y[], double dydx[], int n, double *x, double htry, doub
 
 extern double* dvector(long nl, long nh);
 extern void free_dvector(double* v, long nl, long nh);
+extern double **dmatrix(long nrl, long nrh, long ncl, long nch);
+extern void free_dmatrix(double **m, long nrl, long nrh, long ncl, long nch);
 
 /* interne Deklarationen */
-extern void    ExecuteKineticReactions();
-extern double  TBCGetExchange(long node, int sp);
+//extern void    ExecuteKineticReactions();
+//extern double  TBCGetExchange(long node, int sp);
 extern void		derivs(double x, double y[], double dydx[], int n, long node, double);
 extern void    jacobn(double x, double y[], double dfdx[], double **dfdy, int n, long node);
+
+#if defined(OGS_KRC_CVODE)
+// cvode test
+#include <cvode/cvode.h>             /* prototypes for CVODE fcts., consts. */
+#include <nvector/nvector_serial.h>  /* serial N_Vector types, fcts., macros */
+#include <cvode/cvode_dense.h>       /* prototype for CVDense */
+//#include <cvode/cvode_lapack.h>       /* prototype for CVLapack */
+#include <cvode/cvode_band.h>       /* prototype for CVLapack */
+#include <sundials/sundials_dense.h> /* definitions DlsMat DENSE_ELEM */
+//#include <sundials/sundials_lapack.h> /* definitions DlsMat DENSE_ELEM */
+#include <sundials/sundials_types.h> /* definition of type realtype */
+#endif
+
+// CB userdata for data transfer to cvode solver subroutines
+typedef struct 
+{
+ size_t nodidx;	
+ size_t ncomponents;	
+ double steplength;
+ double *ud_concn; // store and transfer concentrations (= y)
+ double *ud_dydt;  // store and transfer derivatives dc/dt 
+ double **ud_dfdy; // jacobian
+} *User_data_KRC;
+
+// cvode 
+#if defined(OGS_KRC_CVODE)
+static void SomeFinalStats_cvode(long node, double time, bool initial, void *cvode_mem, 
+      long *nsteps, long *nfevals, long *nlinsetups, long *netfails, long *nniters, long *nncfails,
+      int *qlast, int *qcur,
+      realtype *hinused, realtype *hlast, realtype *hcur, realtype *tcur, 
+      long *njevals, long *nfevalsLS);
+
+static int g(realtype t, N_Vector y, realtype *gout, void *user_data);
+
+static int jacobn_cvode(long int N, realtype t,
+               N_Vector y, N_Vector fy, DlsMat J, void *user_data,
+               N_Vector tmp1, N_Vector tmp2, N_Vector tmp3);
+static int derivs_cvode(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+
+static int check_flag(void *flagvalue, char *funcname, int opt);
+#endif
+
+
 #endif

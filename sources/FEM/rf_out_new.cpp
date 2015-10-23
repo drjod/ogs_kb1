@@ -30,7 +30,7 @@ using namespace std;
 #include "geo_ply.h"
 #include "geo_sfc.h"
 // GeoSys-FEMLib
-// #include "LegacyVtkInterface.h"
+#include "LegacyVtkInterface.h"
 #include "Output.h"
 #include "fem_ele_std.h"
 #include "mathlib.h"
@@ -50,6 +50,7 @@ using namespace std;
 
 // Base
 #include "StringTools.h"
+#include "FileTools.h"
 
 extern size_t max_dim;                            //OK411 todo
 
@@ -77,6 +78,10 @@ extern size_t max_dim;                            //OK411 todo
 using MeshLib::CFEMesh;
 //==========================================================================
 vector<COutput*>out_vector;
+
+
+std::string defaultOutputPath = ""; // CL
+
 
 /**************************************************************************
    FEMLib-Method:
@@ -132,7 +137,7 @@ bool OUTRead(const std::string& file_base_name,
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 		out->setMPI_Info(rank, msize, rank_str);
 #endif
-		out->getFileBaseName() = file_base_name;
+		out->setFileBaseName(file_base_name);
 		// Give version in file name
 		//15.01.2008. WW
 		if (line_string.find("#VERSION") != string::npos)
@@ -153,9 +158,7 @@ bool OUTRead(const std::string& file_base_name,
 					VersionStr.replace(pos, 1, "_");
 					curPos = pos + 1;
 				}
-				out->getFileBaseName().append("(V");
-				out->getFileBaseName().append(VersionStr);
-				out->getFileBaseName().append(")");
+				out->setFileBaseName(out->getFileBaseName() + "(V" + VersionStr + ")");
 			}
 
 			out_vector.push_back(out);

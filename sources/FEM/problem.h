@@ -33,6 +33,7 @@ class Problem
 	bool CouplingLoop();
 	void PostCouplingLoop();
 	void PreCouplingLoop(CRFProcess *m_pcs = NULL);
+    bool PrintTimes(){return print_times;};
 	// Copy u_n for auto time stepping
     double* GetBufferArray(const bool is_x_k = false)
     {
@@ -95,6 +96,7 @@ class Problem
 
       // Print flag
       bool print_result;
+      bool print_times;
       // Processes
 
       std::vector<CRFProcess*> total_processes;
@@ -117,6 +119,7 @@ class Problem
       inline double PS_Global();                  // 03 2009 PCH
 	  inline double MULTI_COMPONENTIAL_FLOW();            // 02 2011 AKS/NB
 	  inline double TNEQ();						//07/2013 HS/TN
+	  inline double TES();						//07/2013 HS/TN
       inline double GroundWaterFlow();
       inline double ComponentalFlow();
       inline double OverlandFlow();
@@ -125,6 +128,7 @@ class Problem
       inline double FluidMomentum();
       inline double RandomWalker();
       inline double MassTrasport();
+      inline double PostMassTrasportReact();
       inline double Deformation();
       // Accessory
 	void LOPExecuteRegionalRichardsFlow(CRFProcess* m_pcs_global, int loop_process_number);
@@ -152,6 +156,8 @@ class Problem
 	int mrank;
     /// processor number for MPI  
 	int msize;
+
+	static const size_t max_processes = 16;
 };
 
 extern bool MODCreate();                          //OK

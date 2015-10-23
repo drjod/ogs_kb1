@@ -13,7 +13,7 @@
 // C++ STL
 //#include <fstream>
 //#include <string>
-//#include <vector>
+#include <vector>
 
 // FEM
 #include "DistributionInfo.h"                     // TF
@@ -64,7 +64,7 @@ public:
 	void SetByNodeIndex(int);             // 19.11.2009 PCH
 	void SetPolyline(int);
 	void SetSurface(int);
-	void SetPoint(int); 
+	void SetPoint(int);    
 	void StoreInitialValues();// JOD 2014-11-10
 	bool storeValues;
 	//void SetMaterialDomain(int); //MX

@@ -220,7 +220,7 @@ double density::Multi_density(double T, double P, double mv[]){
 
 double density::CO2brine(double T, double P, double mNaCl, double mCO2)
 {
-	double Ps,mTot,V2,Dens;
+	double Ps /*,mTot*/,V2,Dens;
 
 	if(mNaCl<0.0 || mNaCl>6.0 || mCO2<0.0){
 		Dens = -1.0;
@@ -238,7 +238,7 @@ double density::CO2brine(double T, double P, double mNaCl, double mCO2)
 		goto T01;
 	}
 
-	mTot = 55.5084 +mNaCl +mCO2;
+	// mTot = 55.5084 +mNaCl +mCO2;
 
 	density::MaoModel(T, P, mNaCl,1);
 
@@ -308,7 +308,7 @@ double density::concentration_water(double T, double P, double cv[], double cv_C
 
 		densx=density::CO2_MultiBrine_density(T,P,mv,mCO2);
 		//cout << " dens " << dens << " densx " << densx << endl;
-		if( abs(dens-densx) < err )
+		if( fabs(dens-densx) < err )
 			break;
 		else if(dens>densx)
 			d1=dens;

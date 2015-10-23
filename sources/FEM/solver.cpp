@@ -36,6 +36,8 @@ using namespace std;
 #include "solver.h"
 #include "tools.h"
 #include "mathlib.h"
+#include "memory.h"
+#include "display.h"
 
 /* AMG-Solver */
 #ifdef AMG1R5
@@ -3247,7 +3249,11 @@ int SpPICARD(double* b, double* x, long n, void (* f)(double* b,
    last modified: OK 28.06.1999 Dummy-Zuweisungen
 
 *************************************************************************/
+#ifdef ksdjfjdshashdhahsfgkfdg
 int SpNEWTON(double* b, double* x, long n, void (* f)(double* b, double* x, double dummy), long ind)
+#else
+int SpNEWTON(double*, double*, long, void (*)(double*, double*, double), long)
+#endif
 /*int SpNEWTON ( double *b, double *x, long n, void (*f)(), long ind ) */
 {
 	//WW double ddummy;

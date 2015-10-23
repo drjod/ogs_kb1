@@ -57,7 +57,6 @@ private:
 	friend class process::CRFProcessDeformation;
 	friend class ::CMediumProperties;
 	friend class CFiniteElementVec;
-	friend class CFiniteElementStd; //KB0714
 	Matrix* Stress0;                      // Initial stress
 	Matrix* Stress;
 	Matrix* Stress_i;
@@ -109,10 +108,6 @@ public:
 	// Get strain
 	double* GetStrain() const {return dstrain; }
 
-	CFiniteElementStd* GetAssembler() const { return fem; } //KB0714
-
-	CMediumProperties* m_mmp;             // KB0714 Fluid coupling
-
 	//----------- Enhanced element -----------------------
 	// Geometry related
 	bool LocalAssembly_CheckLocalization(CElem* MElement);
@@ -120,7 +115,7 @@ public:
 	                      const double* NodeA, double* NodeB);
 	//----------- End of enhanced element ----------------
 private:
-	CFiniteElementStd* fem; //KB0714
+
 	process::CRFProcessDeformation* pcs;
 	::CRFProcess* h_pcs;
 	::CRFProcess* t_pcs;
@@ -151,7 +146,7 @@ private:
 	CSolidProperties* smat;
 	CFluidProperties* m_mfp;              // Fluid coupling
 	// Medium property
-	//CMediumProperties* m_mmp;             // Fluid coupling
+	CMediumProperties* m_mmp;             // Fluid coupling
 	double CalDensity();
 
 	// Elastic constitutive matrix
@@ -250,7 +245,6 @@ private:
 	void ComputeSESM(const double* tangJump = NULL);
 
 	friend class process::CRFProcessDeformation;
-	friend class CFiniteElementStd; //KB0714
 
 	// Auxillarary vector
 	double* AuxNodal0;
@@ -259,8 +253,6 @@ private:
 	double* AuxNodal_S;
 	double* AuxNodal1;
 	double* AuxNodal2;
-	//double* e_v; //KB0714: strain integration for Eclipse
-
 
 	// Dynamic
 	// Damping parameters

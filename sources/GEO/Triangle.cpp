@@ -135,5 +135,10 @@ void Triangle::calculateNormal()
 	NormalizeVector(_normal_vector, 3);
 }
 
+std::ostream & operator<<(std::ostream & out, GEOLIB::Triangle const& tri)
+{
+	out << *tri.getPoint(0) << " " << *tri.getPoint(1) << " " << *tri.getPoint(2);
+	return out;
+}
 
 } // end namespace GEOLIB

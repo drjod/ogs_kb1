@@ -257,17 +257,19 @@ void RandomWalk::InterpolateVelocity(Particle* A)
 
 	   m_pcs = flow_pcs;
     }
+
+	/*
 	// Let's solve pore velocity.
 	// It is simple because Sw stuff automatically handles in Richards Flow.
 	// Thus, I only divide Darcy velocity by porosity only to get pore velocity.
 	CMediumProperties *MediaProp = mmp_vector[theEle->GetPatchIndex()];
-
-	   double porosity = 0.0;
-	   if(MediaProp->porosity > 10-6)
-	   porosity = MediaProp->porosity;             // This is for simple one.
-	   else
-	                                               // This will get you porosity.
-	      porosity = MediaProp->porosity_model_values[0];
+	double porosity = 0.0;
+	if(MediaProp->porosity > 10-6)
+		porosity = MediaProp->porosity;             // This is for simple one.
+	else
+		// This will get you porosity.
+		porosity = MediaProp->porosity_model_values[0];
+	*/
 
 	// I guess for Dual Porosity stuff,
 	// this code should be revisited.
@@ -275,18 +277,18 @@ void RandomWalk::InterpolateVelocity(Particle* A)
 	if(nnode == 4)
 	{
 		// Get physical coordinates of four corner points
-		double x[4], y[4], z[4];
-		double vx[4], vy[4], vz[4];
+		double x[4], y[4] /*, z[4]*/;
+		// double vx[4], vy[4], vz[4];
 		for(int i = 0; i < nnode; ++i)
 		{
 			double const* const pnt (theEle->GetNode(i)->getData());
 			x[i] = pnt[0];
 			y[i] = pnt[1];
-            z[i] = pnt[2];
+			// z[i] = pnt[2];
 
-            vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
-            vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
-            vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
+			// vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
+			// vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
+			// vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
 		}
 
 		// solve for Jm at xm = (xhat,yhat)=(1/2,1/2) <- RT0
@@ -719,38 +721,38 @@ void RandomWalk::InterpolateVelocityOfTheParticleByInverseDistance(Particle* A)
 	// Initialize the velocity
 	A->Vx = A->Vy = A->Vz = 0.0;
 
-    //FM_TEST
-    m_pcs = PCSGet("FLUID_MOMENTUM");
-    int idx, idy, idz; 
-    if(m_pcs)
-    {
-       idx= m_pcs->GetNodeValueIndex("VELOCITY1_X")+1;
-       idy= m_pcs->GetNodeValueIndex("VELOCITY1_Y")+1;
-       idz= m_pcs->GetNodeValueIndex("VELOCITY1_Z")+1;
-    }
-    else if(flow_pcs)
-    {
-       idx= flow_pcs->GetNodeValueIndex("VELOCITY_X1");
-       idy= flow_pcs->GetNodeValueIndex("VELOCITY_Y1");
-       idz= flow_pcs->GetNodeValueIndex("VELOCITY_Z1");
-	   m_pcs = flow_pcs;
+	//FM_TEST
+	m_pcs = PCSGet("FLUID_MOMENTUM");
+	int idx = -1, idy = -1, idz = -1;
+	if(m_pcs)
+	{
+		idx= m_pcs->GetNodeValueIndex("VELOCITY1_X")+1;
+		idy= m_pcs->GetNodeValueIndex("VELOCITY1_Y")+1;
+		idz= m_pcs->GetNodeValueIndex("VELOCITY1_Z")+1;
+	}
+	else if(flow_pcs)
+	{
+		idx= flow_pcs->GetNodeValueIndex("VELOCITY_X1");
+		idy= flow_pcs->GetNodeValueIndex("VELOCITY_Y1");
+		idz= flow_pcs->GetNodeValueIndex("VELOCITY_Z1");
+		m_pcs = flow_pcs;
 
-	   if(m_msh->GetCoordinateFlag()/10 == 1)
-	   {
-          if(m_msh->GetCoordinateFlag() == 11)
-	      {
-			  int ibuff = idy;
-			  idy = idx;
-              idx = ibuff;
-		  }
-          if(m_msh->GetCoordinateFlag() == 12)
-	      {
-			  int ibuff = idz;
-			  idz = idx;
-              idx = ibuff;
-		  }
-	   }
-    }
+		if(m_msh->GetCoordinateFlag()/10 == 1)
+		{
+			if(m_msh->GetCoordinateFlag() == 11)
+			{
+				int ibuff = idy;
+				idy = idx;
+				idx = ibuff;
+			}
+			if(m_msh->GetCoordinateFlag() == 12)
+			{
+				int ibuff = idz;
+				idz = idx;
+				idx = ibuff;
+			}
+		}
+	}
 	for(int i = 0; i < nnodes; ++i)
 	{
 		w[i] = 1.0 / (d[i] * SumOfdInverse);
@@ -802,9 +804,9 @@ void RandomWalk::InterpolateVelocityOfTheParticleByInverseDistance(Particle* A)
 		}
 		else
 		{
-            vx = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idx); //FM_TEST
-            vy = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idy);
-            vz = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idz);
+			vx = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idx); //FM_TEST
+			vy = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idy);
+			vz = m_pcs->GetNodeValue(m_ele->GetNodeIndex(i),idz);
 
 			// Let's solve pore velocity.
 			// It is simple because Sw stuff automatically handles in Richards Flow.
@@ -987,13 +989,15 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 			// It is simple because Sw stuff automatically handles in Richards Flow.
 			// Thus, I only divide Darcy velocity by porosity only to get pore velocity.
 
-			   CMediumProperties *MediaProp = mmp_vector[theEle->GetPatchIndex()];
-			   double porosity = 0.0;
-			   if(MediaProp->porosity > 10-6)
-			   porosity = MediaProp->porosity;       // This is for simple one.
-			   else
-			                                         // This will get you porosity.
-			   porosity = MediaProp->porosity_model_values[0];
+			/*
+			CMediumProperties *MediaProp = mmp_vector[theEle->GetPatchIndex()];
+			double porosity = 0.0;
+			if(MediaProp->porosity > 10-6)
+				porosity = MediaProp->porosity;       // This is for simple one.
+			else
+				// This will get you porosity.
+				porosity = MediaProp->porosity_model_values[0];
+			*/
 
 			// I guess for Dual Porocity stuff,
 			// this code should be revisited.
@@ -1005,20 +1009,22 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 			theEle->GetEdges(theEdgesOfThisElement);
 
 			// Get physical coordinates of four corner points
-			   double x[8], y[8], z[8];
-			   double vx[8], vy[8], vz[8];
-			   for(int i=0; i<nnode; ++i)
-			   {
-			   MeshLib::CNode* theNode = NULL;
-			   theNode = theEle->GetNode(i);
-			   x[i] = theNode->X();
-			   y[i] = theNode->Y();
-			   z[i] = theNode->Z();
+			/*
+			double x[8], y[8], z[8];
+			double vx[8], vy[8], vz[8];
+			for(int i=0; i<nnode; ++i)
+			{
+				MeshLib::CNode* theNode = NULL;
+				theNode = theEle->GetNode(i);
+				x[i] = theNode->X();
+				y[i] = theNode->Y();
+				z[i] = theNode->Z();
 
-               vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
-               vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
-               vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
-			   }
+				vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
+				vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
+				vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
+			}
+			*/
 
 			// Mount the nodes of the edge
 			vec<MeshLib::CNode*>theNodesOfThisEdge(3);
@@ -1103,7 +1109,7 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 					for (int i = 0; i < (long)m_msh->ele_vector.size(); i++)
 					{
 						elem = m_mini->ele_vector[i];
-						fem->ConfigElement(elem);
+						fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points);
 						// Assembly gotta be written different way
 						fem->Assembly(0, d);
 					}
@@ -1191,13 +1197,15 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 			// It is simple because Sw stuff automatically handles in Richards Flow.
 			// Thus, I only divide Darcy velocity by porosity only to get pore velocity.
 
-			   CMediumProperties *MediaProp = mmp_vector[theEle->GetPatchIndex()];
-			   double porosity = 0.0;
-			   if(MediaProp->porosity > 10-6)
-			   porosity = MediaProp->porosity;       // This is for simple one.
-			   else
-			                                         // This will get you porosity.
-			   porosity = MediaProp->porosity_model_values[0];
+			/*
+			CMediumProperties *MediaProp = mmp_vector[theEle->GetPatchIndex()];
+			double porosity = 0.0;
+			if(MediaProp->porosity > 10-6)
+				porosity = MediaProp->porosity;       // This is for simple one.
+			else
+				// This will get you porosity.
+				porosity = MediaProp->porosity_model_values[0];
+			*/
 
 			// I guess for Dual Porocity stuff,
 			// this code should be revisited.
@@ -1210,18 +1218,20 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 			theEle->GetEdges(theEdgesOfThisElement);
 
 			// Get physical coordinates of four corner points
-			double x[4], y[4], z[4];
-			double vx[4], vy[4], vz[4];
+			double x[4], y[4] /*, z[4]*/;
+			// double vx[4], vy[4], vz[4];
 			for(int i = 0; i < nnode; ++i)
 			{
 				double const* const pnt (theEle->GetNode(i)->getData());
 				x[i] = pnt[0];
 				y[i] = pnt[1];
-                z[i] = pnt[2];
+				/*
+				z[i] = pnt[2];
 
-                vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
-                vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
-                vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
+				vx[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idx)/porosity; //FM_TEST
+				vy[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idy)/porosity;
+				vz[i] = m_pcs->GetNodeValue(theEle->GetNodeIndex(i),idz)/porosity;
+				*/
 			}
 			// solve for Jm at xm = (xhat,yhat)=(1/2,1/2) <- RT0
 			double Jm;
@@ -1825,6 +1835,7 @@ int RandomWalk::SolveForDerivativeOfVelocity(Particle* A)
         /// Gradient of shape  function: CElement::dshapefct
         /// Gradient of velocity:
         /// =V_i*dshapefct[i];
+        return -1; // not supported yet
     }
     else if(m_ele->GetDimension()==2)
     {
@@ -1932,44 +1943,44 @@ int RandomWalk::SolveForDerivativeOfVelocity(Particle* A)
 
 		m_pcs = PCSGet("FLUID_MOMENTUM");
 
-	    //FM_TEST
-        int idx, idy, idz; 
-        if(m_pcs)
-        {
-           idx= m_pcs->GetNodeValueIndex("VELOCITY1_X")+1;
-           idy= m_pcs->GetNodeValueIndex("VELOCITY1_Y")+1;
-           idz= m_pcs->GetNodeValueIndex("VELOCITY1_Z")+1;
-        }
-        else if(flow_pcs)
-        {
-           idx= flow_pcs->GetNodeValueIndex("VELOCITY_X1");
-           idy= flow_pcs->GetNodeValueIndex("VELOCITY_Y1");
-           idz= flow_pcs->GetNodeValueIndex("VELOCITY_Z1");
-	       m_pcs = flow_pcs;
-	       if(m_msh->GetCoordinateFlag()/10 == 1)
-	       {
-              if(m_msh->GetCoordinateFlag() == 11)
-	          {
-			      int ibuff = idy;
-			      idy = idx;
-                  idx = ibuff;
-		      }
-              if(m_msh->GetCoordinateFlag() == 12)
-	          {
-			      int ibuff = idz;
-			      idz = idx;
-                  idx = ibuff;
-		      }
-	       }
-        }
+		//FM_TEST
+		int idx = -1, idy = -1, idz = -1;
+		if(m_pcs)
+		{
+			idx= m_pcs->GetNodeValueIndex("VELOCITY1_X")+1;
+			idy= m_pcs->GetNodeValueIndex("VELOCITY1_Y")+1;
+			idz= m_pcs->GetNodeValueIndex("VELOCITY1_Z")+1;
+		}
+		else if(flow_pcs)
+		{
+			idx= flow_pcs->GetNodeValueIndex("VELOCITY_X1");
+			idy= flow_pcs->GetNodeValueIndex("VELOCITY_Y1");
+			idz= flow_pcs->GetNodeValueIndex("VELOCITY_Z1");
+			m_pcs = flow_pcs;
+			if(m_msh->GetCoordinateFlag()/10 == 1)
+			{
+				if(m_msh->GetCoordinateFlag() == 11)
+				{
+					int ibuff = idy;
+					idy = idx;
+					idx = ibuff;
+				}
+				if(m_msh->GetCoordinateFlag() == 12)
+				{
+					int ibuff = idz;
+					idz = idx;
+					idx = ibuff;
+				}
+			}
+		}
 
-        double v1[3], v2[3];
-        v1[0] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idx);  //FM_TEST
-        v1[1] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idy);
-        v1[2] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idz);
-        v2[0] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idx);
-        v2[1] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idy);
-        v2[2] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idz);
+		double v1[3], v2[3];
+		v1[0] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idx);  //FM_TEST
+		v1[1] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idy);
+		v1[2] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idz);
+		v2[0] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idx);
+		v2[1] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idy);
+		v2[2] = m_pcs->GetNodeValue(m_ele->GetNodeIndex(0), idz);
 
 		int coordinateflag = m_msh->GetCoordinateFlag();
 		if(coordinateflag == 10)  // x only
@@ -2561,29 +2572,29 @@ void RandomWalk::AdvanceToNextTimeStep(double dt,double ctime)
 	// 05.2010 JT
 	double exceedtime = aktuelle_zeit + MKleinsteZahl + ctime;
 	// Loop over all the particles
-	//OK411???
-    int i;
 #ifdef _OPENMP
-    std::cout << "[RandomWalk::AdvanceToNextTimeStep] OpenMP parallelized loop ... " << std::flush;
+	std::cout << "[RandomWalk::AdvanceToNextTimeStep] OpenMP parallelized loop ... " << std::flush;
 #else
-    std::cout << "[RandomWalk::AdvanceToNextTimeStep] loop ... " << std::flush;
+	std::cout << "[RandomWalk::AdvanceToNextTimeStep] loop ... " << std::flush;
 #endif
-    clock_t start, stop;
-    start = clock();
+	clock_t start, stop;
+	start = clock();
 
-    m_pcs = PCSGet("FLUID_MOMENTUM");
-    if(!m_pcs && flow_pcs)
-    {
-        m_pcs = flow_pcs;
-    } 
+	m_pcs = PCSGet("FLUID_MOMENTUM");
+	if(!m_pcs && flow_pcs)
+	{
+		m_pcs = flow_pcs;
+	}
 
-    if(!m_pcs)
-    {
-	    std::cerr << "No flow process defined\n";
-	    exit(1);
-    }
+	if(!m_pcs)
+	{
+		std::cerr << "No flow process defined\n";
+		exit(1);
+	}
 
+#ifdef _OPENMP
 #pragma omp parallel for
+#endif
 	for(int i = 0; i < numOfParticles; ++i)
 	{
 		TimeMobility = 0;         //JT 2010, using this for now. Setting identity = 1 causes simulation failure... not sure why??
@@ -4754,11 +4765,11 @@ int RandomWalk::IsTheParticleInThisElement(Particle* A)
 		else
 			return -1;    // This element does not have the particle.
 	}
-    else if(ele_dim == 3)
-    {
-       double volumePism = theElement->GetVolume();//  ComputeVolume();
-       // theElement->nodes
-    }
+	else if(ele_dim == 3)
+	{
+		// double volumePism = theElement->GetVolume();//  ComputeVolume();
+		// theElement->nodes
+	}
 	else if(ele_dim == 1)
 	{
 		// Since this is 1D, I'll do exhaustive search.
@@ -5974,7 +5985,7 @@ void PCTRead(string file_base_name)
 	if(fem_msh_vector.size() == 0)
 		return;                   //OK
 
-    double xyz[3];
+	double xyz[3];
 	// Mount the proper mesh
 	m_msh = fem_msh_vector[0];            // Something must be done later on here.
 
@@ -5982,6 +5993,7 @@ void PCTRead(string file_base_name)
 	string pct_file_name;
 	ios::pos_type position;
 	pct_file_name = file_base_name + PCT_FILE_EXTENSION;
+  std::cout << "PCTRead" << "\n" << std::flush;
 
 	ifstream pct_file (pct_file_name.data(),ios::in);
 	if (!pct_file)
@@ -6008,15 +6020,14 @@ void PCTRead(string file_base_name)
 		// Later on from this line, I can put which mesh I am dealing with.
 		//pct_file >> RW->numOfParticles >> ws;
 
-        getline(pct_file, s_flag);
-        ss.str(s_flag);
-        ss >> RW->numOfParticles;
-        ss.clear();
+		getline(pct_file, s_flag);
+		ss.str(s_flag);
+		ss >> RW->numOfParticles;
+		ss.clear();
 		Trace one;
 
 		RW->ChanceOfIrreversed = new double[RW->numOfParticles];		//YS
 
-		double Starting;
 		int counter = 0;
 		for(int i = 0; i < RW->numOfParticles; ++i)
 		{
@@ -6034,7 +6045,7 @@ void PCTRead(string file_base_name)
 			idx = m_msh->FindElementByPoint(xyz);
 
 			if(idx == -1)
-              continue;
+				continue;
 
 			one.Past.elementIndex = one.Now.elementIndex = idx;
 			one.Past.x = one.Now.x = x;
@@ -6057,7 +6068,7 @@ void PCTRead(string file_base_name)
 			if(i < 50)
 				RW->pathline.push_back(path);
 		}
-        RW->numOfParticles = counter;
+		RW->numOfParticles = counter;
 		End = 0;
 	}
 }

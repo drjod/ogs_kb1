@@ -45,7 +45,7 @@ Surface* Surface::createSurface(const Polyline &ply)
 	if (!ply.isClosed())
 	{
 		std::cout << "Error in Surface::createSurface() - Polyline is not closed..." <<
-		std::endl;
+		"\n";
 		return NULL;
 	}
 
@@ -84,7 +84,7 @@ Surface* Surface::createSurface(const Polyline &ply)
 	{
 		std::cout <<
 		"Error in Surface::createSurface() - Polyline consists of less than three points and therefore cannot be triangulated..."
-		          << std::endl;
+		          << "\n";
 		return NULL;
 	}
 }

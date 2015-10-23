@@ -33,6 +33,10 @@ extern double GetCurveValue(int,int,double,int*);
 #endif
 using namespace std;
 
+
+#include "physical_constants.h"
+
+
 /* Umrechnungen SI - Amerikanisches System */
 //WW #include "steam67.h"
 #define PSI2PA 6895.
@@ -141,6 +145,9 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 	std::string dollar("$");
 	std::string delimiter_type(":");
 	std::stringstream in;
+	std::vector<std::string>density_pcs_name_vector_single;
+
+	long index1;
 	//========================================================================
 	// Schleife ueber alle Phasen bzw. Komponenten
 	while (!new_keyword)
@@ -423,6 +430,262 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 		}
 		//....................................................................
 		// subkeyword found
+	if(line_string.find("$MATERIAL_DENSITY") != string::npos) //DL
+		{
+			this->dens_material.clear();
+			this->density_model_mat.clear();
+			this->rho_0_mat.clear();
+			this->drho_dC_mat.clear();
+			this->drho_dp_mat.clear();
+			this->drho_dT_mat.clear();
+			this->p_0_mat.clear();
+			this->C_0_mat.clear();
+			this->T_0_mat.clear();
+			while(1){
+				index1 = mfp_file->tellg();
+				in.str(GetLineFromFile1(mfp_file));
+				in >> sub_string;
+				if((sub_string.find(hash)!=string::npos) || (sub_string.find(dollar)!=string::npos)){
+					in.clear();
+					mfp_file->seekg(index1);
+					break;
+				}
+				this->dens_material.push_back((int)atoi(sub_string.c_str()));
+				in >> sub_string;
+				this->density_model_mat.push_back((int)atoi(sub_string.c_str()));
+				density_pcs_name_vector_single.clear();
+				if(density_model_mat.back() == 1){
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dC_mat.push_back(-1);
+					this->drho_dp_mat.push_back(-1);
+					this->drho_dT_mat.push_back(-1);
+					this->p_0_mat.push_back(-1);
+					this->C_0_mat.push_back(-1);
+					this->T_0_mat.push_back(-1);
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 2)
+				{
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;
+					this->p_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;
+					this->drho_dp_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dT_mat.push_back(-1);
+					this->drho_dC_mat.push_back(-1);
+					this->C_0_mat.push_back(-1);
+					this->T_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("PRESSURE1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 3)
+				{
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->C_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dC_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dp_mat.push_back(-1);
+					this->drho_dT_mat.push_back(-1);
+					this->p_0_mat.push_back(-1);
+					this->T_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("CONCENTRATION1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 4)
+				{
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dp_mat.push_back(-1);
+					this->drho_dC_mat.push_back(-1);
+					this->p_0_mat.push_back(-1);
+					this->C_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("TEMPERATURE1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 5)
+				{
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->C_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dC_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dp_mat.push_back(-1);
+					this->p_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("CONCENTRATION1");
+					density_pcs_name_vector_single.push_back("TEMPERATURE1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 6 || density_model_mat.back() == 14)
+				{
+					in >> sub_string;
+					this->rho_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->p_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dp_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_mat.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_mat.push_back(atof(sub_string.c_str()));
+					this->drho_dC_mat.push_back(-1);
+					this->C_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("PRESSURE1");
+					density_pcs_name_vector_single.push_back("TEMPERATURE1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				if(density_model_mat.back() == 8)
+				{
+					in >> sub_string;
+					this->C_0_mat.push_back(atof(sub_string.c_str()));
+					this->rho_0_mat.push_back(-1);
+					this->drho_dC_mat.push_back(-1);
+					this->drho_dp_mat.push_back(-1);
+					this->drho_dT_mat.push_back(-1);
+					this->p_0_mat.push_back(-1);
+					this->T_0_mat.push_back(-1);
+					density_pcs_name_vector_single.push_back("PRESSURE1");
+					density_pcs_name_vector_single.push_back("TEMPERATURE1");
+					this->density_pcs_name_vector_mat.push_back(density_pcs_name_vector_single);
+				}
+				in.clear();
+			}
+		}
+		if(line_string.find("$ELEMENT_DENSITY") != string::npos)
+		{
+			this->dens_index.clear();
+			this->density_model_idx.clear();
+			this->rho_0_idx.clear();
+			this->drho_dC_idx.clear();
+			this->drho_dp_idx.clear();
+			this->drho_dT_idx.clear();
+			this->p_0_idx.clear();
+			this->C_0_idx.clear();
+			this->T_0_idx.clear();
+			while(1){
+				index1 = mfp_file->tellg();
+				in.str(GetLineFromFile1(mfp_file));
+				in >> sub_string;
+				if((sub_string.find(hash)!=string::npos) || (sub_string.find(dollar)!=string::npos)){
+					in.clear();
+					mfp_file->seekg(index1);
+					break;
+				}
+				this->dens_index.push_back((int)atoi(sub_string.c_str()));
+				in >> sub_string;
+				this->density_model_idx.push_back((int)atoi(sub_string.c_str()));
+				if(density_model_idx.back() == 1){
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dC_idx.push_back(-1);
+					this->drho_dp_idx.push_back(-1);
+					this->drho_dT_idx.push_back(-1);
+					this->p_0_idx.push_back(-1);
+					this->C_0_idx.push_back(-1);
+					this->T_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 2)
+				{
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;
+					this->p_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;
+					this->drho_dp_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dT_idx.push_back(-1);
+					this->drho_dC_idx.push_back(-1);
+					this->C_0_idx.push_back(-1);
+					this->T_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 3)
+				{
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->C_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dC_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dp_idx.push_back(-1);
+					this->drho_dT_idx.push_back(-1);
+					this->p_0_idx.push_back(-1);
+					this->T_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 4)
+				{
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dp_idx.push_back(-1);
+					this->drho_dC_idx.push_back(-1);
+					this->p_0_idx.push_back(-1);
+					this->C_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 5)
+				{
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->C_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dC_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dp_idx.push_back(-1);
+					this->p_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 6 || density_model_idx.back() == 14)
+				{
+					in >> sub_string;
+					this->rho_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->p_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dp_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;					
+					this->T_0_idx.push_back(atof(sub_string.c_str()));
+					in >> sub_string;							
+					this->drho_dT_idx.push_back(atof(sub_string.c_str()));
+					this->drho_dC_idx.push_back(-1);
+					this->C_0_idx.push_back(-1);
+				}
+				if(density_model_idx.back() == 8)
+				{
+					in >> sub_string;
+					this->C_0_idx.push_back(atof(sub_string.c_str()));
+					this->rho_0_idx.push_back(-1);
+					this->drho_dC_idx.push_back(-1);
+					this->drho_dp_idx.push_back(-1);
+					this->drho_dT_idx.push_back(-1);
+					this->p_0_idx.push_back(-1);
+					this->T_0_idx.push_back(-1);
+				}
+				in.clear();
+			}
+		}
+		if(line_string.find("$TEMPERATURE") != string::npos) // subkeyword found 11/2010, BG, NB, DL, SB
+		{
+			in.str(GetLineFromFile1(mfp_file));
+			in >> T_0 >> T_0;
+			in.clear();
+			continue;
+		}
 		if(line_string.find("$VISCOSITY") != string::npos)
 		{
 			in.str(GetLineFromFile1(mfp_file));
@@ -935,11 +1198,11 @@ double CFluidProperties::Density(double* variables)
 {
 	double pressure;
 	double Rho = 0.0;
-	double m_frac_w;
 	static double density;
 	// static double air_gas_density,vapour_density,vapour_pressure;
 	
-	int gueltig;
+	int gueltig,i;
+	long material=-1, index=-1;
 	
 	//----------------------------------------------------------------------
 	if(variables)                         // This condition is added by WW
@@ -1059,13 +1322,21 @@ double CFluidProperties::Density(double* variables)
 		density = rho_0 *(1. + drho_dp * (max(variables[0], 0.0) - p_0)
 			+ drho_dT * (max(variables[1], 0.0) - T_0)
 			+ drho_dC * (max(variables[2], 0.0) - C_0));
+		case 26: //Dalton's law + ideal gas for use with TNEQ/TES
+		{
+			const double M0 = cp_vec[0]->molar_mass; // molar mass of component 0
+			const double M1 = cp_vec[1]->molar_mass;
+			const double p = variables[0];
+			const double T = variables[1];
+			const double x = variables[2]; // gas mass fraction of component 1
+			// assert(0.0 <= x && x <= 1.0);
 
-		break;
-	  case 26: //Dalton's law + ideal gas for use with TNEQ
-			m_frac_w = cp_vec[0]->molar_mass*variables[2]/(cp_vec[0]->molar_mass*variables[2] + cp_vec[1]->molar_mass*(1.0-variables[2])); //mass in mole fraction
-			density = variables[0]/(GAS_CONSTANT/1000.0*variables[1]) * (cp_vec[1]->molar_mass*m_frac_w + cp_vec[0]->molar_mass*(1.0-m_frac_w)); //R_uni in mNs
+			// gas molar fraction of component 1
+			const double xn = M0*x/(M0*x + M1*(1.0-x));
 
-          break;
+			density = p / (Phys::R * T) * (M1*xn + M0*(1.0-xn)); //R_uni in mNs
+		}
+			break;
 
 		default:
 			std::cout << "Error in CFluidProperties::Density: no valid model" <<
@@ -1204,6 +1475,203 @@ double CFluidProperties::Density(double* variables)
 			"\n";
 			break;
 		}
+		
+			if (Fem_Ele_Std) {
+			material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
+			if(this->density_model_mat.size()>0){
+				material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
+				for(i=0;i<(int)this->density_model_mat.size();i++){
+					if((int)material == (int)this->dens_material[i]){
+						switch(density_model_mat[i])
+						{
+						case 0:                   // rho = f(x)
+							density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
+							break;
+						case 1:                   // rho = const
+							density = rho_0_mat[i];
+							break;
+						case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
+							density = rho_0_mat[i] * (1. + drho_dp_mat[i] * (max(primary_variable[0],0.0) - p_0_mat[i]));
+							break;
+						case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
+							density = rho_0_mat[i] * (1. + drho_dC_mat[i] * (max(primary_variable[0],0.0) - C_0_mat[i]));
+							break;
+						case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
+							density = rho_0_mat[i] * (1. + drho_dT_mat[i] * (max(primary_variable[0],0.0) - T_0_mat[i]));
+							break;
+						case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
+							density = rho_0_mat[i] *
+									  (1. + drho_dC_mat[i] *
+									   (max(primary_variable[0],
+											0.0) - C_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1],0.0) - T_0_mat[i]));
+							break;
+						case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
+							density = rho_0_mat[i] *
+									  (1. + drho_dp_mat[i] *
+									   (max(primary_variable[0],
+											0.0) - p_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1],0.0) - T_0_mat[i]));
+							break;
+						case 7:                   // rho_w^l(p,T) for gas phase
+							/* //WW
+							   vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
+							   air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							   vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							   density = vapour_density + air_gas_density;
+							 */
+							break;
+						case 8:                   // M14 von JdJ
+							density = MATCalcFluidDensityMethod8(primary_variable[0],
+																 primary_variable[1],
+																 primary_variable[2]);
+							break;
+						case 10:                  // Get density from temperature-pressure values from fct-file NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = GetMatrixValue(primary_variable[1],
+													 primary_variable[0],
+													 fluid_name,
+													 &gueltig);
+							break;
+						case 11:                  //Peng-Robinson equation of state NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = rkeos(primary_variable[1],primary_variable[0],fluid_id);
+							break;
+						case 12:                  //Redlich-Kwong equation of state NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = preos(this, primary_variable[1],primary_variable[0]);
+							break;
+						case 13:                  // Helmholtz free Energy NB JUN 09
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							//NB
+							density = zbrent(primary_variable[1],primary_variable[0],fluid_id,1e-8);
+							break;
+
+						case 14: // #Exponential law#
+							density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+							break;
+						case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
+							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
+								 density =  1/Rho;
+							break;
+						 //case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
+						 //   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
+						 //   break;
+						case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
+							// Just dummy function, so density is not 0 ;
+							std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
+	  						density = 1000; // Achtung - dummy
+							
+
+						case 19:                // KG44 get the density from GEMS calculations
+											   // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+							 //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+ 							   density=1000.0;
+						} // end switch
+					}
+				}
+			}//end if mat
+
+
+			index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
+			if(this->density_model_idx.size()>0){
+				for(i=0;i<(int)this->density_model_idx.size();i++){
+					if((int)index == (int)this->dens_index[i]){
+						switch(density_model_idx[i])
+						{
+						case 0:                   // rho = f(x)
+							density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
+							break;
+						case 1:                   // rho = const
+							density = rho_0_idx[i];
+							break;
+						case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
+							density = rho_0_idx[i] * (1. + drho_dp_idx[i] * (max(primary_variable[0],0.0) - p_0_idx[i]));
+							break;
+						case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
+							density = rho_0_idx[i] * (1. + drho_dC_idx[i] * (max(primary_variable[0],0.0) - C_0_idx[i]));
+							break;
+						case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
+							density = rho_0_idx[i] * (1. + drho_dT_idx[i] * (max(primary_variable[0],0.0) - T_0_idx[i]));
+							break;
+						case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
+							density = rho_0_idx[i] *
+									  (1. + drho_dC_idx[i] *
+									   (max(primary_variable[0],
+											0.0) - C_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1],0.0) - T_0_idx[i]));
+							break;
+						case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
+							density = rho_0_idx[i] *
+									  (1. + drho_dp_idx[i] *
+									   (max(primary_variable[0],
+											0.0) - p_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1],0.0) - T_0_idx[i]));
+							break;
+						case 7:                   // rho_w^l(p,T) for gas phase
+							/* //WW
+							   vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
+							   air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							   vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							   density = vapour_density + air_gas_density;
+							 */
+							break;
+						case 8:                   // M14 von JdJ
+							density = MATCalcFluidDensityMethod8(primary_variable[0],
+																 primary_variable[1],
+																 primary_variable[2]);
+							break;
+						case 10:                  // Get density from temperature-pressure values from fct-file NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = GetMatrixValue(primary_variable[1],
+													 primary_variable[0],
+													 fluid_name,
+													 &gueltig);
+							break;
+						case 11:                  //Peng-Robinson equation of state NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = rkeos(primary_variable[1],primary_variable[0],fluid_id);
+							break;
+						case 12:                  //Redlich-Kwong equation of state NB
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							density = preos(this, primary_variable[1],primary_variable[0]);
+							break;
+						case 13:                  // Helmholtz free Energy NB JUN 09
+							if(!T_Process)
+								primary_variable[1] = T_0;
+							//NB
+							density = zbrent(primary_variable[1],primary_variable[0],fluid_id,1e-8);
+							break;
+
+						case 14: // #Exponential law#
+							density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+							break;
+						case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
+							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
+								 density =  1/Rho;
+							break;
+						 //case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
+						 //   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
+						 //   break;
+						case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
+							// Just dummy function, so density is not 0 ;
+							std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
+	  						density = 1000; // Achtung - dummy
+							
+
+						case 19:                // KG44 get the density from GEMS calculations
+											   // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+							 //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+ 							   density=1000.0;
+						} // end switch
+					}
+				}
+			}//end if idx
+		}	
+		
 	}
 	return density;
 }
@@ -1491,21 +1959,7 @@ double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK, 
 //OK4709
 double CFluidProperties::Viscosity(double* variables)
 {
-    CRFProcess* m_pcs;
-    m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW"); //NB: this should not be here! Most PCS are not "MULTI_COMPONENTIAL_FLOW"!
-	static double viscosity;
-	
-	int gueltig;
-	double mfp_arguments[2], x[2], Vs[2];
-	double density, my = 0.0;
-
-	// double TTT=0, PPP=0;
-	// long Element_Index;
-	// int nod_index;
-
-	//----------------------------------------------------------------------
-	//WW bool New = false;                              // To be
-	//WW if(fem_msh_vector.size()>0) New = true;
+	double viscosity = 0.0;
 
 	//----------------------------------------------------------------------
 	if(variables)                         //OK4709: faster data access
@@ -1520,8 +1974,11 @@ double CFluidProperties::Viscosity(double* variables)
 	switch(viscosity_model)
 	{
 	case 0:                               // rho = f(x)
+	{
+		int gueltig;
 		viscosity = GetCurveValue(viscosity_curve_number,0,primary_variable[1],&gueltig);
 		break;
+	}
 	case 1:                               // my = const
 		viscosity = my_0;
 		break;
@@ -1529,6 +1986,9 @@ double CFluidProperties::Viscosity(double* variables)
 		viscosity = my_0 * (1. + dmy_dp * (max(primary_variable[0],0.0) - p_0));
 		break;
 	case 3:                               // my^l(T), Yaws et al. (1976)
+	{
+		CRFProcess* m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
+
 		if(mode == 1)             //OK4704 for nodal output
 		{
 			m_pcs = PCSGet("HEAT_TRANSPORT");
@@ -1543,6 +2003,7 @@ double CFluidProperties::Viscosity(double* variables)
  		else primary_variable[1]+=viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
 		viscosity = LiquidViscosity_Yaws_1976(primary_variable[1]);
 		break;
+	}
 	case 4:                               // my^g(T), Marsily (1986)
          viscosity = LiquidViscosity_Marsily_1986(primary_variable[1]);
          //viscosity = LiquidViscosity_Marsily_1986(primary_variable[0]);
@@ -1559,6 +2020,8 @@ double CFluidProperties::Viscosity(double* variables)
 		                                 primary_variable[2]);
 		break;
 	case 9:                               // viscosity as function of density and temperature, NB
+	{
+		double mfp_arguments[2];
 
 		if(!T_Process)
 			primary_variable[1] = T_0;
@@ -1568,25 +2031,31 @@ double CFluidProperties::Viscosity(double* variables)
 		mfp_arguments[0] = primary_variable[0]; // rescue primary_variable before its destroyed by Density();
 		mfp_arguments[1] = primary_variable[1];
 
-		density = Density(mfp_arguments); //TODO: (NB) store density (and viscosity) as secondary variable
+		const double density = Density(mfp_arguments); //TODO: (NB) store density (and viscosity) as secondary variable
 		                                  //NB
 		viscosity = Fluid_Viscosity(density,mfp_arguments[1],mfp_arguments[0],fluid_id);
 		break;
+	}
 	case 15: //mixture 1/�= sum_i y_i/�_i:: VTPR-EoS
+	{
+		CRFProcess* m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
+		double my = 0.0;
+
 		for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
-	{
-		if(eos_name == "CONSTANT") 
-	{
-		my += variables[CIndex]/mu[CIndex-2]; 
-	}
-		else
-	{
-		therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-		my += variables[CIndex]/Fluid_Viscosity(ComponentDensity(CIndex, variables), variables[1], variables[0], fluid_id);
-	}
+		{
+			if(eos_name == "CONSTANT")
+			{
+				my += variables[CIndex]/mu[CIndex-2];
+			}
+			else
+			{
+				therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
+				my += variables[CIndex]/Fluid_Viscosity(ComponentDensity(CIndex, variables), variables[1], variables[0], fluid_id);
+			}
 		}
 		viscosity =  1.0/my;
 		break;
+	}
 
 
 	case 18: //BG, NB using calculated viscosities at nodes from the phase transition model
@@ -1598,25 +2067,36 @@ double CFluidProperties::Viscosity(double* variables)
 	case 19: // reserved for GEMS coupling
 	        break;
 	case 26: //Wilke (see Poling, B. E.; Prausnitz, J. M.; John Paul, O. & Reid, R. C. The properties of gases and liquids McGraw-Hill New York, 2001, 5: page 9.21) 
-		{
+	{
+		double x[2], Vs[2];
+
+		const double M1 = cp_vec[0]->molar_mass;
+		const double M2 = cp_vec[1]->molar_mass;
+
+		const double p = variables[0];
+		const double T = variables[1];
+		const double X = variables[2];
+
 		//reactive component
-		x[0] = cp_vec[0]->molar_mass*variables[2]/(cp_vec[0]->molar_mass*variables[2] + cp_vec[1]->molar_mass*(1.0-variables[2])); //mass in mole fraction
-		Vs[0] = Fluid_Viscosity(cp_vec[1]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], variables[0], cp_vec[1]->fluid_id);
+		x[0] = M1*X/(M1*X + M2*(1.0-X)); //mass in mole fraction
+		Vs[0] = Fluid_Viscosity(M2*p/(Phys::R*T), T, p, cp_vec[1]->fluid_id);
 		//inert component
 		x[1] = 1.0 - x[0];
-		Vs[1] = Fluid_Viscosity(cp_vec[0]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], variables[0], cp_vec[0]->fluid_id);//R_uni in mNs
+		Vs[1] = Fluid_Viscosity(M1*p/(Phys::R*T), T, p, cp_vec[0]->fluid_id);//R_uni in mNs
 
-		const double M1_over_M2 (cp_vec[1]->molar_mass/cp_vec[0]->molar_mass); //reactive over inert
+		const double M1_over_M2 (M2/M1); //reactive over inert
 		const double V1_over_V2 (Vs[0]/Vs[1]);
 
-		const double phi_12 ((1.0 + pow(V1_over_V2,0.5) * pow(1.0/M1_over_M2,0.25))*(1.0 + pow(V1_over_V2,0.5) * pow(1.0/M1_over_M2,0.25))/(pow(8.0*(1.0+M1_over_M2),0.5)));
-		const double phi_21 (phi_12 * M1_over_M2/V1_over_V2);
+		const double phi_12 = (1.0 + pow(V1_over_V2,0.5) * pow(1.0/M1_over_M2,0.25))
+		                      * (1.0 + pow(V1_over_V2,0.5) * pow(1.0/M1_over_M2,0.25))
+		                      / pow(8.0*(1.0+M1_over_M2),0.5);
+		const double phi_21 = phi_12 * M1_over_M2 / V1_over_V2;
 
-		viscosity = Vs[0]*x[0]/(x[0]+x[1]*phi_12);
-		viscosity += Vs[1]*x[1]/(x[1]+x[0]*phi_21);
+		viscosity = Vs[0]*x[0] / (x[0] + x[1] * phi_12)
+		          + Vs[1]*x[1] / (x[1] + x[0] * phi_21);
 
 		break;
-		}
+	}
 	default:
 		cout << "Error in CFluidProperties::Viscosity: no valid model" << "\n";
 		break;
@@ -2033,31 +2513,31 @@ double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem)
 	CFluidProperties* m_mfp = NULL;
 	CRFProcess* m_pcs = assem->cpl_pcs;
 	CRFProcess* t_pcs = PCSGet("HEAT_TRANSPORT"); // WTP 02/15
-	//if (m_pcs->pcs_type_name.find("MULTI_PHASE_FLOW")!=string::npos)
+		//if (m_pcs->pcs_type_name.find("MULTI_PHASE_FLOW")!=string::npos)
 		if (m_pcs->type == 1212)  // non-isothermal multi-phase flow
 		{
 			m_mfp = mfp_vector[1];
 			if (t_pcs->auto_water_vapor) // WTP 02/15
-			{
-				// Capillary pressure
-				PG = assem->interpolate(assem->NodalValC1);
-				Sw = assem->MediaProp->SaturationCapillaryPressureFunction(PG);
-				double PG2 = assem->interpolate(assem->NodalVal_p2);
-				TG = assem->interpolate(assem->NodalVal1) + T_KILVIN_ZERO;
-				rhow = assem->FluidProp->Density();
-				rho_gw = assem->FluidProp->vaporDensity(TG) * exp(
-					-PG * COMP_MOL_MASS_WATER / (rhow * GAS_CONSTANT * TG));
-				p_gw = rho_gw * GAS_CONSTANT * TG / COMP_MOL_MASS_WATER;
-				dens_aug[0] = PG2 - p_gw;
-				dens_aug[1] = TG;
-
-				// 2 Dec 2010 AKS
-				rho_g = rho_gw + m_mfp->Density(dens_aug);
+		{
+			// Capillary pressure
+			PG = assem->interpolate(assem->NodalValC1);
+			Sw = assem->MediaProp->SaturationCapillaryPressureFunction(PG);
+			double PG2 = assem->interpolate(assem->NodalVal_p2);
+			TG = assem->interpolate(assem->NodalVal1) + T_KILVIN_ZERO;
+			rhow = assem->FluidProp->Density();
+			rho_gw = assem->FluidProp->vaporDensity(TG) * exp(
+			        -PG * COMP_MOL_MASS_WATER / (rhow * GAS_CONSTANT * TG));
+			p_gw = rho_gw * GAS_CONSTANT * TG / COMP_MOL_MASS_WATER;
+			dens_aug[0] = PG2 - p_gw;
+			dens_aug[1] = TG;
+			m_mfp = mfp_vector[1];
+			// 2 Dec 2010 AKS
+			rho_g = rho_gw + m_mfp->Density(dens_aug);
 			}
 			else
 				rho_g = m_mfp->Density();
-			
 			//double rho_g = PG2*COMP_MOL_MASS_AIR/(GAS_CONSTANT*(assem->TG+273.15));\\WW
+			//
 			m_mfp = mfp_vector[0];
 			heat_capacity_fluids = Sw * m_mfp->Density() * m_mfp->SpecificHeatCapacity();
 			m_mfp = mfp_vector[1];
@@ -2173,15 +2653,6 @@ double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem)
 //NB Dec 08 4.9.05
 double CFluidProperties::HeatConductivity(double* variables)
 {
-
-	CRFProcess* m_pcs;
-    m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
-	double Kappa = 0.0;
-	double x[2], k[2];
-
-	int fct_number = 0;
-	int gueltig;
-
 	if(variables)                         //NB Dec 08
 	{
 		primary_variable[0] = variables[0]; //p (single phase)
@@ -2194,7 +2665,11 @@ double CFluidProperties::HeatConductivity(double* variables)
 	switch(heat_conductivity_model)
 	{
 	case 0:                               // rho = f(x)
+	{
+		int fct_number = 0;
+		int gueltig;
 		heat_conductivity = GetCurveValue(fct_number,0,primary_variable[0],&gueltig);
+	}
 		break;
 	case 1:                               // c = const
 		heat_conductivity = heat_conductivity;
@@ -2212,40 +2687,56 @@ double CFluidProperties::HeatConductivity(double* variables)
 		heat_conductivity = Fluid_Heat_Conductivity(Density(primary_variable), primary_variable[1], fluid_id);
 		break;
 
-    case 11: //Wassilijewa, Maso&Saxena (see Poling, B. E.; Prausnitz, J. M.; John Paul, O. & Reid, R. C. The properties of gases and liquids McGraw-Hill New York, 2001, 5: page 10.30f.)
+	case 11: //Wassilijewa, Maso&Saxena (see Poling, B. E.; Prausnitz, J. M.; John Paul, O. & Reid, R. C. The properties of gases and liquids McGraw-Hill New York, 2001, 5: page 10.30f.)
 		{
-		 //reactive component
-		 x[0] = cp_vec[0]->molar_mass*variables[2]/(cp_vec[0]->molar_mass*variables[2] + cp_vec[1]->molar_mass*(1.0-variables[2])); //mass in mole fraction
-		 k[0] = Fluid_Heat_Conductivity(cp_vec[1]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], cp_vec[1]->fluid_id); 
+		double x[2], k[2];
+		const double M0 = cp_vec[0]->molar_mass;
+		const double M1 = cp_vec[1]->molar_mass;
+		const double p = variables[0];
+		const double T = variables[1];
+		const double X = variables[2];
+
+		// TODO [CL] max() is redundant if the fraction is guaranteed to be between 0 and 1.
+		//reactive component
+		x[0] = max(M0*X/(M0*X + M1*(1.0-X)), 0.); // convert mass to mole fraction
+		k[0] = Fluid_Heat_Conductivity(M1*p/(Phys::R*T), T, cp_vec[1]->fluid_id);
 		 //inert component
 		 x[1] = 1.0 - x[0];
-		 k[1] = Fluid_Heat_Conductivity(cp_vec[0]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], cp_vec[0]->fluid_id);
+		k[1] = Fluid_Heat_Conductivity(M0*p/(Phys::R*T), T, cp_vec[0]->fluid_id);
 
-		 const double M1_over_M2 (cp_vec[1]->molar_mass/cp_vec[0]->molar_mass); //reactive over inert
-		 const double V1_over_V2 (Fluid_Viscosity(cp_vec[1]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], variables[0], cp_vec[1]->fluid_id)/Fluid_Viscosity(cp_vec[0]->molar_mass*variables[0]/(GAS_CONSTANT/1000.0*variables[1]), variables[1], variables[0], cp_vec[0]->fluid_id));
-		 const double L1_over_L2 (V1_over_V2/M1_over_M2);
+		const double M1_over_M2 = M1/M0; //reactive over inert
+		const double V1_over_V2 = Fluid_Viscosity(M1*p/(Phys::R*T), T, p, cp_vec[1]->fluid_id)
+		                        / Fluid_Viscosity(M0*p/(Phys::R*T), T, p, cp_vec[0]->fluid_id);
+		const double L1_over_L2 = V1_over_V2 / M1_over_M2;
 
-		 const double phi_12 ((1.0 + pow(L1_over_L2,0.5) * pow(1.0/M1_over_M2,0.25))*(1.0 + pow(V1_over_V2,0.5) * pow(1.0/M1_over_M2,0.25))/(pow(8.0*(1.0+M1_over_M2),0.5)));
-		 const double phi_21 (phi_12 * M1_over_M2/V1_over_V2);
+		const double phi_12 =   (1.0 + pow(L1_over_L2, 0.5) * pow(M1_over_M2, -0.25))
+		                      * (1.0 + pow(V1_over_V2, 0.5) * pow(M1_over_M2, -0.25))
+		                      / pow(8.0 * (1.0 + M1_over_M2), 0.5);
+		const double phi_21 = phi_12 * M1_over_M2 / V1_over_V2;
 
-		 heat_conductivity = k[0]*x[0]/(x[0]+x[1]*phi_12);
-		 heat_conductivity += k[1]*x[1]/(x[1]+x[0]*phi_21);
-         break;
+		heat_conductivity = k[0]*x[0]/(x[0]+x[1]*phi_12);
+		heat_conductivity += k[1]*x[1]/(x[1]+x[0]*phi_21);
+		break;
 		}
 	case 15: // mixture k_m= sum_i y_i*k_i:: p, T, x
+	{
+		CRFProcess* m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
+		double Kappa = 0.0;
+
 		for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
-	{
-		if(eos_name == "CONSTANT") 
-	{
-		Kappa += variables[CIndex]*kappa[CIndex-2]; 
-	}
-		else
-	{
-		therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-		Kappa += variables[CIndex]*Fluid_Heat_Conductivity(ComponentDensity(CIndex, variables), variables[1], fluid_id);
-	}
+		{
+			if(eos_name == "CONSTANT") 
+			{
+				Kappa += variables[CIndex]*kappa[CIndex-2]; 
+			}
+				else
+			{
+				therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
+				Kappa += variables[CIndex]*Fluid_Heat_Conductivity(ComponentDensity(CIndex, variables), variables[1], fluid_id);
+			}
 		}
 		heat_conductivity =  Kappa;
+	}
 		break;
 
 	}
@@ -3439,6 +3930,7 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 	const int restore_mode = m_mfp->mode;
 	m_mfp->mode = 0;
 	m_mfp->node = node;
+
 	int mfp_id = -1;
 	std::vector<std::string>* vec_var_names;
 	switch (mfp_name[0])
@@ -3467,7 +3959,7 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 	}
 
 	//std::vector<double> arguments(vec_var_names->size());
-	std::vector<double> arguments(std::max(static_cast<size_t>(3),vec_var_names->size()));
+	std::vector<double> arguments(std::max(size_t(3ul), vec_var_names->size()));
 	for (unsigned i=0; i<vec_var_names->size(); i++) {
 		CRFProcess* pcs = PCSGet((*vec_var_names)[i],true);
 		if (pcs) {
@@ -3484,28 +3976,7 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 			arguments[i] = 0.0;
 		}
 	}
-	//if ((m_mmp->storage_model != 21)) //KB 0614
-	//{
-	//		tp = PCSGet(pcs_name1, true);          //NB 4.8.01
-	//		val_idx = tp->GetNodeValueIndex(pcs_name1, true); // NB // JT latest
-	//		arguments[0] = tp->GetNodeValue(node, val_idx);
 
-	//		if (m_mfp->density_pcs_name_vector.size() > 1)
-	//		{
-
-	//			tp = PCSGet(pcs_name2, true);          //NB 4.8.01
-	//			val_idx = tp->GetNodeValueIndex(pcs_name2, true); // NB // JT latest
-	//			arguments[1] = tp->GetNodeValue(node, val_idx);
-	//			//Include concentration as primary variable
-	//			tp = PCSGet(pcs_name3, true);          //NB 4.8.01
-	//			if (tp){
-	//				val_idx = tp->GetNodeValueIndex(pcs_name3, true); // NB // JT latest
-	//				arguments[2] = tp->GetNodeValue(node, val_idx);
-	//			}
-	//		}
-	//else
-	//	arguments[2] = 0.0;
-	//}
 	if (m_mfp->cmpN > 0)
 	{
 		CRFProcess* m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
@@ -3518,15 +3989,16 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 	double mfp_value = .0;
 	switch(mfp_id)
 	{
-	case 0: mfp_value = m_mfp->Viscosity(&arguments[0]);
+
+	case 0: mfp_value = m_mfp->Viscosity(arguments.data());
 		break;
 	//NB 4.8.01
-	case 1:	mfp_value = m_mfp->Density(&arguments[0]);
+	case 1:	mfp_value = m_mfp->Density(arguments.data());
 		break;
-	case 2: mfp_value = m_mfp->HeatConductivity(&arguments[0]);
+	case 2: mfp_value = m_mfp->HeatConductivity(arguments.data());
 		break;
 	//NB AUG 2009
-	case 3: mfp_value = m_mfp->SpecificHeatCapacity(&arguments[0]);
+	case 3: mfp_value = m_mfp->SpecificHeatCapacity(arguments.data());
 		break;
 	default: cout << "MFPGetNodeValue: no MFP data" << "\n";
 		break;
@@ -3542,18 +4014,11 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 **************************************************************************/
 double CFluidProperties::drhodP(double* variables)
 {
-double a0, A, B, c, C, dvdp, fctA, fctB, fctC, beta, beta_m, p, R, T, Tr, z, z1, z2, z3, v, v_m, Trr, fct;
-	std::vector<double> roots;
-	CRFProcess* m_pcs;
-    m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
-	p = variables[0];
-	T = variables[1];
-	R = GAS_CONSTANT;
-    beta_m=0.0;
-	v_m=0.0;
+	const double p = variables[0];
+	const double T = variables[1];
 
 	double arguments[2];
-	double rho1,rho2,drhodP;
+	double rho1, rho2, drhodP = 0.0;
 
 	if (p < 0)
 		return 0;
@@ -3591,52 +4056,61 @@ double a0, A, B, c, C, dvdp, fctA, fctB, fctC, beta, beta_m, p, R, T, Tr, z, z1,
 		
 
 	case 15: //volume translated Peng-Robinson
-	if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL") 
-	{
-	for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
-	{
-	therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-	 Tr = T/Tc;
-	a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
-   Trr = 1.0 - pow(Tr, 0.6667);
-	fct = -0.25 + pc/p;
-	if(fluid_id == 1) fct = (1.0780 + p/6.8e8);  
-	c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
-	if(eos_name == "PR") c=0.0;
-	A = a*p*pow(R*T, -2.0);
-	B = b*p*pow(R*T, -1.0);
-	C = c*p*pow(R*T, -1.0);
-	z1 = B - 1.0 + 3.0*C;
-	z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
-	z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
-	NsPol3(z1,z2,z3,&roots);
-     z = FindMax(roots);
-	if(fluid_id == 1) z = FindMin(roots);
-	if(eos_name == "IDEAL") {z=1.0; c=0.0; b=0.0; a=0.0;}
-	v = (z*R*T/p);
-	fctB = (v + c)*(v + c + b) + b*(v + c - b);
-	fctA = v + c - b;
-	fctC = v + c + b;
-	dvdp = fctA*fctB/(p*fctB + 2.0*p*fctA*fctC - 2.0*R*T*fctC + a);
-	beta = dvdp;
-	beta_m += beta;
-	v_m += v;
-	     }
+		if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL")
+		{
+			CRFProcess* m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
+			std::vector<double> roots;
 
-	drhodP = beta_m/v_m;//beta_t=beta_g*(vg/vt)+beta_l*(vl/vt)
-	}
-	
-	if(eos_name == "CONSTANT")  
-	for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
-	{
-	drhodP = variables[CIndex-2]*beta_p[CIndex-2];
-	}
+			double beta_m = 0.0;
+			double v_m = 0.0;
+			const double R = GAS_CONSTANT;
+
+			for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
+			{
+				double A, B, c, C, dvdp, fctA, fctB, fctC, beta, Tr, z, z1, z2, z3, v, Trr, fct;
+				therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
+				Tr = T/Tc;
+				// double a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
+				Trr = 1.0 - pow(Tr, 0.6667);
+				fct = -0.25 + pc/p;
+				if(fluid_id == 1) fct = (1.0780 + p/6.8e8);
+				c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
+				if(eos_name == "PR") c=0.0;
+				A = a*p*pow(R*T, -2.0);
+				B = b*p*pow(R*T, -1.0);
+				C = c*p*pow(R*T, -1.0);
+				z1 = B - 1.0 + 3.0*C;
+				z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
+				z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
+				NsPol3(z1,z2,z3,&roots);
+				z = FindMax(roots);
+				if(fluid_id == 1) z = FindMin(roots);
+				if(eos_name == "IDEAL") {z=1.0; c=0.0; b=0.0; a=0.0;}
+				v = (z*R*T/p);
+				fctB = (v + c)*(v + c + b) + b*(v + c - b);
+				fctA = v + c - b;
+				fctC = v + c + b;
+				dvdp = fctA*fctB/(p*fctB + 2.0*p*fctA*fctC - 2.0*R*T*fctC + a);
+				beta = dvdp;
+				beta_m += beta;
+				v_m += v;
+			}
+
+			drhodP = beta_m/v_m;//beta_t=beta_g*(vg/vt)+beta_l*(vl/vt)
+		}
+		else if(eos_name == "CONSTANT") {
+			for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
+			{
+				drhodP = variables[CIndex-2]*beta_p[CIndex-2];
+			}
+		}
 
 		break;
 
 	default:
 		drhodP = drho_dp;
 	}
+
 	return drhodP;
 }
 
@@ -3649,16 +4123,16 @@ double CFluidProperties::drhodT(double* variables)
 double a0, A, B, c, C, da0, da, alpha, alpha_m, dvdT, fctA, fctB, fctC, p, R, T, Tr, z, z1, z2, z3, v, v_m, Trr, fct;
 	std::vector<double> roots;
 	CRFProcess* m_pcs;
-    m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
+	m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
 	p = variables[0];
 	T = variables[1];
-    R = GAS_CONSTANT;
+	R = GAS_CONSTANT;
 	alpha_m=0.0;
 	v_m=0.0;
 	double arguments[2];
-	double rho1,rho2,drhodT;
+	double rho1, rho2, drhodT = 0.0;
 
-   if(!drho_dT_unsaturated)     //fluid expansion (drho/dT) for unsaturated case activated? 
+	if(!drho_dT_unsaturated)     //fluid expansion (drho/dT) for unsaturated case activated?
 	{
 	  if (p < 0)
 	  return 0;
@@ -3694,41 +4168,41 @@ double a0, A, B, c, C, da0, da, alpha, alpha_m, dvdT, fctA, fctB, fctC, p, R, T,
 		break;
 
 	case 15: //volume translated Peng-Robinson
-	if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL") 
-	{
-	for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
-	   {
-	therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-	 Tr = T/Tc;
-	a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
-	da0 = -(m0 + n0*(1.0 - Tr) + n0*(0.7 - Tr))/Tc;
-	da = 0.457235*2.0*a0*da0*pow(R*Tc, 2.0)/pc;
-   Trr = 1.0 - pow(Tr, 0.6667);
-	fct = -0.25 + pc/p;
-	if(fluid_id == 1) fct = (1.0780 + p/6.8e8);  
-	c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
-	if(eos_name == "PR") c=0.0;
-	A = a*p*pow(R*T, -2.0);
-	B = b*p*pow(R*T, -1.0);
-	C = c*p*pow(R*T, -1.0);
-	z1 = B - 1.0 + 3.0*C;
-	z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
-	z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
-	NsPol3(z1,z2,z3,&roots);
-     z = FindMax(roots);
-	if(fluid_id == 1) z = FindMin(roots);
-	if(eos_name == "IDEAL") {z=1.0; c=0.0; b=0.0; a=0.0, da=0.0;}
-	v = (z*R*T/p);
-	fctB = (v + c)*(v + c + b) + b*(v + c - b);
-	fctA = v + c - b;
-	fctC = v + c + b;
-	dvdT = (R*fctB - da*fctA)/(p*fctB + 2.0*p*fctA*fctC - 2.0*R*T*fctC + a);
-	alpha = dvdT;
-	alpha_m += alpha;
-	v_m += v;
-	}
-	drhodT = -alpha_m/v_m;//alpha_t=alpha_g*(vg/vt)+alpha_l*(vl/vt)
-	}
+		if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL")
+		{
+			for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
+			{
+				therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
+				Tr = T/Tc;
+				a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
+				da0 = -(m0 + n0*(1.0 - Tr) + n0*(0.7 - Tr))/Tc;
+				da = 0.457235*2.0*a0*da0*pow(R*Tc, 2.0)/pc;
+				Trr = 1.0 - pow(Tr, 0.6667);
+				fct = -0.25 + pc/p;
+				if(fluid_id == 1) fct = (1.0780 + p/6.8e8);
+				c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
+				if(eos_name == "PR") c=0.0;
+				A = a*p*pow(R*T, -2.0);
+				B = b*p*pow(R*T, -1.0);
+				C = c*p*pow(R*T, -1.0);
+				z1 = B - 1.0 + 3.0*C;
+				z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
+				z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
+				NsPol3(z1,z2,z3,&roots);
+				z = FindMax(roots);
+				if(fluid_id == 1) z = FindMin(roots);
+				if(eos_name == "IDEAL") {z=1.0; c=0.0; b=0.0; a=0.0, da=0.0;}
+				v = (z*R*T/p);
+				fctB = (v + c)*(v + c + b) + b*(v + c - b);
+				fctA = v + c - b;
+				fctC = v + c + b;
+				dvdT = (R*fctB - da*fctA)/(p*fctB + 2.0*p*fctA*fctC - 2.0*R*T*fctC + a);
+				alpha = dvdT;
+				alpha_m += alpha;
+				v_m += v;
+			}
+			drhodT = -alpha_m/v_m;//alpha_t=alpha_g*(vg/vt)+alpha_l*(vl/vt)
+		}
 
 	if(eos_name == "CONSTANT")  
 	for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
@@ -3777,8 +4251,8 @@ double CFluidProperties::drhodX(int CIndex, double* variables)
    Programing: 09/2012 AKS
 **************************************************************************/
 double CFluidProperties::ComponentDensity(int CIndex, double* variables)
-	{
-	double a0, A, B, z, z1, z2, z3, Tr, c, C, Trr, T, p, density, R, fct;
+{
+	double A, B, z, z1, z2, z3, Tr, c, C, Trr, T, p, density, R, fct;
 	CRFProcess* m_pcs;
 	m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
 	std::vector<double> roots;
@@ -3786,30 +4260,36 @@ double CFluidProperties::ComponentDensity(int CIndex, double* variables)
 	T = variables[1];
 	R = GAS_CONSTANT;
 
-	if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL") 
+	if(eos_name == "VTPR" || eos_name == "PR" ||eos_name == "IDEAL")
 	{
-	therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-	Tr = T/Tc;
-	a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
-	Trr = 1.0 - pow(Tr, 0.6667);
-	fct = -0.25 + pc/p;
-	if(fluid_id == 1)
-	fct = (1.0780 + p/6.8e8);  
-	c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
-	if(eos_name == "PR" ) c=0.0;
-	A = a*p*pow(R*T, -2.0);
-	B = b*p*pow(R*T, -1.0);
-	C = c*p*pow(R*T, -1.0);
-	z1 = B - 1.0 + 3.0*C;
-	z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
-	z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
-	NsPol3(z1,z2,z3,&roots);
-	z = FindMax(roots);
-	if(fluid_id == 1) z = FindMin(roots);
-	if(eos_name == "IDEAL" ) z=1.0;
-	density = p*molar_mass/(z*R*T);
+		therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
+		Tr = T/Tc;
+		// double a0 = 1.0 + m0*(1.0 - Tr) + n0*(1.0 - Tr)*(0.7 - Tr);
+		Trr = 1.0 - pow(Tr, 0.6667);
+		fct = -0.25 + pc/p;
+		if(fluid_id == 1)
+			fct = (1.0780 + p/6.8e8);
+		c = fct*(k1 + k2*Trr + k3*Trr*Trr)*R*Tc/pc;
+		if(eos_name == "PR" ) c=0.0;
+		A = a*p*pow(R*T, -2.0);
+		B = b*p*pow(R*T, -1.0);
+		C = c*p*pow(R*T, -1.0);
+		z1 = B - 1.0 + 3.0*C;
+		z2 = (A - 3.0*B*B + 3.0*C*C + 2.0*B*C - 2.0*B - 2.0*C );
+		z3 = (B*B*B + C*C*C + B*B - C*C + B*C*C - 3.0*B*B*C - 2.0*B*C + C*A - A*B);
+		NsPol3(z1,z2,z3,&roots);
+		z = FindMax(roots);
+		if(fluid_id == 1) z = FindMin(roots);
+		if(eos_name == "IDEAL" ) z=1.0;
+		density = p*molar_mass/(z*R*T);
 	}
-	if(eos_name == "CONSTANT") density = rho[CIndex-2];
+	else if(eos_name == "CONSTANT") {
+		density = rho[CIndex-2];
+	}
+	else {
+		density = 0.0;
+	}
+
 	return density;
 }
 /**************************************************************************

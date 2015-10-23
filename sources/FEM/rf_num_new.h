@@ -21,25 +21,7 @@
 //----------------------------------------------------------------
 class CNumerics
 {
-private:
-	// cf. Computational Geomachanics pp.62 WW
-	double* DynamicDamping;
-	/// For GMRES solver. 30.06.2010. WW
-	long m_cols;
-	FiniteElement::ErrorMethod _pcs_nls_error_method;
-	FiniteElement::ErrorMethod _pcs_cpl_error_method;
-        std::string lsover_name;    //WW          
-        std::string pres_name;              
 public:
-  const char *getLinearSolverName() const
-  {
-    return lsover_name.c_str();
-  }
-  const char *getPreconditionerName() const
-  {
-    return pres_name.c_str();
-  }
-
 	// method
 	std::string method_name;              //OK
 	// PCS
@@ -123,6 +105,30 @@ public:
 	~CNumerics(void);
 	std::ios::pos_type Read(std::ifstream*);
 	void Write(std::fstream*);
+
+#ifdef USE_PETSC
+	const char *getLinearSolverName() const
+	{
+		return lsover_name.c_str();
+	}
+	const char *getPreconditionerName() const
+	{
+		return pres_name.c_str();
+	}
+#endif
+
+private:
+	// cf. Computational Geomechanics pp.62 WW
+	double* DynamicDamping;
+	/// For GMRES solver. 30.06.2010. WW
+	long m_cols;
+	FiniteElement::ErrorMethod _pcs_nls_error_method;
+	FiniteElement::ErrorMethod _pcs_cpl_error_method;
+
+#ifdef USE_PETSC
+	std::string lsover_name;    //WW
+	std::string pres_name;
+#endif
 };
 
 extern std::vector<CNumerics*>num_vector;
@@ -134,7 +140,7 @@ extern CNumerics* NUMGet(std::string);
 //////////////////////////////////////////////////////////////////////////
 // SOLVER
 //////////////////////////////////////////////////////////////////////////
-typedef struct
+struct LINEAR_SOLVER_PROPERTIES
 {
 	char* name;
 	long type;
@@ -149,9 +155,9 @@ typedef struct
 	double time;
 	long kind;
 	long level;
-} LINEAR_SOLVER_PROPERTIES;
+};
 
-typedef struct
+struct LINEAR_SOLVER
 {
 	char pcs_type_name[80];
 	void* matrix;
@@ -184,7 +190,7 @@ typedef struct
 	int* unknown_vector_indeces;          /* pointer of field unknown_vector_index[unknown_vector_dimension]   */
 	long* unknown_node_numbers;           /* pointer of field unknown_node_numbers[unknown_vector_dimension]   */
 	int* unknown_update_methods;          /* pointer of field unknown_update_methods[unknown_vector_dimension] */
-} LINEAR_SOLVER;
+};
 
 #ifdef USE_MPI                                    //WW
 extern LINEAR_SOLVER* InitVectorLinearSolver(LINEAR_SOLVER*);

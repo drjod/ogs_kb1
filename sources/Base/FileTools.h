@@ -17,4 +17,26 @@ bool IsFileExisting(std::string const& strFilename);
 /// Returns true if given file includes CR
 bool HasCRInLineEnding(std::string const& strFilename);
 
+/**
+ * @brief computes the basename of the given path, i.e. the component after the last diretory separator (/ or \).
+ */
+std::string pathBasename(const std::string& path);
+
+/**
+ * @brief computes the dirname of the given path, i.e. the component before the last diretory separator (/ or \).
+ */
+std::string pathDirname(const std::string& path);
+
+/**
+ * @brief joins two paths using the correct directory separator.
+ *
+ * trailing and preceding (back)slashes at the join point are ignored.
+ *
+ * @returns a string: path1/path2. if any of the paths is empty, only the other one is returned
+ */
+std::string pathJoin(const std::string& path1, const std::string& path2);
+
+/// returns the current process working directory
+std::string getCwd();
+
 #endif // FILETOOLS_H

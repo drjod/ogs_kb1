@@ -24,7 +24,7 @@ double PITZdata::charge(string N){
 	int i,flag=0;
 	double res;
 	vector<string> pies;
-	for (i=0;i<(unsigned)sizeof(SPECIES)/(unsigned)sizeof(SPECIES[0]);i++){
+	for (i=0;(size_t)i<(sizeof(SPECIES)/sizeof(SPECIES[0]));i++){
 		pies= IO::string2vector(SPECIES[i]);
 		if(pies[0]==N) {
 			res= atof(pies[1].c_str());
@@ -100,7 +100,5 @@ double PITZdata::pitzer_parameters(double T, double P, string param_switch){
 	}
 
 	else return res;
-
-
-
 }
+
