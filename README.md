@@ -18,7 +18,7 @@ omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host <br>
 An example bash script for an MPI-Job with 8 cores on the angus queue (rz cluster):
 ```
 #!/bin/bash
-#PBS -o /home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1/examples/files/kueper/Pc-Pnw/OGS_FEM_MPI/screenout.txt
+#PBS -o screenout.txt
 #PBS -j oe
 #PBS -r n
 #PBS -l walltime=2:00:00
@@ -35,22 +35,18 @@ cd $PBS_O_WORKDIR
 . /cluster/Software/intel1502/composer_xe_2015.2.164/mkl/bin/intel64/mklvars_intel64.sh
 . /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin/mpivars.sh
 
-time mpirun -r rsh -machinefile $PBS_NODEFILE -n 8 /home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1/Build_Release_intel1502/OGS_FEM_MPI/bin/ogs_OGS_FEM_MPI /home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1/examples/files/kueper/Pc-Pnw/OGS_FEM_MPI/testCase
+time mpirun -r rsh -machinefile $PBS_NODEFILE -n 8 ogs_OGS_FEM_MPI testCase
 
 qstat -f $PBS_JOBID
 exit
 ```
-Output is written into: /home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1/examples/files/kueper/Pc-Pnw/OGS_FEM_MPI/screenout.txt <br>
-The OGS binary is: <br>
-/home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1_0.1.3_extended/Build_Release_intel1502/OGS_FEM_MPI/bin/ogs_OGS_FEM_MPI <br>
-My input files have the name 'testcase' and are in the folder: <br>
-/home/sungw389/testingEnvironment/rzcluster/ogs/ogs_kb1_0.1.3_extended/examples/files/kueper/Pc-Pnw/OGS_FEM_MPI/ <br>
-Maximum wall time is set as 2 hours, memory is 3GB. <br>
-To change the number of cores, you modify the number (8) in two locations of the script. These are in the PBS script command ncpus=8 and the mpirun command $PBS_NODEFILE -n 8. Important: each cpu hosts 16 cores. You can select more than 16 cores by taking more cpus. For instance, you get with the PBS- command   
+In this example, name of ogs is 'ogs_OGS_FEM_MPI' and of input files 'testCase'. Put this script with ogs and input files into one folder, cd there and execute the script. Output will be written into screenout.txt. <br>
+To change the number of cores, you modify the number (8) in two locations of the script. These are in the PBS script command ncpus=8 and the mpirun command $PBS_NODEFILE -n 8. Important: Each node hosts 16 cores. You can select more than 16 cores by taking more cpus. For instance, you get with the PBS- command   
 ```
 #PBS -l select=3:ncpus=8:mem=64gb
 ```
- 24 cores (set also $PBS_NODEFILE -n 24).
+24 cores (set also $PBS_NODEFILE -n 24). <br>
+The example script sets maximum wall time as 2 hours,  3G of memory are available for the simulation (each cluster node has 64 (128)GB available in total). 
 
 
 #### Compilation
