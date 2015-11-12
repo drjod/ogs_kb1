@@ -41,7 +41,7 @@ qstat -f $PBS_JOBID
 exit
 ```
 In this example, name of ogs is 'ogs_OGS_FEM_MPI' and of input files 'testCase'. Put this script with ogs and input files into one folder, cd there and execute the script. Output will be written into screenout.txt. <br>
-To change the number of cores, you modify the number (8) in two locations of the script. These are in the PBS script command ncpus=8 and the mpirun command $PBS_NODEFILE -n 8. Important: Each node hosts 16 cores. You can select more than 16 cores by taking more cpus. For instance, you get with the PBS- command   
+To change the number of cores, you modify the number (8) in two locations of the script. These are in the PBS script command ncpus=8 and the mpirun command $PBS_NODEFILE -n 8. Important: Each node hosts 16 cores. You can select more than 16 cores by taking more nodes. For instance, you get with the PBS- command   
 ```
 #PBS -l select=3:ncpus=8:mem=64gb
 ```
