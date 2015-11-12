@@ -268,7 +268,6 @@ Example specifications in input file *mfp:<br>
 $DENSITY 
  0 1 
 ```
-<br>
 Parameter "1" refers to the first data table in a *.rfd ascii input file, which you will have to provide in this case:<br>
 ```
 ;Curve 1  Temp Density
