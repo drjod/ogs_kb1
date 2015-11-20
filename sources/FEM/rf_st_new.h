@@ -197,6 +197,7 @@ public:
 	
 	int getTimeContrCurve() {return time_contr_curve; } //SB:02.2014 get bc ativity controlled curve
 	std::string getTimeContrFunction() {return time_contr_function; } //SB:02.2014 get bc ativity controlled curve
+  std::string getFunction() { return fct_name; } //SB:02.2014 get bc ativity controlled curve
 
 	int getSubDomainIndex () const { return _sub_dom_idx; }
 
@@ -229,7 +230,6 @@ private:                                          // TF, KR
 	void DeleteHistoryNodeMemory();
 
 	double geo_node_value;
-
 	// active state is controlled by time curve SB
 	int time_contr_curve;
 	std::string time_contr_function;
@@ -390,6 +390,8 @@ private:
 
 	// JOD
 	void SetSurfaceNodeVector(Surface* m_sfc, std::vector<long>&sfc_nod_vector);
+	void SetSurfaceNodeVector(GEOLIB::Surface const* sfc,
+		std::vector<std::size_t> & sfc_nod_vector);
 	void SetSurfaceNodeValueVector( CSourceTerm* m_st,
 	                                Surface* m_sfc,
 	                                std::vector<long> const &sfc_nod_vector,
@@ -398,6 +400,11 @@ private:
 	                  std::vector<double>&  ply_nod_val_vector) const;
 	void DistributeVolumeFlux(CSourceTerm* st, std::vector<long> const & ply_nod_vector, // 5.3.07 
 		                      std::vector<double>& ply_nod_val_vector);
+  
+	// CB JOD MERGE //  
+	//void CSourceTermGroup::WriteNodeConnections(); 
+	void WriteNodeConnections(); // WTP
+
 };
 
 extern CSourceTermGroup* STGetGroup(std::string pcs_type_name,std::string pcs_pv_name);

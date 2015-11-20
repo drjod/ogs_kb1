@@ -13,7 +13,8 @@ namespace petsc_group
 {
 
  PETScLinearSolver :: PETScLinearSolver (const int size)
-   :lsolver(NULL), prec(NULL), global_x(NULL)
+   : A(NULL), b(NULL), x(NULL), lsolver(NULL), prec(NULL),
+     i_start(0), i_end(0), global_x(NULL)
  {
    ltolerance = 1.e-10;
    m_size = size;
@@ -22,6 +23,8 @@ namespace petsc_group
    o_nz = 10; 	
    nz = 10;   
    m_size_loc = PETSC_DECIDE;
+   mpi_size = 0;
+   rank = 0;
  }
 
 PETScLinearSolver:: ~PETScLinearSolver()
@@ -43,10 +46,10 @@ void PETScLinearSolver::Init(const int *sparse_index)
 {
    if(sparse_index)
    {
-      d_nz = sparse_index[0]; 
-      o_nz = sparse_index[1]; 	
+      d_nz = sparse_index[0];
+      o_nz = sparse_index[1];
       nz = sparse_index[2]; 
-      m_size_loc = sparse_index[3];          
+      m_size_loc = sparse_index[3];
    }   
     
    VectorCreate(m_size);   
@@ -55,7 +58,6 @@ void PETScLinearSolver::Init(const int *sparse_index)
    global_x = new PetscScalar[m_size];
 
 }
-
 
 /*!
   \brief KSP and PC type
@@ -137,7 +139,8 @@ void PETScLinearSolver::Init(const int *sparse_index)
  PCGAMG            "gamg"
 
 */
-void PETScLinearSolver::Config(const PetscReal tol, const PetscInt maxits, const KSPType lsol, const PCType prec_type )
+void PETScLinearSolver::Config(const PetscReal tol, const PetscInt maxits, const KSPType lsol,
+                               const PCType prec_type, const std::string &prefix)
 {
    ltolerance = tol;
    sol_type = lsol;
@@ -156,9 +159,16 @@ void PETScLinearSolver::Config(const PetscReal tol, const PetscInt maxits, const
    KSPGetPC(lsolver, &prec);
    PCSetType(prec, prec_type); //  PCJACOBI); //PCNONE);
    KSPSetTolerances(lsolver,ltolerance, PETSC_DEFAULT, PETSC_DEFAULT, maxits);
-   KSPSetFromOptions(lsolver);
 
+   if( !prefix.empty() )
+   {
+       KSPSetOptionsPrefix(lsolver, prefix.c_str());
+       PCSetOptionsPrefix(prec, prefix.c_str());
+   }
+
+   KSPSetFromOptions(lsolver);
 }
+
 //-----------------------------------------------------------------
 void PETScLinearSolver::VectorCreate(PetscInt m)
 {
@@ -179,20 +189,21 @@ void PETScLinearSolver::VectorCreate(PetscInt m)
 
 void PETScLinearSolver::MatrixCreate( PetscInt m, PetscInt n)
 {
-
   MatCreate(PETSC_COMM_WORLD, &A);
   // TEST  MatSetSizes(A, m_size_loc, PETSC_DECIDE, m, n);
-  MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,m,n);
+  MatSetSizes(A, PETSC_DECIDE, PETSC_DECIDE, m, n);
   //MatSetSizes(A, m_size_loc, PETSC_DECIDE, m,  n);
-  MatSetType(A,MATMPIAIJ);
 
+  MatSetType(A, MATMPIAIJ);
   MatSetFromOptions(A);
-  MatSetUp(A);  // KG44 this seems to work with petsc 3.3 ..the commands below result in problems when assembling the matrix with version 3.3
-  //  MatMPIAIJSetPreallocation(A,d_nz,PETSC_NULL, o_nz,PETSC_NULL);
-  //  MatSeqAIJSetPreallocation(A,d_nz,PETSC_NULL);
-  MatGetOwnershipRange(A,&i_start,&i_end);
 
-  //  std::cout<<"sub_a  "<<i_start<<";   sub_d "<<i_end<<"\n";
+  MatSeqAIJSetPreallocation(A, d_nz, PETSC_NULL);
+  MatMPIAIJSetPreallocation(A, d_nz, PETSC_NULL, o_nz, PETSC_NULL);
+  MatSetOption(A,MAT_NEW_NONZERO_ALLOCATION_ERR,PETSC_FALSE);
+
+  MatSetUp(A);  // KG44 this seems to work with petsc 3.3 ..the commands below result in problems when assembling the matrix with version 3.3
+
+  MatGetOwnershipRange(A, &i_start, &i_end);
 }
 
 void  PETScLinearSolver::getLocalRowColumnSizes(int *m, int *n)

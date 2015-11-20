@@ -23,6 +23,7 @@ public:
 	static double H(double, double);     //(T K, P Mpa)
 	static double S(double, double);     //(T K, P Mpa)
 
+	static double cp(double, double);
 
 	static double density(double, double);   //density (kg m^-3) (T K, P Mpa)
 	static double viscosity(double, double); //viscosity (Pa s)  (T K, P Mpa)
@@ -35,3 +36,6 @@ public:
 	static double dpressure(double);
 	static void entrance(void);
 };
+
+
+

@@ -15,6 +15,7 @@ Kiel, 11/2008
 #include <signal.h>
 #include "display.h"
 #include "makros.h"
+#include "memory.h"
 #include "rf_pcs.h"
 //#include "nodes.h"
 #include "rf_pcs.h"
@@ -53,9 +54,15 @@ Kiel, 11/2008
 #include "CAP_IO.h"
 #include "VLE.h"
 #include "HKF.h"
+#include "Fluid.h"//DL
+#include "IAPWS-IF97.h"//DL
 //CB2406 #endif
+//#include "gs_project.h" // CB
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)
 
-#include "gs_project.h" // CB
+#include "mpi.h"//Parallel Computing Support
+#include "par_ddc.h"
+#endif
 
 using namespace std;
 /*
@@ -628,6 +635,389 @@ void REACT_CAP::ExecuteReactionsChemApp(int f, int nodeflag){
 
 }
 
+/* 
+ChemApp subroutine for chemical reaction calculation   DL 28,10,08 
+Extended for MPI Parallelization DL, CB 05/06/2014
+*/
+void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
+
+  double pressure, density, volume, compressibility, entropy, internal_energy, enthalpy, gibbs, helmholtz, Cv, Cp, themperature;
+  double Tx, Px, Dx;
+  //CAP_MODE=2; // now from input file
+  CAP_icount = 1;
+  CAP_Time = 0;
+  CAP_Node = 0;
+
+  int ii, ok = 0, ik = 0;
+  this->myrank = 0;
+  int position = 0;
+  int ns = 0; // (int)species_name.size();
+  int nos = 0; // (int)pcs_ospecies_idx.size();
+  int nns = 0; // (int)pcs_nspecies_idx.size();
+  int nidx = 0;
+  int entrypoint = 0;
+  CRFProcess* m_pcs = NULL;
+  double *Concentration;  // concentration of all result
+  double *nod_HKF_logK, *nod_SAC, *nod_KIN_logK;
+  double *CAPtimes;  
+  int nHKF = 0, nKIN = 0;
+  int nComponents;
+  std::vector<int> ranknodelistvec;
+  std::vector<std::vector<int> > ranknodeliststore;
+  std::vector<double> tempvec;
+  // Get the reaction interface data
+  REACTINT *m_rei = NULL;
+  if (REACTINT_vec.size() > 0)
+    m_rei = REACTINT_vec[0];
+
+  if (f == 0) this->CreateREACT(); // set nodenumber and rateflag		
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Comm_size(MPI_COMM_WORLD, &mysize);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  // in parallel version, push back a vector of selected node indices for each rank
+  for (int j = 0; j < mysize; j++){
+    ranknodelistvec.clear();
+    for (ii = 0; ii < this->nodenumber; ii++){
+      if ((ii%mysize) == j) {
+        ranknodelistvec.push_back(ii);
+        //std::cout << "rank: " << myrank << " node: " << ii << "\n" ;
+      }
+    }
+    ranknodeliststore.push_back(ranknodelistvec);
+  }
+#else 
+  // in serial version, just push back a single vector of all node indices
+  for (ii = 0; ii < this->nodenumber; ii++) {
+    ranknodelistvec.push_back(ii);
+    //std::cout << "rank: " << myrank << " node: " << ii << "\n";
+  }
+  ranknodeliststore.push_back(ranknodelistvec);
+#endif
+
+
+  //************************************
+  // Initial Run: set up data structures
+  //************************************
+
+  if (f == 0)
+  {
+    //this->CreateREACT(); // set nodenumber and rateflag		
+    this->InitChemApp(); // read DATAFILE   //CB MPI required for each CAP instance
+
+    if (this->show_data_file){
+      cout << " ==> Show Data File" << "\n";
+      this->ShowDataFile();
+    }
+
+    this->LoadMassPCS(); // read process and get MASS TRANSPORT list
+    this->CmpSpeciesListPCS(); //consistent checking between TRANS and DATAFILE
+    this->CmpSpeciesListKIN();//DL 03.2010
+
+    if (!this->species_define.compare("TRANS")) {
+      cout << " Define TRANS as Chemical Reaction Species " << "\n";
+      this->DefSpeciesInChemApp();   //CB MPI required for each CAP instance
+    }
+    else if (!this->species_define.compare("LIST"))  {
+      cout << " Define LIST as Chemical Reaction Species " << "\n";
+      this->CmpSpeciesListDAT(); //consistent checking between .cap species_list and DATAFILE
+      if (this->CmpSpeciesList()) //consistent checking between .cap species_list and TRANS
+        cout << " The two species lists are compatible. OK..." << "\n";
+      else cout << " Incompatibility checking ERROR..." << "\n";
+      this->DefSpeciesInChemAppList();  //CB MPI required for each CAP instance
+    }
+    else{
+      //this->UndefOutSpecies();
+      cout << " UNDEF SPECIES, USING THE TOTAL SPECIES LIST " << "\n";
+      this->DefSpeciesInChemAppAll();  //CB MPI required for each CAP instance
+    }
+
+
+    if (!this->mass_type.compare("ELEMENT")){
+      cout << " SET MASS TRANSPORT AS ELEMENT " << "\n";
+      if (CAP_MODE == 2)
+        cout << " File Mode " << "\n";
+      else
+        this->ResetElement();   //CB MPI required for each CAP instance
+    }
+    else
+      cout << " SET MASS TRANSPORT AS SPECIES (defualt) " << "\n";
+
+    this->CmpSpeciesListKinReact();//DL 03.2010
+
+    this->SetKinHKFspecies(); //DL 11.2010
+    if (this->Kin_HKF_species.size() > 0)
+      this->LoadHKFparam();
+
+    this->CmpSpeciesListNLOG();
+    this->CmpSpeciesListREDOX();
+
+    this->CmpSpeciesListRelativeActivity();
+    this->warning_out.clear();
+
+    cout << "-------------------------------" << "\n";
+    cout << "      END CHEMAPP INITIAL      " << "\n";
+    cout << "-------------------------------" << "\n";
+
+    cout.flush() << " Calculating geochemical equilibrium at all nodes using initial values." << "\n";
+    cout << " Rank " << myrank << " : " << ranknodeliststore[myrank].size() << " nodes." << "\n";
+
+//    if ((int)this->check_no_reaction_nodes == false){
+//      ok = this->CheckNoReactionNodes(); //default rateflag=1 for reaction calc
+//      if (!ok) cout << "Error when checking for nodes without reactions" << "\n" << "\n";
+//    }
+
+
+
+
+  } // (f == 0)
+  else if (f == 1 || f == -1)
+  {   // Check for nodes without reactions
+    if ((int)this->check_no_reaction_nodes == false){
+      ok = this->CheckNoReactionNodes(); //default rateflag=1 for reaction calc
+      if (!ok) cout << "Error when checking for nodes without reactions" << "\n" << "\n";
+    }
+  }
+
+  //********************************************************
+  // Now calculate the equilibrium by call to LoopNodeReact
+  //********************************************************
+
+  // get no of data values to return from CAP
+  ns = (int)species_name.size();
+  nos = (int)pcs_ospecies_idx.size();
+  nns = (int)pcs_nspecies_idx.size();
+  nComponents = ns + nos + nns;
+  if (pcs_redox > -1) nComponents += 1;
+
+  // set up return data arrays
+  Concentration = new double[nComponents*nodenumber];
+  for (int it = 0; it < (nComponents)*nodenumber; it++)   Concentration[it] = 0.0;
+
+  // Data transfer for kinetics module  
+  if (this->Kin_Reactions.size()>0){
+    nKIN = (int)Kin_Reactions.size();
+    nod_KIN_logK = new double[nKIN*nodenumber];
+    for (int it = 0; it < nKIN*nodenumber; it++) nod_KIN_logK[it] = 0.0;
+    nod_SAC = new double[ns*nodenumber];
+    for (int it = 0; it < ns*nodenumber; it++) nod_SAC[it] = 0.0;
+  }
+  if (Kin_HKF_Reactions.size()>0){
+    nHKF = (int)Kin_HKF_Reactions.size();
+    nod_HKF_logK = new double[nHKF*nodenumber];
+    for (int it = 0; it < nHKF*nodenumber; it++) nod_HKF_logK[it] = 0.0;
+  }
+
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
+
+  // Concentration buffer for data distribution and collection
+  double *Concentration_buff;
+  Concentration_buff = new double[nComponents*nodenumber];
+  for (int it = 0; it < (long)(nComponents)*nodenumber; it++) Concentration_buff[it] = 0.0;
+
+  // Data transfer for kinetics module  
+  double *nod_KIN_logK_buff, *nod_SAC_buff;
+  if (this->Kin_Reactions.size()>0){
+    nod_KIN_logK_buff = new double[nKIN*nodenumber];
+    for (int it = 0; it < nKIN*nodenumber; it++) nod_KIN_logK_buff[it] = 0.0;
+    nod_SAC_buff = new double[ns*nodenumber];
+    for (int it = 0; it < ns*nodenumber; it++) nod_SAC_buff[it] = 0.0;
+  }
+  double *nod_HKF_logK_buff;
+  if(Kin_HKF_Reactions.size()>0){
+    nod_HKF_logK_buff = new double[nHKF*nodenumber];
+    for (int it = 0; it < nHKF*nodenumber; it++)   nod_HKF_logK_buff[it] = 0.0;
+  }
+
+  double *CAPtimes_buff;
+  CAPtimes = new double[nodenumber];
+  CAPtimes_buff = new double[nodenumber];
+  for (int it = 0; it < nodenumber; it++)   CAPtimes[it] = CAPtimes_buff[it] = 0.0;
+
+  // now distribute the tasks
+  MPI_Barrier(MPI_COMM_WORLD);
+  long nNodes = (long)nodenumber;
+  MPI_Bcast(&nNodes, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+
+  if (f == 1)
+    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+  else if (f == -1)
+    this->LoopNodeReact_Liquid_VaporNew(1, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+  else if (f == 0)
+    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+
+  // Get MPI results
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Allreduce(Concentration_buff, Concentration, nComponents*nodenumber, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(CAPtimes_buff, CAPtimes, nodenumber, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  if (nKIN>0) {
+    MPI_Allreduce(nod_KIN_logK_buff, nod_KIN_logK, nKIN*nodenumber, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(nod_SAC_buff, nod_SAC, ns*nodenumber, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
+  if (nHKF>0) 
+    MPI_Allreduce(nod_HKF_logK_buff, nod_HKF_logK, nHKF*nodenumber, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+#else
+
+  this->warning_out.open("ChemApp_Warning.txt", ios::out);
+
+  if (f == 1){  // standard case, full equilibrium
+    //this->LoopNodeReact(1, nodeflag);
+    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+  }
+  else if (f == -1){ // liquid speciation only, preprocessing for kinetics
+    //this->LoopNodeReact_Liquid_Vapor(1, nodeflag);
+    this->LoopNodeReact_Liquid_VaporNew(1, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+  }
+  else if (f == 0){ // initial equilibration, no update of solid phase concentrations
+    //this->LoopNodeReact(0, nodeflag);   //CB MPI required for each CAP instance
+    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+  }
+
+#endif  
+
+  //***********************************************************
+  // Return equilibrium results to Mass transport processes
+  //***********************************************************
+
+  int widx = 0;
+  for (int i = 0; i < (size_t)ns; i++)
+  if (species_phase[i] == 2)   // liquid phase
+  if (strcmp(species_name[i], "H2O") == 0 || strcmp(species_name[i], "H2O_liquid") == 0 || strcmp(species_name[i], "water_liquid") == 0)
+    widx = i; // save the species index of watre species
+
+
+  // loop over ranks / over number of nodelist vectors
+  for (ii = 0; ii < ranknodeliststore.size(); ii++){
+    // loop over the nodelist for a single rank
+    for (int jj = 0; jj < ranknodeliststore[ii].size(); jj++){
+      
+      // get start position of concentration vector for this node in Concentration data array
+      nidx = ranknodeliststore[ii][jj];
+      position = nidx*nComponents;
+
+      // for deactivated nodes, do nothing
+      if (rateflag[nidx] == 0)
+        continue;
+
+      // regular species
+      for (int i = 0; i < (size_t)ns; i++){ //mol/m³
+        if (species_dormant[ns - i - 1] == 0){  // non dormant
+          m_pcs = pcs_vector[pcs_mass_idx[ns - i - 1]];
+          if (species_phase[ns - i - 1] == 0){       // solid phase
+            if (f == 1) // full geochemistry calculation
+              m_pcs->SetNodeValue(nidx, 1, Concentration[position + i]);  // old f==0 or new f==1 time step
+          }
+          else if (species_phase[ns - i - 1] == 2){  // water phase 
+            //m_pcs->SetNodeValue(nidx, 1, Concentration[entrypoint + nComponents*jj + i]);  // old or new time step
+            m_pcs->SetNodeValue(nidx, 1, Concentration[position + i]);  // old or new time step
+            if (ns - i - 1 == widx && m_rei) // update water concentration vector as well 
+            if (m_rei->unitconversion)
+              m_rei->water_conc[nidx] = Concentration[position + i];
+          }
+          else 
+            m_pcs->SetNodeValue(nidx, 1, Concentration[position + i]);  // new time step
+        }// non dormant
+      }//push back chemical equilibrium values
+
+      //return species value at this node and time step, if pcs_ospecies_idx.size>0  22.01.2009
+      for (int i = 0; i < (size_t)nos; i++){
+        m_pcs = pcs_vector[pcs_ospecies_idx[i]];
+        m_pcs->SetNodeValue(nidx, 1, Concentration[position + ns + i]);
+      }//end return species value
+
+      //return nlog value of species at this node, if pcs_nspecies_idx.size>0
+      for (int i = 0; i < (size_t)nns; i++){
+        m_pcs = pcs_vector[pcs_nspecies_idx[i]];
+        m_pcs->SetNodeValue(nidx, 1, Concentration[position + ns + nos + i]);
+      }
+
+      //return redox Eh value of given reaction at this node
+      if (pcs_redox>-1){
+        m_pcs = pcs_vector[pcs_redox];
+        m_pcs->SetNodeValue(nidx, 1, Concentration[position + ns + nos + nns + 0]);
+      }
+
+    } // loop over nodelist for a single rank
+  } // loop over all ranks
+
+
+  //***********************************************************
+  // Return Kinetics Data 
+  //***********************************************************
+
+  //KIN Data
+  if (nKIN > 0){
+    // reset matrices
+    node_logK.clear();     
+    node_ac.clear();     
+
+    for (int ii = 0; ii < nodenumber; ii++){
+      //logK
+      tempvec.clear();
+      if (nod_KIN_logK[ii*nKIN] > -9999)  // chemapp was successfull for this node
+      {
+        for (int i = 0; i < nKIN; i++) // store logK for each mineral reaction
+          tempvec.push_back(nod_KIN_logK[ii*nKIN + i]);
+      } // otherwise store empty vector
+      node_logK.push_back(tempvec);
+
+      //activity coeffs
+      tempvec.clear();
+      if (nod_SAC[ii*ns] >= 0)  // chemapp was successfull for this node
+      {
+        for (int i = 0; i < ns; i++) // store logK for each mineral reaction
+          tempvec.push_back(nod_SAC[ii*ns + i]);
+      } // otherwise store empty vector
+      node_ac.push_back(tempvec);
+    }
+  }
+
+  //HKF Data
+  if (nHKF > 0){
+    // reset matrix
+    node_HKF_logK.clear(); 
+    for (int ii = 0; ii < nodenumber; ii++){
+      tempvec.clear();
+      if (nod_HKF_logK[ii*nHKF] > -9999)  // chemapp was successfull for this node
+      {
+        for (int i = 0; i < nHKF; i++) // store logK for each mineral reaction
+          tempvec.push_back(nod_HKF_logK[ii*nHKF + i]);
+      } // otherwise store empty vector
+      node_HKF_logK.push_back(tempvec);
+    }
+  }
+
+  
+// clean up
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
+  delete[] Concentration_buff; 
+  delete[] CAPtimes_buff;
+  delete[] CAPtimes;
+  if (Kin_Reactions.size()>0){
+    delete[] nod_KIN_logK_buff;
+    delete[] nod_SAC_buff;
+  }
+  if (Kin_HKF_Reactions.size()>0){
+    delete[] nod_HKF_logK_buff;
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+#endif
+  delete[] Concentration;
+  if (Kin_Reactions.size()>0){
+    delete[] nod_KIN_logK;
+    delete[] nod_SAC;
+  }
+  if (Kin_HKF_Reactions.size()>0){
+    delete[] nod_HKF_logK;
+  }
+  tempvec.clear();
+  ranknodelistvec.clear();
+  ranknodeliststore.clear();
+}
+
 
 /***********************************************************************************************
 
@@ -648,10 +1038,10 @@ int REACT_CAP::CheckNoReactionNodes(void){
      m_rei = REACTINT_vec[0];
 
 	
-	if(aktueller_zeitschritt < 2){ //do not in the very first calculation before first time step and in the first time step
-		this->check_no_reaction_nodes = false;
-	}
- else{
+  if(aktueller_zeitschritt < 2){ //do not in the very first calculation before first time step and in the first time step
+	  this->check_no_reaction_nodes = false;
+  }
+  else{
 		CKinReactData *m_krd = NULL;
 		if(KinReactData_vector.size()>0) 
 			m_krd = KinReactData_vector[0];
@@ -660,26 +1050,34 @@ int REACT_CAP::CheckNoReactionNodes(void){
 			cout << "No CKinReactData available in CheckNoReactionNodes" << "\n";
 		}
 		else{
-			if(m_krd->is_a_CCBC.size() > 0){ // reaction nodes specified in krc input file
+			if(is_a_CCBC.size() > 0){ // reaction nodes specified in krc input file
 				// Initialize vector is_a_CCBC
 				for(l=0; l< (long)m_msh->nod_vector.size();l++) { // node 1 needed for phreeqc-input
 					this->rateflag[l] = 1;
-					if(m_krd->is_a_CCBC[l] == true) this->rateflag[l] = 0;  // rateflag == 0 means no reactions calculated
+					if(is_a_CCBC[l] == true) this->rateflag[l] = 0;  // rateflag == 0 means no reactions calculated
 					// cout << " Node " << l << " is " << this->rateflag[l] << "\n";
 				}
 			}
 		}
 
-  // also, switch off reactions for nodes with Sat Water < WaterSatLimit to avoid dryout problem in Eclipse coupling
-  if(m_rei){ 
-    if(m_rei->s_water_limit)
-      for(l=0; l< (long)m_msh->nod_vector.size();l++) 
-        if(m_rei->dried_out_nodes[l])
-          rateflag[l] = 0;
-  }
+    // also check for dryout or react deact
+    if(m_rei){ 
+      if (m_rei->s_water_limit){
+        //switch off reactions for nodes with Sat Water < WaterSatLimit to avoid dryout problem in Eclipse coupling
+        for (l = 0; l < (long)m_msh->nod_vector.size(); l++)
+          if (m_rei->dried_out_nodes[l])
+            rateflag[l] = 0;
+      }
+      if (m_rei->ReactDeactFlag) {
+        // switch off deactivated nodes from ReactDeact
+        for (l = 1; l < (long)m_msh->nod_vector.size(); l++)
+          if (m_rei->ReactDeact[l] == true)
+            rateflag[l] = 0;
+      }
+    }
 
-		this->check_no_reaction_nodes = true;
-	}
+	  this->check_no_reaction_nodes = true;
+  } // aktueller_zeitschritt < 2
 	
 	ok=1;
 	return ok; 
@@ -717,6 +1115,13 @@ void REACT_CAP::CreateREACT(void){
                                                     DL 12.2008
 **************************************************************/
 void REACT_CAP::InitChemApp(void){
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)
+ 	int rank;
+  MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	char string[4];
+#endif
 
   LI noerr, version;
 	//CRFProcess* m_pcs = NULL;
@@ -776,7 +1181,16 @@ if(CAP_MODE==2){
 	//strcat(cap_datafile, this->data_file.c_str()); 
 	cap_datafile = new char [this->data_file.length()];       
 	strcpy(cap_datafile, this->data_file.c_str()); 
-	cout << "THERMOCHEM DATA FILE --> " << cap_datafile << "\n";
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)
+	//create input database file name for each rank 
+  //itoa(rank,string,10);
+  sprintf(string, "%li", rank);
+  strcat(cap_datafile, string); //DL
+#endif
+
+
+	std::cout << "THERMOCHEM DATA FILE --> " << cap_datafile << "\n" << std::flush;
 	noerr=1;
 	if(data_format=="DAT"){
 		CAP_tqopna(cap_datafile,10,&noerr);
@@ -1422,7 +1836,8 @@ void REACT_CAP::SetAllSolidAsDormant(void){
 	CAP_tqnop(&nphase, &noerr);    //get the number of phase --> nphase
 	for(i=1;i<=nphase;i++) {	
 		CAP_tqnopc(i, &npcon, &noerr);
-		if(npcon==1) CAP_tqcsp(i, (char *)"dormant", &noerr);
+		if(npcon==1) 
+		  CAP_tqcsp(i, (char *)"dormant", &noerr);
 	}	
 }
 
@@ -1569,10 +1984,12 @@ if(REACTINT_vec.size()>0){
 
 ns = (int)species_name.size();
 
-CAP_tqinsc((char *)"EA", &iEA, &noerr);
-CAP_tqnosc(&nscom, &noerr);
-stoi=new DB[nscom];	
-//cout << " iEA= " << iEA << " " << nscom << "\n";
+  //TQINSC 	2 	Gets the index number for a system component
+  CAP_tqinsc((char *)"EA", &iEA, &noerr);
+  //TQNOSC 	2 	Gets the number of system components
+  CAP_tqnosc(&nscom, &noerr);
+  stoi = new DB[nscom];
+  //cout << " iEA= " << iEA << " " << nscom << "\n";
  
 
 //if(ff != -1){
@@ -1582,7 +1999,9 @@ if(nodeflag<0){
 	 node_HKF_logK.clear(); 
 }
 //}
-CAP_tqcio((char *)"ERROR", 0, &noerr);
+
+  //TQCIO 	1 	Changes the value of an output option
+  CAP_tqcio((char *)"ERROR", 0, &noerr);
 
 // node loop
 for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction calc
@@ -1593,15 +2012,16 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
   this->RecoverChemSystem();
 
-  if(nodeflag>=0)
-    if(nodeflag!=ii)
-      continue;
+    if (nodeflag >= 0)    // equi for a specific node is requested
+    if (nodeflag != ii)
+      continue;       // skip all other nodes 
 
-  CAP_tqremc(0,&noerr); //removes all input conditions relating to incoming amounts
-		
+    //TQREMC 	4 	Removes an equilibrium condition
+    CAP_tqremc(0, &noerr); //removes all input conditions relating to incoming amounts
+
   //return pcs rename pre 
   // in new version, set in problem.cpp ?
-  for(i=0;i<pcs_rename_idx0_pre.size();i++){
+  for(i=0;i<(int)pcs_rename_idx0_pre.size();i++){
 	value=0.0;
 	for(ix=0;ix<(int)pcs_rename_idx1_pre[i].size();ix++){
 		m_pcs= pcs_vector[pcs_rename_idx1_pre[i][ix]];
@@ -1616,7 +2036,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	m_pcs->SetNodeValue(ii,f,value);
   }
 
-  // only for nodes, where Cnew != Cold
+    // only for nodes, where Cnew != Cold, go through node reaction procedure 
   if(rateflag[ii]!=0)
   { 
 	//CAP_tqremc(-2, &noerr); // remove all condition and targets set previously
@@ -1674,21 +2094,21 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	b.clear();
 	x.clear();
 
-    if(m_rei) 
-	  for(iv=0;iv<m_rei->VLE_conditions.size();iv++){
-		  iv_eq.push_back(false);
-		  a.push_back(0);
-		  b.push_back(0);
-		  x.push_back(0);
-		  m_pcs = pcs_vector[m_rei->VLE_conditions[iv].vp_idx];
-		  m_rei->VLE_conditions[iv].vp_value = m_pcs->GetNodeValue(ii,f);
-		  for( i=0;i<(size_t)ns;i++)
-			if(this->pcs_mass_idx[i]==m_rei->VLE_conditions[iv].aq_idx){
-			  m_rei->VLE_conditions[iv].idx_aq_species=i;
-			  m_rei->VLE_conditions[iv].aq_value=species_value[i];
-			}
+      if (m_rei){
+        for (iv = 0; iv < m_rei->VLE_conditions.size(); iv++){
+          iv_eq.push_back(false);
+          a.push_back(0);
+          b.push_back(0);
+          x.push_back(0);
+          m_pcs = pcs_vector[m_rei->VLE_conditions[iv].vp_idx];
+          m_rei->VLE_conditions[iv].vp_value = m_pcs->GetNodeValue(ii, f);
+          for (i = 0; i < (size_t)ns; i++)
+          if (this->pcs_mass_idx[i] == m_rei->VLE_conditions[iv].aq_idx){
+            m_rei->VLE_conditions[iv].idx_aq_species = i;
+            m_rei->VLE_conditions[iv].aq_value = species_value[i];
+          }
+        }
       }
-
 	//----END--init--
 
 	//----VLE_P--init----
@@ -1711,6 +2131,8 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	iter_eq=0;
 	is_equilibrium=false;
 	//record input species_values
+
+      //====Start Chemical Equilibria at the Node====
 
     while(!is_equilibrium){
 
@@ -1739,12 +2161,15 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 		if(species_dormant[i]==0){  // dormant = 1 --> kinetic species, does not take part in eq reactions
 
 		  if(strcmp(species_name[i],"EA")==0) {
+                //TQINSC 	2 	Gets the index number for a system component
 		    CAP_tqinsc((char *)"EA", &iEA, &noerr);                                 // for electrons, e-
+                //TQSETC 	4 	Sets an equilibrium condition
 		    CAP_tqsetc((char *)"ia", 0, iEA, species_value[i], &numcon, &noerr);
 		  }
 		  else
           {
 		    if(species_phase[i]==0 && species_value[i] < 0.0e0 && species_value[i]> -50 ) {  //DL to set different solid composition using IC flag "-100"
+                  //DL to set different solid composition using IC flag "-100"
 		      residual_value.push_back(species_value[i]);
 		      residual_idx.push_back(i);						
 		      species_value[i]=0; // solid, negative c
@@ -1781,6 +2206,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
             if(species_phase[i]==0){
               if(ff != -1) // for full system, ff==-1 for the liquid system
                 if(species_value[i]>-50){
+                    //TQSETC 	4 	Sets an equilibrium condition
                   CAP_tqsetc((char *)"ia", species_idx[i], 0, species_value[i], &numcon, &noerr);	// single comp phase (solid)
 			    }
             }
@@ -1814,7 +2240,9 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
               residual_value.push_back(species_value[i]-sp_value);
               residual_idx.push_back(i);
+                  //TQSETC 	4 	Sets an equilibrium condition
 	          CAP_tqsetc((char *)"ia", species_phase[i], species_idx[i], sp_value, &numcon, &noerr); // any mixture phase
+                  //TQSTPC 	2 	Gets the stoichiometry of a phase constituent
 	          CAP_tqstpc(species_phase[i], species_idx[i], stoi, &wmass, &noerr);
 	          //zEA=zEA+stoi[iEA-1]*species_value[i];		//set charge balance automatically
             }
@@ -1833,27 +2261,43 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	  //}
   	  //CAP_tqshow(&noerr);
 
+          //--------------------------------------------------------
+          //
+          //
+          //
+          //Here, perform the equilibrium calculation for the current node
+          // 2 Versions: (1) standard , (2) relative activity
+          //
+          //
+          //
+          //--------------------------------------------------------
+
+          //DL ---------------(1) standard ---------------start
 	  if(this->species_relative_activity_name.size()==0)
 	  //if(!this->species_relative_activity_name.size()>0)
       {  //no relative activity
 
 		for( i=0;i<(size_t)ns;i++){ //DL set the solid species as eliminated when the value is -100
 			if(species_phase[i]==0 && species_value[i] < -50 && species_value[i]> -200)  
+                //TQCSP 	3 	Changes the status of a phase	
 				CAP_tqcsp(this->species_idx[i], (char *)"eliminated", &noerr);
 		}
           // here, calculate equilibrium geochemistry for a node
 		noerr=0;
 		if(first_time && fg==0){ // do when the first node is called
-			CAP_tqce(" ", 0, 0, vals, &noerr);
+              //TQCE 	5 	Calculates the chemical equilibrium
+			CAP_tqce(const_cast<char*>(" "), 0, 0, vals, &noerr);
 			first_time = false;
 		}
 		else {
-			if(ii==1 /*|| ii==1 || ii==8 || ii==12 || ii==16 || ii==20 */)
-				CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+			if(ii==0 /*|| ii==0 || ii==8 || ii==12 || ii==16 || ii==20 */)
+                //TQCE 	5 	Calculates the chemical equilibrium
+				CAP_tqce(const_cast<char*>(" "), 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
 			else
-				CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+                //TQCE 	5 	Calculates the chemical equilibrium
+				CAP_tqce(const_cast<char*>(" "), 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
 		}
-      }
+          }       //DL ---------------(1) standard ---------------end
       //DL ---------------relative activity---------------start
 	  else if(this->species_relative_activity_name.size()>0)
       {
@@ -1866,24 +2310,32 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 			  if(species_value[species_relative_activity_idx_pcs[i]]>-50){
 				if(species_value[species_relative_activity_idx_pcs[i]] > 1.0e-16 ) {//precision
 				  if(species_relative_activity_state[i]==1 || species_relative_activity_state[i]==0){
+                      //TQCSP 	3 	Changes the status of a phase	
 					CAP_tqcsp(species_relative_activity_idx[i], (char *)"entered", &noerr);//DL
+                      //TQSETC 	4 	Sets an equilibrium condition
 					CAP_tqsetc((char *)"ac",species_relative_activity_idx[i],0,species_relative_activity[i],&numcon,&noerr); //DL
 					species_relative_activity_state[i]=1;
                   }
 				  if(species_relative_activity_state[i]==2){
-					CAP_tqcsp(species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
+                      //TQCSP 	3 	Changes the status of a phase	
+                      CAP_tqcsp(species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
+                      //TQSETC 	4 	Sets an equilibrium condition
 					CAP_tqsetc((char *)"ia",species_relative_activity_idx[i],0,species_value[this->species_relative_activity_idx_pcs[i]],&numcon,&noerr);
 				  }
 				}						
 				else if(species_value[this->species_relative_activity_idx_pcs[i]] <= 1.0e-16 ){
 				  if(this->species_relative_activity_state[i]==3 || this->species_relative_activity_state[i]==0){
-                    CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
-                    CAP_tqsetc((char *)"ia",this->species_relative_activity_idx[i],0,0.0,&numcon,&noerr);
-                    this->species_relative_activity_state[i]=3;
-                  }
-                  if(this->species_relative_activity_state[i]==4){
-                    CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"entered", &noerr);//DL
-                    CAP_tqsetc((char *)"ac",this->species_relative_activity_idx[i],0,this->species_relative_activity[i],&numcon,&noerr); //DL
+                      //TQCSP 	3 	Changes the status of a phase	
+                      CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
+                      //TQSETC 	4 	Sets an equilibrium condition
+                      CAP_tqsetc((char *)"ia", this->species_relative_activity_idx[i], 0, 0.0, &numcon, &noerr);
+                      this->species_relative_activity_state[i] = 3;
+                    }
+                    if (this->species_relative_activity_state[i] == 4){
+                      //TQCSP 	3 	Changes the status of a phase	
+                      CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"entered", &noerr);//DL
+                      //TQSETC 	4 	Sets an equilibrium condition
+                      CAP_tqsetc((char *)"ac", this->species_relative_activity_idx[i], 0, this->species_relative_activity[i], &numcon, &noerr); //DL
                   }
                 }
               }
@@ -1891,6 +2343,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
 			for( i=0;i<(size_t)ns;i++){ //DL set the solid species as eliminated when the value is -100
 			  if(species_phase[i]==0 && species_value[i] < -50 && species_value[i]> -200)  
+                  //TQCSP 	3 	Changes the status of a phase	
 				CAP_tqcsp(this->species_idx[i], (char *)"eliminated", &noerr);
 			}
 			//CAP_tqshow(&noerr);
@@ -1898,13 +2351,16 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
             // calculate
 			noerr=0;
 			if(first_time && fg==0){ // do when the first node is called
-				CAP_tqce(" ", 0, 0, vals, &noerr);
+                //TQCE 	5 	Calculates the chemical equilibrium
+				CAP_tqce(const_cast<char*>(" "), 0, 0, vals, &noerr);
 				first_time = false;
 			}
 			else {
 				if(ii==1 || ii==6 /*|| ii==8 || ii==12 || ii==16 || ii==20 */)
+                  //TQCEN 	5 	Calculates the chemical equilibrium, taking results from the previous equilibrium calculation as initial estimates
 					CAP_tqcen((char *)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
 				else
+                  //TQCEN 	5 	Calculates the chemical equilibrium, taking results from the previous equilibrium calculation as initial estimates
 					CAP_tqcen((char *)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
 			}
 
@@ -1918,8 +2374,10 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 			  for(i=0;i<species_relative_activity_name.size();i++)
               {
 				if(species_value[this->species_relative_activity_idx_pcs[i]]>-50){ //DL====
+                    //TQGETR 	5 	Gets calculated equilibrium results
 				  CAP_tqgetr((char *)"ia", this->species_relative_activity_idx[i], 0, &value, &noerr); //get income amount, "ia"
 				  this->species_relative_activity_ia.push_back(value);
+                    //TQGETR 	5 	Gets calculated equilibrium results
 				  CAP_tqgetr((char *)"ac", this->species_relative_activity_idx[i], 0, &value, &noerr); //get relative activity after calc, "ac"
 				  this->species_relative_activity_calc.push_back(value);
 				}
@@ -1969,7 +2427,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
 	//====RECOVERING LOOP END====
 
-    if(noerr) {
+        if (noerr) { // no successfull equilibrium calculation
 	  cout << "\n" << "\n" << " Time Step " << aktueller_zeitschritt << "\n";
 	  cout << " WARNING... At node " << ii << " ChemApp ERROR... NO CHEMICAL REACTION CALCULATION!" << "\n";//exit(1)
 	  cout << ii << "-----------------------------" << "\n" << "         Input P   Id Name" << "\n";
@@ -1997,7 +2455,9 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 			  if(ii==this->Node_All_SI[i]){
 				cout << " => show all SI at Node : " << ii << "\n";
 				this->SetAllSolidAsDormant();
-				CAP_tqcel((char *)" ", 0, 0, vals, &noerr);
+                //tqshow(&noerr);
+				//TQCEL 	5 	Calculates the chemical equilibrium and gives a result table (ChemSage format)
+                CAP_tqcel((char *)" ", 0, 0, vals, &noerr);
 				this->RecoverChemSystem();
 			  }
 			}
@@ -2016,15 +2476,20 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
           else 	{
             if(species_phase[i]==2){  // aqueous
 		      if(this->mass_type.compare("ELEMENT")) 						  // element  //DL 2013
+                    //TQGETR 	5 	Gets calculated equilibrium results
 			    CAP_tqgetr((char *)"a", 2, species_idx[i], &value, &noerr); // A Equilibrium amount
 		      else {                                              // species
 			    isc++;
+                    //TQGETR 	5 	Gets calculated equilibrium results
 			    CAP_tqgetr((char *)"ap", 2, isc, &value, &noerr);	// AP Equilibrium amount / Equilibrium amount of system component in a phase , isc counter
               }
             }
             else                                                  // other phases
+                  //TQGETR 	5 	Gets calculated equilibrium results
 		      CAP_tqgetr((char *)"a", species_phase[i], species_idx[i], &value, &noerr);	
           }
+
+              // here return the value to data vector
           if(species_dormant[i]==0)
 	        species_value[i] = value;  //get eq value from chemapp, set to input vector				
       	
@@ -2036,10 +2501,8 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
         //---------------------------------------
         //if(ii==1) 
         //	cout << setprecision(20) << species_value[i] << " " << isc << " " << species_phase[i] << " " << setw(4) << species_idx[i] << " " << species_name[i] << "\n";
-            
-      } // for ns
-			
-    }//end ChemApp calc
+          } // for ns get the results
+        } // successfull equilibrium calculation
 			
     //----VLE--calc-- direct iteration method
 	//for(i=0;i<m_rei->VLE_conditions.size();i++){
@@ -2067,10 +2530,21 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	//	}
 	//	else
 	//		iv_eq[i]=true;
-	//}
 
-    //----bisection method--  VLE
-    if(m_rei) 
+        //-------------------------------
+        //
+        //
+        // Now do the VLE, VLE_P
+        //
+        //
+        //-------------------------------
+
+
+        if (!m_rei)
+          is_equilibrium = true;
+        else
+        {
+          //----bisection method--  VLE
       if(m_rei->VLE_conditions.size()>0 )
       {
  		for(i=0;i<m_rei->VLE_conditions.size();i++){
@@ -2125,15 +2599,15 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
       }
 
       //----bisection method--  VLE pressure
-      if(m_rei) 
-        if(m_rei->VLE_pressure.size()>0){
+          if (m_rei->VLE_pressure.size()>0)
+          {
  		  for(i=0;i<m_rei->VLE_pressure.size();i++){
 			  m_rei->VLE_pressure[i].aq_value= exp(VLE::LnPHI_CO2(TT,PP))*m_rei->VLE_pressure[i].vp_value/exp(VLE::Henry_const_CO2(TT));
 
-			  std::cout << m_rei->VLE_pressure[i].aq_value << "\n";
-			  std::cout << (VLE::LnPHI_CO2(TT,PP)) << "\n";
-				std::cout << m_rei->VLE_pressure[i].vp_value << "\n";
-				std::cout << VLE::Henry_const_CO2(TT) << "\n";
+//			  std::cout << m_rei->VLE_pressure[i].aq_value << "\n";
+//			  std::cout << (VLE::LnPHI_CO2(TT,PP)) << "\n";
+//				std::cout << m_rei->VLE_pressure[i].vp_value << "\n";
+//				std::cout << VLE::Henry_const_CO2(TT) << "\n";
 
 			//calc the real solubility of gas from geochemcalc, and store the value
 			m_rei->VLE_pressure[i].delta=0.0;
@@ -2185,22 +2659,19 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 				species_value[m_rei->VLE_pressure[i].idx_aq_species] += m_rei->VLE_pressure[i].delta;
           }
         }
-		//-----------------
-		
-		if(m_rei)
-		{
 
-          if(m_rei->VLE_pressure.size()==0 && m_rei->VLE_conditions.size()==0)
-			is_equilibrium=true;
+          // check for final VLE status
+          if (m_rei->VLE_pressure.size() == 0 && m_rei->VLE_conditions.size() == 0)
+            is_equilibrium = true;
         }
-        else 
-          is_equilibrium=true;
+        
 
     }// END  while(!is_equilibrium)
 //====Final Chemical Equilibria at the Node====
 
 
-
+      //-----------------------------------
+      // print VLE status information
     is_VLE=false;
 
     if(m_rei) {
@@ -2215,14 +2686,14 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
     if(is_VLE) cout << "at node " << ii << " VLE_P iterations " << iter_eq << "\n";
 
     if(!noerr) {
-      if(m_rei) 
+        if (m_rei) {
 		//revise VLE vp_value
 		for(i=0;i<m_rei->VLE_conditions.size();i++){
 			m_rei->VLE_conditions[i].vp_value -= m_rei->VLE_conditions[i].delta;
 			m_pcs = pcs_vector[m_rei->VLE_conditions[i].vp_idx];
 			m_pcs->SetNodeValue(ii,f,m_rei->VLE_conditions[i].vp_value);
 		}
-
+        }
         //for(i=0;i<VLS_idx_aq.size();i++){
 		//	delta_value_aq.push_back(0.0);
 		//	delta_VLS_aq[i] =species_value_b[VLS_idx_aq[i]]-species_value[VLS_idx_aq[i]];
@@ -2263,8 +2734,11 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 			  species_value[residual_idx[i]] += residual_value[i];
 			  //-----------------------------------
 			  //species_value=this->KineticReact(species_value);
-			  //-----------------------------------
-	
+
+        //-----------------------------------
+        // Now push back chemical equilibrium values to OGS Mass transport processes    
+
+        // here return only values of non-dormant species
 		//if(ii==1) cout << " value " << species_value.back() << "\n";
         // unit factors are only different from 1 if(m_rei && m_rei->unitconversion)
         for( i=0;i<(size_t)ns;i++){ //mol/m3
@@ -2294,7 +2768,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 		//	}		
 
 		//return species value at this node and time step, if pcs_ospecies_idx.size>0  22.01.2009
-		for(i=0;i<pcs_ospecies_idx.size();i++){
+		for(i=0;i<(int)pcs_ospecies_idx.size();i++){
 		  m_pcs=pcs_vector[pcs_ospecies_idx[i]];
 		  CAP_tqinpc((char *)m_pcs->pcs_primary_function_name[0], 2, &ipc, &noerr);
 		  CAP_tqgetr((char *)"a", 2, ipc, &value, &noerr);
@@ -2303,24 +2777,29 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 		}//end return species value
 
         //return nlog value of species at this node, if pcs_nspecies_idx.size>0
-		for(i=0;i<pcs_nspecies_idx.size();i++){
+		for(i=0;i<(int)pcs_nspecies_idx.size();i++){
 			m_pcs=pcs_vector[pcs_nspecies_idx[i]];
 			if(species_nlog_phase[nspecies_idx[i]]==0)
+            //TQGETR 	5 	Gets calculated equilibrium results
 				CAP_tqgetr((char *)"ac", species_nlog_idx[nspecies_idx[i]], 0, &value, &noerr);
 			else
+            //TQGETR 	5 	Gets calculated equilibrium results
 				CAP_tqgetr((char *)"ac", species_nlog_phase[nspecies_idx[i]], species_nlog_idx[nspecies_idx[i]], &value, &noerr);
 			//if(value==0) exit(1);
 			if(abs(value-1.0)< 1.0e-8) value=1.0;
 			value = 0.0-log10(value);					
 			m_pcs->SetNodeValue(ii,f,value);
 		}
-				//return redox Eh value of given reaction at this node
+
+        //return redox Eh value of given reaction at this node
         if(pcs_redox>-1){
 		  value1=0.0;
-		  for(i=2;i<(int)species_redox_name.size();i++){
+          for (i = 2; i<(int)species_redox_name.size(); i++){
 			  if(species_redox_phase[i]==0)
+              //TQGETR 	5 	Gets calculated equilibrium results
 				  CAP_tqgetr((char *)"ac", species_redox_idx[i], 0, &value, &noerr);
 			  else
+              //TQGETR 	5 	Gets calculated equilibrium results
 				  CAP_tqgetr((char *)"ac", species_redox_phase[i], species_redox_idx[i], &value, &noerr);
 			  if(value>0)
 				  value1=value1+redox_stoi[i]*log(value);
@@ -2336,13 +2815,15 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
   } // if(rateflag[ii]!=0)
   else if(MinKinReact && ff != 1 && nodeflag < 0){   	// Kinetic Parameters Updata				  //
-    // when rateflag[ii] == 0, noerr is not defined. Do so for Kinetic Parameters Updating
+      // Kinetic Parameters Updata for nodes that were skipped
+      // when rateflag[ii] == 0, noerr is not defined.
+      // Do so for Kinetic Parameters Updating, and store dummy values
 	this->KinParamUpdata(ii, 1, species_value_d); 
 	this->KinParamUpdataHKF(ii,TT,PP,1);				// CB include noerr
   }
 
   //return pcs rename
-  for(i=0;i<pcs_rename_idx0.size();i++){
+  for(i=0;i<(int)pcs_rename_idx0.size();i++){
 	value=0.0;
 	for(ix=0;ix<(int)pcs_rename_idx1[i].size();ix++){
 
@@ -2366,28 +2847,1074 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 	m_pcs= pcs_vector[pcs_rename_idx0[i]];
 	m_pcs->SetNodeValue(ii,f,value);
   }
-	
-} // for (ii node loop)
+  } // for (ii node loop)
+  // clean up
+  delete[] stoi;
+
+  //species_value_d.clear();
+  //residual_value.clear();
+  //residual_idx.clear();
+  //species_value.clear();
+  //species_value_b.clear();
+  //iv_eq.clear();
+  //a.clear(),
+  //b.clear(),
+  //x.clear();
+  //species_value_s.clear();
+  
+} // end of function loopnodereact
+
+
+void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodelist, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim){
+
+  int ff;
+  int ii, isc, ix, widx = 0, fg;
+  int ik = 0; // idx, rat
+  size_t i, iv;
+
+  LI ipc, iEA, noerr, numcon = 0, nscom = 0;
+  DB TT = 298.15, PP = 1.0, vals[2], value = 0.0, value1 = 0.0, *stoi, wmass;//, zEA; // zEA -> sum of electronic charge in solution
+  CRFProcess* m_pcs = NULL;
+
+  vector<double> species_value_d; // store species conc for kinetics data calculation
+  //vector<double> kin_value;
+  vector<double> residual_value;  // store residuals of conc 
+  vector<int> residual_idx;
+  vector<double> species_value;   // store species conc chempap calculation
+  vector<double> species_value_b; // back up the species conc DL 2012.2.12 // CB: Is anything done with this data?
+
+  bool first_time = true;
+  //bool is_2nd_try;
+  int  number_UnderSat;
+
+  bool MinKinReact = KMinKinCheck(); //  CB 3-12-2010 Check, if KinReact module is used
+  double unitfactor_l = 1, unitfactor_s = 1;
+  // CB / DL 21.1.2011: Attention: Gas phase volume fraction : (1-S)*n
+
+
+  // get no of data values to return from CAP
+  int position = 0;
+  int ns = (int)species_name.size();
+  int nos = (int)pcs_ospecies_idx.size();
+  int nns = (int)pcs_nspecies_idx.size();
+  int nComponents = ns + nos + nns;
+  if (pcs_redox > -1) nComponents += 1;
+
+  stringstream ss;
+  int i_np; //for residual value return back pcs
+  int np, precision_type;
+  double sp_value;
+
+  //VLE data
+  double delta, err_vle = 1.0e-12;
+  bool is_equilibrium;
+  bool is_VLE;
+  int iter_eq;
+  vector<bool> iv_eq;
+  vector<double> a, b, x;
+  vector<double> species_value_s;
+
+  int rank=0;
+  double t1 = 0;
+
+  ff = f; // if ff=0-->initial calculation,  ff=1->full geochemical system, ff=-1->for liquid system
+  fg = f;
+  f = 1;  //old time level or new time level
+
+  for (ii = 0; ii < ranknodelist.size(); ii++) if (this->rateflag[ ranknodelist[ii] ] != 0) ik++;
+  cout << " Calculating geochemical equilibrium at " << ik << " nodes" ;
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  cout << " on rank " << rank;
+#endif
+  cout.flush() << "." << "\n";
+
+  //CB 19.1.2011
+  // Get the reaction interface data
+  REACTINT *m_rei = NULL;
+  if (REACTINT_vec.size() > 0){
+    m_rei = REACTINT_vec[0];
+    if (ff == 0 && m_rei->icSolidUpdate)
+      ff = 1; // allow update of solid matrix concentrations
+  }
+
+
+
+  //TQINSC 	2 	Gets the index number for a system component
+  CAP_tqinsc((char *)"EA", &iEA, &noerr);
+  //TQNOSC 	2 	Gets the number of system components
+  CAP_tqnosc(&nscom, &noerr);
+  stoi = new DB[nscom];
+  //cout << " iEA= " << iEA << " " << nscom << "\n";
+
+  if (nodeflag < 0){
+    node_logK.clear();
+    node_ac.clear();
+    node_HKF_logK.clear();
+  }
+
+  //TQCIO 	1 	Changes the value of an output option
+  CAP_tqcio((char *)"ERROR", 0, &noerr);
+
+  // node loop
+  //for (ii = 0; ii < this->nodenumber; ii++){	//ii==0 as boundary point without reaction calc
+  for (size_t li = 0; li < ranknodelist.size(); li++){	//ii==0 as boundary point without reaction calc
+
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
+    t1 = -MPI_Wtime();
+#endif
+
+    // get the node index from list for this rank
+    ii = ranknodelist[li];
+
+    CAP_icount = 0;
+    CAP_Time = aktueller_zeitschritt;
+    CAP_Node = ii;
+
+    this->RecoverChemSystem();
+
+    if (nodeflag >= 0)    // equi for a specific node is requested
+      if (nodeflag != ii)
+        continue;       // skip all other nodes 
+
+    //TQREMC 	4 	Removes an equilibrium condition
+    CAP_tqremc(0, &noerr); //removes all input conditions relating to incoming amounts
+
+    //return pcs rename pre 
+    // in new version, set in problem.cpp ?
+    for (i = 0; i < pcs_rename_idx0_pre.size(); i++){
+      value = 0.0;
+      for (ix = 0; ix < (int)pcs_rename_idx1_pre[i].size(); ix++){
+        m_pcs = pcs_vector[pcs_rename_idx1_pre[i][ix]];
+        if (pcs_rename_stoi_pre[i][ix] == 999999)
+          value *= m_pcs->GetNodeValue(ii, f);
+        else if (pcs_rename_stoi_pre[i][ix] == -999999)
+          value /= m_pcs->GetNodeValue(ii, f);
+        else
+          value += m_pcs->GetNodeValue(ii, f) *pcs_rename_stoi_pre[i][ix];
+      }
+      m_pcs = pcs_vector[pcs_rename_idx0_pre[i]];
+      m_pcs->SetNodeValue(ii, f, value);
+    }
+
+    // only for nodes, where Cnew != Cold, go through node reaction procedure 
+    if (rateflag[ii] != 0)
+    {
+      //CAP_tqremc(-2, &noerr); // remove all condition and targets set previously
+      //CAP_tqstrm("inputs", &noerr); // remove stream input
+
+      // get species conc. after transport mol/m³ Liquid
+      species_value.clear();
+      for (i = 0; i < (size_t)ns; i++){
+        m_pcs = pcs_vector[this->pcs_mass_idx[i]];
+        species_value.push_back(m_pcs->GetNodeValue(ii, f));
+        //if(ii==1) cout << i << " " << species_name[i] << " " << species_value[i] << "\n";
+      }
+
+      //CB 19.1.2011
+      // based on porosity, calculate TOTALS Ti,w Tj,s before coputing equilirium chemistry
+      // mol (/m³aquifer)
+      if (m_rei) {
+        if (m_rei->unitconversion){
+          m_rei->CalcUnitConversionFactors(ii, &unitfactor_l, &unitfactor_s, false);
+          //unitfactor_l = m_rei->node_porosity[ii] * m_rei->GetWaterSaturation(ii);
+          //if(unitfactor_l==0.0) unitfactor_l = m_rei->node_porosity[ii]* 1;
+          //  unitfactor_s = 1 - m_rei->node_porosity[ii];
+          for (i = 0; i < (size_t)ns; i++){
+            //idx = pcs_vector[pcs_mass_idx[i]]->GetProcessComponentNumber();
+            if (species_phase[i] == 2){   // liquid phase
+              if (strcmp(species_name[i], "H2O") == 0 || strcmp(species_name[i], "H2O_liquid") == 0 || strcmp(species_name[i], "water_liquid") == 0)
+              {
+                // the water pcs node value is now updated after preprocessing, 
+                // and after kinreact anyway, so use the node value
+                //species_value[i] =  m_rei->water_conc[ii] * unitfactor_l ; // set the total amount of water
+                widx = i; // save the species index of watre species
+              }
+              //else
+              species_value[i] *= unitfactor_l;       //Ti,w = Ci,w * n * S
+            }
+            else if (species_phase[i] == 0)// solid phase
+              species_value[i] *= unitfactor_s; //Tj,s = Cj,s * (1-n)
+            // CB / DL 21.1.2011: Attention: Gas phase volume fraction : (1-S)*n
+            //else if (species_phase[i]==1)// gas phase
+          }
+        }
+        // set P, T input values
+        TT = m_rei->GetTemperature(ii);
+        PP = m_rei->GetPressure(ii);
+      }
+
+      //for(i=0;i<ns;i++)	if(ii==1) cout << i << " " << species_name[i] << " " << species_value[i] << "\n";
+
+      //----VLE--init--
+      species_value_s.clear();
+      for (i = 0; i < species_value.size(); i++)
+        species_value_s.push_back(species_value[i]);
+      iv_eq.clear();
+      a.clear();
+      b.clear();
+      x.clear();
+
+      if (m_rei){
+        for (iv = 0; iv < m_rei->VLE_conditions.size(); iv++){
+          iv_eq.push_back(false);
+          a.push_back(0);
+          b.push_back(0);
+          x.push_back(0);
+          m_pcs = pcs_vector[m_rei->VLE_conditions[iv].vp_idx];
+          m_rei->VLE_conditions[iv].vp_value = m_pcs->GetNodeValue(ii, f);
+          for (i = 0; i < (size_t)ns; i++)
+          if (this->pcs_mass_idx[i] == m_rei->VLE_conditions[iv].aq_idx){
+            m_rei->VLE_conditions[iv].idx_aq_species = i;
+            m_rei->VLE_conditions[iv].aq_value = species_value[i];
+          }
+        }
+      }
+      //----END--init--
+
+      //----VLE_P--init----
+      if (m_rei)
+      for (iv = 0; iv < m_rei->VLE_pressure.size(); iv++){
+        iv_eq.push_back(false);
+        a.push_back(0);
+        b.push_back(0);
+        x.push_back(0);
+        m_pcs = pcs_vector[m_rei->VLE_pressure[iv].vp_idx];
+        m_rei->VLE_pressure[iv].vp_value = m_pcs->GetNodeValue(ii, f); //vp_value is the partial pressure of the gas, from current node value (IC or BC ??)
+        for (i = 0; i < (size_t)ns; i++)
+        if (this->pcs_mass_idx[i] == m_rei->VLE_pressure[iv].aq_idx){
+          m_rei->VLE_pressure[iv].idx_aq_species = i;
+          //m_rei->VLE_pressure[iv].aq_value=species_value[i];
+          //m_rei->VLE_pressure[iv].aq_value=   m_rei->VLE_pressure[iv].vp_value; // species_value[i]; //should get value from geochemcalc
+        }
+      }
+      //----END--init--
+
+      iter_eq = 0;
+      is_equilibrium = false;
+      //record input species_values
+
+      //====Start Chemical Equilibria at the Node====
+
+      while (!is_equilibrium){
+
+        //====RECOVERING LOOP START====
+
+        for (i_np = -1; i_np < 4; i_np++){ //ChemApp eq calc recovering
+
+          //set P, T input values
+          //TT = 273.15;
+          //PP = 100.0;
+          //CALL ChemAppCalc(species_name, species_value, T, P)
+          //TQSETC 	4 	Sets an equilibrium condition: P & T
+          CAP_tqsetc((char *)"T", 0, 0, TT, &numcon, &noerr);
+          CAP_tqsetc((char *)"P", 0, 0, PP, &numcon, &noerr);
+          //cout << ii << " T " << TT << " P " << PP << "\n";
+
+          //for(i=0;i<ns;i++)
+          //	  cout << i << " " << species_value[i] << "\n";
+          // setting input concentration values for Chemapp
+
+          //zEA=0;		
+          residual_value.clear();
+          residual_idx.clear();
+
+          // set input concentrations
+          for (i = 0; i < (size_t)ns; i++){
+            precision_type = 0;
+            if (species_dormant[i] == 0){  // dormant = 1 --> kinetic species, does not take part in eq reactions
+
+              if (strcmp(species_name[i], "EA") == 0) {
+                //TQINSC 	2 	Gets the index number for a system component
+                CAP_tqinsc((char *)"EA", &iEA, &noerr);                                 // for electrons, e-
+                //TQSETC 	4 	Sets an equilibrium condition
+                CAP_tqsetc((char *)"ia", 0, iEA, species_value[i], &numcon, &noerr);
+              }
+              else
+              {
+                if (species_phase[i] == 0 && species_value[i] < 0.0e0 && species_value[i]> -50) {
+                  //DL to set different solid composition using IC flag "-100"
+                  residual_value.push_back(species_value[i]);
+                  residual_idx.push_back(i);
+                  species_value[i] = 0; // solid, negative c
+                }
+
+                // set precision type for old version, in new version it is no used
+                if (m_rei){
+                  if (m_rei->unitconversion){
+                    if (species_phase[i] != 0 && species_value[i] < 1.0e-7 && species_value[i] != 0)
+                      precision_type = 1;
+                    //H and O element
+                    if (species_value[i] < 1.0e-5  && species_value[i] != 0)
+                    if (m_rei->formula2index(species_name[i])[8] != 0 || m_rei->formula2index(species_name[i])[9] != 0)
+                      precision_type = 1;
+                  }
+                  else{
+                    if (species_phase[i] != 0 && species_value[i] < 1.0e-10 && species_value[i] != 0)
+                      precision_type = 1;
+                    //H and O element
+                    if (species_value[i] < 1.0e-8  && species_value[i] != 0)
+                    if (m_rei->formula2index(species_name[i])[8] != 0 || m_rei->formula2index(species_name[i])[9] != 0)
+                      precision_type = 1;
+                  }
+                }
+                else{
+                  if (species_phase[i] != 0 && species_value[i] < 1.0e-10 && species_value[i] != 0)
+                    precision_type = 1;
+                  //H and O element
+                  if (species_value[i] < 1.0e-8  && species_value[i] != 0)
+                  if (m_rei->formula2index(species_name[i])[8] != 0 || m_rei->formula2index(species_name[i])[9] != 0)
+                    precision_type = 1;
+                }
+
+                //new version for precision setting
+                if (species_phase[i] == 0){
+                  if (ff != -1) // for full system, ff==-1 for the liquid system
+                  if (species_value[i]>-50){
+                    //TQSETC 	4 	Sets an equilibrium condition
+                    CAP_tqsetc((char *)"ia", species_idx[i], 0, species_value[i], &numcon, &noerr);	// single comp phase (solid)
+                  }
+                }
+                else{
+                  if (i_np == -1)
+                    sp_value = species_value[i];
+                  else if ((precision_type == 0 || precision_type == 1) && i_np >= 0 && i_np<3){
+                    if (species_value[i]>0){
+                      np = (int)log10(species_value[i]);
+                      if (np > 0) np = 7;
+                      else if (np > -2) np = 6;
+                      else if (np > -4) np = 5;
+                      else if (np > -5) np = 4;
+                      else if (np <= -5 && np >= -7)  np = 3;
+                      else if (np< -7 && np> -16) np = 2;
+                      else if (np <= -16) np = 1;
+
+                      np -= i_np;
+                      if (np < 0) np = 0;
+                      ss.clear();
+                      ss << setprecision(np) << species_value[i];
+                      ss >> sp_value;
+                    }
+                    else
+                      sp_value = 0;
+                  }
+                  else if (precision_type == 1 && i_np == 3)
+                    sp_value = 0;
+                  else
+                    sp_value = species_value[i];
+
+                  residual_value.push_back(species_value[i] - sp_value);
+                  residual_idx.push_back(i);
+                  //TQSETC 	4 	Sets an equilibrium condition
+                  CAP_tqsetc((char *)"ia", species_phase[i], species_idx[i], sp_value, &numcon, &noerr); // any mixture phase
+                  //TQSTPC 	2 	Gets the stoichiometry of a phase constituent
+                  CAP_tqstpc(species_phase[i], species_idx[i], stoi, &wmass, &noerr);
+                  //zEA=zEA+stoi[iEA-1]*species_value[i];		//set charge balance automatically
+                }
+
+              } // if (strcmp(species_name[i], "EA") == 0)
+            } // if not dormant
+          } // for ns
+
+          //cout << " zEA= " << zEA << "\n";	  
+          //CAP_tqsetc("ia", 0, iEA, zEA, &numcon, &noerr); // set electronic charge balance
+          //if(zEA>0) CAP_tqsetc("ia", 2, 34, zEA, &numcon, &noerr);
+          //if(zEA<0) CAP_tqsetc("ia", 2, 71, -zEA, &numcon, &noerr);
+          //cout  << "\n" << ii << "-----------------------------"  << "\n" << "Input      P Id   Name" << "\n";
+          //if(ii==2) 
+          //for(i=0;i<ns;i++){
+          //cout << setprecision(20) << species_value[i] << " " << 0 << " " << species_phase[i] << " " << setw(4) << species_idx[i] << " " << species_name[i] << "\n";
+          //}
+          //CAP_tqshow(&noerr);
+
+          //--------------------------------------------------------
+          //
+          //
+          //
+          //Here, perform the equilibrium calculation for the current node
+          // 2 Versions: (1) standard , (2) relative activity
+          //
+          //
+          //
+          //--------------------------------------------------------
+
+          //DL ---------------(1) standard ---------------start
+          if (this->species_relative_activity_name.size() == 0)
+          {  //no relative activity
+
+            for (i = 0; i < (size_t)ns; i++){ //DL set the solid species as eliminated when the value is -100
+              if (species_phase[i] == 0 && species_value[i] < -50 && species_value[i]> -200)
+                //TQCSP 	3 	Changes the status of a phase	
+                CAP_tqcsp(this->species_idx[i], (char *)"eliminated", &noerr);
+            }
+            // here, calculate equilibrium geochemistry for a node
+            noerr = 0;
+            if (first_time && fg == 0){ // do when the first node is called
+              //TQCE 	5 	Calculates the chemical equilibrium
+              if (ii == 0)
+                CAP_tqce(" ", 0, 0, vals, &noerr);
+              else 
+                CAP_tqce(" ", 0, 0, vals, &noerr);
+              first_time = false;
+            }
+            else {
+              if (ii == 1 || ii == 4 || ii == 6 /*|| ii==12 || ii==16 || ii==20 */){
+                //TQCE 	5 	Calculates the chemical equilibrium
+                CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+              }
+              else{
+                //TQCE 	5 	Calculates the chemical equilibrium
+                CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+              }
+            }
+			  
+            }       //DL ---------------(1) standard ---------------end
+            //DL ---------------relative activity---------------start
+            else if (this->species_relative_activity_name.size() > 0)
+            {
+              this->species_relative_activity_state.clear();
+              for (i = 0; i < species_relative_activity_name.size(); i++)
+                species_relative_activity_state.push_back(0);
+              for (ix = 0; ix<5; ix++){
+                //pre setting
+                for (i = 0; i<species_relative_activity_name.size(); i++){
+                  if (species_value[species_relative_activity_idx_pcs[i]]>-50){
+                    if (species_value[species_relative_activity_idx_pcs[i]] > 1.0e-16) {//precision
+                      if (species_relative_activity_state[i] == 1 || species_relative_activity_state[i] == 0){
+                        //TQCSP 	3 	Changes the status of a phase	
+                        CAP_tqcsp(species_relative_activity_idx[i], (char *)"entered", &noerr);//DL
+                        //TQSETC 	4 	Sets an equilibrium condition
+                        CAP_tqsetc((char *)"ac", species_relative_activity_idx[i], 0, species_relative_activity[i], &numcon, &noerr); //DL
+                        species_relative_activity_state[i] = 1;
+                      }
+                      if (species_relative_activity_state[i] == 2){
+                        //TQCSP 	3 	Changes the status of a phase	
+                        CAP_tqcsp(species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
+                        //TQSETC 	4 	Sets an equilibrium condition
+                        CAP_tqsetc((char *)"ia", species_relative_activity_idx[i], 0, species_value[this->species_relative_activity_idx_pcs[i]], &numcon, &noerr);
+                      }
+                    }
+                    else if (species_value[this->species_relative_activity_idx_pcs[i]] <= 1.0e-16){
+                      if (this->species_relative_activity_state[i] == 3 || this->species_relative_activity_state[i] == 0){
+                        //TQCSP 	3 	Changes the status of a phase	
+                        CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"dormant", &noerr);//DL
+                        //TQSETC 	4 	Sets an equilibrium condition
+                        CAP_tqsetc((char *)"ia", this->species_relative_activity_idx[i], 0, 0.0, &numcon, &noerr);
+                        this->species_relative_activity_state[i] = 3;
+                      }
+                      if (this->species_relative_activity_state[i] == 4){
+                        //TQCSP 	3 	Changes the status of a phase	
+                        CAP_tqcsp(this->species_relative_activity_idx[i], (char *)"entered", &noerr);//DL
+                        //TQSETC 	4 	Sets an equilibrium condition
+                        CAP_tqsetc((char *)"ac", this->species_relative_activity_idx[i], 0, this->species_relative_activity[i], &numcon, &noerr); //DL
+                      }
+                    }
+                  }
+                }
+
+                for (i = 0; i < (size_t)ns; i++){ //DL set the solid species as eliminated when the value is -100
+                  if (species_phase[i] == 0 && species_value[i] < -50 && species_value[i]> -200)
+                    //TQCSP 	3 	Changes the status of a phase	
+                    CAP_tqcsp(this->species_idx[i], (char *)"eliminated", &noerr);
+                }
+                //CAP_tqshow(&noerr);
+
+                // calculate
+                noerr = 0;
+                if (first_time && fg == 0){ // do when the first node is called
+                  //TQCE 	5 	Calculates the chemical equilibrium
+                  CAP_tqce(" ", 0, 0, vals, &noerr);
+                  first_time = false;
+                }
+                else {
+					if (ii == 42 /* || ii==12 || ii==16 || ii==20 */){
+						CAP_tqshow(&noerr);
+                    //TQCEN 	5 	Calculates the chemical equilibrium, taking results from the previous equilibrium calculation as initial estimates
+						CAP_tqcel((char *)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+					}
+                  else
+                    //TQCEN 	5 	Calculates the chemical equilibrium, taking results from the previous equilibrium calculation as initial estimates
+                    CAP_tqce((char *)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+                }
+
+                //post checking
+                if (noerr)
+                  ix = 100;
+                else{ // success
+                  this->species_relative_activity_ia.clear();
+                  this->species_relative_activity_calc.clear();
+                  number_UnderSat = 0;
+                  for (i = 0; i<species_relative_activity_name.size(); i++)
+                  {
+                    if (species_value[this->species_relative_activity_idx_pcs[i]]>-50){ //DL====
+                      //TQGETR 	5 	Gets calculated equilibrium results
+                      CAP_tqgetr((char *)"ia", this->species_relative_activity_idx[i], 0, &value, &noerr); //get income amount, "ia"
+                      this->species_relative_activity_ia.push_back(value);
+                      //TQGETR 	5 	Gets calculated equilibrium results
+                      CAP_tqgetr((char *)"ac", this->species_relative_activity_idx[i], 0, &value, &noerr); //get relative activity after calc, "ac"
+                      this->species_relative_activity_calc.push_back(value);
+                    }
+                    else{
+                      this->species_relative_activity_ia.push_back(-100);
+                      this->species_relative_activity_calc.push_back(-100);
+                    }
+                    if (species_value[this->species_relative_activity_idx_pcs[i]] > -50){ //DL====
+                      if (this->species_relative_activity_state[i] == 1 || this->species_relative_activity_state[i] == 4){ // ra case
+                        if (this->species_relative_activity_ia[i] > 0.0
+                          && this->species_relative_activity_ia[i] > species_value[this->species_relative_activity_idx_pcs[i]]){
+                          this->species_relative_activity_state[i] = 2;
+                          number_UnderSat++;
+                        }
+                        else{
+                          this->species_relative_activity_state[i] = 1;
+                          this->species_relative_activity_ia[i] =
+                            species_value[this->species_relative_activity_idx_pcs[i]] - this->species_relative_activity_ia[i];
+                        }
+                      }
+                      else if (this->species_relative_activity_state[i] == 2 || this->species_relative_activity_state[i] == 3){ // dormant case
+                        if (this->species_relative_activity_calc[i] > this->species_relative_activity[i]){
+                          this->species_relative_activity_state[i] = 4;
+                          number_UnderSat++;
+                        }
+                        else{
+                          this->species_relative_activity_state[i] = 3;
+                          this->species_relative_activity_ia[i] = 0.0;
+                        }
+                      }
+                      //cout << ix << " state " << this->species_relative_activity_state[i] << "\n";
+                    } // > -50
+                  }
+                  if (number_UnderSat == 0)
+                    ix = 100;
+                }
+              } // for ix< 5
+            }
+            //DL ---------------relative activity---------------end
+
+
+            if (noerr){
+#if !defined (USE_MPI) || !defined(USE_MPI_KRC)
+              warning_out << " Time Step " << aktueller_zeitschritt << "   Node " << ii << ". Recovering ... i_np = " << i_np << " --> " << i_np + 1 << "\n";
+#endif
+            }
+            else
+              break;
+          }  //end ChemApp Eq calc Recovering
+
+          //====RECOVERING LOOP END====
+
+
+          // check success
+          if (noerr) { // no successfull equilibrium calculation
+            cout << "\n" << "\n" << " Time Step " << aktueller_zeitschritt << "\n";
+            cout << " WARNING... At node " << ii << " ChemApp ERROR... NO CHEMICAL REACTION CALCULATION!" << "\n";//exit(1)
+            cout << ii << "-----------------------------" << "\n" << "         Input P   Id Name" << "\n";
+            for (i = 0; i < (size_t)ns; i++){
+              if (species_dormant[i] == 0)
+                cout << setprecision(8) << setw(14) << species_value[i] << " " << species_phase[i] << " " << setw(4) << species_idx[i] << " " << species_name[i] << "\n";
+            }
+
+            //CAP_tqshow(&noerr);
+            // Kinetic Parameters Updata, in case of error, an empty vector will be stored
+            if (MinKinReact && ff != 1 && nodeflag < 0){
+              //if(MinKinReact && ff != -1){
+              species_value_d.clear();
+              for (i = 0; i<species_value.size(); i++) // why not pass species_value directly to KinParamUpdata ??
+                species_value_d.push_back(species_value[i]);
+              this->KinParamUpdataNew(ii, noerr, species_value_d, m_KIN, m_SAC);
+              this->KinParamUpdataHKFNew(ii, TT, PP, noerr, m_HKF);				// CB include noerr
+            }
+          }
+          else 
+          {  // successfull equilibrium calculation
+            //show saturation index list
+            if (fg == 0 && this->Node_All_SI.size() > 0){
+              for (i = 0; i < Node_All_SI.size(); i++){
+                if (ii == this->Node_All_SI[i]){
+                  cout << " => show all SI at Node : " << ii << "\n";
+                  this->SetAllSolidAsDormant();
+                  //TQCEL 	5 	Calculates the chemical equilibrium and gives a result table (ChemSage format)
+                  CAP_tqcel((char *)" ", 0, 0, vals, &noerr);
+                  this->RecoverChemSystem();
+                }
+              }
+            }
+
+            species_value_b.clear();
+            for (i = 0; i < species_value.size(); i++)
+              species_value_b.push_back(species_value[i]); //back up the input value
+            //cout << "\n" << ii << "-----------------------------" << "\n" << "Output     P Id   Name" << "\n";
+            isc = 0;
+
+            // Now get results from Chemapp mol
+            for (i = 0; i<(size_t)ns; i++){
+              if (species_value[i]>-50){
+                if (species_phase[i] == 0)
+                  CAP_tqgetr((char *)"a", species_idx[i], 0, &value, &noerr);		// a = amount, phase 0, value = C, error flag
+                else 	{
+                  if (species_phase[i] == 2){  // aqueous
+                    if (this->mass_type.compare("ELEMENT")) 						  // element  //DL 2013
+                      //TQGETR 	5 	Gets calculated equilibrium results
+                      CAP_tqgetr((char *)"a", 2, species_idx[i], &value, &noerr); // A Equilibrium amount
+                    else {                                              // species
+                      isc++;
+                      //TQGETR 	5 	Gets calculated equilibrium results
+                      CAP_tqgetr((char *)"ap", 2, isc, &value, &noerr);	// AP Equilibrium amount / Equilibrium amount of system component in a phase , isc counter
+                    }
+                  }
+                  else                                                  // other phases
+                    //TQGETR 	5 	Gets calculated equilibrium results
+                    CAP_tqgetr((char *)"a", species_phase[i], species_idx[i], &value, &noerr);
+                }
+
+                // here return the value to data vector
+                if (species_dormant[i] == 0)
+                  species_value[i] = value;  //get eq value from chemapp, set to input vector				
+
+                //DL 04.2013 for relative activity ---------------------
+                for (ix = 0; ix < (int)this->species_relative_activity_name.size(); ix++)
+                if (this->species_relative_activity_idx_pcs[ix] == (int)i) //found the pcs mt in relative activity list
+                  species_value[i] = this->species_relative_activity_ia[ix];
+              }
+              //---------------------------------------
+              //if(ii==1) 
+              //	cout << setprecision(20) << species_value[i] << " " << isc << " " << species_phase[i] << " " << setw(4) << species_idx[i] << " " << species_name[i] << "\n";
+            } // for ns get the results
+          } // successfull equilibrium calculation
+
+          //----VLE--calc-- direct iteration method
+          //for(i=0;i<m_rei->VLE_conditions.size();i++){
+          //	//cout << " VLE calc ... " << iter_eq << "\n";
+          //	if(m_rei->VLE_conditions[i].vp_value > 1.0e-8 ){
+          //		delta= m_rei->VLE_conditions[i].aq_value - species_value[m_rei->VLE_conditions[i].idx_aq_species];
+          //		delta *= 1000.0;
+          //		if(abs(delta)>1.0e-8){
+          //			if(delta>0)
+          //				if(delta<=m_rei->VLE_conditions[i].vp_value){
+          //					m_rei->VLE_conditions[i].vp_value -= delta;
+          //					species_value[m_rei->VLE_conditions[i].idx_aq_species] += delta;
+          //				}
+          //				else{
+          //					m_rei->VLE_conditions[i].vp_value =0;
+          //					species_value[m_rei->VLE_conditions[i].idx_aq_species] += m_rei->VLE_conditions[i].vp_value;
+          //				}
+          //			else{
+          //				m_rei->VLE_conditions[i].vp_value -= delta;
+          //				species_value[m_rei->VLE_conditions[i].idx_aq_species] += delta;
+          //			}
+          //		}
+          //		else
+          //			iv_eq[i]=true;
+          //	}
+          //	else
+          //		iv_eq[i]=true;
+          //}
+
+          //-------------------------------
+          //
+          //
+          // Now do the VLE, VLE_P
+          //
+          //
+          //-------------------------------
+
+
+          if (!m_rei)
+            is_equilibrium = true;
+          else
+          {
+            //----bisection method--  VLE
+            if (m_rei->VLE_conditions.size() > 0)
+            {
+              for (i = 0; i<m_rei->VLE_conditions.size(); i++){
+                m_rei->VLE_conditions[i].delta = 0.0;
+                if (m_rei->VLE_conditions[i].vp_value>0){
+                  delta = m_rei->VLE_conditions[i].aq_value - species_value[m_rei->VLE_conditions[i].idx_aq_species];
+                  if (iter_eq == 0){
+                    a[i] = delta;
+                    b[i] = 1.0; //10.0*m_rei->VLE_conditions[i].aq_value;
+                  }
+                  if (abs(m_rei->VLE_conditions[i].aq_value) > 0)
+                    err_vle = 1.0e-6*abs(m_rei->VLE_conditions[i].aq_value);
+                  else
+                    err_vle = 1.0e-12;
+                  if (abs(delta)< err_vle)
+                    iv_eq[i] = true;
+                  else{
+                    if (delta >= m_rei->VLE_conditions[i].vp_value){
+                      m_rei->VLE_conditions[i].delta = m_rei->VLE_conditions[i].vp_value;
+                      //m_rei->VLE_conditions[i].vp_value = 0;
+                    }
+                    else{
+                      if (iter_eq>0){
+                        if (delta > 0) a[i] = x[i];
+                        else		b[i] = x[i];
+                      }
+                      x[i] = 0.5*(a[i] + b[i]);
+                      m_rei->VLE_conditions[i].delta = x[i];
+                    }
+                  }
+                }
+                else
+                  iv_eq[i] = true;
+              }
+
+              is_equilibrium = true;
+              for (i = 0; i < m_rei->VLE_conditions.size(); i++){
+                if (!iv_eq[i])
+                  is_equilibrium = false;
+              }
+              iter_eq++;
+              if (iter_eq >= 20){
+                is_equilibrium = true;
+                cout << " warning..., at node " << ii << ", iter_eq max is 20. ";
+              }
+              if (!is_equilibrium){
+                for (i = 0; i < species_value.size(); i++)
+                  species_value[i] = species_value_s[i];
+                for (i = 0; i<m_rei->VLE_conditions.size(); i++)
+                  species_value[m_rei->VLE_conditions[i].idx_aq_species] += m_rei->VLE_conditions[i].delta;
+              }
+            }
+
+
+            //----bisection method--  VLE pressure
+            if (m_rei->VLE_pressure.size()>0)
+            {
+              for (i = 0; i<m_rei->VLE_pressure.size(); i++){
+                m_rei->VLE_pressure[i].aq_value = exp(VLE::LnPHI_CO2(TT, PP))*m_rei->VLE_pressure[i].vp_value / exp(VLE::Henry_const_CO2(TT));
+                //calc the real solubility of gas from geochemcalc, and store the value
+                m_rei->VLE_pressure[i].delta = 0.0;
+                if (m_rei->VLE_pressure[i].vp_value>0){
+                  delta = m_rei->VLE_pressure[i].aq_value - species_value[m_rei->VLE_pressure[i].idx_aq_species] / (species_value[widx] / 55.51);
+                  //compare with the new value after reaction
+                  if (iter_eq == 0){
+                    a[i] = 0.0; //delta;
+                    //b[i]=2.0; //up limiting
+                    b[i] = 10.0*species_value[widx] / 55.51;
+                  }
+                  if (abs(m_rei->VLE_pressure[i].aq_value) > 0)
+                    err_vle = 1.0e-3*abs(m_rei->VLE_pressure[i].aq_value);
+                  else
+                    err_vle = 1.0e-6;
+                  if (abs(delta)< err_vle)
+                    iv_eq[i] = true;
+                  else{
+                    if (iter_eq>0){
+                      if (delta > 0) a[i] = x[i];
+                      else		b[i] = x[i];
+                    }
+                    x[i] = 0.5*(a[i] + b[i]);
+                    //cout << " aq " << m_rei->VLE_pressure[i].aq_value << " sp " << species_value[m_rei->VLE_pressure[i].idx_aq_species]/(species_value[widx]/55.51) << " delta " << delta<< " x[i] " << x[i] << "\n";
+                    m_rei->VLE_pressure[i].delta = x[i];
+
+                  }
+                }
+                else
+                  iv_eq[i] = true;
+              }
+              is_equilibrium = true;
+              for (i = 0; i < m_rei->VLE_pressure.size(); i++){
+                if (!iv_eq[i])
+                  is_equilibrium = false;
+              }
+
+              //cout << " iter_eq " << iter_eq << " water " << species_value[widx] << "\n";
+              iter_eq++;
+              if (iter_eq >= 20){
+                is_equilibrium = true;
+                cout << " warning..., at node " << ii << ", iter_eq max is 20. for VLE_P ";
+              }
+
+              if (!is_equilibrium){
+                for (i = 0; i < species_value.size(); i++)
+                  species_value[i] = species_value_s[i];
+                for (i = 0; i < m_rei->VLE_pressure.size(); i++)
+                  species_value[m_rei->VLE_pressure[i].idx_aq_species] += m_rei->VLE_pressure[i].delta;
+              }
+
+            }
+
+            // check for final VLE status
+            if (m_rei->VLE_pressure.size() == 0 && m_rei->VLE_conditions.size() == 0)
+              is_equilibrium = true;
+          }
+
+
+        } // END  while(!is_equilibrium)
+
+        //====Final Chemical Equilibria at the Node====
+
+
+        //-----------------------------------
+        // print VLE status information
+        is_VLE = false;
+        if (m_rei) {
+          if (m_rei->VLE_pressure.size() > 0){
+            for (i = 0; i<m_rei->VLE_pressure.size(); i++){
+              if (m_rei->VLE_pressure[i].vp_value>0)
+                is_VLE = true;
+            }
+          }
+        }
+        if (is_VLE) cout << "at node " << ii << " VLE_P iterations " << iter_eq << "\n";
+
+        if (!noerr) {
+
+          if (m_rei) {
+            //revise VLE vp_value
+            for (i = 0; i < m_rei->VLE_conditions.size(); i++){
+              m_rei->VLE_conditions[i].vp_value -= m_rei->VLE_conditions[i].delta;
+              m_pcs = pcs_vector[m_rei->VLE_conditions[i].vp_idx];
+              m_pcs->SetNodeValue(ii, f, m_rei->VLE_conditions[i].vp_value);
+            }
+          }
+          //for(i=0;i<VLS_idx_aq.size();i++){
+          //	delta_value_aq.push_back(0.0);
+          //	delta_VLS_aq[i] =species_value_b[VLS_idx_aq[i]]-species_value[VLS_idx_aq[i]];
+          //	if(abs( delta_VLS_aq[i]/(species_value[VLS_idx_aq[i]]+VLS_value_vs[i]) ) > 1.0e-8 )
+          //}
+          // pass parameters from pcs-eclipse
+
+          ////delete amount for charge balance 
+          //for(i=0;i<ns;i++){
+          //	if(species_phase[i]==2){
+          //		if(zEA >=0 && species_idx[i]==34)
+          //			species_value[i] -= zEA;
+          //		if(zEA <=0 && species_idx[i]==71)
+          //			species_value[i] += zEA;
+          //	}
+          //}
+
+          //-----------------------------------
+          // Kinetic Parameters Updata
+          if (MinKinReact && ff != 1 && nodeflag < 0){
+            //if(MinKinReact && ff != -1){
+
+            species_value_d.clear();
+            for (i = 0; i < species_value.size(); i++)
+              species_value_d.push_back(species_value[i]);
+            this->KinParamUpdataNew(ii, noerr, species_value_d, m_KIN, m_SAC);    // in case of  no error, a filled vector will be stored
+            this->KinParamUpdataHKFNew(ii, TT, PP, noerr, m_HKF);		           // CB include noerr
+            //-----------------------------------
+            //species_value_d=this->KineticReact(species_value_d);
+            //-----------------------------------
+          }
+
+          //-----------------------------------
+          //return back the residual value
+          if (m_rei)
+          if (m_rei->residual_back)
+          for (i = 0; i < residual_idx.size(); i++)
+            species_value[residual_idx[i]] += residual_value[i];
+          //species_value=this->KineticReact(species_value);
+
+          //-----------------------------------
+          // Now push back chemical equilibrium values to OGS Mass transport processes    
+
+          // here return only values of non-dormant species
+          //if(ii==1) cout << " value " << species_value.back() << "\n";
+          // unit factors are only different from 1 if(m_rei && m_rei->unitconversion)
+          position = ii * nComponents;
+
+          for (i = 0; i < (size_t)ns; i++){ //mol/m³
+
+            if (species_dormant[ns - i - 1] == 0){  // non dormant
+              m_pcs = pcs_vector[pcs_mass_idx[ns - i - 1]];
+              if (this->species_phase[ns - i - 1] == 0){       // solid phase
+                if (ff == 1) {// full geochemistry calculation
+                  // m_pcs->SetNodeValue(ii, f, species_value.back() / unitfactor_s);  // old f==0 or new f==1 time step
+                  m_Conc[position + i] = species_value.back() / unitfactor_s;
+                }
+              }
+              else if (this->species_phase[ns - i - 1] == 2){  // water phase 
+                // m_pcs->SetNodeValue(ii, f, species_value.back() / unitfactor_l);  // old or new time step
+                m_Conc[position + i] = species_value.back() / unitfactor_l;
+
+                if (ns - (int)i - 1 == widx && m_rei) // update water concentration vector as well 
+                if (m_rei->unitconversion)
+                  m_rei->water_conc[ii] = species_value.back() / unitfactor_l;
+              }
+              else{ // CB / DL 21.1.2011: Attention: Gas phase volume fraction : (1-S)*n
+                // m_pcs->SetNodeValue(ii, f, species_value.back());  // new time step
+                m_Conc[position + i] = species_value.back();
+              }
+            }
+
+            species_value.pop_back();
+          }//push back chemical equilibrium values
+		  
+          //return species value at this node and time step, if pcs_ospecies_idx.size>0  22.01.2009
+          for (i = 0; i < (size_t)nos; i++){
+            m_pcs = pcs_vector[pcs_ospecies_idx[i]];
+            //TQINPC 	2 	Gets the index number for a phase constituent
+            CAP_tqinpc((char *)m_pcs->pcs_primary_function_name[0], 2, &ipc, &noerr);
+            //TQGETR 	5 	Gets calculated equilibrium results
+            CAP_tqgetr((char *)"a", 2, ipc, &value, &noerr);
+            value /= unitfactor_l;
+
+            // m_pcs->SetNodeValue(ii, f, value);
+            m_Conc[position + ns + i] = value;
+          }//end return species value
+
+          //return nlog value of species at this node, if pcs_nspecies_idx.size>0
+          for (i = 0; i < (size_t)nns; i++){
+            m_pcs = pcs_vector[pcs_nspecies_idx[i]];
+            if (species_nlog_phase[nspecies_idx[i]] == 0)
+              //TQGETR 	5 	Gets calculated equilibrium results
+              CAP_tqgetr((char *)"ac", species_nlog_idx[nspecies_idx[i]], 0, &value, &noerr);
+            else
+              //TQGETR 	5 	Gets calculated equilibrium results
+              CAP_tqgetr((char *)"ac", species_nlog_phase[nspecies_idx[i]], species_nlog_idx[nspecies_idx[i]], &value, &noerr);
+            //if(value==0) exit(1);
+            if (abs(value - 1.0)< 1.0e-8) value = 1.0;
+            value = 0.0 - log10(value);
+
+            // m_pcs->SetNodeValue(ii, f, value);
+            m_Conc[position + ns + nos + i] = value;
+          }
+
+          //return redox Eh value of given reaction at this node
+          if (pcs_redox>-1){
+            value1 = 0.0;
+            for (i = 2; i<(int)species_redox_name.size(); i++){
+              if (species_redox_phase[i] == 0)
+                //TQGETR 	5 	Gets calculated equilibrium results
+                CAP_tqgetr((char *)"ac", species_redox_idx[i], 0, &value, &noerr);
+              else
+                //TQGETR 	5 	Gets calculated equilibrium results
+                CAP_tqgetr((char *)"ac", species_redox_phase[i], species_redox_idx[i], &value, &noerr);
+              if (value>0)
+                value1 = value1 + redox_stoi[i] * log(value);
+            }
+            if (redox_stoi[1] != 0)
+              value1 = redox_stoi[0] + 8.31451 *TT / 96485.3 *value1 / redox_stoi[1];
+            else value1 = redox_stoi[0];
+            m_pcs = pcs_vector[pcs_redox];
+
+            // m_pcs->SetNodeValue(ii, f, value1);
+            m_Conc[position + ns + nos + nns + 0] = value1;
+          }
+
+        } // if(noerr)
+
+      } // if(rateflag[ii]!=0)
+      else if (MinKinReact && ff != 1 && nodeflag < 0){
+        // Kinetic Parameters Updata for nodes that were skipped
+        // when rateflag[ii] == 0, noerr is not defined.
+        // Do so for Kinetic Parameters Updating, and store dummy values
+        this->KinParamUpdataNew(ii, 1, species_value_d, m_KIN, m_SAC);
+        this->KinParamUpdataHKFNew(ii, TT, PP, 1, m_HKF);				// CB include noerr
+      }
+
+      //return pcs rename
+      for (i = 0; i < pcs_rename_idx0.size(); i++){
+        value = 0.0;
+        for (ix = 0; ix < (int)pcs_rename_idx1[i].size(); ix++){
+
+          //--return back residual
+          //for(i_s=0;i_s<(int)pcs_mass_idx.size();i_s++){
+          //	if(pcs_rename_idx1[i][ix]==pcs_mass_idx[i_s])
+          //		for(i_r=0;i_r<(int)residual_value.size();i_r++){
+          //			if(residual_idx[i_r]==i_s)
+          //				value += residual_value[i_r];
+          //		}
+          //}
+
+          m_pcs = pcs_vector[pcs_rename_idx1[i][ix]];
+          if (pcs_rename_stoi[i][ix] == 999999)
+            value *= m_pcs->GetNodeValue(ii, f);
+          else if (pcs_rename_stoi[i][ix] == -999999)
+            value /= m_pcs->GetNodeValue(ii, f);
+          else
+            value += m_pcs->GetNodeValue(ii, f) *pcs_rename_stoi[i][ix];;
+        }
+        m_pcs = pcs_vector[pcs_rename_idx0[i]];
+        m_pcs->SetNodeValue(ii, f, value);
+      }
+
+#if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
+      CAPtim[ii] = t1 + MPI_Wtime();
+#endif
+
+  } // for (ii node loop)
+
+//#if defined(USE_MPI) && defined(USE_MPI_KRC)	
+//  MPI_Barrier(MPI_COMM_WORLD);
+//#endif
+
+  // clean up
+  delete[] stoi;
+
+  //species_value_d.clear();
+  //residual_value.clear();
+  //residual_idx.clear();
+  //species_value.clear();
+  //species_value_b.clear();
+  //iv_eq.clear();
+  //a.clear(),
+  //b.clear(),
+  //x.clear();
+  //species_value_s.clear();
 
 } // end of function loopnodereact
 
 
-void REACT_CAP::LoopNodeReact_Liquid_Vapor(int f, int nodeflag){
+void REACT_CAP::LoopNodeReact_Liquid_Vapor(int /*f*/, int nodeflag){
 	LI i, noerr = 0;
 	cout << "\n" << " --> Liquid Vapor Reactions " << "\n";
 
+  //CB MPI required for each CAP instance
+  // remove solid phase species temporarily from geochemical system 
 	for(i=0;i<(int)species_name.size();i++) 
 		if(species_phase[i]==0) CAP_tqcsp(species_idx[i], (char *)"dormant", &noerr);
 
 	this->LoopNodeReact(-1, nodeflag);
 
+  //CB MPI required for each CAP instance
+  // return all solid phase species to geochemical system ...
 	for(i=0;i<(int)species_name.size();i++) 
 		if(species_phase[i]==0) CAP_tqcsp(species_idx[i], (char *)"entered", &noerr);		
+  // .. but reset kinetic solid phase species to dormant again
 	for(i=0;i<(int)species_kin_name.size();i++)
 		if(species_kin_phase[i]==0) CAP_tqcsp(species_kin_idx[i], (char *)"dormant", &noerr);		
 }
 
-void REACT_CAP::LoopNodeReact_Liquid_Solid(int f, int nodeflag){
+
+void REACT_CAP::LoopNodeReact_Liquid_VaporNew(int f, int nodeflag, std::vector<int > list, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim){
+  LI i, noerr = 0;
+  cout << "\n" << " --> Liquid Vapor Reactions " << "\n";
+
+  //CB MPI required for each CAP instance
+  // remove solid phase species temporarily from geochemical system 
+  for (i = 0; i<(int)species_name.size(); i++)
+  if (species_phase[i] == 0) CAP_tqcsp(species_idx[i], (char *)"dormant", &noerr);
+  //
+  //#if defined(USE_MPI) && defined(USE_MPI_KRC)	
+  //        MPI_Barrier(MPI_COMM_WORLD);
+  //        MPI_Bcast(&nodenumber, 1, MPI_LONG, 0, MPI_COMM_WORLD);
+  //        this->LoopNodeReactNew(-1, nodeflag, ranknodeliststore[myrank], Concentration_buff + ranknodeliststore[myrank].size()*nComponents);
+  //#else
+  //        //this->LoopNodeReact(1, nodeflag);
+  //        this->LoopNodeReactNew(-1, nodeflag, ranknodeliststore[myrank], Concentration + ranknodeliststore[myrank].size()*nComponents);
+  //#endif  
+  //
+
+  this->LoopNodeReactNew(-1, nodeflag, list, m_Conc, m_KIN, m_SAC, m_HKF, CAPtim);
+
+  //CB MPI required for each CAP instance
+  // return all solid phase species to geochemical system ...
+  for (i = 0; i<(int)species_name.size(); i++)
+  if (species_phase[i] == 0) CAP_tqcsp(species_idx[i], (char *)"entered", &noerr);
+  // .. but reset kinetic solid phase species to dormant again
+  for (i = 0; i<(int)species_kin_name.size(); i++)
+  if (species_kin_phase[i] == 0) CAP_tqcsp(species_kin_idx[i], (char *)"dormant", &noerr);
+
+}
+
+
+void REACT_CAP::LoopNodeReact_Liquid_Solid(int /*f*/, int /*nodeflag*/){
 	//LI i, noerr=0;
 	cout << "\n" << " --> Liquid Solid Reactions " << "\n";
 
@@ -2410,7 +3937,7 @@ void REACT_CAP::LoopNodeReact_Liquid_Solid(int f, int nodeflag){
 	  kinetic parameters updata at the ChemApp state
 	                                         DL   10/10
 ***********************************************************/
-void REACT_CAP::KinParamUpdata(int ii, int err, vector <double> & spvc){  
+void REACT_CAP::KinParamUpdata(int /*ii*/, int err, vector <double> & spvc){
 
 	int i, i_re, i_resp;
 	long noerr = 0;
@@ -2465,7 +3992,7 @@ void REACT_CAP::KinParamUpdata(int ii, int err, vector <double> & spvc){
 	  kinetic parameters updata HKF
 	                                         DL   11/10
 ***********************************************************/
-void REACT_CAP::KinParamUpdataHKF(int ii, double T, double P, int err){
+void REACT_CAP::KinParamUpdataHKF(int /*ii*/, double T, double P, int err){
 	
 	int i=-1, i_re, i_resp;
 	//long noerr = 0;
@@ -2495,6 +4022,138 @@ void REACT_CAP::KinParamUpdataHKF(int ii, double T, double P, int err){
    node_HKF_logK.push_back(reaction_logK);
 }
 
+
+
+/***********************************************************
+      Function: REACT_CAP::KinParamUpdat(void)
+
+	  Task:
+	  kinetic parameters updata at the ChemApp state
+	                                         DL   10/10
+***********************************************************/
+void REACT_CAP::KinParamUpdataNew(int ii, int err, vector <double> & spvc, double *m_KIN, double *m_SAC){
+
+	int i, i_re, i_resp;
+	long noerr = 0;
+	double value_ac, value_dG, logK;
+	vector<double> species_ac, reaction_logK;
+	species_ac.clear();
+	reaction_logK.clear();
+
+  int ns = (int)species_name.size();
+  int nKIN = (int)Kin_Reactions.size();
+  int nKINp = 0;  
+
+  // activities
+  if (err == 0){ // value was calculated
+    for (i = 0; i<ns; i++){    // loop over species
+      if (species_phase[i] == 0)  // mineral phase
+        value_ac = 1.0;
+      //CAP_tqgetr("ac", species_idx[i], 0, &value_ac, &noerr);	// this is activity!! not a.coeff
+      else{
+        CAP_tqgetr((char *)"ac", species_phase[i], species_idx[i], &value_ac, &noerr); // liquid phase
+        if (strcmp(species_name[i], "H2O") == 0 || strcmp(species_name[i], "H2O_liquid") == 0 || strcmp(species_name[i], "water_liquid") == 0) // for H2O use value_ac directly
+          value_ac = value_ac;
+        else if (value_ac/*spvc[i]*/>0) // otherwise divide by molality to obtain gamma, if species conc > 0
+          value_ac = value_ac / spvc[i] * spvc[0] / MOLH2OPERKG;
+        else // store activity coefficient = 1, of species concentration = 0
+          value_ac = 1.0;
+      }
+      species_ac.push_back(value_ac);
+      m_SAC[ii*ns + i] = value_ac;
+    }
+  }
+  else{ // no value was calculated, store -1 as error indicator
+    for (i = 0; i<ns; i++)
+      m_SAC[ii*ns + i] = -1; 
+  }
+
+  // logK
+  double ra;
+  if (err == 0){ // value was calculated
+    for (i_re = 0; i_re < nKIN; i_re++){ // loop over reactions
+      logK = 0;
+      nKINp = (int)Kin_Reactions[i_re].species_name.size();
+      for (i_resp = 0; i_resp < nKINp; i_resp++){  // loop over species of reaction
+        if (Kin_Reactions[i_re].species_phase[i_resp] == 0)
+          CAP_tqgdpc((char *)"G", Kin_Reactions[i_re].species_idx[i_resp], 0, &value_dG, &noerr);	   // Get Gibbs energy for species
+        else
+          CAP_tqgdpc((char *)"G", Kin_Reactions[i_re].species_phase[i_resp], Kin_Reactions[i_re].species_idx[i_resp], &value_dG, &noerr);
+        logK += -value_dG*Kin_Reactions[i_re].species_stoi[i_resp] / 2.302585;             // calculate logK for reaction
+      }
+
+      //------------DL to adjust the relative level for eq and logK
+      //--perhaps bugs exist--
+      for (i = 0; i < (int)this->species_relative_activity.size(); i++){
+        if (strcmp(this->species_relative_activity_name[i], Kin_Reactions[i_re].species_name[0]) == 0){
+          ra = this->species_relative_activity[i];
+          logK = logK - log10(ra);
+          break;
+        }
+      }
+
+      reaction_logK.push_back(logK);                                                     // store logK of a reaction
+      m_KIN[ii*nKIN + i_re] = logK;
+
+    }
+  }
+  else{ // no value was calculated, store -9999 as error indicator
+    for (i_re = 0; i_re < nKIN; i_re++)
+      m_KIN[ii*nKIN + i_re] = -9999;
+  }
+
+  // pushback species_ac and reaction_logK vectors, 
+  // or empty vectors instead when noerr = 1 or rateflag == 0
+  node_ac.push_back(species_ac);  
+  node_logK.push_back(reaction_logK);
+  // clean up
+  species_ac.clear();
+  reaction_logK.clear();
+}
+
+
+/***********************************************************
+      Function: REACT_CAP::KinParamUpdataHKF(void)
+
+	  Task:
+	  kinetic parameters updata HKF
+	                                         DL   11/10
+***********************************************************/
+void REACT_CAP::KinParamUpdataHKFNew(int ii, double T, double P, int err, double *m_HKF){
+	    
+	int i=-1, i_re, i_resp;
+	//long noerr = 0;
+	//double value_ac; 
+  double   value_dG, logK;
+	vector<double> reaction_logK;
+  reaction_logK.clear();
+  int nHKF = (int)this->Kin_HKF_Reactions.size();
+  
+  if(err == 0){ // value was calculated
+	  HKFcalc(T,P);
+    for (i_re = 0; i_re < nHKF; i_re++){
+		  logK=0;
+		  for(i_resp=0;i_resp<(int)this->Kin_HKF_Reactions[i_re].species_name.size();i_resp++){
+			  i++;
+			  value_dG=Kin_HKF_species[Kin_HKF_index[i]].G;
+			  logK += Kin_HKF_Reactions[i_re].species_stoi[i_resp]*value_dG*4.18/2.302585/8.314/T;
+		  }
+		  reaction_logK.push_back(logK);
+      m_HKF[ii*nHKF + i_re] = logK;
+	  }
+	  //node_HKF_logK.push_back(reaction_logK);
+  }
+  else{
+    for (i_re = 0; i_re < nHKF; i_re++)
+      m_HKF[ii*nHKF + i_re] = -9999;
+  }
+  
+  // pushback reaction logK vector,
+  // or empty vector instead when noerr = 1 or rateflag == 0
+  node_HKF_logK.push_back(reaction_logK);
+  // clean up
+  reaction_logK.clear();
+}
 
 
 /***********************************************************
@@ -2983,6 +4642,7 @@ bool REACT_CAP_Read(std::string file_base_name, const GEOLIB::GEOObjects& geo_ob
 	
 	REACT_CAP *rc_cap = new REACT_CAP(); 
     // look if file is there
+  std::cout << "ChemApp_Read" << "\n" << std::flush;
 	file_name_cap = file_base_name + REACTION_EXTENSION_CHEMAPP;
 	ifstream cap_file (file_name_cap.data(),ios::in);
 	if (!cap_file.good()){
@@ -3000,7 +4660,6 @@ bool REACT_CAP_Read(std::string file_base_name, const GEOLIB::GEOObjects& geo_ob
 			// Read input file *.cap
 			cap_file.clear();
 			cap_file.seekg(0,ios::beg); 
-			cout << "ChemApp_Read" << "\n";
 			cap_file.getline(line,MAX_ZEILE); // first line
 			cap_file.getline(line,MAX_ZEILE); // second line ToDo
 			line_string = line;
@@ -3015,6 +4674,7 @@ bool REACT_CAP_Read(std::string file_base_name, const GEOLIB::GEOObjects& geo_ob
 			cap_file.close();
 		}
 	}
+  std::cout << "ChemApp_Read finished" << "\n" << std::flush;
 	return true;
 }
 /***********************************************************
@@ -3149,5 +4809,4 @@ void REACT_CAP::ConvertIC2BC(const GEOLIB::GEOObjects& geo_obj, const std::strin
 	}
 
 }
-#ifdef OGS_FEM_CAP // CAP_REACT
-#endif
+

@@ -100,21 +100,15 @@ public:
 
 	// Access members
 	CFiniteElementVec* GetFEM_Assembler() const {return fem_dm; }
-	CFiniteElementStd* GetAssembler() const { return fem; } //KB0714
 
 	//WX:07.2011
 	void PostExcavation();
 	//WX:10.2011
 	void UpdateIniStateValue();
-
-	void VolumeStrainIntegrationForEclipse();
-
-	//double CRFProcessDeformation::VolumeStrainIntegrationForEclipse(CRFProcess* m_pcs); //KB0714
-
+	void VolumeStrainIntegrationForEclipse(); // KB
 
 private:
 	CFiniteElementVec* fem_dm;
-	//CFiniteElementStd* fem; //KB0714
 	void InitialMBuffer();
 	double* ARRAY;
 
@@ -122,7 +116,6 @@ private:
 	double InitialNorm;
 	double InitialNormU;
 	double InitialNormU0;
-	//std::vector <double> d_strain_2; //KB0714
 
 	InitDataReadWriteType idata_type;
 

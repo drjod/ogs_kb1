@@ -155,6 +155,8 @@
 //#include <stdio.h>
 #include "femlib.h"                               //CMCD 03 2004
 #include "makros.h"
+#include "memory.h"
+#include "display.h"
 #include "mathlib.h"
 //WW----------------------
 #include "par_ddc.h"
@@ -3361,11 +3363,16 @@ int MMultVecVec(double* vec1, long gv1,
 	register long i, j;
 
 #ifdef ERROR_CONTROL
-	if (gv1 != mo)
-		DisplayErrorMsg("MMultVecVec: Groesse von Matrix und Vektor 1 passen nicht");
-	if (gv2 != no)
-		DisplayErrorMsg("MMultVecVec: Groesse von Matrix und Vektor 2 passen nicht");
+	const bool check_err = true;
+#else
+	const bool check_err = false;
 #endif
+	if (check_err) {
+		if (gv1 != mo)
+			DisplayErrorMsg("MMultVecVec: Groesse von Matrix und Vektor 1 passen nicht");
+		if (gv2 != no)
+			DisplayErrorMsg("MMultVecVec: Groesse von Matrix und Vektor 2 passen nicht");
+	}
 
 	mo = gv1;
 	no = gv2;
@@ -3413,16 +3420,18 @@ int MMultVecMat(double* vec, long gv,
 #endif
 {
 	register long i, j;
-
 #ifdef ERROR_CONTROL
-	if (gv != m)
-		DisplayErrorMsg("MMultVecMat: Groesse von Matrix und Vektor passen nicht");
-	if (go != n)
-		DisplayErrorMsg("MMultVecMat: Groesse von Ergebnis-Vektor stimmt nicht");
+	const bool check_err = true;
+#else
+	const bool check_err = false;
 #endif
+	if (check_err) {
+		if (gv != m)
+			DisplayErrorMsg("MMultVecMat: Groesse von Matrix und Vektor passen nicht");
+		if (go != n)
+			DisplayErrorMsg("MMultVecMat: Groesse von Ergebnis-Vektor stimmt nicht");
+	}
 
-	gv = m;
-	go = n;
 	MNulleVec(veco, n);                   /* cb: Nullen nicht vergessen ! */
 	for (i = 0; i < m; i++)
 #ifdef SX
@@ -3471,11 +3480,17 @@ int MMultMatVec(                                  /* Matrix */
 	register long i, k;
 
 #ifdef ERROR_CONTROL
-	if (g != n)
-		DisplayErrorMsg("MMultMatVec: Groesse von Matrix und Vektor passen nicht");
-	if (r != m)
-		DisplayErrorMsg("MMultMatVec: Groesse von Ergebnis-Vektor stimmt nicht");
+	const bool check_err = true;
+#else
+	const bool check_err = false;
 #endif
+	if (check_err) {
+		if (g != n)
+			DisplayErrorMsg("MMultMatVec: Groesse von Matrix und Vektor passen nicht");
+		if (r != m)
+			DisplayErrorMsg("MMultMatVec: Groesse von Ergebnis-Vektor stimmt nicht");
+	}
+
 	r = m;
 	for (k = 0; k < m; k++)
 	{

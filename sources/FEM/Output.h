@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "msh_lib.h" // JOD 2/2015
-
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 #include "mpi.h"
 #endif
@@ -115,7 +114,7 @@ public:
 	void WriteTimeCurveData(std::fstream &);
 	void WriteTimeCurveHeader(std::fstream &);
 	void NODWriteDOMDataTEC();
-	void WriteTECHeader(std::fstream&, int, std::string); 
+	void WriteTECHeader(std::fstream&, int, std::string);
 	void WriteTECNodeData(std::fstream&);
 	void WriteTECElementData(std::fstream&, int);
 	void WriteTECBLOCKData(std::fstream&); // BW
@@ -188,7 +187,14 @@ public:
 	double getTime () const { return _time; }
 
 	const std::vector<double>& getTimeVector () const { return time_vector; }
-	std::string& getFileBaseName () { return file_base_name; }
+    const std::string& getFileBaseName () const { return file_base_name; }
+
+    /**
+     * @brief sets file_base_name to the full path corresponding to the given base name.
+     *
+     * The function internally uses the defaultOutputPath as set as a commandline argument.
+     */
+    void setFileBaseName(const std::string& fn);
 
 	size_t getNSteps () const { return nSteps; }
 	/**
@@ -267,9 +273,9 @@ private:
 
 	/// Tecplot share zone
 	bool tecplot_zone_share; // 10.2012. WW
-
 	// Tecplot Block Data Pack Format //10.2014 BW
 	int tecplot_datapack_block;
+  std::vector < std::vector <long> > eledefvec;  // CB for surface output
 
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 	int mrank;
@@ -284,8 +290,4 @@ private:
 	void setDataArrayDisp();    
 #endif
 };
-
-
-
 #endif // OUTPUT_H
-

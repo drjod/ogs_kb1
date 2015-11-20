@@ -14,3 +14,4 @@ public:
 	static double dfridrY(double func(double,double), const double x, const double y);
 
 };
+

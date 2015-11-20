@@ -58,6 +58,20 @@ template<typename T> T str2number (const std::string &str)
  */
 void trim(std::string &str, char ch = ' ');
 
+/**
+ * Removes all occurences of c from the beginning of str.
+ *
+ * Leves the original string unchanged.
+ */
+std::string ltrim(const std::string& str, const char c);
+
+/**
+ * Removes all occurences of c from the end of str
+ *
+ * Leves the original string unchanged.
+ */
+std::string rtrim(const std::string& str, const char c);
+
 
 namespace BaseLib {
 

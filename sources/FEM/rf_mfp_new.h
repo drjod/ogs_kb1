@@ -90,18 +90,24 @@ private:
 	 * density
 	 */
 	double rho_0;
+	std::vector<double> rho_0_mat, rho_0_idx; //DL , using different density model on special materials group or element_index
 	/**
 	 * density deviated with respect to the pressure
 	 */
 	double drho_dp;
+	std::vector<double> drho_dp_mat,drho_dp_idx;
 	/**
 	 * density deviated with respect to the temperature
 	 */
 	double drho_dT;
+	std::vector<double> drho_dT_mat,drho_dT_idx;
 	/**
 	 * density deviated with respect to the concentration
 	 */
 	double drho_dC;
+	std::vector<double> drho_dC_mat,drho_dC_idx;
+
+	std::vector<int> dens_material,dens_index;
 
 	double diffusion; /*SB:2p */
 	double diffusion_coef; //AKS
@@ -124,11 +130,14 @@ private:
 
 	// State variables
 	double p_0;
+	std::vector<double> p_0_mat,p_0_idx; //DL
 	/**
 	 * state variable: reference temperature
 	 */
 	double T_0;
+	std::vector<double> T_0_mat,T_0_idx; //DL
 	double C_0;
+	std::vector<double> C_0_mat,C_0_idx; //DL
 	double Z;
 
 	// Chemical properties
@@ -163,6 +172,7 @@ public:
 	long node;                            //OK4704
 	// Density
 	int density_model;
+	std::vector<int> density_model_mat,density_model_idx;
 
 	// TF 11/2011 - used only in read- and write-method
 	int density_curve_number, viscosity_curve_number; // JOD 2014-11-10
@@ -198,6 +208,7 @@ public:
 	int mode;
 	// PCS  YD
 	std::vector<std::string>density_pcs_name_vector;
+	std::vector<std::vector<std::string> >density_pcs_name_vector_mat;
 	std::vector<std::string>viscosity_pcs_name_vector;
     std::vector<std::string>phase_diffusion_pcs_name_vector;
 	std::vector<std::string>specific_heat_capacity_pcs_name_vector;

@@ -73,3 +73,4 @@ public:
 
 	static void entrance(void);
 };
+

@@ -205,20 +205,37 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			case 3:       // DECOVALEX THM1, Bentonite
 				in_sd.clear();
 				break;
-			   case 4:
-				   //0. Capacity at density 1
-				   //1. Capacity at density 2
-				   //2. density 1
-				   //3. density 2
-				  data_Capacity = new Matrix(5);
-                  for(i=0; i<4; i++)
-                     in_sd>> (*data_Capacity)(i);
-                  in_sd.clear();
-                  break;
-            }
-         }
+			case 4:
+				//0. Capacity at density 1
+				//1. Capacity at density 2
+				//2. density 1
+				//3. density 2
+				data_Capacity = new Matrix(5);
+				for(i=0; i<4; i++)
+					in_sd>> (*data_Capacity)(i);
+				in_sd.clear();
+				break;
+				// TES
+			case 5: //Capacity depending on solid conversion
+				//0. Capacity at lower_density_limit (reactive system property)
+				//1. Capacity at upper_density_limit (reactive system property)
+				data_Capacity = new Matrix(3);
+				for(i=0; i<2; i++)
+					in_sd>> (*data_Capacity)(i);
+				in_sd.clear();
+				break;
+			case 6: //Capacity depending on loading with adsorbate
+				//0. Capacity at desorbed state (lower density limit)
+				//1. Capacity of adsorbate
+				data_Capacity = new Matrix(3);
+				for(i=0; i<2; i++)
+					in_sd>> (*data_Capacity)(i);
+				in_sd.clear();
+				break;
+			}
+		}
 
-         //....................................................................
+		//....................................................................
 		// subkeyword found
 		if(line_string.compare("CONDUCTIVITY") == 0)
 		{
@@ -851,28 +868,34 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 	return position;
 }
 
-   //==========================================================================
+//==========================================================================
 
-   /**************************************************************************
+/**************************************************************************
    FEMLib-Method:
    Task: Set values for solid reactive system
-   **************************************************************************/
-   void CSolidProperties::SetSolidReactiveSystemProperties() //Definition auch in conversion_rate::conversion_rate
-   {
-	   if (reaction_system.compare("CaOH2") == 0) {
-		lower_solid_density_limit = 1656.0; //Dichte Calciumoxid
-		upper_solid_density_limit = 2200.0; //Dichte Calciumhydroxid
+**************************************************************************/
+void CSolidProperties::SetSolidReactiveSystemProperties() //Definition auch in conversion_rate::conversion_rate
+{
+	if (reaction_system.compare("CaOH2") == 0) {
+		lower_solid_density_limit = 1656.0; //density Calciumoxid
+		upper_solid_density_limit = 2200.0; //density Calciumhydroxid
 		reaction_enthalpy = -1.12e+05/0.018; //in J/kg (Molar heat of reaction divided by molar mass of water) negative for exothermic composition reaction
 		reaction_entropy = -143.5/0.018; //in J/kgK
-	   }
-	   else if (reaction_system.compare("Mn3O4") == 0){
-		lower_solid_density_limit = 4500.0; //Dichte Mn2O3 (Mangan(III)-oxid)
-		upper_solid_density_limit = 4860.0; //Dichte Mn3O4 (Mangan(II,III)-oxid)
+	}
+	else if (reaction_system.compare("Mn3O4") == 0) {
+		lower_solid_density_limit = 4500.0; //density Mn2O3 (Mangan(III)-oxid)
+		upper_solid_density_limit = 4860.0; //density Mn3O4 (Mangan(II,III)-oxid)
 		reaction_enthalpy = -1.376e+05/0.032; //in J/kg (Molar heat of reaction divided by molar mass of oxygen) negative for exothermic composition reaction
 		reaction_entropy = -114.1/0.032; //in J/kgK
-	   }
-	   return;
-   }
+	}
+	else if (reaction_system.compare("Z13XBF") == 0) {
+		lower_solid_density_limit = 1150.0; //Dehydrated Zeolite pellet
+		upper_solid_density_limit = 1.e6; //state dependent; not needed for calculation
+		reaction_enthalpy = 0.0; //state dependent; calculated where needed
+		reaction_entropy = 0.0; //state dependent; calculated where needed
+	}
+	return;
+}
 
    //==========================================================================
 
@@ -1174,37 +1197,48 @@ void CSolidProperties::NullDensity()
 	(*data_Density) = 0.0;
 }
 
-   /**************************************************************************
+/**************************************************************************
    FEMLib-Method: CSolidProperties::Heat_Capacity(const double refence = 0.0) const
    Task: Get heat capacity
    Programing:
    08/2004 WW Implementation
    **************************************************************************/
-   double CSolidProperties::Heat_Capacity(double refence)
-   {
-      double val = 0.0;
-      switch(Capacity_mode)
-      {
-         case 0:
-            val = CalulateValue(data_Capacity, refence);
-            break;
-         case 1:
-            val = (*data_Capacity)(0);
-            break;
-         case 3:
-            //WW        val=1.38*(273.15+refence)+732.5;
-            val=1.38*refence+732.5;
-            break;
-		 case 4: //solid capacity depending on solid density (for thermochemical heat storage) - TN
-			 //refence contains value of solid density (current)
-			 val = (*data_Capacity)(0) + ((*data_Capacity)(1)-(*data_Capacity)(0))/((*data_Capacity)(3)-(*data_Capacity)(2))*(refence - (*data_Capacity)(2));
-			 break;
-         default:
-            val = (*data_Capacity)(0);
-            break;
-      }
-      return val;
-   }
+double CSolidProperties::Heat_Capacity(double refence)
+{
+	double val = 0.0;
+	switch(Capacity_mode)
+	{
+	case 0:
+		val = CalulateValue(data_Capacity, refence);
+		break;
+	case 1:
+		val = (*data_Capacity)(0);
+		break;
+	case 3:
+		//WW        val=1.38*(273.15+refence)+732.5;
+		val=1.38*refence+732.5;
+		break;
+	case 4: //solid capacity depending on solid density (for thermochemical heat storage) - TN
+		//refence contains value of solid density (current)
+		val = (*data_Capacity)(0) + ((*data_Capacity)(1)-(*data_Capacity)(0))/((*data_Capacity)(3)-(*data_Capacity)(2))*(refence - (*data_Capacity)(2));
+		break;
+	case 5:
+		// TODO [CL]: TES heat capacity model number changed 4-->5
+		val = (*data_Capacity)(0) + ((*data_Capacity)(1)-(*data_Capacity)(0))/(upper_solid_density_limit  - lower_solid_density_limit)*(refence - lower_solid_density_limit);
+		break;
+	case 6: //in a sorption system
+	{
+		// TODO [CL]: TES heat capacity model number changed 5-->6
+		double C = refence/lower_solid_density_limit - 1.0;
+		val = lower_solid_density_limit/refence * ((*data_Capacity)(0) + C * (*data_Capacity)(1));
+	}
+		break;
+	default:
+		val = (*data_Capacity)(0);
+		break;
+	}
+	return val;
+}
 
    /*************************************************************************
    FEMLib-Method:
@@ -3014,7 +3048,7 @@ void CSolidProperties::TangentialDPwithTension(Matrix* Dep, double mm)
 }
 
 //WX: return to corner
-void CSolidProperties::TangentialDPwithTensionCorner(Matrix* Dep, double mm)
+void CSolidProperties::TangentialDPwithTensionCorner(Matrix* Dep, double /*mm*/)
 {
 	//return to corner
 	*Dep = *ConstitutiveMatrix;
@@ -3031,11 +3065,11 @@ int CSolidProperties::StressIntegrationMOHR_Aniso(const int GPiGPj, const Elemen
 	int i, j, counter;
 	int yield = 0;
 	int Dim = 2;
-	int Size = ele_val->Stress->Rows();
+	int Size = std::min(std::size_t(6ul), ele_val->Stress->Rows());
 	double normdstr=0., TmpValue1, TmpValue2;
 	double LodeAngle, I1, J2, J3, sqrtJ2;
-	double AnisoParaComp, AnisoParaTens;
-	double shearsurf, tensionsurf, ep, dlamda, dlamda_0, dlamda_1; //, ddlamda, Jacob;
+	double AnisoParaComp, AnisoParaTens = 0.0;
+	double shearsurf, tensionsurf, ep, dlamda = 0.0 /*, dlamda_0, dlamda_1*/; //, ddlamda, Jacob;
 
 	//initialize all vectors
 	double dstrs[6] = {0.}, TryStress_0[6]={0.}, TryStr_buff[6] ={0.}, TmpStress[6] = {0.};
@@ -3172,13 +3206,13 @@ int CSolidProperties::StressIntegrationMOHR_Aniso(const int GPiGPj, const Elemen
 		double dsqrtJ2_dsig[6]={0.}, dlode_dsig[6]={0.};
 		double dAniso_dsig_tens[6]={0.}, dAniso_dsig_comp[6]={0.};
 		double dcsn_dsig[6] = {0.}, dtens_dsig[6] = {0.};
-		double dsig_dlamda[6]={0.}, dsig_dlamda_k1[6]={0.}, dfs_dsig[6]={0.}, dft_dsig[6]={0.}, dgs_dsig[6]={0.}, dgt_dsig[6]={0.};
+		double dsig_dlamda[6]={0.}, /*dsig_dlamda_k1[6]={0.},*/ dfs_dsig[6]={0.}, dft_dsig[6]={0.}, dgs_dsig[6]={0.}, dgt_dsig[6]={0.};
 		bool first_step;
-		double shearsurf_k1, tensionsurf_k1, local_damp, tmp_pos = 1., tmp_neg=1.; //Newton downhill
+		double shearsurf_k1, tensionsurf_k1 /*, local_damp, tmp_pos = 1., tmp_neg=1.*/; //Newton downhill
 		double lamda_pos=0., lamda_neg=0., shearsurf_pos, shearsurf_neg, tensionsurf_pos, tensionsurf_neg;
 		if(tensionsurf>MKleinsteZahl)//if tension 
 		{
-			dlamda = 0, dlamda_1=1;
+			// dlamda = 0, dlamda_1=1;
 			counter = 0;
 			first_step = true;
 			tensionsurf_k1 = tensionsurf;
@@ -3449,10 +3483,11 @@ int CSolidProperties::StressIntegrationMOHR_Aniso(const int GPiGPj, const Elemen
 
 		if(shearsurf>1e-5)
 		{
-			dlamda = 0, dlamda_1=1, dlamda_0=0.;
+			dlamda = 0; //, dlamda_1=1, dlamda_0=0.;
 			counter = 0;
 			first_step = true;
-			local_damp = 1., shearsurf_k1=shearsurf;
+			// local_damp = 1.;
+			shearsurf_k1=shearsurf;
 			for(i=0;i<Size;i++)
 			{
 				dstrs_local[i] = TmpStress[i]-TryStress_local[i];
@@ -4002,8 +4037,8 @@ int CSolidProperties::DirectStressIntegrationMOHR(const int GPiGPj, ElementValue
 	}
 	if((shearsurf > 0) || (tensionsurf > 0))
 	{
-		double P_12, P_31, P_41, P_63, P_64, P_52, P_85, P_74, P_78, P_98, P_45, P_X7;
-		double t1, t2, t1ra ,t1r1, t2ra, t2r2, t3r1, t3r2;
+		double P_12, P_31, P_41, P_63, P_64, P_52, P_85, P_74, P_78, P_98, P_45 /*, P_X7*/;
+		double t1, t2 /*, t1ra*/ ,t1r1 /*, t2ra, t2r2*/, t3r1 /*, t3r2*/;
 		double fkt1, fkt2;
 		double mm = 0.;
 
@@ -4078,11 +4113,11 @@ int CSolidProperties::DirectStressIntegrationMOHR(const int GPiGPj, ElementValue
 		t1 = CalVar_t(l1, l1g, Inv_De, prin_str, sig1R, Size);
 		t2 = CalVar_t(l2, l2g, Inv_De, prin_str, sig2R, Size);
 		t1r1 = CalVar_t(l1R, l1R, Inv_De, prin_str, sig1R, Size);
-		t1ra = CalVar_t(l1R, l1R, Inv_De, prin_str, sigaR, Size);
-		t2r2 = CalVar_t(l2R, l2R, Inv_De, prin_str, sig2R, Size);
-		t2ra = CalVar_t(l2R, l2R, Inv_De, prin_str, sigaR, Size);
+		// t1ra = CalVar_t(l1R, l1R, Inv_De, prin_str, sigaR, Size);
+		// t2r2 = CalVar_t(l2R, l2R, Inv_De, prin_str, sig2R, Size);
+		// t2ra = CalVar_t(l2R, l2R, Inv_De, prin_str, sigaR, Size);
 		t3r1 = CalVar_t(l3R, l3R, Inv_De, prin_str, sig1R, Size);
-		t3r2 = CalVar_t(l3R, l3R, Inv_De, prin_str, sig2R, Size);
+		// t3r2 = CalVar_t(l3R, l3R, Inv_De, prin_str, sig2R, Size);
 
 		P_12 = CalVarP(rsp, l1, prin_str, sig1R);
 		P_31 = CalVarP(rsp, l2, prin_str, sig2R);
@@ -4103,7 +4138,7 @@ int CSolidProperties::DirectStressIntegrationMOHR(const int GPiGPj, ElementValue
 		P_78 = CalVarP(rtp, l1R, prin_str, sig1R);
 		//P_98 = 0;
 		P_98 = CalVarP(rtp, l2R, prin_str, sig2R);
-		P_X7 = CalVarP(rtp, l2R, prin_str, sig2R);
+		// P_X7 = CalVarP(rtp, l2R, prin_str, sig2R);
 
 		if( P_12 >= 0 && P_31 <= 0 && P_41 <= 0 ) //return to fmc
 		{
@@ -4693,7 +4728,7 @@ void CSolidProperties::VecCrossProduct(double* vec1, double* vec2, double* resul
 	result_vec[2] = vec1[0] * vec2[1] + vec1[1] * vec1[0];
 }
 //calculate constitutive matrix when return to a line
-void CSolidProperties::CalDep_l(double* vecl, double* veclg, Matrix* D, Matrix* Dep_l, double fkt)
+void CSolidProperties::CalDep_l(double* vecl, double* veclg, Matrix* D, Matrix* Dep_l, double /*fkt*/)
 {
 	double TmpVec[6] = {0.};
 	double TmpVal = 0.;
@@ -4772,7 +4807,7 @@ void CSolidProperties::Cal_Inv_Matrix(int Size, Matrix* MatrixA, Matrix* xx)
 
 	for(j_col = 0; j_col < Size; j_col++)
 	{
-		for(i = 0; i < Size; i++)
+		for(i = 0; i < std::min(6, Size); i++)
 		{
 			rhs[i] = 0.;
 			if(i == j_col)
@@ -5106,7 +5141,7 @@ int CSolidProperties::CalStress_and_TangentialMatrix_SYS
         const int Update)
 {
 	const int LengthMat = 7;
-	const int LengthStrs = De->Cols();
+	const int LengthStrs = std::min(std::size_t(6ul), De->Cols());
 	int dim = 2;
 	const int minSub = 4;
 	const int maxSub = 1000;
@@ -7981,7 +8016,7 @@ double CSolidProperties::E_Function(int dim, const ElementValue_DM *ele_val, int
 	return return_value;
 }
 
-//TN - added for TNEQ process
+//TN - added for TNEQ/TEQ process
 void CSolidProperties::setSolidReactiveSystem (FiniteElement::SolidReactiveSystem reactive_system)
 {
 	_reactive_system = reactive_system;

@@ -31,6 +31,8 @@
 /**************************************************************************/
 #include "Configure.h"
 //#include <iostream>
+#include "display.h"
+#include "memory.h"
 //#include "makros.h"
 //#ifndef NEW_EQS //WW. 07.11.2008
 //#include "solver.h"
@@ -222,7 +224,7 @@ int ReadData ( char* dateiname, GEOLIB::GEOObjects& geo_obj, std::string& unique
 
 	MSPRead(dateiname);
 	MMPRead(dateiname);
-    REACINTRead(dateiname); // CB new reaction interface
+  REACINTRead(dateiname, geo_obj, unique_name); // CB new reaction interface
 	RCRead(dateiname);
     REACT_CAP_Read(dateiname, geo_obj, unique_name);  //DL/SB 11/2008 ChemASpp inteface new
 
@@ -377,7 +379,7 @@ void CURRead(std::string base_file_name)
 	cur_file.seekg(0L,std::ios::beg);
 	//========================================================================
 	// keyword loop
-	std::cout << "CURRead" << "\n";
+	std::cout << "CURRead" << "\n" << std::flush;
 	while (!cur_file.eof())
 	{
 		cur_file.getline(line,MAX_ZEILE);
@@ -979,7 +981,7 @@ int StrTestHash ( char* s, int* pos )
  */
 /**************************************************************************/
 /*MX*/
-int StrOnlyReadStr ( char* x, char* s, FILE* f, /*FctTestString func,*/ int* pos )
+int StrOnlyReadStr ( char* x, char* s, FILE* /*f*/, /*FctTestString func,*/ int* pos )
 {
 //   int test;
 

@@ -7,7 +7,6 @@
    last modified
 **************************************************************************/
 
-#include "gs_project.h"
 #include "makros.h"
 // C++ STL
 #include <iostream>
@@ -15,6 +14,8 @@
 using namespace std;
 // FEM-Makros
 //#include "files0.h"
+#include "makros.h"
+#include "display.h"
 #include "files0.h"
 #include "mathlib.h"
 // Base
@@ -360,9 +361,7 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 					std::cerr <<
 					"error in CInitialCondition::Read: point name \"" <<
 					geo_name << "\" not found!" << "\n";
-#ifndef OGS_USE_QT	//KR
 					exit (1);
-#endif
 				}
 				setGeoType (GEOLIB::POINT);
 				setGeoObj (pnt);
@@ -381,9 +380,7 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 					std::cerr <<
 					"error in CInitialCondition::Read: polyline name \"" <<
 					geo_name << "\" not found!" << "\n";
-#ifndef OGS_USE_QT	//KR
 					exit (1);
-#endif
 				}
 				setGeoType (GEOLIB::POLYLINE);
 				setGeoObj (ply);
@@ -391,15 +388,18 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 			if (geo_type_name.find("SURFACE") != string::npos)
 			{
 				setGeoType (GEOLIB::SURFACE);
-				//				// TF 07/2010 - get the surface vector and get the surface ID
-				//				if (!((geo_obj.getSurfaceVecObj(unique_name))->getElementIDByName(
-				//						geo_name, _geo_obj_idx))) {
-				//					std::cerr
-				//							<< "ERROR: CInitialCondition::Read: surface name not found!"
-				//							<< "\n";
-				//					exit(1);
-				//				}
 				in >> geo_name;
+				GEOLIB::Surface const* sfc(
+					geo_obj.getSurfaceVecObj(unique_geo_name)->getElementByName(geo_name)
+				);
+				setGeoObj(sfc);
+				if (sfc == NULL) {
+					std::cerr
+							<< "ERROR: CInitialCondition::Read: surface \"" <<
+							geo_name << "\" not found!"
+							<< "\n";
+					exit(1);
+				}
 			}
 			if (geo_type_name.find("VOLUME") != string::npos)
 				setGeoType (GEOLIB::VOLUME);
@@ -527,7 +527,7 @@ void CInitialCondition::Set(int nidx)
 		case GEOLIB::GEODOMAIN:
 			SetDomain(nidx);
 			if (storeValues)
-			  StoreInitialValues();// JOD 2014-11-10 
+			  StoreInitialValues();// JOD 2014-11-10
 			break;
 		case GEOLIB::INVALID:
 			std::cout << "WARNING: CInitialCondition::Set - invalid geo type" << "\n";
@@ -548,14 +548,14 @@ void CInitialCondition::SetByNodeIndex(int nidx)
 	string line_string;
 	std::stringstream in;
 	long node_index;
-	double node_val, node_val1, node_val2;
+	double node_val;
 
-	std::string fnamebuff; // JODNEW cause SetIC() is called twice
+	std::string fnamebuff; // JOD 8/2015 cause SetIC() is called twice
 	// File handling
 
 	fnamebuff = fname;
 
-#if defined(USE_PETSC)  //  JODNEW
+#if defined(USE_PETSC)  //  JOD 8/2015
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	stringstream ss;
@@ -572,7 +572,7 @@ void CInitialCondition::SetByNodeIndex(int nidx)
 #endif
 
 	// File handling
-	ifstream d_file(fnamebuff.c_str(), ios::in); // JODNEW
+	ifstream d_file(fnamebuff.c_str(), ios::in); //  JOD 8/2015
 	if (!d_file.is_open())
 	{
 		cout << "! Error in direct node source terms: Could not find file " << fname <<
@@ -588,25 +588,10 @@ void CInitialCondition::SetByNodeIndex(int nidx)
 
 		in.str(line_string);
 		in >> node_index >> node_val;
-		
-
-		if (convertProcessTypeToString(this->getProcessType()) == "MULTI_COMPONENTIAL_FLOW") {
-			in >> node_val1 >> node_val2;
-			this->getProcess()->SetNodeValue(m_msh->nod_vector[node_index]->GetIndex(), 0, node_val);  // PRESSURE1
-			this->getProcess()->SetNodeValue(m_msh->nod_vector[node_index]->GetIndex(), 2, node_val1);  // TEMPERATURE1
-			this->getProcess()->SetNodeValue(m_msh->nod_vector[node_index]->GetIndex(), 4, node_val2);  // CONCENTRATION1
-		}
-		else
-			this->getProcess()->SetNodeValue(m_msh->nod_vector[node_index]->GetIndex(), nidx, node_val); // JODNEW
-
 		in.clear();
 
-		//this->getProcess()->SetNodeValue(node_index,nidx,node_val);
-		
+		this->getProcess()->SetNodeValue(node_index,nidx,node_val);
 	}
-#if defined(USE_PETSC)   // added by JODNEW, but he is not sure if this is really required here
-	MPI_Barrier(MPI_COMM_WORLD);
-#endif
 }
 
 /**************************************************************************
@@ -626,7 +611,7 @@ void CInitialCondition::SetPoint(int nidx)
 		                                                                                getGeoObj(
 		                                                                                        ))),
 		                                 nidx,
-		                                 geo_node_value);	
+		                                 geo_node_value);
 	else
 		std::cerr << "Error in CInitialCondition::SetPoint - point: "
 		          << *(static_cast<const GEOLIB::Point*>(getGeoObj()))
@@ -676,30 +661,45 @@ void CInitialCondition::SetPolyline(int nidx)
 {
  	if (this->getProcessDistributionType() == FiniteElement::CONSTANT)
 	{
-		//		CGLPolyline* m_polyline = polyline_vector[getGeoObjIdx()];
-		//		if (m_polyline) {
-		//			std::vector<long> nodes_vector;
-		//			m_msh->GetNODOnPLY(m_polyline, nodes_vector);
-		//			for (size_t i = 0; i < nodes_vector.size(); i++) {
-		//				m_pcs->SetNodeValue(nodes_vector[i], nidx, node_value_vector[0]->node_value);
-		//			}
-		//		} else {
-		//			std::cout << "Error in CInitialCondition::SetPolyline - polyline: "
-		//					<< geo_name << " not found" << "\n";
-		//		}
-		if (getGeoObj())
-		{
-			std::vector<long> nodes_vector;
-			m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(getGeoObj()), nodes_vector);
-			for (size_t i = 0; i < nodes_vector.size(); i++)
-				this->getProcess()->SetNodeValue(nodes_vector[i],
-				                                 nidx,
-				                                 geo_node_value);
+		CGLPolyline* m_polyline = GEOGetPLYByName(geo_name);
+		if (!m_polyline) {
+			std::cout << "Error in CInitialCondition::SetPolyline - CGLPolyline: "
+				<< geo_name << " not found" << "\n";
 		}
-		else
-			std::cout << "Error in CInitialCondition::SetPolyline - polyline: "
+		if (!getGeoObj()) {
+			std::cout << "Error in CInitialCondition::SetPolyline - Polyline: "
 			          << geo_name << " not found" << "\n";
+			return;
+		}
+
+		bool automatic(! m_polyline->isSetEps());
+		std::vector<std::size_t> nodes_vector;
+		m_msh->GetNODOnPLY(
+			static_cast<const GEOLIB::Polyline*>(getGeoObj()),
+			nodes_vector, automatic, m_polyline->epsilon
+		);
+		for (size_t i = 0; i < nodes_vector.size(); i++)
+			this->getProcess()->SetNodeValue(nodes_vector[i],
+			                                 nidx,
+			                                 geo_node_value);
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+	{
+		std::string const debug_fname(geo_name+"-FoundNodes.gli");
+		std::ofstream debug_out(debug_fname.c_str());
+		debug_out << "#POINTS\n";
+		for (size_t k(0); k<nodes_vector.size(); k++) {
+			debug_out << k << " " <<
+				GEOLIB::Point((m_msh->getNodeVector())[nodes_vector[k]]->getData()) <<
+				" $NAME " << nodes_vector[k] << "\n";
+		}
+		debug_out << "#STOP" << "\n";
+		debug_out.close();
 	}
+#endif
+#endif
+	}
+
 	//	if (dis_type_name.find("LINEAR") != string::npos) {
 	//	}
 }
@@ -718,8 +718,36 @@ void CInitialCondition::SetSurface(int nidx)
 
 	if(m_sfc && m_msh)
 	{
-
-		 m_msh->GetNODOnSFC(m_sfc, sfc_nod_vector);
+		 // m_msh->GetNODOnSFC(m_sfc, sfc_nod_vector); // TF: use the following
+		 // lines to get mesh nodes on surfaces
+		GEOLIB::Surface const* sfc(
+			static_cast<const GEOLIB::Surface*> (getGeoObj()));
+		if (sfc == NULL) {
+			std::cerr << "CInitialCondition::SetSurface(): Did not find surface.\n";
+			return;
+		}
+		std::vector<std::size_t> msh_nod_vec;
+		m_msh->GetNODOnSFC(sfc, msh_nod_vec);
+		// copy node ids
+		for (size_t k(0); k < msh_nod_vec.size(); k++) {
+			sfc_nod_vector.push_back (msh_nod_vec[k]);
+		}
+#ifndef NDEBUG
+#ifdef DEBUGMESHNODESEARCH
+		{
+			std::string const debug_fname("IC-Surface-"+geo_name+"-FoundNodes.gli");
+			std::ofstream debug_out(debug_fname.c_str());
+			debug_out << "#POINTS\n";
+			for (size_t k(0); k<msh_nod_vec.size(); k++) {
+				debug_out << k << " " <<
+					GEOLIB::Point((m_msh->getNodeVector())[msh_nod_vec[k]]->getData()) <<
+					" $NAME " << msh_nod_vec[k] << "\n";
+			}
+			debug_out << "#STOP" << "\n";
+			debug_out.close();
+		}
+#endif
+#endif
 
 		if(this->getProcessDistributionType() == FiniteElement::CONSTANT)
 			for(size_t i = 0; i < sfc_nod_vector.size(); i++)
@@ -817,14 +845,14 @@ void CInitialCondition::SetDomain(int nidx)
 			// if (this->getProcess()->pcs_type_name.compare("OVERLAND_FLOW") == 0)
 			if (this->getProcess()->getProcessType() == FiniteElement::OVERLAND_FLOW)
 				//OK MSH
-			for (i = 0; i < this->getProcess()->m_msh->GetNodesNumber(false);
-				i++)
-			{
-				node_val = geo_node_value +
-					this->getProcess()->m_msh->nod_vector[i]->
-					getData()[2];
-				this->getProcess()->SetNodeValue(i, nidx, node_val);
-			}
+				for (i = 0; i < this->getProcess()->m_msh->GetNodesNumber(false);
+				     i++)
+				{
+					node_val = geo_node_value +
+					           this->getProcess()->m_msh->nod_vector[i]->
+					           getData()[2];
+					this->getProcess()->SetNodeValue(i, nidx, node_val);
+				}
 			else
 			{
 				//................................................................
@@ -839,42 +867,19 @@ void CInitialCondition::SetDomain(int nidx)
 		// Remove unused stuff by WW
 		if (this->getProcessDistributionType() == FiniteElement::GRADIENT)
 			//WW
-		for (i = 0; i < m_msh->GetNodesNumber(true); i++)
-		{
-			if (onZ == 1) //2D
-				node_depth = m_msh->nod_vector[i]->getData()[1];
-			if (onZ == 2) //3D
-				node_depth = m_msh->nod_vector[i]->getData()[2];
-			node_val = gradient_ref_depth_gradient * (gradient_ref_depth
-				- node_depth) +
-				gradient_ref_depth_value;
-			this->getProcess()->SetNodeValue(
-				m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
-		}
-		//----------------------------------------------------------------------
-		if (this->getProcessDistributionType() == FiniteElement::BOUNDED)  // JODNEW
-		{
 			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
 			{
 				if (onZ == 1) //2D
 					node_depth = m_msh->nod_vector[i]->getData()[1];
 				if (onZ == 2) //3D
 					node_depth = m_msh->nod_vector[i]->getData()[2];
-
-				node_val = gradient_ref_depth_value + (node_depth - gradient_ref_depth)  * (gradient_ref_depth_value1 - gradient_ref_depth_value) / (gradient_ref_depth1 - gradient_ref_depth);
-				// y = y0 + (x-x0) (y1 - y0) / (x1-x0)	
-				/*if (node_val < gradient_ref_depth_value)   // bound
-					node_val = gradient_ref_depth_value;
-				if (node_val > gradient_ref_depth_value1)
-					node_val = gradient_ref_depth_value1;*/
-
-				if (node_val >= gradient_ref_depth_value && node_val <= gradient_ref_depth_value1) // bound
-				{
-					this->getProcess()->SetNodeValue(
-						m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
-				}
+				node_val = gradient_ref_depth_gradient * (gradient_ref_depth
+				                                          - node_depth) +
+				           gradient_ref_depth_value;
+				this->getProcess()->SetNodeValue(
+				        m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
 			}
-		}
+		//if(dis_type_name.find("GRADIENT")!=string::npos)
 		//----------------------------------------------------------------------
 		if (this->getProcessDistributionType() == FiniteElement::RESTART)
 		{
@@ -895,34 +900,27 @@ void CInitialCondition::SetDomain(int nidx)
 				return;
 			}
 			std::ifstream rfr_file;
-			CGSProject* m_gsp = GSPGetMember("msh");
 			std::string restart_file_name;
 			restart_file_name = rfr_file_name;
-			if (m_gsp)
-				restart_file_name = m_gsp->path + rfr_file_name;
-			//---------------------------------------------------------------------
-			else          //Get absolut path of the file. 07.01.2009. WW
+			basic_string<char>::size_type indexChWin, indexChLinux;
+			indexChWin = indexChLinux = 0;
+			indexChWin = FileName.find_last_of('\\');
+			indexChLinux = FileName.find_last_of('/');
+			//
+			string funfname;
+			if (indexChWin == string::npos && indexChLinux == string::npos)
+				funfname = rfr_file_name;
+			else if (indexChWin != string::npos)
 			{
-				basic_string<char>::size_type indexChWin, indexChLinux;
-				indexChWin = indexChLinux = 0;
-				indexChWin = FileName.find_last_of('\\');
-				indexChLinux = FileName.find_last_of('/');
-				//
-				string funfname;
-				if (indexChWin == string::npos && indexChLinux == string::npos)
-					funfname = rfr_file_name;
-				else if (indexChWin != string::npos)
-				{
-					funfname = FileName.substr(0, indexChWin);
-					funfname = funfname + "\\" + rfr_file_name;
-				}
-				else if (indexChLinux != string::npos)
-				{
-					funfname = FileName.substr(0, indexChLinux);
-					funfname = funfname + "/" + rfr_file_name;
-				}
-				restart_file_name = funfname;
+				funfname = FileName.substr(0, indexChWin);
+				funfname = funfname + "\\" + rfr_file_name;
 			}
+			else if (indexChLinux != string::npos)
+			{
+				funfname = FileName.substr(0, indexChLinux);
+				funfname = funfname + "/" + rfr_file_name;
+			}
+			restart_file_name = funfname;
 			//-------------------------------------------------------------------
 			rfr_file.open(restart_file_name.c_str(), ios::in);
 			if (!rfr_file.good())
@@ -1174,17 +1172,17 @@ Used for LIQUID_FLOW with varying fluid density
 11/2014 JOD Implementation
 **************************************************************************/
 void CInitialCondition::StoreInitialValues() {
-	
+
 	string variable_name = "DELTA_" + convertPrimaryVariableToString(this->
 		getProcessPrimaryVariable());
 
 	int index = this->getProcess()->GetNodeValueIndex(variable_name);
 	for (int i = 0; i < (long)m_msh->nod_vector.size(); i++)
 	{
-	
+
 		this->getProcess()->SetNodeValue(i, this->getProcess()->GetNodeValueIndex(variable_name),
 			this->getProcess()->GetNodeValue(i, 0));
-		
+
 	}
 
 }

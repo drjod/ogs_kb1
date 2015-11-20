@@ -17,11 +17,11 @@
 namespace MeshLib
 {
 MeshNodesAlongPolyline::MeshNodesAlongPolyline(
-        GEOLIB::Polyline const* const ply, MeshLib::CFEMesh const* mesh) :
+		GEOLIB::Polyline const* const ply, MeshLib::CFEMesh const* mesh,
+		double search_radius) :
 	_ply(ply), _mesh(mesh), _linear_nodes (0)
 {
 	std::vector<CNode*> const& mesh_nodes (mesh->getNodeVector());
-	double epsilon_radius (mesh->getMinEdgeLength()); // getSearchLength());
 
 	size_t n_linear_order_nodes (mesh->GetNodesNumber (false));
 	size_t n_nodes (mesh->GetNodesNumber (true));
@@ -40,8 +40,8 @@ MeshNodesAlongPolyline::MeshNodesAlongPolyline(
 		{
 			double act_length_of_ply(ply->getLength(k));
 			double seg_length (sqrt(MathLib::sqrDist(_ply->getPoint(k), _ply->getPoint(k + 1))));
-			double lower_lambda (- epsilon_radius / seg_length);
-			double upper_lambda (1 + epsilon_radius / seg_length);
+			double lower_lambda (- search_radius / seg_length);
+			double upper_lambda (1 + search_radius / seg_length);
 
 			// loop over all nodes
 			for (size_t j = 0; j < n_nodes; j++)
@@ -53,7 +53,7 @@ MeshNodesAlongPolyline::MeshNodesAlongPolyline(
 				// at the k-th line segment of the polyline, i.e. 0 <= lambda <= 1?
 				if (MathLib::calcProjPntToLineAndDists(mesh_nodes[j]->getData(),
 								(_ply->getPoint(k))->getData(), (_ply->getPoint(k + 1))->getData(),
-								lambda, dist) <= epsilon_radius) {
+								lambda, dist) <= search_radius) {
 					if (lower_lambda <= lambda && lambda <= upper_lambda) {
 						if (mesh_nodes[j]->GetIndex() < n_linear_order_nodes) {
 							// check if node id is already in the vector
@@ -81,7 +81,7 @@ MeshNodesAlongPolyline::MeshNodesAlongPolyline(
 		//We need exactly defined polyline for DDC. 
 		//Therefore, the following two line should be dropped.
 		//if (_msh_node_ids.empty())
-		//	epsilon_radius *= 2.0;
+		//	search_radius *= 2.0;
 	}
 
 	// sort the (linear) nodes along the polyline according to their distances
@@ -98,7 +98,7 @@ MeshNodesAlongPolyline::MeshNodesAlongPolyline(
 //	}
 //
 //	std::cout << "distances of linear nodes along polyline " << ply_name <<
-//	" (epsilon radius = " << epsilon_radius << "): " << "\n";
+//	" (epsilon radius = " << search_radius << "): " << "\n";
 //	for (size_t k(0); k < _dist_of_proj_node_from_ply_start.size(); k++)
 //		std::cout << "\t" << _msh_node_ids[k] << " " <<
 //		_dist_of_proj_node_from_ply_start[k] << "\n";

@@ -526,10 +526,7 @@ public:
 	// Preconditioner
 	void Precond_Jacobi(double* vec_s, double* vec_r);
 	//TEMP
-	void Precond_ILU(double* vec_s, double* vec_r)
-	{
-		vec_s = vec_r = NULL;
-	}
+	void Precond_ILU(double* /*vec_s*/, double* /*vec_r*/) {}
 	// Operator
 	void operator = (const double a);
 	void operator *= (const double a);

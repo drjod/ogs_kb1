@@ -77,6 +77,31 @@ void CNodeValue::Write(std::ostream& os) const
 	os << "\n";
 }
 
+void CNodeValue::Write_data(double data, std::ostream& os) const
+{
+  std::string deli = "  ";
+  os << geo_node_number << deli;
+  os << msh_node_number << deli;
+  os << CurveIndex << deli;
+  os << data << deli;
+  /*
+  // This is for river flow
+  // This writing will be valid for river flow when some
+  // of its parameters being moved from CSourceTerm to here
+  os<< node_distype <<deli;
+  os<< node_area <<deli;
+  os<< node_parameterA <<deli;
+  os<< node_parameterB <<deli;
+  os<< node_parameterC <<deli;
+  os<< node_parameterD <<deli;
+  os<< node_parameterE <<deli;
+  os<< conditional <<deli;
+  */
+  os << "\n";
+}
+
+
+
 
 /**************************************************************************
 FEMLib-Method:

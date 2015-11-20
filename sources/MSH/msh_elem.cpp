@@ -87,7 +87,7 @@ CElem::CElem(size_t Index, CElem* onwer, int Face) :
 {
 	int i, j, k, n, ne;
 	int faceIndex_loc[10];
-	int edgeIndex_loc[10];
+	int edgeIndex_loc[10] = {};
 	no_faces_on_surface = 0;
 	n = owner->GetElementFaceNodes(Face, faceIndex_loc);
 	face_index = Face;
@@ -489,14 +489,12 @@ void CElem:: SetFace(CElem* onwer, const int Face)
 	{
 	//case MshElemType::LINE:  // 1-D bar element
 	case MshElemType::QUAD: // 2-D quadrilateral element
-		this->setElementProperties(MshElemType::LINE, true); // JOD 2014-11-10 for mass balance
+		this->setElementProperties(MshElemType::LINE, true); // JOD 2014-11-10
 		break;
 	case MshElemType::HEXAHEDRON:             // 3-D hexahedral element
 		this->setElementProperties(MshElemType::QUAD, true);
 		break;
-	case MshElemType::TRIANGLE:  // 2-D triagular element
-		this->setElementProperties(MshElemType::LINE, true); // JODNEW  for mass balance
-		break;
+	//case MshElemType::TRIANGLE:  // 2-D triagular element
 	case MshElemType::TETRAHEDRON:            // 3-D tetrahedral element
 		this->setElementProperties(MshElemType::TRIANGLE, true);
 		break;
@@ -1791,6 +1789,5 @@ void CElem::InvertNormalVector()
 	normal_vector[2] = -normal_vector[2];
 
 }
-
 
 }                                                 // namespace MeshLib

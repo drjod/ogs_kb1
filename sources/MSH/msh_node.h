@@ -146,7 +146,10 @@ public:
 	{
 		return _connected_nodes;
 	}
-
+  size_t getNumConnectedElements() const
+  {
+     return _connected_elements.size();
+  }
         size_t getNumConnectedNodes() const 
         {
 	  return _connected_nodes.size();

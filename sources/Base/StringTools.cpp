@@ -46,6 +46,31 @@ void trim(std::string &str, char ch)
 		str.erase(str.begin(), str.end());
 }
 
+
+std::string ltrim(const std::string& str, const char c)
+{
+	const size_t idx = str.find_first_not_of(c);
+	if (idx == std::string::npos) {
+		// string consists only of c
+		return "";
+	} else {
+		return str.substr(idx);
+	}
+}
+
+
+std::string rtrim(const std::string& str, const char c)
+{
+	const size_t idx = str.find_last_not_of(c);
+	if (idx == std::string::npos) {
+		// string consists only of c
+		return "";
+	} else {
+		return str.substr(0, idx+1);
+	}
+}
+
+
 namespace BaseLib {
 
 std::string getFileNameFromPath(const std::string &str, bool with_extension)

@@ -119,7 +119,7 @@ void CFiniteElementStd::ComputeAdditionalJacobi_H2()
 		dkdp2 = dSdp * ( MediaProp->PermeabilitySaturationFunction(S1,1)
 		                 - MediaProp->PermeabilitySaturationFunction(Sw,1)) / perturb;
 
-		for (size_t i = 0; i < dim; i++)
+		for (size_t i = 0; i < dim && i < 3; i++)
 		{
 			vw[i] = 0.0;
 			vg[i] = 0.;
@@ -289,7 +289,7 @@ void CFiniteElementStd::ComputeAdditionalJacobi_Richards()
 		dkdp1 = dSdp * ( MediaProp->PermeabilitySaturationFunction(S1,0)
 		                 - MediaProp->PermeabilitySaturationFunction(Sw,0)) / perturb;
 
-		for (size_t i = 0; i < dim; i++)
+		for (size_t i = 0; i < dim && i < 3; i++)
 		{
 			vw[i] = 0.0;
 			for(size_t j = 0; j < dim; j++)

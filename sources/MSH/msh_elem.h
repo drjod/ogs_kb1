@@ -1,5 +1,5 @@
 /**************************************************************************
-   MSHLib - Object:class Matrix
+   MSHLib - Object:
    Task:
    Programing:
    08/2005 WW/OK Encapsulation from rf_ele_msh

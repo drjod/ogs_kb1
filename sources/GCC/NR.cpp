@@ -29,7 +29,7 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 			fc=fa;
 			e=d=b-a;
 		}
-		if (abs(fc) < abs(fb)) {
+		if (fabs(fc) < fabs(fb)) {
 			a=b;
 			b=c;
 			c=a;
@@ -37,10 +37,10 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 			fb=fc;
 			fc=fa;
 		}
-		tol1=2.0*EPS*abs(b)+0.5*tol;
+		tol1=2.0*EPS*fabs(b)+0.5*tol;
 		xm=0.5*(c-b);
-		if (abs(xm) <= tol1 || fb == 0.0) return b;
-		if (abs(e) >= tol1 && abs(fa) > abs(fb)) {
+		if (fabs(xm) <= tol1 || fb == 0.0) return b;
+		if (fabs(e) >= tol1 && abs(fa) > abs(fb)) {
 			s=fb/fa;
 			if (a == c) {
 				p=2.0*xm*s;
@@ -52,9 +52,9 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 				q=(q-1.0)*(r-1.0)*(s-1.0);
 			}
 			if (p > 0.0) q = -q;
-			p=abs(p);
-			double min1=3.0*xm*q-abs(tol1*q);
-			double min2=abs(e*q);
+			p=fabs(p);
+			double min1=3.0*xm*q-fabs(tol1*q);
+			double min2=fabs(e*q);
 			if (2.0*p < (min1 < min2 ? min1 : min2)) {
 				e=d;
 				d=p/q;
@@ -68,7 +68,7 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 		}
 		a=b;
 		fa=fb;
-		if (abs(d) > tol1)
+		if (fabs(d) > tol1)
 			b += d;
 		else
 			b += SIGN(tol1,xm);
@@ -105,16 +105,16 @@ double dfridr(double func(double), const double x/*, const double h, double &err
 		for (j=1;j<=i;j++) {
 			a[j][i]=(a[j-1][i]*fac-a[j-1][i-1])/(fac-1.0);
 			fac=con2*fac;
-			if(abs(a[j][i]-a[j-1][i])>abs(a[j][i]-a[j-1][i-1]))
-				errt=abs(a[j][i]-a[j-1][i]);
+			if(fabs(a[j][i]-a[j-1][i])>fabs(a[j][i]-a[j-1][i-1]))
+				errt=fabs(a[j][i]-a[j-1][i]);
 			else
-				errt=abs(a[j][i]-a[j-1][i-1]);
+				errt=fabs(a[j][i]-a[j-1][i-1]);
 			if (errt <= err) {
 				err=errt;
 				ans=a[j][i];
 			}
 		}
-		if (abs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
+		if (fabs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
 	}
 	return ans;
 }
@@ -141,16 +141,16 @@ double NR::dfridrX(double func(double,double), const double x, const double y/*,
 		for (j=1;j<=i;j++) {
 			a[j][i]=(a[j-1][i]*fac-a[j-1][i-1])/(fac-1.0);
 			fac=con2*fac;
-			if(abs(a[j][i]-a[j-1][i])>abs(a[j][i]-a[j-1][i-1]))
-				errt=abs(a[j][i]-a[j-1][i]);
+			if(fabs(a[j][i]-a[j-1][i])>fabs(a[j][i]-a[j-1][i-1]))
+				errt=fabs(a[j][i]-a[j-1][i]);
 			else
-				errt=abs(a[j][i]-a[j-1][i-1]);
+				errt=fabs(a[j][i]-a[j-1][i-1]);
 			if (errt <= err) {
 				err=errt;
 				ans=a[j][i];
 			}
 		}
-		if (abs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
+		if (fabs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
 	}
 	return ans;
 }
@@ -177,16 +177,16 @@ double NR::dfridrY(double func(double,double), const double x, const double y/*,
 		for (j=1;j<=i;j++) {
 			a[j][i]=(a[j-1][i]*fac-a[j-1][i-1])/(fac-1.0);
 			fac=con2*fac;
-			if(abs(a[j][i]-a[j-1][i])>abs(a[j][i]-a[j-1][i-1]))
-				errt=abs(a[j][i]-a[j-1][i]);
+			if(fabs(a[j][i]-a[j-1][i])>fabs(a[j][i]-a[j-1][i-1]))
+				errt=fabs(a[j][i]-a[j-1][i]);
 			else
-				errt=abs(a[j][i]-a[j-1][i-1]);
+				errt=fabs(a[j][i]-a[j-1][i-1]);
 			if (errt <= err) {
 				err=errt;
 				ans=a[j][i];
 			}
 		}
-		if (abs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
+		if (fabs(a[i][i]-a[i-1][i-1]) >= safe*err) break;
 	}
 	return ans;
 }

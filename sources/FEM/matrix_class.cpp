@@ -221,7 +221,6 @@ void Matrix::multi(const Matrix& m, Matrix& m_result, double fac)
 	}
 #endif
     const double *m_data = m.getEntryArray();
-    const size_t mrows = m.Rows();
     const size_t mcols = m.Cols();
     double *r_data = m_result.getEntryArray();
     const size_t r_rows = m_result.Rows();
@@ -360,8 +359,6 @@ void SymMatrix::multi(const SymMatrix& m, Matrix& m_result, double fac)
 		abort();
 	}
 #endif
-    const size_t mrows = m.Rows();
-    const size_t mcols = m.Cols();
     double *r_data = m_result.getEntryArray();
     const size_t r_rows = m_result.Rows();
     const size_t r_cols = m_result.Cols();
@@ -710,7 +707,7 @@ SparseTable::SparseTable(CFEMesh* a_mesh, bool quadratic, bool symm, StorageType
 			{
 				jj = larraybuffer[i][j + 1];
 				if(i <= jj)
-					a_mesh->nod_vector[i]->getConnectedNodes().push_back(jj);   
+					a_mesh->nod_vector[i]->getConnectedNodes().push_back(jj);
 			}
 		}
 	}
@@ -1072,7 +1069,7 @@ CSparseMatrix::CSparseMatrix(const SparseTable &sparse_table, const int dof)
 	//
 #ifdef LIS                         // PCH
 	int counter, counter_ptr = 0, counter_col_idx = 0;
-	int i,k,ii,jj,I,J,K;
+	int i,k,ii,jj,J,K;
 	int row_in_sparse_table;
 
 	ptr = new int [rows * dof + 1];
@@ -1092,7 +1089,7 @@ CSparseMatrix::CSparseMatrix(const SparseTable &sparse_table, const int dof)
 				{
 					if(row_in_sparse_table < num_column_entries[k])
 					{
-						I = ii * rows + i; // row in global matrix
+						//I = ii * rows + i; // row in global matrix
 						                   // column in global matrix
 						J = jj * rows + entry_column[counter];
 						K = (ii * DOF + jj) * size_entry_column + counter;
@@ -1828,7 +1825,9 @@ int CSparseMatrix::GetCRSValue(double* value)
 	int success = 1;
 	int i;
 
+#ifdef _OPENMP
 #pragma omp parallel for
+#endif
 	for(i = 0; i < size_entry_column * DOF * DOF; ++i)
 		value[i] = entry[entry_index[i]];
 

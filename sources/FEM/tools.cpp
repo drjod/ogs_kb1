@@ -23,6 +23,8 @@
 #include <cfloat>
 #define noTESTTOOLS
 /* Header / Andere intern benutzte Module */
+#include "display.h"
+#include "memory.h"
 #include "femlib.h"
 
 #include "mathlib.h"

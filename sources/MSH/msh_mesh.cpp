@@ -7,15 +7,15 @@
 **************************************************************************/
 #include <cfloat>
 #include <cmath>
+#include <climits>
 #include <fstream>
 #include <iomanip>                                //WW
 #include <iostream>
 #include <sstream>
 #include <vector>
 
-#include "gs_project.h"
-
 // BaseLib
+#include "memory.h"
 #include "Histogram.h"
 
 // GEOLib
@@ -138,7 +138,6 @@ CFEMesh::CFEMesh(GEOLIB::GEOObjects* geo_obj, std::string* geo_name) :
 	top_surface_checked = false; // 07.06.2010.  WW
 
 	nodes_are_sorted=false;
-	connected_nodes_vector.clear(); // JODNEW
 }
 
 // Copy-Constructor for CFEMeshes.
@@ -343,16 +342,27 @@ void CFEMesh::computeSearchLength(double c)
 
 	// criterion: mu - c times s, where mu is the average and s is standard deviation
 	const double mu (sum/n);
-	const double s (sqrt(1.0/(n-1) * (sum_of_sqr - (sum*sum)/n) ));
-	while (mu < c * s) {
-		c *= 0.9;
+
+	const double diff = fabs(sum_of_sqr - (sum*sum)/n);
+	if(diff < std::numeric_limits<double>::epsilon())
+	{
+		// In case all edges have the same length
+		_search_length = 0.5 * mu;
+		return; 
 	}
-	_search_length = mu - c * s;
+	else
+	{
+		const double s (sqrt(1.0/(n-1) * diff));
+		while (mu < c * s) {
+			c *= 0.9;
+		}
+		_search_length = mu - c * s;
 #ifndef NDEBUG
-	if (c < 2) {
-		std::cerr << "[CFEMesh::computeSearchLength] computed _search_length = " << _search_length << ", the average value is: " << mu << ", standard deviation is: " << s << "\n";
-	}
+		if (c < 2) {
+			std::cerr << "[CFEMesh::computeSearchLength] computed _search_length = " << _search_length << ", the average value is: " << mu << ", standard deviation is: " << s << "\n";
+		}
 #endif
+	}
 }
 
 /**************************************************************************
@@ -396,18 +406,6 @@ bool CFEMesh::Read(std::ifstream* fem_file)
 			*fem_file >> geo_type_name >> geo_name >> std::ws;
 		else if (line_string.find("$AXISYMMETRY") != std::string::npos)
 			_axisymmetry = true;
-		else if (line_string.find("$CONNECTED_NODES") != std::string::npos) // JOD4cST
-		{
-			size_t no_nodes, node, connected_node;
-			*fem_file >> no_nodes >> std::ws;
-			for (size_t i = 0; i < no_nodes; i++)
-			{
-				*fem_file >> node >> connected_node >> std::ws;;
-
-				connected_nodes_vector.push_back(node);
-				connected_nodes_vector.push_back(connected_node);
-			}
-		}
 		else if (line_string.find("$CROSS_SECTION") != std::string::npos)
 			_cross_section = true;
 		else if (line_string.find("$NODES") != std::string::npos)
@@ -909,10 +907,10 @@ void CFEMesh::ConstructGrid()
 	computeSearchLength();
 	computeMinEdgeLength();
 	constructMeshGrid();
-
-    // Test output SB / AB
+	
+	// Test output SB / AB
     std::cout << "Kleinste Zahl: " << MKleinsteZahl << std::endl;
-    for (long test_i = 0; test_i<this->ele_vector.size(); test_i++){
+    for (size_t test_i = 0; test_i<this->ele_vector.size(); test_i++){
         // std::cout << " Element Volume " << test_i << " : " << this->ele_vector[test_i]->volume << std::endl;
         if (this->ele_vector[test_i]->volume < MKleinsteZahl*10.0){
             //	this->ele_vector[test_i]->SetVolume(1.0e-12);
@@ -921,7 +919,6 @@ void CFEMesh::ConstructGrid()
             std::cout << " Deactivated the element. " << std::endl;
         }
     }
-
 }
 
 void CFEMesh::constructMeshGrid()
@@ -1407,7 +1404,6 @@ void CFEMesh::RenumberNodesForGlobalAssembly()
 **************************************************************************/
 long CFEMesh::GetNODOnPNT(const GEOLIB::Point* const pnt) const
 {
-	/*   JODNEW
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2012
     long node_id = -1;
   
@@ -1445,10 +1441,9 @@ long CFEMesh::GetNODOnPNT(const GEOLIB::Point* const pnt) const
     return node_id;
 
 #else
-	*/
 	MeshLib::CNode const*const node (_mesh_grid->getNearestPoint(pnt->getData()));
 	return node->GetIndex();
-//#endif // END: if use_petsc
+#endif // END: if use_petsc
 
 //	const size_t nodes_in_usage(static_cast<size_t> (NodesInUsage()));
 //	double sqr_dist(0.0), distmin(MathLib::sqrDist (nod_vector[0]->getData(), pnt->getData()));
@@ -1528,7 +1523,9 @@ inline double dotProduction(const double* x1, const double* x2,
    05/3013 WW Add restriction for the ply for the sources term
 **************************************************************************/
 void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
-                          std::vector<size_t>& msh_nod_vector)
+                          std::vector<size_t>& msh_nod_vector,
+                          bool automatic,
+                          double eps)
 {
 	msh_nod_vector.clear();  
 
@@ -1562,7 +1559,11 @@ void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
 	}
 
 	// compute nodes (and supporting points) along polyline
-	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this));
+	double search_radius (this->getMinEdgeLength()); // getSearchLength());
+	if (!automatic)
+		search_radius = eps;
+	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this,
+		search_radius));
 	const std::vector<size_t>
 	node_ids(
 	        _mesh_nodes_along_polylines[_mesh_nodes_along_polylines.size()
@@ -1604,7 +1605,9 @@ const MeshNodesAlongPolyline& CFEMesh::GetMeshNodesAlongPolyline(
 		if (it->getPolyline() == ply)
 			return *it;
 	 // compute nodes (and supporting points for interpolation) along polyline
-	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this));
+	double search_radius (this->getMinEdgeLength()); // getSearchLength());
+	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this,
+		search_radius));
 	return _mesh_nodes_along_polylines[_mesh_nodes_along_polylines.size() - 1];
 }
 
@@ -1624,7 +1627,10 @@ void CFEMesh::getPointsForInterpolationAlongPolyline(
 		}
 
 	// compute nodes (and points according the nodes) along polyline
-	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this));
+	double search_radius (this->getMinEdgeLength()); // getSearchLength());
+	_mesh_nodes_along_polylines.push_back(
+		MeshNodesAlongPolyline(ply, this, search_radius)
+	);
 	// copy supporting points from object into vector
 	for (size_t k(0); k
 	     < (_mesh_nodes_along_polylines.back()).getDistOfProjNodeFromPlyStart().size(); k++)
@@ -1632,12 +1638,22 @@ void CFEMesh::getPointsForInterpolationAlongPolyline(
 }
 
 void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
-                          std::vector<long>& msh_nod_vector, const bool for_s_term)
+                          std::vector<long>& msh_nod_vector,
+#ifdef USE_PETSC
+                          const bool for_s_term,
+#else
+                          const bool,
+#endif
+                          bool automatic,
+                          double search_radius)
 {
 	msh_nod_vector.clear(); // JOD 2014-11-10
 	//----------------------------------------------------------------------
 	std::vector<size_t> tmp_msh_node_vector;
-	GetNODOnPLY(ply, tmp_msh_node_vector);
+	if (automatic) {
+		search_radius = this->getMinEdgeLength()/2;
+	}
+	GetNODOnPLY(ply, tmp_msh_node_vector, automatic, search_radius);
 
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 08.2014
         if(for_s_term)
@@ -1646,10 +1662,10 @@ void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
                msh_nod_vector.push_back(tmp_msh_node_vector[k]);
         }
         else
-        {    
-	    const size_t start_act_node_h =  NodesNumber_Linear;         
-	    const size_t end_act_node_h =  NodesNumber_Linear 
-                                   + static_cast<size_t>(loc_NodesNumber_Quadratic - loc_NodesNumber_Linear);         
+        {
+	    const size_t start_act_node_h =  NodesNumber_Linear;
+	    const size_t end_act_node_h =  NodesNumber_Linear
+                                   + static_cast<size_t>(loc_NodesNumber_Quadratic - loc_NodesNumber_Linear);
             for(size_t k(0); k < tmp_msh_node_vector.size(); k++)
             {
                 const size_t n_id = nod_vector[tmp_msh_node_vector[k]]->GetIndex();
@@ -1662,7 +1678,7 @@ void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
 #else
 	for (size_t k(0); k < tmp_msh_node_vector.size(); k++)
 		msh_nod_vector.push_back(tmp_msh_node_vector[k]);
-#endif        
+#endif 
 }
 
 /**************************************************************************
@@ -1712,7 +1728,13 @@ void CFEMesh::GetNODOnSFC(Surface* m_sfc, std::vector<long>&msh_nod_vector, cons
    last modification:
 **************************************************************************/
 void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
-                          std::vector<size_t>& msh_nod_vector,  const bool for_s_term) const
+	std::vector<size_t>& msh_nod_vector,
+#ifdef USE_PETSC
+	const bool for_s_term
+#else
+	const bool
+#endif
+	) const
 {
 	msh_nod_vector.clear();
 
@@ -1735,7 +1757,7 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
        const  size_t nodes_in_usage = (size_t) NodesInUsage();
 	for (size_t j(0); j < nodes_in_usage; j++) {
 		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length / 2.0)) {
-			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length / 2.0)) {
+			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length/2.0)) {
 				msh_nod_vector.push_back(nod_vector[j]->GetIndex());
 			}
 		}
@@ -1749,7 +1771,7 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 
         for (size_t j=0; j < id_act_l_max; j++) {
            if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length / 2.0)) {
-              if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length / 2.0)) {
+              if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length/2.0)) {
                   msh_nod_vector.push_back(nod_vector[j]->GetIndex());
               }
            }
@@ -1770,8 +1792,8 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 #else
 	const size_t nodes_in_usage((size_t) NodesInUsage());
 	for (size_t j(0); j < nodes_in_usage; j++) {
-		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length / 2.0)) {
-			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length / 2.0)) {
+		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length*0.375)) {
+			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length*0.375)) {
 				msh_nod_vector.push_back(nod_vector[j]->GetIndex());
 			}
 		}
@@ -1830,7 +1852,13 @@ void CFEMesh::findNodesInPolygon(const double area_orig, const double tol,
    last modification:
 **************************************************************************/
 void CFEMesh::GetNODOnSFC_PLY(Surface const* m_sfc,
-                              std::vector<long>&msh_nod_vector, const bool for_s_term) const
+                              std::vector<long>&msh_nod_vector,
+#ifdef USE_PETSC
+                              const bool for_s_term
+#else
+                              const bool
+#endif
+                              ) const
 {
 	long i;
 	int nPointsPly = 0;
@@ -1848,6 +1876,8 @@ void CFEMesh::GetNODOnSFC_PLY(Surface const* m_sfc,
 	{
 		m_ply = *p_ply;
 		nPointsPly = (int) m_ply->point_vector.size();
+		if (m_ply->point_vector.front() == m_ply->point_vector.back())
+			nPointsPly -= 1;
 		//....................................................................
 		// Gravity center of this polygon
 		for (i = 0; i < 3; i++)
@@ -1956,6 +1986,8 @@ void CFEMesh::GetNODOnSFC_PLY_XY(Surface* m_sfc,
 	{
 		m_ply = *p_ply;
 		nPointsPly = (int) m_ply->point_vector.size();
+		if (m_ply->point_vector.front() == m_ply->point_vector.back())
+			nPointsPly -= 1;
 		//....................................................................
 		// Grativity center of this polygon
 		for (i = 0; i < 3; i++)
@@ -2732,10 +2764,10 @@ void CFEMesh::GetELEOnPLY(const GEOLIB::Polyline* ply, std::vector<size_t>& ele_
 			for (size_t k = 0; k < nodes_near_ply.size(); k++)
 			{
 				//if (edge_nodes[0]->GetIndex() == nodes_near_ply[k])
-				if (elem->GetNodeIndex(loc_edge_nidx[0]) == nodes_near_ply[k])
+				if (elem->GetNodeIndex(loc_edge_nidx[0]) == static_cast<long>(nodes_near_ply[k]))
 					selected++;
 				//if (edge_nodes[1]->GetIndex() == nodes_near_ply[k])
-				if (elem->GetNodeIndex(loc_edge_nidx[1]) == nodes_near_ply[k])
+				if (elem->GetNodeIndex(loc_edge_nidx[1]) == static_cast<long>(nodes_near_ply[k]))
 					selected++;
 			}
 			if (selected == 2)
@@ -3114,25 +3146,6 @@ void CFEMesh::ConnectedNodes(bool quadratic) const
 	for (size_t i = 0; i < nod_vector.size(); i++)
 	{
 		CNode* nod = nod_vector[i];
-
-		for (size_t ii = 0; ii < connected_nodes_vector.size(); ii++) // JODNEW
-		{
-			if (connected_nodes_vector[ii] == i)
-			{
-
-				if (ii % 2 == 0) {// even
-					nod->getConnectedNodes().push_back(connected_nodes_vector[ii + 1]);
-					//std::cout << connected_nodes_vector[ii] << " " << connected_nodes_vector[ii + 1] << std::endl;
-				}
-				else       {     // odd
-					nod->getConnectedNodes().push_back(connected_nodes_vector[ii - 1]);
-					//std::cout << connected_nodes_vector[ii] << " " << connected_nodes_vector[ii - 1] << std::endl;
-				}
-
-			}
-		}
-
-
 		size_t n_connected_elements (nod->getConnectedElementIDs().size());
 		for (size_t j = 0; j < n_connected_elements; j++)
 		{
@@ -3383,7 +3396,6 @@ void CFEMesh::SetNetworkIntersectionNodes()
 void CFEMesh::CreateSparseTable()
 {
 	Math_Group::StorageType stype;
-
 	stype = Math_Group::JDS;
 	for(int i = 0; i < (int)num_vector.size(); i++)
 		if(num_vector[i]->ls_storage_method == 100)
@@ -4001,7 +4013,7 @@ void CFEMesh::Precipitation2NeumannBC(std::string const & fname,
 
 		elem->ComputeVolume();
 		fem->setOrder(getOrder() + 1);
-		fem->ConfigElement(elem);
+		fem->ConfigElement(elem, 3);
 		fem->FaceIntegration(node_val);
 		for(k = 0; k < elem->nnodes; k++)
 		{
@@ -4269,7 +4281,7 @@ void CFEMesh::TopSurfaceIntegration()
 
 		elem->ComputeVolume();
 		fem->setOrder(getOrder() + 1);
-		fem->ConfigElement(elem);
+		fem->ConfigElement(elem, 3);
 		fem->FaceIntegration(node_val);
 		for(k = 0; k < elem->nnodes; k++)
 		{
@@ -4687,7 +4699,6 @@ void CFEMesh::GetConnectedElements(std::vector<long>&nodes_on_sfc, std::vector<l
 
 
 }
-
 
 }
 // namespace MeshLib

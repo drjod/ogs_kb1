@@ -147,22 +147,22 @@ CElement::~CElement()
    05/2007 WW 1D in 2D
    Last modified:
 **************************************************************************/
-void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
+void CElement::ConfigElement(CElem* MElement, const int nquadrature_points,
+		                     bool FaceIntegration)
 {
-	int i;
 	CNode* a_node = NULL;                 //07.04.2009. WW
 	MeshElement = MElement;
 	Index = MeshElement->GetIndex();
 	nnodes = MeshElement->nnodes;
 	nnodesHQ = MeshElement->nnodesHQ;
 	bool done = false;
-	ConfigNumerics(MeshElement->GetElementType());
+	ConfigNumerics(MeshElement->GetElementType(), nquadrature_points);
 	if (MeshElement->quadratic)
 		nNodes = nnodesHQ;
 	else
 		nNodes = nnodes;
 	// Node indices
-	for(i = 0; i < nNodes; i++)
+	for(int i = 0; i < nNodes; i++)
 		nodes[i] = MeshElement->nodes_index[i];
 	// Put coordinates of nodes to buffer to enhance the computation
 	if(!FaceIntegration)
@@ -171,7 +171,7 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 		{
 //            a_node0 = MeshElement->nodes[0];      //07.04.2007. WW
 			double const* const coords_node_0 (MeshElement->nodes[0]->getData());
-			for(i = 0; i < nNodes; i++)
+			for(int i = 0; i < nNodes; i++)
 			{
 				double const* const coords_node_i (MeshElement->nodes[i]->getData());
 //               a_node = MeshElement->nodes[i];    //07.04.2007. WW
@@ -201,7 +201,7 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 			case 1:
 				if(coordinate_system % 10 == 1)
 				{
-					for(i = 0; i < nNodes; i++)
+					for(int i = 0; i < nNodes; i++)
 					{
 						//07.04.2007. WW
 //                        a_node = MeshElement->nodes[i];
@@ -218,7 +218,7 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 				}
 				else if(coordinate_system % 10 == 2)
 				{
-					for(i = 0; i < nNodes; i++)
+					for(int i = 0; i < nNodes; i++)
 					{
 						//07.04.2007. WW
 //                        a_node = MeshElement->nodes[i];
@@ -237,7 +237,7 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 			case 2:
 				if(coordinate_system % 10 == 2)
 				{
-					for(i = 0; i < nNodes; i++)
+					for(int i = 0; i < nNodes; i++)
 					{
 						//07.04.2007. WW
 //                        a_node = MeshElement->nodes[i];
@@ -258,7 +258,8 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 	}
 	//
 	if(!done)
-		for(i = 0; i < nNodes; i++)
+	{
+		for(int i = 0; i < nNodes; i++)
 		{
 			a_node = MeshElement->nodes[i]; //07.04.2007. WW
 			double const* const coords (a_node->getData());
@@ -266,41 +267,30 @@ void CElement::ConfigElement(CElem* MElement, bool FaceIntegration)
 			Y[i] = coords[1];
 			Z[i] = coords[2];
 		}
-
+	}
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
    if(!FaceIntegration)
    {
-	//int dof_p_node = pcs->pcs_number_of_primary_nvals;
-        //if(pcs->GetContinnumType() == 1)
-	// dof_p_node = 1;
-
-	//int i_buff = 0;
         if(MeshElement->g_index) // ghost nodes pcs->pcs_number_of_primary_nvals
-	  {
-	    act_nodes = MeshElement->g_index[0];
-	    act_nodes_h = MeshElement->g_index[1];
+        {
+            act_nodes = MeshElement->g_index[0];
+            act_nodes_h = MeshElement->g_index[1];
 
-	    for(i = 0; i < act_nodes_h; i++)
-	      {
-		local_idx[i] = MeshElement->g_index[i+2];
-	      }
-	  }
-	else
-	  {
-	    act_nodes = nnodes;
-	    act_nodes_h = nnodesHQ;
-	    for(i = 0; i < act_nodes_h; i++)
-	      {
-		local_idx[i] = i;
-	      }
-	  }
-
-
-	//i_buff = nn*nn;
-	//for(i = 0; i < i_buff; i++)
-	//  local_matrix[i] = 0.;
-	// If deformation related
+            for(int i = 0; i < act_nodes_h; i++)
+            {
+                local_idx[i] = MeshElement->g_index[i+2];
+            }
+        }
+        else
+        {
+            act_nodes = nnodes;
+            act_nodes_h = nnodesHQ;
+            for(int i = 0; i < act_nodes_h; i++)
+            {
+                local_idx[i] = i;
+            }
+        }
    }
 #endif
 
@@ -346,8 +336,9 @@ void CElement::setOrder(const int order)
    01/2010 NW Higher order line elements
    Last modified:
 **************************************************************************/
-void CElement::ConfigNumerics(MshElemType::type ele_type)
+void CElement::ConfigNumerics(MshElemType::type ele_type, const int nquadrature_points)
 {
+	assert(nquadrature_points>0);
 	// nGauss = GetNumericsGaussPoints(ElementType);
 	switch(ele_type)
 	{
@@ -363,6 +354,7 @@ void CElement::ConfigNumerics(MshElemType::type ele_type)
 		return;
 	case MshElemType::QUAD:
 		ele_dim = 2;
+		nGauss = nquadrature_points;
 		nGaussPoints = nGauss * nGauss;
 		ShapeFunction = ShapeFunctionQuad;
 		ShapeFunctionHQ = ShapeFunctionQuadHQ;
@@ -371,8 +363,8 @@ void CElement::ConfigNumerics(MshElemType::type ele_type)
 		extrapo_method = ExtrapolationMethod::EXTRAPO_LINEAR;
 		return;
 	case MshElemType::HEXAHEDRON:
-		ele_dim = 3;
-		nGauss = 3;// BW, hard to code as 3  
+		ele_dim = 3;        
+		nGauss = nquadrature_points;
 		nGaussPoints = nGauss * nGauss * nGauss;
 		ShapeFunction = ShapeFunctionHex;
 		ShapeFunctionHQ = ShapeFunctionHexHQ;
@@ -436,7 +428,7 @@ void CElement::ConfigNumerics(MshElemType::type ele_type)
    06/2004 WW Implementation
    Last modified:
 **************************************************************************/
-double CElement::interpolate(double* nodalVal, const int order) const
+double CElement::interpolate(double const * const nodalVal, const int order) const
 {
 	int nn = nnodes;
 	double* inTerpo = shapefct;
@@ -1475,7 +1467,6 @@ void CElement::FaceNormalFluxIntegration(long element_index, double *NodeVal, do
 		NodeVal_adv[i] = dbuff_adv[i];
 	}
 }
-
 /***************************************************************************
 GeoSys - Funktion: CalcJTC_st_ele
 Task:   Used to calculate Joule-Thomson ST for elements
@@ -1487,16 +1478,18 @@ Programming: 11/2014 WTP
 void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceterm_data, double k, double* kr_data, double* s_data, double n, bool multi)
 {
     int i, gp, gp_r, gp_s, gp_t;
-    double fkt = 0.0, det, val, flux[3];
+	double fkt = 0.0;
+	//double det, val;
+	double flux[3];
     double JTCoeff_val = 0.;
 	double kr = 0.;
 	double GasSat = 0.;
 	double const g = 9.80665;
     double* dbuff_flux = new double[nNodes];
     double* sf = shapefct;
-    MeshLib::CElem* m_ele;
+    //MeshLib::CElem* m_ele;
     CFEMesh* m_msh = fem_msh_vector[0];
-    m_ele = m_msh->ele_vector[ele_index];
+    //m_ele = m_msh->ele_vector[ele_index];
     CFluidProperties* m_mfp;
 	if (multi)
 		m_mfp = mfp_vector[1]; // 0=water, 1=gas
@@ -1506,7 +1499,7 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
         
     setOrder(Order);
 
-    det = MeshElement->GetVolume();
+    //det = MeshElement->GetVolume();
     for (i = 0; i < nNodes; i++)
         dbuff_flux[i] = 0.;
 
@@ -1518,7 +1511,7 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
 		ComputeShapefct(Order);
 		ComputeGradShapefct(1);   // Linear interpolation function
 
-		val = 0.0;
+		//val = 0.0;
 		JTCoeff_val = 0.;
 		kr = 0.;
 		GasSat = 0.;
@@ -1626,7 +1619,6 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 
 
 }
-
 
 
 

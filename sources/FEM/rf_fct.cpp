@@ -6,7 +6,6 @@
    09/2008 NB Function with multiple arguments
 **************************************************************************/
 #include "files0.h"
-#include "gs_project.h"
 #include "makros.h"
 #include "rf_fct.h"
 
@@ -323,7 +322,7 @@ void FCTRead(std::string base_file_name)
 	fct_file.seekg(0L,std::ios::beg);
 	//========================================================================
 	// keyword loop
-	std::cout << "FCTRead" << "\n";
+  std::cout << "FCTRead" << "\n" << std::flush;
 	while (!fct_file.eof())
 	{
 		fct_file.getline(line,MAX_ZEILE);

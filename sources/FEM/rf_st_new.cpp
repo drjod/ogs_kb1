@@ -13,6 +13,7 @@
 #include <iostream>
 #include <set>
 
+#include "display.h"
 #include "files0.h"
 #include "mathlib.h"
 
@@ -508,6 +509,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  this->_constrainedST.push_back(temp);
 		  in.clear();
 	  }
+// CB JOD MERGE //
 	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015   JODNEW
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
@@ -544,7 +546,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-
+    /**/
    }                                              // end !new_keyword
    return position;
 }
@@ -851,11 +853,11 @@ const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name)
             st_vector.push_back(st);
 
          }
-         else
+         /*else   removed by JODNEW
          {
             std::cerr << "WARNING: in STRead: could not read source term" << "\n";
             delete st;
-         }
+         }*/
          st_file.seekg(position, std::ios::beg);
       }                                           // keyword found
    }                                              // eof
@@ -1162,6 +1164,9 @@ void CSourceTermGroup::Set(CRFProcess* m_pcs, const int ShiftInNodeVector,
       for (long i = 0; i < no_st; i++)
       {
          CSourceTerm *source_term (st_vector[i]);
+         if(m_pcs->getProcessType() != source_term->getProcessType() )
+            continue;
+
          source_term->setSTVectorGroup(i);
 
          // 07.01.2011. WW
@@ -1238,6 +1243,67 @@ void CSourceTermGroup::Set(CRFProcess* m_pcs, const int ShiftInNodeVector,
    else
       std::cout << "Warning in CSourceTermGroup::Set - no MSH data" << "\n";
 
+   // CB MERGE // 
+   /*  for (long i = 0; i < st_vector.size(); i++){
+     if (/---/0==0){ // Adapt to connected geometries
+       WriteNodeConnections();
+       break;  // only once, loop over st inside
+     }
+   }*/
+
+}
+
+// CB
+void CSourceTermGroup::WriteNodeConnections()
+{
+  return;
+  
+  std::string m_file_name = FileName + "_" + "_ST_Node_Connections.asc";
+  std::ofstream os;
+  CSourceTerm *source_term;
+
+  std::vector < string > surfaces;
+
+  for (long i = 0; i < st_vector.size(); i++)
+  {
+    bool found = false;
+    source_term=st_vector[i];
+      
+    // check for this st
+    if (/*source_term->connected_gemoetry*/0 == 0){
+      int j;
+      for (j = 0; j < surfaces.size(); j++){
+        if ((surfaces[j].compare(source_term->geo_name) != 0))
+        {
+          // not found yet
+        }
+        else
+          found = true; // data already written, skip writung
+      }
+      if (!found){
+        // write data
+        if (j == 0)
+          os.open(m_file_name.c_str(), ios::trunc | ios::out);
+        else
+          os.open(m_file_name.c_str(), ios::app | ios::out);
+        if (!os.good())
+        {
+          cout << "Failure to open file: " << m_file_name << "\n";
+          abort();
+        }
+        else{  // adapt to conneced geometries
+          for (int k = 0; k < source_term->st_node_ids.size(); k++){
+            os << source_term->st_node_ids[k] << " " << source_term->st_node_ids[k] << "\n";
+          }
+          os.close();
+        }
+        // store geo name to avoid duplicate output
+        surfaces.push_back(source_term->geo_name);
+      }
+    }
+  }
+  //clean up
+  surfaces.clear();
 }
 
 /**************************************************************************
@@ -1552,7 +1618,7 @@ std::vector<double>&node_value_vector) const
       static bool isIDinRange( const size_t n_id, const size_t id_max0, 
                                    const size_t id_min1,  const size_t id_max1 )
       {
-	return ( (n_id < id_max0) || (n_id >= id_min1) && (n_id <  id_max1) ) ? true : false;
+	return (n_id < id_max0) || (n_id >= id_min1 && n_id <  id_max1);
       }
    };
 #endif
@@ -1778,6 +1844,8 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
                gC[i] = 0.0;
             vn[2] = 0.0;
             nPointsPly = (int) m_polyline->point_vector.size();
+            if (m_polyline->point_vector.front() == m_polyline->point_vector.back())
+               nPointsPly -= 1;
             for (i = 0; i < nPointsPly; i++)
             {
                gC[0] += m_polyline->point_vector[i]->x;
@@ -1924,6 +1992,10 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
          //1st check
          if (elem->selected < nfn)
             continue;
+
+         if(elem->GetDimension() != 3)
+            continue;
+
          //2nd check: if all nodes of the face are on the surface
          count = 0;
          for (k = 0; k < nfn; k++)
@@ -1950,7 +2022,7 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
          face->SetOrder(msh->getOrder());
          face->ComputeVolume();
          fem->setOrder(msh->getOrder() + 1);
-         fem->ConfigElement(face, true);
+         fem->ConfigElement(face, this->_pcs->m_num->ele_gauss_points, true);
          fem->FaceIntegration(nodesFVal);
          for (k = 0; k < nfn; k++)
          {
@@ -2090,7 +2162,7 @@ std::vector<double>&node_value_vector) const
          continue;
       for (size_t j = 0; j < nn; j++)
          nodesFVal[j] = node_value_vector[G2L[e_nodes[j]->GetIndex()]];
-      fem->ConfigElement(elem, true);
+      fem->ConfigElement(elem, this->_pcs->m_num->ele_gauss_points, true);
       fem->setOrder(msh->getOrder() + 1);
       fem->FaceIntegration(nodesFVal);
       for (size_t j = 0; j < nn; j++)
@@ -2492,7 +2564,7 @@ CNodeValue* cnodev)
 void GetCouplingNODValueNewton(double &value, CSourceTerm* m_st,
 CNodeValue* cnodev)
 {
-   double relPerm, area, condArea, gamma;
+   double relPerm, area, condArea, gamma = 0.0;
    double h_this, h_cond, z_this, z_cond, h_this_shifted, h_this_averaged;
    double epsilon = 1.e-7, value_jacobi, h_this_epsilon = 0.0,
       relPerm_epsilon, condArea_epsilon;          //OK411 epsilon as in pcs->assembleParabolicEquationNewton
@@ -3054,7 +3126,6 @@ void GetNODValue(double& value, CNodeValue* cnodev, CSourceTerm* st)
  **************************************************************************/
 void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node){
    CRFProcess* m_pcs_this = NULL;
-   int i,Index;
    double poro;
 
    //Get process type
@@ -3063,16 +3134,14 @@ void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node){
    CFEMesh* mesh (m_pcs_this->m_msh);
    
    //Get number of conneted elements
-   long number_of_connected_elements = mesh->nod_vector[geo_node]->getConnectedElementIDs().size();
+   size_t number_of_connected_elements = mesh->nod_vector[geo_node]->getConnectedElementIDs().size();
 
    poro = 0.0;
    double geo_area = 0.0;
 
    //loop over connected elements and get average porosity
-   for (i=0;i<number_of_connected_elements;i++){
+   for (size_t i=0;i<number_of_connected_elements;i++){
 	   long msh_ele = mesh->nod_vector[geo_node]->getConnectedElementIDs()[i];
-	   CElem *m_ele = mesh->ele_vector[msh_ele];
-	   Index = m_ele->GetIndex();
 	   int group = mesh->ele_vector[msh_ele]->GetPatchIndex();
 	   poro += mmp_vector[group]->porosity;
 	   geo_area += mmp_vector[group]->geo_area;
@@ -3092,6 +3161,7 @@ void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node){
    double temp = m_pcs_this->GetNodeValue(geo_node, nidx1);
 
    //Find position of current node in st vectors
+   size_t i;
    for (i=0; i<st->get_node_value_vectorArea().size(); i++){
 	   if (geo_node == st->st_node_ids[i])
 		   break;
@@ -3179,6 +3249,13 @@ const int ShiftInNodeVector)
    //		nod_val->node_distype = 10;
    //		nod_val->node_area = 1.0;
    //	}
+   // Added by CB
+   if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+   {
+     long msh_ele = m_msh->nod_vector[nod_val->msh_node_number]->getConnectedElementIDs()[0];
+     if (mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
+       nod_val->node_value *= mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
+   }
 
    if (st->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
    {
@@ -3426,41 +3503,49 @@ void CSourceTermGroup::SetCOL(CSourceTerm *m_st, const int ShiftInNodeVector)
 void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 {
    std::vector<long> sfc_nod_vector;
+   std::vector<std::size_t> sfc_node_ids;
    std::vector<long> sfc_nod_vector_cond;
    std::vector<double> sfc_nod_val_vector;
    Surface* m_sfc = NULL;
-
-   double total_val_cond = 0;
-   std::vector<long>::iterator pos;
 
    m_sfc = GEOGetSFCByName(m_st->geo_name);       //CC
 
    if (m_sfc)
    {
+      GEOLIB::Surface const& sfc(
+		*(dynamic_cast<GEOLIB::Surface const*>(m_st->getGeoObj()))
+      );
+      std::cout << "Surface " << m_st->geo_name << ": " << sfc.getNTriangles()  << "\n";
+      SetSurfaceNodeVector(&sfc, sfc_node_ids);
 
+/*
       SetSurfaceNodeVector(m_sfc, sfc_nod_vector);
+*/
+      sfc_nod_vector.insert(sfc_nod_vector.begin(),
+         sfc_node_ids.begin(), sfc_node_ids.end());
       if (m_st->isCoupled())
          m_st->SetSurfaceNodeVectorConditional(sfc_nod_vector,
             sfc_nod_vector_cond);
+// CB JOD MERGE //
 
 	  if (m_st->isConnected())   // JOD 2/2015
-		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector,
-		  sfc_nod_vector_cond);
+		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
+    /**/
       //		m_st->SetDISType();
-      SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector,
-         sfc_nod_val_vector);
-
+      SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
+/*
 	  ///////////////////////////////
-	  if (m_st->everyoneWithEveryone)  // JODNEW
+	  if (m_st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
 	  {
-
+		  double total_val_cond = 0;
+		  std::vector<long>::iterator pos;
 		  std::vector<double> sfc_nod_val_vector_cond_original;
 
 		  SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector_cond,
 			  sfc_nod_val_vector_cond_original);
 
 
-		  for (int i = 0; i < sfc_nod_val_vector_cond_original.size(); i++)
+		  for (int i = 0; i < (int)sfc_nod_val_vector_cond_original.size(); i++)
 			  total_val_cond += sfc_nod_val_vector_cond_original[i];
 
 		  int nod_vector_size = (int)sfc_nod_vector.size();
@@ -3498,7 +3583,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		  }
 	  }
 	  ///////////////////////////////
-
+*/
 	  if (m_st->distribute_volume_flux)   // 5.3.07 JOD
 		  DistributeVolumeFlux(m_st, sfc_nod_vector, sfc_nod_val_vector);
 
@@ -3585,6 +3670,12 @@ void CSourceTermGroup::SetSurfaceNodeVector(Surface* m_sfc,
    m_msh->GetNODOnSFC(m_sfc, sfc_nod_vector, for_source);
 }
 
+void CSourceTermGroup::SetSurfaceNodeVector(GEOLIB::Surface const* sfc,
+		std::vector<std::size_t> & sfc_nod_vector)
+{
+   const bool for_source = true;
+   m_msh->GetNODOnSFC(sfc, sfc_nod_vector, for_source);
+}
 
 /**************************************************************************
  MSHLib-Method:
@@ -3959,8 +4050,13 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
    long number_of_nodes = (long) sfc_nod_vector.size();
    sfc_nod_val_vector.resize(number_of_nodes);
 
-   for (long i = 0; i < number_of_nodes; i++)
-      sfc_nod_val_vector[i] = st->geo_node_value;
+   for (long i = 0; i < number_of_nodes; i++){
+       sfc_nod_val_vector[i] = st->geo_node_value;
+       if (st->getProcessDistributionType() == FiniteElement::CONSTANT_GEO) // added by CB
+         sfc_nod_val_vector[i] /= (double)number_of_nodes;
+   }
+
+
    // KR & TF - case not used
    //	if (m_st->dis_type == 12) //To do. 4.10.06
    //		for (long i = 0; i < number_of_nodes; i++)
@@ -3977,9 +4073,13 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
       while (p != m_sfc->polyline_of_surface_vector.end())
       {
          m_ply = *p;
+         long nPointsPly = (long) m_ply->point_vector.size();
+         if (m_ply->point_vector.front() == m_ply->point_vector.back())
+            nPointsPly -= 1;
+
          for (long k = 0; k < (long) st->DistribedBC.size(); k++)
          {
-            for (long l = 0; l < (long) m_ply->point_vector.size(); l++)
+            for (long l = 0; l < nPointsPly; l++)
             {
                if (st->PointsHaveDistribedBC[k]
                   == m_ply->point_vector[l]->id)
@@ -4005,8 +4105,6 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
 		   || st->getProcessDistributionType() == FiniteElement::GREEN_AMPT
 		   || st->getProcessDistributionType() == FiniteElement::RECHARGE)
    {
-
-
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
          st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements
@@ -4094,6 +4192,16 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
    CNodeValue *m_nod_val = NULL;
    size_t number_of_nodes (nodes.size());
 
+
+   // Added by CB
+   double geometry_area = 1.0;
+   if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+   {
+     long msh_ele = fem_msh_vector[0]->nod_vector[nodes[0] + ShiftInNodeVector]->getConnectedElementIDs()[0];
+     if (mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
+       geometry_area = mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
+   }
+
    for (size_t i = 0; i < number_of_nodes; i++)
    {
       m_nod_val = new CNodeValue();
@@ -4101,10 +4209,17 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->geo_node_number = nodes[i];
       m_nod_val->setProcessDistributionType (getProcessDistributionType());
       m_nod_val->node_value = node_values[i];
+	  
+      // Added by CB
+      if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+        m_nod_val->node_value *= geometry_area;
       m_nod_val->CurveIndex = CurveIndex;
+// CB JOD MERGE //
+	
 	  if (connected_geometry)						// JOD 2/2015
 		  m_nod_val->msh_node_number_conditional = nodes_cond[i];
-      if (_coupled)                               // JOD 4.7.10
+    /**/
+	  if (_coupled)                               // JOD 4.7.10
       {
          m_nod_val->msh_node_number_conditional = nodes_cond[i];
                                                   // JOD 4.10.01

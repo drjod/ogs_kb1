@@ -70,7 +70,7 @@ public:
 	 * @param pnt
 	 * @return true, if point is in triangle, else false
 	 */
-	bool containsPoint (const double* pnt, double eps = 0) const;
+	bool containsPoint(const double* pnt, double eps = 0) const;
 
 	bool containsPoint (const Point &pnt, double eps = 0) const
 	{
@@ -101,6 +101,9 @@ protected:
 };
 
 void getPlaneCoefficients(Triangle const & tri, double c[3]);
+
+std::ostream & operator<<(std::ostream & out, GEOLIB::Triangle const& tri);
+
 } // end namespace GEOLIB
 
 #endif /* TRIANGLE_H_ */

@@ -42,12 +42,12 @@ public:
 
 	TemplateVector operator+(const TemplateVector & pV) const
 	{
-		return TemplateVector(this->x[0] + pV[0], this->x[1] + pV[1], this->x[2] + pV[2] );
+		return TemplateVector(this->_x[0] + pV[0], this->_x[1] + pV[1], this->_x[2] + pV[2] );
 	}
 
 	TemplateVector operator-(const TemplateVector & pV) const
 	{
-		TemplateVector out( this->x[0] - pV[0], this->x[1] - pV[1], this->x[2] - pV[2] );
+		TemplateVector out( this->_x[0] - pV[0], this->_x[1] - pV[1], this->_x[2] - pV[2] );
 		return out;
 	}
 
@@ -56,7 +56,7 @@ public:
 
 	TemplateVector& operator+=(const TemplateVector & pV)
 	{
-		for (size_t i(0); i < 3; i++) this->x[i] += pV[i];
+		for (size_t i(0); i < 3; i++) this->_x[i] += pV[i];
 		return *this;
 	}
 

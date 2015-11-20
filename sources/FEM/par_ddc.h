@@ -205,15 +205,10 @@ extern void DOMCreate();
 //---- MPI Parallel --------------
 //MH//HS
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || \
-        defined(USE_MPI_GEMS) || defined(USE_MPI_BRNS) || defined(USE_MPI_KRC)  
-extern int mysize;                                //WW
-extern int myrank;
+        defined(USE_MPI_GEMS) || defined(USE_MPI_BRNS) || defined(USE_MPI_KRC)
 extern char t_fname[3];
 extern double time_ele_paral;
 #endif
 //---- MPI Parallel --------------
-
 #define DDC_FILE_EXTENSION ".ddc"
-extern void DOMWriteTecplot(std::string);
-extern void DDCCreate();                          //OK
 #endif

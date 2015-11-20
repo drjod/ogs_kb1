@@ -6,7 +6,14 @@
 #include "PITZdata.h" 
 #include "NR.h"
 #include "IAPWS-IF97.h"
-using namespace std;
+#include "Fluid.h"
+#include "Density.h"
+//using namespace std;
+#include <cfloat>
+#include <cstdio>
+#include <fstream>
+#include <vector>
+#include <iomanip> 
 
 double VLE::TT;
 double VLE::PP;
@@ -50,7 +57,7 @@ double VLE::solubilityNEW_CO2(double T, double P, double mNaCl){
 	for(i=0;i<iter_max;i++){
 		mCO2=(a+b)*0.5;
 		dev=mCO2-(P-Psat(T)*10.0)/exp(-LnPHI_CO2(T,P)+uNEW_CO2(T,P)+LGAMMA_CO2(T,P,mCO2,mNaCl));
-		if(abs(dev)<err) break;
+		if(fabs(dev)<err) break;
 		else if(dev<0.0) a=mCO2;
 		else if(dev>0.0) b=mCO2;
 	}
@@ -258,7 +265,7 @@ double VLE::dZ_H2O(double V){
 }
 
 
-double VLE::Z_CO2(double T, double P, double V){ //K, bar, cm^3
+double VLE::Z_CO2(double T, double /*P*/, double V){ //K, bar, cm^3
     double a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15;
 	double R,Tc,Pc,Vc,Tr,Vr,B,C,D,E,F;	
 	a1 =  8.99288497E-2;    
@@ -322,7 +329,7 @@ double VLE::LnPHI_CO2(double T, double P){
     return Z-1-log(Z)+B/Vr+C/2/pow(Vr,2)+D/4/pow(Vr,4)+E/5/pow(Vr,5)+a13/(2*pow(Tr,3)*a15)*(a14+1-(a14+1+a15/pow(Vr,2))*exp(-a15/pow(Vr,2)));
 }
 
-double VLE::Z_CH4(double T, double P, double V){
+double VLE::Z_CH4(double T, double /*P*/, double V){
     double a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15;
 	double R,Tc,Pc,Vc,Tr,Vr,B,C,D,E,F;
     a1  =  8.72553928E-2;	
@@ -386,7 +393,7 @@ double VLE::LnPHI_CH4(double T, double P){
     return Z-1-log(Z)+B/Vr+C/2/pow(Vr,2)+D/4/pow(Vr,4)+E/5/pow(Vr,5)+a13/(2*pow(Tr,3)*a15)*(a14+1-(a14+1+a15/pow(Vr,2))*exp(-a15/pow(Vr,2)));
 }
 
-double VLE::Z_H2O(double T, double P, double V){
+double VLE::Z_H2O(double T, double /*P*/, double V){
     double a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15;
 	double R,Tc,Pc,Vc,Tr,Vr,B,C,D,E,F;
 	a1 = 8.64449220E-2;		
@@ -498,7 +505,7 @@ double VLE::pressure_CO2(double T, double D){
 	for(i=0;i<iter_max;i++){
 		P=(a+b)*0.5;
 		dev=D-VLE::density_CO2(T,P);
-		if(abs(dev) < err) break;
+		if(fabs(dev) < err) break;
 		if(dev>0) a=P;
 		if(dev<0) b=P;
 	}
@@ -533,6 +540,26 @@ double VLE::Henry_const_H2(double T){ //eq(15) return exp value, ln(kH)
 	return A/Tr +B/Tr*pow(Tau,0.355) +C*pow(Tr,-0.41)*exp(Tau) +log(Ps) -log(55.51); //"-log(55.51)" for unit convert from mole fraction to mol/kg water
 }
 
+double VLE::Henry_const_N2(double T){ //eq(15) return exp value, ln(kH) in [mPa kgw / mol]
+  double A, B, C;
+  double Tr, Tc, Tau, Ps;
+  Tc = 647.096;
+  Tr = T / Tc;
+  Tau = 1.0 - Tr;
+  A = -9.67578;
+  B = 4.72162;
+  C = 11.70585;
+  Ps = IF97::Psat(T)*10.0;
+  return A / Tr + B / Tr*pow(Tau, 0.355) + C*pow(Tr, -0.41)*exp(Tau) + log(Ps) - log(55.51); //"-log(55.51)" for unit convert from mole fraction to mol/kg water
+}
+double VLE::Henry_const_General(double T, double A, double B, double C){ //eq(15) return exp value, ln(kH) in [bar kgw / mol]
+  double Tr, Tc, Tau, Ps;
+  Tc = 647.096;
+  Tr = T / Tc;
+  Tau = 1.0 - Tr;
+  Ps = IF97::Psat(T)*10.0; // Water vapor pressure in unit of MPa * 10 = bar
+  return A / Tr + B / Tr*pow(Tau, 0.355) + C*pow(Tr, -0.41)*exp(Tau) + log(Ps) - log(55.51); //"-log(55.51)" for unit convert from mole fraction to mol/kg water
+}
 void VLE::EoS_PR_H2(double T, double P, double &V, double &Z, double &lnphi){
 	double alpha,beta,q,Psi,Omega,sigma,epsilon,w;
 	double Tc,Tr,Pc,Pr;
@@ -559,7 +586,7 @@ void VLE::EoS_PR_H2(double T, double P, double &V, double &Z, double &lnphi){
 	Znew=0.0;
 	for(i=0;i<iter_max;i++){
 		Znew=1.0+beta-q*beta*(Z-beta)/(Z+epsilon*beta)/(Z+sigma*beta);
-		if(abs(abs(Z)-abs(Znew))<Zerr)
+		if(fabs(fabs(Z)-fabs(Znew))<Zerr)
 			break;
 		else
 			Z=Znew;
@@ -569,6 +596,120 @@ void VLE::EoS_PR_H2(double T, double P, double &V, double &Z, double &lnphi){
 	I=1.0/(sigma-epsilon)*log((Z+sigma*beta)/(Z+epsilon*beta));
 	lnphi=Z-1.0-log(Z-beta)-q*I;
 }
+
+
+void VLE::EoS_PR_TCE(double T, double P, double &V, double &Z, double &lnphi){
+  double alpha, beta, q, Psi, Omega, sigma, epsilon, w;
+  double Tc, Tr, Pc, Pr;
+  double Znew, Zerr = 1.0e-8;
+  int i, iter_max = 20;
+  double I;
+
+  // TCE data by Yaws, 2009, Table1, page4
+  w = 0.217;   // omega
+  Tc = 571.0;  // K
+  Pc = 49.1;   // bar
+  
+  Tr = T / Tc;
+  Pr = P / Pc;
+
+  Omega = 0.07780;
+  Psi = 0.45742;
+  sigma = 1.0 + pow(2.0, 0.5);
+  epsilon = 1.0 - pow(2.0, 0.5);
+  alpha = pow((1.0 + (0.37464 + 1.54226*w - 0.26992*w*w)*(1.0 - pow(Tr, 0.5))), 2.0);
+
+  beta = Omega*Pr / Tr;
+  q = Psi*alpha / Omega / Tr;
+
+  Z = 1.0;
+  Znew = 0.0;
+  for (i = 0; i<iter_max; i++){
+    Znew = 1.0 + beta - q*beta*(Z - beta) / (Z + epsilon*beta) / (Z + sigma*beta);
+    if (fabs(fabs(Z) - fabs(Znew))<Zerr)
+      break;
+    else
+      Z = Znew;
+
+  }
+  V = Z*83.14*T / P; //unit V-cm^3 , P-bar, T-K
+  I = 1.0 / (sigma - epsilon)*log((Z + sigma*beta) / (Z + epsilon*beta));
+  lnphi = Z - 1.0 - log(Z - beta) - q*I;
+}
+
+void VLE::EoS_PR_Ar(double T, double P, double &V, double &Z, double &lnphi){
+  double alpha, beta, q, Psi, Omega, sigma, epsilon, w;
+  double Tc, Tr, Pc, Pr;
+  double Znew, Zerr = 1.0e-8;
+  int i, iter_max = 20;
+  double I;
+
+  // Argon data by Yaws, 2009, Table2, page 99
+  w = 0.0;   // omega
+  Tc = 150.86;  // K
+  Pc = 48.98;   // bar
+
+  Tr = T / Tc;
+  Pr = P / Pc;
+
+  Omega = 0.07780;
+  Psi = 0.45742;
+  sigma = 1.0 + pow(2.0, 0.5);
+  epsilon = 1.0 - pow(2.0, 0.5);
+  alpha = pow((1.0 + (0.37464 + 1.54226*w - 0.26992*w*w)*(1.0 - pow(Tr, 0.5))), 2.0);
+
+  beta = Omega*Pr / Tr;
+  q = Psi*alpha / Omega / Tr;
+
+  Z = 1.0;
+  Znew = 0.0;
+  for (i = 0; i<iter_max; i++){
+    Znew = 1.0 + beta - q*beta*(Z - beta) / (Z + epsilon*beta) / (Z + sigma*beta);
+    if (fabs(fabs(Z) - fabs(Znew))<Zerr)
+      break;
+    else
+      Z = Znew;
+
+  }
+  V = Z*83.14*T / P; //unit V-cm^3 , P-bar, T-K
+  I = 1.0 / (sigma - epsilon)*log((Z + sigma*beta) / (Z + epsilon*beta));
+  lnphi = Z - 1.0 - log(Z - beta) - q*I;
+}
+
+void VLE::EoS_PR_General(double w, double Tc, double Pc, double T, double P, double &V, double &Z, double &lnphi){
+  double alpha, beta, q, Psi, Omega, sigma, epsilon;
+  double Tr, Pr;
+  double Znew, Zerr = 1.0e-8;
+  int i, iter_max = 20;
+  double I;
+
+  Tr = T / Tc;
+  Pr = P / Pc;
+
+  Omega = 0.07780;
+  Psi = 0.45742;
+  sigma = 1.0 + pow(2.0, 0.5);
+  epsilon = 1.0 - pow(2.0, 0.5);
+  alpha = pow((1.0 + (0.37464 + 1.54226*w - 0.26992*w*w)*(1.0 - pow(Tr, 0.5))), 2.0);
+
+  beta = Omega*Pr / Tr;
+  q = Psi*alpha / Omega / Tr;
+
+  Z = 1.0;
+  Znew = 0.0;
+  for (i = 0; i<iter_max; i++){
+    Znew = 1.0 + beta - q*beta*(Z - beta) / (Z + epsilon*beta) / (Z + sigma*beta);
+    if (fabs(fabs(Z) - fabs(Znew))<Zerr)
+      break;
+    else
+      Z = Znew;
+
+  }
+  V = Z*83.14*T / P; //unit V-cm^3 , P-bar, T-K
+  I = 1.0 / (sigma - epsilon)*log((Z + sigma*beta) / (Z + epsilon*beta));
+  lnphi = Z - 1.0 - log(Z - beta) - q*I;
+}
+
 
 double VLE::solubility_H2_PR(double T, double P, double a){
 	double Z,V,lnphi,kH,v0,R,Ps=1.0;
@@ -598,7 +739,7 @@ double VLE::pressure_H2(double T, double dens){
 	for(i=0;i<iter_max;i++){
 		P=(a+b)*0.5;
 		dev=dens-VLE::density_H2(T,P);
-		if(abs(dev) < err) break;
+		if(fabs(dev) < err) break;
 		if(dev>0) a=P;
 		if(dev<0) b=P;
 	}
