@@ -4512,20 +4512,20 @@ void CRFProcess::ConfigMULTI_COMPONENTIAL_FLOW()
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "m/s";
 	pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
 	pcs_number_of_secondary_nvals++;
-	// JODNEW
+	//  JOD 2015-11-18
 	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DENSITY1";
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "kg/m3";
 	pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
 	pcs_number_of_secondary_nvals++;
-	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_PRESSURE1";
+	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_PRESSURE1";  // difference to initial value
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "PA";
 	pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 0;
 	pcs_number_of_secondary_nvals++;
-	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_TEMPERATURE1";
+	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_TEMPERATURE1";  // difference to initial value
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "PA";
 	pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 0;
 	pcs_number_of_secondary_nvals++;
-	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_CONCENTRATION1";
+	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DELTA_CONCENTRATION1";  // difference to initial value
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "PA";
 	pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 0;
 	pcs_number_of_secondary_nvals++;
@@ -8609,8 +8609,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
       }
 
 // CB JOD MERGE //			//----------------------------------------------------------------------------------------
-			if (m_st->isConnected())  // JOD 2/2015
-				IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
+      if (m_st != NULL)
+        if (m_st->isConnected())  // JOD 2/2015
+				  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
 			//--------------------------------------------------------------------
 
 			//----------------------------------------------------------------------------------------
@@ -10395,7 +10396,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 							converged = true;
 						}
 						else{				// Check for stagnation
-							percent_difference = 100.0 * fabs ((last_error - nonlinear_iteration_error) / last_error);  // JODNEW
+							percent_difference = 100.0 * ((last_error - nonlinear_iteration_error) / last_error);  
 							if(iter_nlin > 0 &&  percent_difference < 1.0) // less than 1% difference (or an error increase) from previous error
 								num_fail++;
 							else
@@ -11131,6 +11132,11 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			}
 			for(size_t j = 0; j < m_pcs->GetSecondaryVNumber(); j++)
 			{
+
+				if (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT || m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT ) // JOD 2015-11-18
+				   if (var_name.find("VELOCITY") != std::string::npos)                   // if variable is of VELOCITY, do not return not a transport, but a flow process
+					  continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
+
 				pcs_var_name = m_pcs->pcs_secondary_function_name[j];
 				if(pcs_var_name.compare(var_name) == 0)
 					return m_pcs;
@@ -17116,7 +17122,7 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 FEMLib-Method:
 Task:	To get from ST (for geometry) to fem_ele_std (to write value in matrix)
 Programing:
-02/2015 JODNEW Implementation
+02/2015 JOD Implementation
 07/2015 mode 2 added 
 
 mode 0: symmetric

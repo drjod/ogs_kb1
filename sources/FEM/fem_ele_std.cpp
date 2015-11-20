@@ -3720,7 +3720,7 @@ void CFiniteElementStd::CalcMass()
 		// if(Index < 0) cout << "mat_fac in CalCoeffMass: " << mat_fac << "\n";
 		// GEO factor
 		mat_fac *= fkt;
-		// ElementVolumeMultiplyer
+		// ElementVolumeMultiplyer (LPVC)
 		mat_fac *= MediaProp->ElementVolumeMultiplyer;
 		// Calculate mass matrix
 		if(PcsType == EPT_TWOPHASE_FLOW)
@@ -4542,7 +4542,7 @@ void CFiniteElementStd::CalcLumpedMass()
 	// Center of the reference element
 	SetCenterGP();
 	factor = CalCoefMass();
-	// ElementVolumeMultiplyer
+	// ElementVolumeMultiplyer (LPVC)
 	factor *= MediaProp->ElementVolumeMultiplyer;
 	pcs->timebuffer = factor;             // Tim Control "Neumann"
 	factor *= vol / (double)nnodes;
@@ -4969,11 +4969,11 @@ void CFiniteElementStd::CalcLaplace()
 							for (size_t l=0; l<dim; l++)
 							{
 					 (*Laplace)(iish, jjsh) += fkt * dshapefct[ksh] \
-						 * mat[km + l] * dshapefct[l*nnodes + j] / sqrt(MediaProp->ElementLengthMultiplyer_vector[k]*MediaProp->ElementLengthMultiplyer_vector[l]); // JODNEW
-							}
-						}
-					} // j: nodes
-				} // i: nodes
+						 * mat[km + l] * dshapefct[l*nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[l]; // JOD 2015-11-20 LPVC
+                 } 
+              }
+           } // j: nodes
+		} // i: nodes	
 #endif    
 			}
 		}
@@ -5347,7 +5347,7 @@ void CFiniteElementStd::CalcAdvection()
 		  for (j = 0; j < nnodes; j++)
 		  for (size_t k = 0; k < dim; k++)
 			  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
-			  * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; // JODNEW
+			  * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
 #endif
 		if (pcs->m_num->ele_supg_method > 0) //NW
 		{
@@ -6560,7 +6560,7 @@ void CFiniteElementStd::Cal_Velocity()
 			for (size_t i = 0; i < dim; i++)
             {				
 				for (size_t j = 0; j < dim; j++)
-					tmp_gp_velocity(i, gp) -= mat[dim*i + j] * vel[j] / (time_unit_factor * MediaProp->ElementLengthMultiplyer_vector[j]); // JODNEW
+					tmp_gp_velocity(i, gp) -= mat[dim*i + j] * vel[j] / (time_unit_factor * MediaProp->ElementLengthMultiplyer_vector[j]); // JOD 2015-11-18
             }
 
 		}
@@ -6589,7 +6589,7 @@ void CFiniteElementStd::Cal_Velocity()
 			gp_ele->Velocity_g.Write(*pcs->matrix_file);
 		}
 	}
-	// gp_ele->Velocity.Write();
+    //gp_ele->Velocity.Write();
 }
 /***************************************************************************
 GeoSys - Funktion:
@@ -12063,4 +12063,4 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 
 using FiniteElement::ElementValue;
 vector<ElementValue*> ele_gp_value;
-vector<ElementValue*> ele_gp_flux;  // Gauss point value for Fick / Fourier flux. JODNEW
+vector<ElementValue*> ele_gp_flux;  // Gauss point value for Fick / Fourier flux. JOD 2015-11-18

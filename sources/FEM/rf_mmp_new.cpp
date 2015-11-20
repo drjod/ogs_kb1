@@ -126,7 +126,7 @@ CMediumProperties::CMediumProperties() :
     betaexpo = 0;
 	ElementVolumeMultiplyer = 1.0; //SB / JOD 2014-11-10
 	ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1]
-		= ElementLengthMultiplyer_vector[2] = 1;            // JODNEW
+		= ElementLengthMultiplyer_vector[2] = 1;            //  JOD 2015-11-18 - blow up element in certain direction
 	permeability_pressure_model = -1; //01.09.2011. WW
 	permeability_strain_model = -1; //01.09.2011. WW
     forchheimer_cf = 0.0; //NW
@@ -871,7 +871,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				break;
 			case 'O':     // orthotropic
 				permeability_tensor_type = 1;
-				if (geo_dimension == 1) // JODNEW
+				if (geo_dimension == 1) //  JOD 2015-11-18
 				{
 					std::cout <<
 						"Error in CMediumProperties::Take Isotropic"

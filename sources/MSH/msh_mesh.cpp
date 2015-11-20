@@ -138,6 +138,7 @@ CFEMesh::CFEMesh(GEOLIB::GEOObjects* geo_obj, std::string* geo_name) :
 	top_surface_checked = false; // 07.06.2010.  WW
 
 	nodes_are_sorted=false;
+	connected_nodes_vector.clear(); // JOD 2015-11-20 NNNC
 }
 
 // Copy-Constructor for CFEMeshes.
@@ -406,6 +407,18 @@ bool CFEMesh::Read(std::ifstream* fem_file)
 			*fem_file >> geo_type_name >> geo_name >> std::ws;
 		else if (line_string.find("$AXISYMMETRY") != std::string::npos)
 			_axisymmetry = true;
+		else if (line_string.find("$CONNECTED_NODES") != std::string::npos) // JOD 2015-11-20 NNNC
+		{
+			size_t no_nodes, node, connected_node;
+			*fem_file >> no_nodes >> std::ws;
+			for (size_t i = 0; i < no_nodes; i++)
+			{
+				*fem_file >> node >> connected_node >> std::ws;;
+
+				connected_nodes_vector.push_back(node);
+				connected_nodes_vector.push_back(connected_node);
+			}
+		}
 		else if (line_string.find("$CROSS_SECTION") != std::string::npos)
 			_cross_section = true;
 		else if (line_string.find("$NODES") != std::string::npos)
@@ -3146,6 +3159,25 @@ void CFEMesh::ConnectedNodes(bool quadratic) const
 	for (size_t i = 0; i < nod_vector.size(); i++)
 	{
 		CNode* nod = nod_vector[i];
+
+		for (size_t ii = 0; ii < connected_nodes_vector.size(); ii++) // JOD 2015-11-20
+		{
+			if (connected_nodes_vector[ii] == i)
+			{
+
+				if (ii % 2 == 0) {// even
+					nod->getConnectedNodes().push_back(connected_nodes_vector[ii + 1]);
+					//std::cout << connected_nodes_vector[ii] << " " << connected_nodes_vector[ii + 1] << std::endl;
+				}
+				else       {     // odd
+					nod->getConnectedNodes().push_back(connected_nodes_vector[ii - 1]);
+					//std::cout << connected_nodes_vector[ii] << " " << connected_nodes_vector[ii - 1] << std::endl;
+				}
+
+			}
+		}
+
+
 		size_t n_connected_elements (nod->getConnectedElementIDs().size());
 		for (size_t j = 0; j < n_connected_elements; j++)
 		{

@@ -329,6 +329,7 @@ public:
   double Im_expo;
 	double Sc_expo;
 	double Geometry_expo;
+  double C_trash;
 	double Mass;
 	double Volume;
 	double Masstransfer_k;

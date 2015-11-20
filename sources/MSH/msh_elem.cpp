@@ -494,7 +494,9 @@ void CElem:: SetFace(CElem* onwer, const int Face)
 	case MshElemType::HEXAHEDRON:             // 3-D hexahedral element
 		this->setElementProperties(MshElemType::QUAD, true);
 		break;
-	//case MshElemType::TRIANGLE:  // 2-D triagular element
+	case MshElemType::TRIANGLE:  // 2-D triagular element
+		this->setElementProperties(MshElemType::LINE, true); // JOD 2015-11-20 for mass balance
+		break;
 	case MshElemType::TETRAHEDRON:            // 3-D tetrahedral element
 		this->setElementProperties(MshElemType::TRIANGLE, true);
 		break;

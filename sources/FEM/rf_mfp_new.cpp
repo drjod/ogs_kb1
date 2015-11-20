@@ -398,7 +398,7 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				density_pcs_name_vector.push_back("CONCENTRATION1");
 			}
 			if (density_model == 21) // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))
-			{ // JODNEW
+			{ //  JOD 2015-11-18
 				in >> rho_0;
 				in >> p_0;
 				in >> drho_dp;
@@ -1318,11 +1318,12 @@ double CFluidProperties::Density(double* variables)
 			   density *= 1. + drho_dC * (max(variables[2], 0.0) - C_0);
 			
 			break;
-	case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))   // JODNEW
+	case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))   //  JOD 2015-11-18
 		density = rho_0 *(1. + drho_dp * (max(variables[0], 0.0) - p_0)
 			+ drho_dT * (max(variables[1], 0.0) - T_0)
 			+ drho_dC * (max(variables[2], 0.0) - C_0));
-		case 26: //Dalton's law + ideal gas for use with TNEQ/TES
+		break;
+	case 26: //Dalton's law + ideal gas for use with TNEQ/TES
 		{
 			const double M0 = cp_vec[0]->molar_mass; // molar mass of component 0
 			const double M1 = cp_vec[1]->molar_mass;
@@ -1465,7 +1466,7 @@ double CFluidProperties::Density(double* variables)
 		    if (fabs(drho_dC) > 1.e-20)
 			    density *= 1. + drho_dC * (max(primary_variable[2], 0.0) - C_0);
 			break;
-		case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))    // JODNEW
+		case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))    //  JOD 2015-11-18
 			density = rho_0 *(1. + drho_dp * (max(primary_variable[0], 0.0) - p_0)
 				+ drho_dC * (max(primary_variable[1], 0.0) - C_0)
 				+ drho_dT * (max(primary_variable[2], 0.0) - T_0));
@@ -1477,11 +1478,12 @@ double CFluidProperties::Density(double* variables)
 		}
 		
 			if (Fem_Ele_Std) {
-			material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
+			//material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
 			if(this->density_model_mat.size()>0){
 				material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
 				for(i=0;i<(int)this->density_model_mat.size();i++){
 					if((int)material == (int)this->dens_material[i]){
+						CalPrimaryVariable(density_pcs_name_vector_mat[i]);   // JOD 2015-11-17
 						switch(density_model_mat[i])
 						{
 						case 0:                   // rho = f(x)
@@ -1575,8 +1577,8 @@ double CFluidProperties::Density(double* variables)
 			}//end if mat
 
 
-			index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
 			if(this->density_model_idx.size()>0){
+                index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
 				for(i=0;i<(int)this->density_model_idx.size();i++){
 					if((int)index == (int)this->dens_index[i]){
 						switch(density_model_idx[i])

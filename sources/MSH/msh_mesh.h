@@ -589,6 +589,8 @@ private:
 	                                    std::string const & ofname,
 	                                    double ratio = 0.8);
 
+	std::vector<size_t> connected_nodes_vector; // JOD 2015-11-20  for NNNC with sparse matrix solver
+
 	/// Store border nodes among different grids.
 	std::vector<GridsTopo*> grid_neighbors;
 	friend class ::Problem;

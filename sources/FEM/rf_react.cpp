@@ -2822,37 +2822,45 @@ int REACT::Call_Phreeqc(void)
   return returnCode;
 #else
 
-#ifndef WIN32
-  std::string mm_phreeqc = "./phreeqc ";
-#else
-  std::string mm_phreeqc = "phreeqc ";
-#endif
+  std::string mm_phreeqc_loc = "./phreeqc ";
+  std::string mm_phreeqc_glob = "phreeqc ";
 
+  mm_phreeqc_loc += outfile_name + " ";
+  mm_phreeqc_loc += pqc_outfile_name + " ";
 
-  mm_phreeqc += outfile_name + " " ;
-  mm_phreeqc += pqc_outfile_name + " ";
-  //std::string mm_phreeqc = "phreeqc phinp.dat  phinp.out  ";
-  //const char *m_phreeqc;
-  //  m_phreeqc="phrqc phinp.dat  phinp.out  phreeqc.dat";
+  mm_phreeqc_glob += outfile_name + " " ;
+  mm_phreeqc_glob += pqc_outfile_name + " ";
 
+  if (file_name_database.size() == 0){
+    mm_phreeqc_loc += "phreeqc.dat";
+    mm_phreeqc_glob += "phreeqc.dat";
+  }
+  else {
+    mm_phreeqc_loc += file_name_database;
+    mm_phreeqc_glob += file_name_database;
+  }// mm_phreeqc += " phscrout.txt";
 
-  if(file_name_database.size()==0)
-    mm_phreeqc += "phreeqc.dat";
-  else 
-    mm_phreeqc += file_name_database;
-  // mm_phreeqc += " phscrout.txt";
+  char * m_phreeqc_l;
+  m_phreeqc_l = new char[mm_phreeqc_loc.size() + 1];
+  strcpy(m_phreeqc_l, mm_phreeqc_loc.c_str());
 
-  char * m_phreeqc;
-  m_phreeqc = new char [mm_phreeqc.size()+1];
-  strcpy (m_phreeqc, mm_phreeqc.c_str());
+  char * m_phreeqc_g;
+  m_phreeqc_g = new char[mm_phreeqc_glob.size() + 1];
+  strcpy(m_phreeqc_g, mm_phreeqc_glob.c_str());
+
 #ifdef PHREEQC
-	if (!system(m_phreeqc))
+	if (!system(m_phreeqc_l))
 		//    DisplayMsgLn("Phreeqc runs succesfully! ");
 		return 1;
-	else
+  if (!system(m_phreeqc_g))
+    //    DisplayMsgLn("Phreeqc runs succesfully! ");
+    return 1;
+  else 
 	{
-		DisplayMsgLn("Warnung: Phreeqc doesn't run properly!!! ");
-    std::cout << mm_phreeqc << "\n";
+		DisplayMsgLn("Warnung: Phreeqc doesn't run properly !!! ");
+    std::cout << mm_phreeqc_loc << "\n";
+    std::cout << mm_phreeqc_glob << "\n";
+
 #if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)
     MPI_Finalize();                       //make sure MPI exits
 #endif
@@ -2860,7 +2868,9 @@ int REACT::Call_Phreeqc(void)
 	}
 #endif
 
-delete [] m_phreeqc;
+delete [] m_phreeqc_l;
+delete [] m_phreeqc_g;
+
 #ifndef PHREEQC
 	return 1;
 #endif

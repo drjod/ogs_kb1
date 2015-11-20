@@ -118,7 +118,7 @@ public:
 	void WriteTECNodeData(std::fstream&);
 	void WriteTECElementData(std::fstream&, int);
 	void WriteTECBLOCKData(std::fstream&); // BW
-	double NODWritePLYDataTEC(int);
+	double NODWritePLYDataTEC(int); 
 	void NODWritePNTDataTEC(double, int);
 	void ELEWriteDOMDataTEC();
 	void WriteELEValuesTECHeader(std::fstream&);
@@ -147,11 +147,13 @@ public:
 	void PCONWriteDOMDataTEC();           //MX
 	void WriteTECNodePCONData(std::fstream &); //MX
 
-	void WriteTEC(double, int, bool, size_t); // JODNEW
-	void WriteVTK(double, int, bool, size_t); // JODNEW
-	void WritePVD(double, int, bool, size_t); // JODNEW
-	void WriteTEC_DOMAIN();
-	void WriteTEC_POLYLINE(int );
+	void WriteTEC(double, int, bool, size_t); // JOD 2015-11-14
+	void WriteVTK(double, int, bool, size_t); // JOD 2015-11-14
+	void WritePVD(double, int, bool, size_t); // JOD 2015-11-14
+	void WriteTEC_DOMAIN(int);    // JOD 2015-11-14
+	void WriteTEC_POLYLINE(int);  // JOD 2015-11-14
+	void WriteTEC_POINT(int, int);      // JOD 2015-11-14
+	void WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times, void (COutput::*outputFunction)(int));
 	//void WriteTEC_POINT();
 	void WriteVTK(double, int, bool);
 	void WritePVD(double, int, bool);
@@ -221,7 +223,7 @@ public:
     bool VARIABLESHARING;						 // Coordinates of each node as well as connection list is stored only for the first time step; BG: 05/2011
 
 private:
-	friend void OUTData(double, int step, bool force_output);
+	friend void OUTData(double, int step, bool);
 
 	//	std::vector<double> rwpt_time_vector; //JT, needed because outputs are treated differently in RWPT
 

@@ -790,6 +790,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 {
 	double tval, next;
 	int no_time_steps = (int)time_step_vector.size();
+    bool adapt = false;
 	//
 	// TIME STEP VECTOR
 	// -----------------------------------
@@ -802,7 +803,8 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	// TIME CONTROL METHODS
 	// -----------------------------------
 	if(time_control_type == TimeControlType::NEUMANN || time_control_type == TimeControlType::SELF_ADAPTIVE){
-		if(aktuelle_zeit < MKleinsteZahl && repeat == false){
+    adapt = true;
+    if(aktuelle_zeit < MKleinsteZahl && repeat == false){
 			time_step_length = FirstTimeStepEstimate();
 		}
 		else if( time_control_type == TimeControlType::NEUMANN){
@@ -813,9 +815,11 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 		}
 	}
 	else if(time_control_type == TimeControlType::STABLE_ERROR_ADAPTIVE){
+    adapt = true;
 			time_step_length = StableErrorAdaptive();
 	}
 	else if(time_control_type == TimeControlType::ERROR_CONTROL_ADAPTIVE){
+    adapt = true;
 		if(aktuelle_zeit < MKleinsteZahl){
 			time_step_length = AdaptiveFirstTimeStepEstimate();
 		}
@@ -824,11 +828,13 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 		}
 	}
 	else if(time_control_type == TimeControlType::PI_AUTO_STEP_SIZE){
+    adapt = true;
 		time_step_length = this_stepsize;
 	}
 	else if(time_control_type == TimeControlType::DYNAMIC_COURANT
 			|| time_control_type == TimeControlType::DYNAMIC_PRESSURE
 			|| time_control_type == TimeControlType::DYNAMIC_VARIABLE){ // JT2012: Soon to come.
+    adapt = true;
 		if(!last_dt_accepted){
 			time_step_length *= dt_failure_reduction_factor;
 			dynamic_minimum_suggestion = time_step_length;
@@ -836,10 +842,11 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 		else if(accepted_step_count > 1){ // initial time step is otherwise maintained for first 2 active time steps
 		}
 	}
-	else if (this->time_control_type == TimeControlType::MAX_PV_CHANGE){ //KB0315
+	else if (this->time_control_type == TimeControlType::MAX_PV_CHANGE){ //KB0315   
 	//else if(this->time_control_name == "MAX_PV_CHANGE"){ //KB0315
 	//else if (this->time_type_name == "MAX_PV_CHANGE"){ //KB0315
 		// activate other process
+    adapt = true;
 		this->time_active = false; // set this process false, i.e. it is not calculated
 		CRFProcess* m_pcs = PCSGet(this->max_pv_change_pcs_name);
 		if(aktuelle_zeit < MKleinsteZahl){ // only first tim step
@@ -851,7 +858,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 			//this->time_active = true;
 		}
 		time_step_length = m_pcs->Tim->this_stepsize; // set to step length of controlling process
-
+		
 	}
 	else if(no_time_steps==0){ // Processes without time control
 		time_step_length = DBL_MAX; // Large, thus other processes will control the step
@@ -866,27 +873,30 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 
 	// WW. Critical time match (JT2012 modified)
 	// ------------------------------------------------------
-	for(int i = 0; i < (int)critical_time.size(); i++)
-	{
-		if(current_time < critical_time[i])
-		{
-			next = current_time + time_step_length;
-			tval = next + time_step_length/1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step
-			if(tval > critical_time[i]){						// Critical time is hit
-				if(next != critical_time[i]){					// otherwise, match is already exact
-					time_step_length = (critical_time[i] - current_time);
-				}
-				break;
-			}
-			//else if(tval + time_step_length > critical_time[i]){ // We can hit the critical time in 2 time steps, smooth the transition
-			//	if(next + time_step_length != critical_time[i]){ // otherwise, match is already exact
-			//		time_step_length = (critical_time[i] - current_time)/2.0;
-			//	}
-			//	break;
-			//}
-			break;
-		}
-	}
+  for (int i = 0; i < (int)critical_time.size(); i++)
+  {
+    //if (adapt){   //    < --------- this causes differences in the results of H_us/Wet/h_us_line_celia, H2M_TEP/w_exp
+		          // since (critical) output times are not captured. In the examples, time steps are given.
+      if (current_time < critical_time[i])
+      {
+        next = current_time + time_step_length;
+		tval = next + time_step_length / 1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step. JOD takes a power of 2 to speedup multiplication
+        if (tval > critical_time[i]){						// Critical time is hit
+          if (next != critical_time[i]){					// otherwise, match is already exact
+            time_step_length = (critical_time[i] - current_time);
+          }
+          break;
+        }
+        else if (tval + time_step_length > critical_time[i]){ // We can hit the critical time in 2 time steps, smooth the transition
+          if (next + time_step_length != critical_time[i]){ // otherwise, match is already exact
+            time_step_length = (critical_time[i] - current_time) / 2.0;
+          }
+          break;
+        }
+        break;
+      //}
+    }
+  }
 	//
 	next_active_time = current_time + time_step_length;
 	return time_step_length;

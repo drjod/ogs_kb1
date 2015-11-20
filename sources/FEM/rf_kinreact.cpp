@@ -2918,6 +2918,7 @@ Sc_expo = -1.0;
 Geometry_expo = -1.0;
 Mass = 0.0;
 Volume = 0.0;
+C_trash = MKleinsteZahl;
 Masstransfer_k = 0.0;
 current_Interfacial_area = 0.;
 BlobGeoType.clear();
@@ -3189,6 +3190,14 @@ bool CKinBlob::Read(ifstream* rfd_file,
 			in.clear();
 		}
       //....................................................................
+    if (line_string.find("$CONCENTRATION_THRESHHOLD") != string::npos)
+    {
+      in.str(GetLineFromFile1(rfd_file));
+      in >> C_trash;
+      in.clear();
+    }
+    //....................................................................
+
                                                   // subkeyword found
       if (line_string.find("$CO2_DISSOLUTION") != string::npos)
         CO2_dissolution_flag = true;
@@ -3977,9 +3986,6 @@ int node_idx = 0;
   }
 
 
-
-
-
 // This function  prepares 
 // - phase volumina at all nodes
 PhaseVoluminaPreprocessing();
@@ -4361,14 +4367,7 @@ void CKinReactData::Biodegradation( double *m_Conc, long node, double eps, doubl
 	CKinReactData* m_krd = NULL;
 	m_krd = KinReactData_vector[0];
    nreactions = m_krd->NumberReactions;
-   //timelevel = 1;                                 // concentrations are in new timelevel
-
-	if (time_vector.size() > 0)
-	{
-		m_tim = time_vector[0];
-		dt = m_tim->CalcTimeStep();
-	}
-	//Number_of_Components = kr_active_species; //
+  //Number_of_Components = kr_active_species; //
 	Number_of_Components = (int) cp_vec.size();
    // Get storage for vector of concentrations
    // Concentration = dvector(1,Number_of_Components);
@@ -5467,7 +5466,7 @@ void derivs(double t, double c[], double dcdt[], int n, long node, double /*step
       //if(c[Sp1] > MKleinsteZahl)  
       //if (c[Sp1] > 1e-10) {
         //if ((exchange < 0.) || (c[Sp1] > MKleinsteZahl))
-        if ((exchange < 0.) || (c[Sp1] > 1e-10)) 
+         if ((exchange < 0.) || (c[Sp1] > m_kb->C_trash /*1e-10*/))
         {
           dcdt[Sp1] += -exchange; //NAPL: mol/s/m³aq
           dcdt[Sp2] += exchange / porosity2 / saturation2; // solution: mol/s/m³w
@@ -6260,7 +6259,7 @@ double CKinReact::BacteriaGrowth(int r, double *c, double sumX, int exclude, lon
    *myXMI = Growth;
 
    // (h) thermodynamic forcing Jin & Bethge 2005 AJS Model
-   if(astn>0){
+   if(astn!=0){
      *TDF = TDForcing(c, node, AP, Temperature);
      //cout << *TDF << endl;
 
@@ -6293,8 +6292,9 @@ double CKinReact::TDForcing(double *c, long node, double *AP, double Temperature
   double dGA = 0;
   double C;
   double dG0T = 0;
+  double F = 96485.3365; // Faraday constant  C / mol
 
-  if (astn > 0){
+  if (astn != 0){
 
     if (REACTINT_vec.size() > 0) {
       // conversion factors
@@ -6306,8 +6306,9 @@ double CKinReact::TDForcing(double *c, long node, double *AP, double Temperature
     else
       Temperature = 298.15; // standard conditions
 
-    for (size_t i = 0; i<reactionpartner.size(); i++){
-      
+    // IAP
+    for (size_t i = 0; i<reactionpartner.size(); i++)
+    {
       idx = reacSpeciesIdx[i] + 1;
       C = c[idx] * unitfactor_l;
       
@@ -6322,17 +6323,30 @@ double CKinReact::TDForcing(double *c, long node, double *AP, double Temperature
       *AP *= pow(C, stochmet[i]);
     }
 
+    // thermodynamic state of the reaction 
+    //  dGr = -RTln(K/AP)
+    //      = -RT(ln(K) - ln(AP))
+    //      = dG0r + RTln(AP)
     // todo: Temperature correction for dG0: Gibbs Helmholz equation, or Van't Hoff type equation
     dG0T = dG0 * Temperature / 298.15 + dH0 * (298.15 - Temperature) / 298.15;
-    
+    // avaialble energy dGA = - dGr = -dG0r - RTln(AP)
     dGA = -dG0T - R*Temperature*log(*AP);
     
-    if (dGA > dGc) {
-      arg = DMIN(-(dGA - dGc) / (astn*R*Temperature), 320);
-      tdf = 1 - exp(arg);
+    
+    if (astn > 0){ // Jin & Bethge
+      if (dGA > dGc) {
+        arg = DMIN(-(dGA - dGc) / (astn*R*Temperature), 320);
+        // arg is the same as ([dGr + RTln(AP)] + mdGatp) / (chiRT)
+        tdf = 1 - exp(arg);
+      }
+      else
+        tdf = 0;
     }
-    else
-      tdf = 0;
+    else if (astn == -1){ // LaRowe
+      arg = (-dGA + F*dGc) / (R*Temperature);
+      // arg is the same as ([dGr + RTln(AP)] + F*dPsi) / (RT)
+      tdf = 1 / (exp(arg) + 1);
+    }
     //if (tdf < 0.99 ) cout << *AP << " " << tdf << endl; 
   }
   return tdf;
@@ -6842,36 +6856,54 @@ if(m_krd->NumberMineralkinetics>0){
       }
 
       // Loop over reaction partners in thermodynamic forcing term
-      if (m_kr->astn > 0){
-        
+      if (m_kr->astn != 0){
+
         // conversion factors
         if (unitfactor_l == 0)
-          if (REACTINT_vec.size() > 0) 
-            REACTINT_vec[0]->CalcUnitConversionFactors(node, &unitfactor_l, &unitfactor_s, true);
+        if (REACTINT_vec.size() > 0)
+          REACTINT_vec[0]->CalcUnitConversionFactors(node, &unitfactor_l, &unitfactor_s, true);
 
-        // Rate law in this case is:
-        // dx/dt = myXMI*TDF = myXMI*[1-F*exp(AP)] = myXMI*[1-F*exp(A^a * Bi^ßi)]
-        // 2nd derivative with rspectto species A according to product rule is:
-        // d2x/dtdA = d(myXMI)*TDF + myXMI*d(TDF) 
-        //          = BacteriaGrowth * K/(A(k+A)) + myXMI*[0-F*exp(1/x*ln(A^a * Bi^ßi))*(1/x*1/(A^a * Bi^ßi))*(a*A^(a-1) * Bi^ßi)]
-        //          = BacteriaGrowth * K/(A(k+A)) + myXMI*(TDF-1)*1/x*a/A
-        // for Monod species, the first term has already been calculated
-        // for inibition species or other species not appearing in Term myXMI
-        // the first term is zero anyway, so just add the 2nd term, the contribution from TD forcing term
-        // neglect Activity coefficients
         NumberReactionPartner = m_kr->number_reactionpartner;
         for (i = 0; i < NumberReactionPartner; i++)
         {
-          ReactionPartner = m_kr->reacSpeciesIdx[i] ;
+          ReactionPartner = m_kr->reacSpeciesIdx[i];
           if (m_kr->ProductionStoch[ReactionPartner] != 0){
             if (cp_vec[ReactionPartner]->transport_phase == 0)
               Concentration = DMAX(c[ReactionPartner + 1] * unitfactor_l, 1e-13);
             else if (cp_vec[ReactionPartner]->transport_phase == 1)
               Concentration = DMAX(c[ReactionPartner + 1] * unitfactor_s, 1e-13);
 
-            d2X_dtdS[ReactionPartner + 1] += myXMI * (TDF - 1.0) / m_kr->astn * m_kr->ProductionStoch[ReactionPartner] / Concentration;  // m_kr->stochmet[i] 
+            // Jin & Bethge
+            // Rate law in this case is:
+            // dx/dt = myXMI*TDF = myXMI*[1-F*exp(AP)] = myXMI*[1-F*exp(A^a * Bi^ßi)]
+            // 2nd derivative with rspectto species A according to product rule is:
+            // d2x/dtdA = d(myXMI)*TDF + myXMI*d(TDF) 
+            //          = BacteriaGrowth * K/(A(k+A)) + myXMI*[0-F*exp(1/x*ln(A^a * Bi^ßi))*(1/x*1/(A^a * Bi^ßi))*(a*A^(a-1) * Bi^ßi)]
+            //          = BacteriaGrowth * K/(A(k+A)) + myXMI*(TDF-1)*1/x*a/A
+            // for Monod species, the first term has already been calculated
+            // for inibition species or other species not appearing in Term myXMI
+            // the first term is zero anyway, so just add the 2nd term, the contribution from TD forcing term
+            // neglect Activity coefficients
+            if (m_kr->astn > 0)
+              d2X_dtdS[ReactionPartner + 1] += myXMI * (TDF - 1.0) / m_kr->astn * m_kr->ProductionStoch[ReactionPartner] / Concentration;  // m_kr->stochmet[i] 
+
+            // LaRowe et al 2012 GCA
+            // Rate law in this case is:
+            // dx/dt = myXMI*TDF = myXMI * 1/(1+exp(f(AP))) = myXMI * 1/(1+exp(B + ln(AP) + C))  
+            // 2nd derivative with respectto species A (part of Activity product AP; B,C=const.) is:
+            // d2x/dtdA = d(myXMI)*TDF + myXMI*d(TDF)  --> quotient rule, chain rule
+            //          = BacteriaGrowth * K/(A(k+A)) + myXMI*[-a/A * exp(B + ln(AP) + C) / [1+ exp(B+ln(AP)+C)]^2
+            //          = BacteriaGrowth * K/(A(k+A)) + myXMI*[-a/A * (TDF-TDF^2)]
+            // for Monod species, the first term has already been calculated
+            // for inibition species or other species not appearing in Term myXMI
+            // the first term is zero anyway, so just add the 2nd term, the contribution from TD forcing term
+            // neglect Activity coefficients
+            if (m_kr->astn = -1)
+              d2X_dtdS[ReactionPartner + 1] += myXMI * (- 1.0) * m_kr->ProductionStoch[ReactionPartner] / Concentration * (TDF - TDF * TDF);  
+            
           }
         }
+      
       }
 
       // now all derivatives are quantified,
@@ -7264,8 +7296,8 @@ for (r=0; r<nreactions; r++){
            //		dfdc[Sp2][Sp2] = 0
 		         
            //if ( (m_kr->Current_Csat[node] < c[Sp2]) || (c[Sp1] > MKleinsteZahl) ) {         // no dissolution or NAPL mass present
-           if ((Csat < c[Sp2]) || (c[Sp1] > 1e-10)) {         // no dissolution or NAPL mass present
-              // dCNAPL/dt = CNAPL/dt
+           if ((Csat < c[Sp2]) || (c[Sp1] > m_kb->C_trash /*1e-10*/)) {         // no dissolution or NAPL mass present
+             // dCNAPL/dt = CNAPL/dt
               // d2CNAPL / dt dCNAPL = 1/dt
               // d2Cmob  / dt dCmob = -k*A/n/Sw
               dfdc[Sp1][Sp2] += -1/dt;
@@ -7279,7 +7311,7 @@ for (r=0; r<nreactions; r++){
            //		dfdc[Sp2][Sp1] = 0
 
 		       //if ( (m_kr->Current_Csat[node] < c[Sp2]) || (c[Sp1] > MKleinsteZahl) )         // no dissolution or NAPL mass present
-           if ((Csat < c[Sp2]) || (c[Sp1] > 1e-10))         // check for no dissolution or NAPL mass present
+           if ((Csat < c[Sp2]) || (c[Sp1] > m_kb->C_trash /*1e-10*/))         // check for no dissolution or NAPL mass present
 				   {        
              if (m_kr->TransientCsat == false)
              {
@@ -7534,6 +7566,7 @@ void CalcNewNAPLSat()
   double rho_N_new, rho_N_old, rho_G_new;
   double mass_n_n, mass_n_o, volume_n;
   double mass_g_n, mass_g_o, volume_g;
+  double mole_g_n, mole_g_o;
   double satu_NW_new, satu_NW_old, satu_G_new;
   double satu_W_new = 0;
 
@@ -7686,6 +7719,7 @@ void CalcNewNAPLSat()
       rho_N_new = rho_N_old = rho_N_new = 0;
       satu_NW_new = satu_NW_old = mass_n_n = mass_n_o = volume_n = 0;
       rho_G_new = satu_G_new = mass_g_n = mass_g_o = volume_g = 0;
+      mole_g_o = mole_g_n = 0;
       satu_W_new = 0;
 
       int m = 0;
@@ -7699,6 +7733,8 @@ void CalcNewNAPLSat()
         conc2 = pcs_vector[l]->GetNodeValue(i, idxC + 1);// idxC+1 = new timelevel
         if (fabs(conc) < 1e-19) conc = 0.0;
         if (cp_vec[napl_comps_cp_vec_idx_vector[j]]->molar_gas_dens) {  // yes, I'm a gas  
+          mole_g_o += conc;
+          mole_g_n += conc2;
           mass_g_o += conc * molar_weights_vector[j];
           mass_g_n += conc2 * molar_weights_vector[j];
           volume_g += conc2 / molar_densities_vector[j]; // this is required calculating the napl fluid density
@@ -7735,6 +7771,25 @@ void CalcNewNAPLSat()
       else
       {
         // calculate saturation directly from gas volume
+
+        // First add Water volume:
+        if (REACTINT_vec.size() > 0){
+          if (REACTINT_vec[0]->WaterSpeciesName.compare("NULL") != 0){
+            double Pwv = Water_Vapor_Pressure(T, 0);
+            double Pc = 2 * Water_Surface_Tension(T) / (0.25 * KinBlob_vector[0]->d50); // atm
+            double Ph = P * 0.98692; // bar -> atm
+            // approximate vol of water vapour using Vw / V_othergas = pq / p_othergas
+            double Vw = Pwv / (0 - Pwv + Ph + Pc) * volume_g;
+            volume_g += Vw;
+
+            // approximate moles of water vapour using nw / n_othergas = pw / p_othergas
+            double Cw = Pwv / (0 - Pwv + Ph + Pc) * mole_g_n;
+            CRFProcess *c_pcs = PCSGet("MASS_TRANSPORT", REACTINT_vec[0]->WaterSpeciesName);
+            int idxW = c_pcs->GetNodeValueIndex(c_pcs->pcs_primary_function_name[0]);
+            c_pcs->SetNodeValue(i, idxW + 1, Cw);
+          }
+        }
+
         // Get the Poro at the node
         if (REACTINT_vec.size() > 0) poro = REACTINT_vec[0]->node_porosity[i];
         //Sn = Voln / n : m³n/m³p = m³NAPL/m³REV * m³REV/m³p
@@ -8410,7 +8465,10 @@ void CKinReactData::PhaseVoluminaPreprocessing(){
  
   // set phase volumes 
   CFEMesh const* const mesh(fem_msh_vector[0]); //SB: ToDo hart gesetzt
- 
+
+  const size_t nnodes(fem_msh_vector[0]->nod_vector.size()); // SB: ToDo hart gesetzt
+  noomeshnodes = nnodes;
+   
   size_t idx = 0, idx_s, idx_b;
   long elem; //OK411
   double distance, weight, sum_w = 0;
@@ -8427,7 +8485,7 @@ void CKinReactData::PhaseVoluminaPreprocessing(){
   double theta(m_pcs->m_num->ls_theta);
 
   // get memory only in initial time step
-  if (aktueller_zeitschritt==1)
+  if (aktueller_zeitschritt==0)
     phasevolumina = dmatrix(0, noomeshnodes, 0, 3);
   
   // get Indices for phase 1 or 2, only if heterogeneous porosity model = 11, i.e. vol_mat_model = vol_bio_model = 2
@@ -9772,7 +9830,13 @@ void SetIniNAPLSatAndDens()
       }
 
       // Get the Poro at the node
-      if (REACTINT_vec.size() > 0) poro = REACTINT_vec[0]->node_porosity[i];
+      if (REACTINT_vec.size() > 0) 
+        poro = REACTINT_vec[0]->node_porosity[i];
+      else{
+        poro = 1 - KinReactData_vector[0]->GetPhaseVolumeAtNode(i,1);
+      
+      
+      }
       //Sn = Voln / n : m³n/m³p = m³NAPL/m³REV * m³REV/m³p
       satu_NW_new = (volume_n + volume_g ) / poro;
       if (satu_NW_new > 1)  std::cout << "Warning in SetIniNaplSat! NAPL Volume > 1 m³NAPL/m³REV! \n";
@@ -9897,7 +9961,7 @@ double Water_Vapor_Pressure(double T, int model)
       if (T - 273.15 <= 0.0)
         cout << " Warning in CKinReact::GetMaxSolubility(): Temperature is below zero °C: " << T - 273.15 << "\n";
     }
-    Pwv = pow(10.0, arg) / 760.0;
+    Pwv = pow(10.0, arg) / 760.0; // --> atm
   }
   else if (model == 1){ // Wagner & Pruss, factor 2.7 too low?!
     double tau = T / Tc;

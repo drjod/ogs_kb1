@@ -71,7 +71,7 @@ public:
 	double gradient_ref_depth;
 	double gradient_ref_depth_value;
 	double gradient_ref_depth_gradient;
-	double gradient_ref_depth1;       // JODNEW
+	double gradient_ref_depth1;       // JOD 2015-11-18 - dis type bounded
 	double gradient_ref_depth_value1;
 	std::string rfr_file_name;            //OK
 	CInitialCondition();

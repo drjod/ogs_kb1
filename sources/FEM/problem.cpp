@@ -246,17 +246,15 @@ Problem::Problem (char* filename) :
     }
     //----------------------------------------------------------------------
     if(KinReactData_vector.size() > 0){
-      // Configure Data for Blobs (=>NAPL dissolution) 
-      KBlobConfig(*_geo_obj, _geo_name);
-      KBlobCheck();
-      // in case of Twophaseflow before the first time step 
-      //if(total_processes[3] || total_processes[4]){ 
-      //  if(KNaplDissCheck())  // 3: TWO_PHASE_FLOW. 12.12.2008. WW     
-      //    KNaplCalcDensity();
-      //}
-      //else 
-      if (KNaplDissCheck())          
+      // This function  prepares phase volumina at all nodes
+      KinReactData_vector[0]->PhaseVoluminaPreprocessing();
+
+      if (KNaplDissCheck()) {
+        // Configure Data for Blobs (=>NAPL dissolution) 
+        KBlobConfig(*_geo_obj, _geo_name);
+        KBlobCheck();
         SetIniNAPLSatAndDens();
+      }
 //PCSCalcSecondaryVariables(); 
       // CB _drmc_ data for microbes
       if(MicrobeData_vector.size()>0)
@@ -1125,6 +1123,8 @@ void Problem::Euler_TimeDiscretize()
 		if(mrank == 0)
 		{
 #endif
+			if (aktueller_zeitschritt == 10)
+				aktueller_zeitschritt = aktueller_zeitschritt;
 		std::cout << "\n\n#############################################################\n";
 		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
 		current_time << "|  Time step size: " << dt << "\n";
@@ -1157,7 +1157,7 @@ void Problem::Euler_TimeDiscretize()
 				{
 #endif
 					//
-				OUTData(current_time, aktueller_zeitschritt,force_output);
+				OUTData(current_time, aktueller_zeitschritt, force_output);
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
 				}
 #endif
@@ -3355,7 +3355,6 @@ inline double Problem::PostMassTrasportReact()
   bool capvec = false;
   bool prqvec = false;
   //
-  
    if (REACT_CAP_vec.size() > 0) capvec = true;
 
 

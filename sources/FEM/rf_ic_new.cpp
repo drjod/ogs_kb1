@@ -326,8 +326,8 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 				in >> gradient_ref_depth_value; //CMCD
 				in >> gradient_ref_depth_gradient; //CMCD
 			}
-			else if (this->getProcessDistributionType() == FiniteElement::BOUNDED) // JODNEW
-			{
+			else if (this->getProcessDistributionType() == FiniteElement::BOUNDED) //  JOD 2015-11-18
+			{  // interpolate if z within a range, else take constant value (value at range boundary)
 				in >> gradient_ref_depth;         // z-coord of lower bound
 				in >> gradient_ref_depth_value;   // lower bound value
 				in >> gradient_ref_depth1;         // z-coord of upper bound
@@ -505,7 +505,7 @@ void CInitialCondition::Set(int nidx)
 	{
 		SetByNodeIndex(nidx);
 		if (storeValues)
-			StoreInitialValues();// JODNEW 
+			StoreInitialValues();//  JOD 2015-11-18 - DELTA_ output 
 	}
 	else
 	{

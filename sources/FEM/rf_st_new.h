@@ -143,7 +143,7 @@ public:
 	bool isCoupled () const { return _coupled; }
 	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
 	double getNormalDepthSlope () const { return normaldepth_slope; }
-	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface JODNEW
+	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface  JOD 2015-11-18
 
 	// constrain a ST by other process
 	bool isConstrainedST() const { return _isConstrainedST; }
@@ -208,17 +208,17 @@ public:
 	  std::vector<double> get_node_value_vectorArea(){ return node_value_vectorArea;} //TN
 
 	  std::vector<long> st_node_ids;
-
+	  // NNNC
 	  bool connected_geometry;			// SB 02/2015
 	  std::string connected_geometry_type;
 	  std::string connected_geometry_name;
 	  std::vector<long> connected_nodes_idx;
 	  int connected_geometry_verbose_level;
-	  double connected_geometry_exchange_term;
+	  double connected_geometry_exchange_term;  // leakance
 	  int connected_geometry_mode;
-	  long connected_geometry_ref_element_number;
-	  double connected_geometry_minimum_velocity_abs;  // JODNEW
-	  double connected_geometry_reference_direction[3];
+	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
+	  double connected_geometry_minimum_velocity_abs;    //                      
+	  double connected_geometry_reference_direction[3];  //                      
 
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);

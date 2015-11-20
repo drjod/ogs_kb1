@@ -1573,7 +1573,7 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 		//fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
 
 		SetGaussPoint(gp, gp_r, gp_s, gp_t);
-		//---------------------------------------------------------
+		//--------------------------------------------------------- 
 		//  Get local coordinates and weights
 		//  Compute Jacobian matrix and its determinate
 		//---------------------------------------------------------

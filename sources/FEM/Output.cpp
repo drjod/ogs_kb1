@@ -1200,11 +1200,12 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 					    else 
 							val_n = m_pcs->GetNodeValue(n_id, NodeIndex[k]); //WW
 						tec_file << val_n << " ";
-						// WTP
+						// WTP  - reactivated by JOD 2015-11-19 to match output with benchmark reference files - if SATURATION1 requested, SATURATION2 is added
+						// WTP  - and deactivated again by wtp 19.11.2015
 						//if ((m_pcs->type == 1212 || m_pcs->type == 42)
 						//	&& _nod_value_vector[k].find("SATURATION") != string::npos) //WW
 						//	tec_file << 1. - val_n << " ";
-						
+						////
 					}
 				}
 			}
@@ -1271,7 +1272,7 @@ void COutput::WriteTECHeader(fstream &tec_file,int e_type, string e_type_name)
 	{
 		tec_file << ", \"" << _nod_value_vector[k] << "\"";
 		//-------------------------------------WW
-		// WTP
+		// WTP  - reactivated by JOD 2015-11-19 to match output with benchmark reference files - if SATURATION1 requested, SATURATION2 is added
 		//pcs = GetPCS(_nod_value_vector[k]);
 		//if (pcs != NULL)
 		//	if ((pcs->type == 1212 ||
@@ -1379,13 +1380,12 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 {
 	// Write Header I: variables
 	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\"";
-// CB JOD MERGE //
-/*	for (size_t i = 0; i < _ele_value_vector.size(); i++)
+	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		//WW
 		if (_ele_value_vector[i].find("VELOCITY") == string::npos)
-			tec_file << "," << _ele_value_vector[i];*/
-	tec_file << "\n";
+			tec_file << "," << _ele_value_vector[i];
 
+	tec_file << "\n";
 	// Write Header II: zone
 	tec_file << "ZONE T=\"";
 	tec_file << _time << "s\", ";
@@ -1395,10 +1395,10 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 	tec_file << "\n";
 	//--------------------------------------------------------------------
 	// Write Header III: solution time			// 8/2015 JOD
-	tec_file << "STRANDID=1, SOLUTIONTIME=";  
-	tec_file << _time;			// << "s\"";
-	tec_file << "\n";
-
+	//tec_file << "STRANDID=1, SOLUTIONTIME=";  
+	//tec_file << _time;			// << "s\"";
+	//tec_file << "\n";
+  // removed by cb
 }
 
 /**************************************************************************
@@ -2060,7 +2060,7 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
    10/2008 OK MFP values
    07/2010 TF substituted GEOGetPLYByName
 **************************************************************************/
-double COutput::NODWritePLYDataTEC(int number)
+double COutput::NODWritePLYDataTEC(int number )
 {
 	//WW  int nidx;
 	long gnode;
@@ -2188,14 +2188,28 @@ double COutput::NODWritePLYDataTEC(int number)
 	GetNodeIndexVector(NodeIndex);
 	//--------------------------------------------------------------------
 	// Write header
-	if (number == 0 || number == 1)       //WW if(number==1)
-	{
+	
+  bool header = false; 
+
+  if (aktueller_zeitschritt == 0)
+    header = true;
+  if (aktueller_zeitschritt > 0){
+    if (aktueller_zeitschritt == nSteps)
+      header = true;
+    else if (time_vector.size()>0)
+      if(fabs(aktuelle_zeit - time_vector[0]) < MKleinsteZahl) //WW MKleinsteZahl
+        header = true;
+  }
+  
+  if (header)       //WW if(number==1)  
+  //if (number == 0 || number == 1)
+ {
 		//project_title;
 		std::string project_title_string = "Profiles along polylines";
-		tec_file << " TITLE = \"" << project_title_string
-			<< "\"" << "\n";
+		tec_file << " TITLE = \"" << project_title_string << "\"" << "\n";
 		tec_file << " VARIABLES = \"DIST\" ";
-		for (size_t k = 0; k < no_variables; k++)
+
+    for (size_t k = 0; k < no_variables; k++)
 		{
 			tec_file << "\"" << _nod_value_vector[k] << "\" ";
 			//-------------------------------------WW
@@ -2246,8 +2260,8 @@ double COutput::NODWritePLYDataTEC(int number)
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
 	tec_file << " ZONE T=\"TIME=" << _time << "\"";// << "\n";
 	//----------------------------------------------------------------------
-	tec_file << " SOLUTIONTIME="; // JOD 8/2015 to link frames
-	tec_file << _time;			// << "s\"";
+	//tec_file << " SOLUTIONTIME="; // JOD 8/2015 to link frames
+	//tec_file << _time;			// << "s\"";
 	tec_file << "\n";
 	// Write data
 	//======================================================================
@@ -2362,9 +2376,9 @@ double COutput::NODWritePLYDataTEC(int number)
 void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
 {
 
-#if defined(USE_PETSC)  // JOD 8/2015
-	std::cout << "point_" + mrank_str;
-#endif
+//#if defined(USE_PETSC)  // JOD 2015-11-17
+//	std::cout << "point_" + mrank_str;
+//#endif
 
 	long msh_node_number(m_msh->GetNODOnPNT(
 	                             static_cast<const GEOLIB::Point*> (getGeoObj())));
@@ -2384,9 +2398,6 @@ void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
 	std::string tec_file_name(file_base_name + "_time_");
 	addInfoToFileName(tec_file_name, true, true, true);
 
-#if defined(USE_PETSC)  // JOD 8/2015
-	std::cout << "point2_" + mrank_str;
-#endif
 
 	if (!_new_file_opened)
 		remove(tec_file_name.c_str());  //WW
@@ -4372,9 +4383,9 @@ void COutput::addInfoToFileName (std::string& file_name, bool geo, bool process,
 	if (msh_type_name.size() > 0 && mesh)
 		file_name += "_" + msh_type_name;
 
-#if defined(USE_PETSC)  // JODNEW
-	file_name += "_" + mrank_str;
-#endif
+//#if defined(USE_PETSC)  // JOD 2015-11-17
+//	file_name += "_" + mrank_str;
+//#endif
 
 	// finally add file extension
 	file_name += TEC_FILE_EXTENSION;
@@ -4607,7 +4618,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 
 	tec_file_name += geo_name + "_TOTAL_FLUX";
 
-#if defined(USE_PETSC)  // JODNEW
+#if defined(USE_PETSC)  // JOD 2015-11-18
 	tec_file_name += "_" + mrank_str;
 #endif
 
@@ -4768,7 +4779,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	}
 
 
-#if defined(USE_PETSC)  // JODNEW
+#if defined(USE_PETSC)  // JOD 2015-11-18
 	tec_file_name += "_" + mrank_str;
 #endif
 
@@ -5062,7 +5073,12 @@ void COutput::WritePVD(double time_current, int time_step_number, bool output_by
 		pvd_vtk_file_name = vtk->pvd_vtk_file_name_base;
 		stm << time_step_number;
 		pvd_vtk_file_name += stm.str() + ".vtu";
-		pvd_vtk_file_path = vtk->pvd_vtk_file_path_base + pvd_vtk_file_name;
+#ifdef _WIN32
+    pvd_vtk_file_path = vtk->pvd_vtk_file_path_base + "\\" + pvd_vtk_file_name;
+#else
+    pvd_vtk_file_path = vtk->pvd_vtk_file_path_base + "/" + pvd_vtk_file_name;
+#endif
+
 		// Output
 		if (output_by_steps)
 		{
@@ -5195,153 +5211,74 @@ void COutput::WriteVTK(double time_current, int time_step_number, bool output_by
 /**************************************************************************
 OpenGeoSys - Funktion
 Task: TECPLOT / BINARY / MATLAB output
+   switch between geotypes
 Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
 
 void COutput::WriteTEC(double time_current, int time_step_number, bool output_by_steps, size_t no_times)
 {
-	
+	void (COutput::*outputFunction)(int) = NULL;
 
 	switch (getGeoType())
 	{
 		case GEOLIB::GEODOMAIN: // domain data
-			cout << "Data output: Domain" << "\n";
-			if (output_by_steps)
-			{
-				WriteTEC_DOMAIN();
-			}
-			else
-			{
-				for (size_t j = 0; j < no_times; j++)
-				if (// (time_current > time_vector[j]) ||  // removed by JOD  8/2015
-					fabs(time_current - time_vector[j])
-					< MKleinsteZahl) //WW MKleinsteZahl
-				{
-					WriteTEC_DOMAIN();
-					break;
-				}
-			}	
+			cout << "Data output: Domain" << endl;		
+			outputFunction = &COutput::WriteTEC_DOMAIN;		
 			break;
 			//------------------------------------------------------------------
 		case GEOLIB::POLYLINE: // profiles along polylines
-
-			std::cout << "Data output: Polyline profile - " << getGeoName() << "\n";
-			if (output_by_steps)
-			{
-				WriteTEC_POLYLINE(time_step_number);
-			}
-			else
-			{
-				for (size_t j = 0; j < no_times; j++)
-				if (//(time_current > time_vector[j]) ||  // removed by JOD  8/2015
-					fabs(time_current - time_vector[j])
-					< MKleinsteZahl) //WW MKleinsteZahl
-				{
-					///////////////////////////////////////////////////////////////
-					//OK
-					WriteTEC_POLYLINE(time_step_number);
-					//////////////////////////////////////////////////////
-					break;
-				}
-			}
-			//..............................................................
+			cout << "Data output: Polyline profile - " << getGeoName() << endl;
+			outputFunction = &COutput::WriteTEC_POLYLINE;
 			break;
 			//------------------------------------------------------------------
 		case GEOLIB::POINT: // breakthrough curves in points
-
-			cout << "Data output: Breakthrough curves - " << getGeoName() << "\n";
+			cout << "Data output: Breakthrough curves - " << getGeoName() << endl;
 			NODWritePNTDataTEC(time_current, time_step_number);
-			if (!_new_file_opened)
-				_new_file_opened = true;  //WW
 			break;
 			//------------------------------------------------------------------
 		case GEOLIB::SURFACE: // profiles at surfaces
-			cout << "Data output: Surface profile" << "\n";
+			cout << "Data output: Surface profile" << endl;
 			//..............................................................
-			//				if (m_out->_dis_type_name.compare("AVERAGE") == 0) {
 			if (getProcessDistributionType() == FiniteElement::AVERAGE)
-			{
 				if (output_by_steps)
-				{
-					NODWriteSFCAverageDataTEC(time_current,
-						time_step_number);
-					if (!_new_file_opened)
-						//WW
-						_new_file_opened = true;
-				}	
-			}
+					NODWriteSFCAverageDataTEC(time_current, time_step_number);	
 			//..............................................................
 			else
-			{
-				if (output_by_steps)
-				{
-					NODWriteSFCDataTEC(time_step_number);
-					if (!_new_file_opened)
-						//WW
-						_new_file_opened = true;
-				}
-				else
-				{
-					for (size_t j = 0; j < no_times; j++)
-					if (// (time_current >time_vector[j]) ||     // removed by JOD  8/2015
-						fabs(time_current -time_vector[j])< MKleinsteZahl) 
-						//WW MKleinsteZahl                m_out->NODWriteSFCDataTEC(j);
-					{
-						NODWriteSFCDataTEC(j);
-						time_vector.erase(
-							time_vector.begin()
-							+ j);
-						if (!_new_file_opened)
-							//WW
-							_new_file_opened =
-							true;
-						break;
-					}
-				}
-			}
+				outputFunction = &COutput::NODWriteSFCDataTEC;
 			//..............................................................
 			// ELE data
 			if (getElementValueVector().size() > 0)
 				ELEWriteSFC_TEC();
 			//..............................................................
 			break;
-
 			//			case 'Y': // Layer
 			//				cout << "Data output: Layer" << "\n";
-			//				if (OutputBySteps) {
-			//					m_out->NODWriteLAYDataTEC(time_step_number);
-			//					OutputBySteps = false;
-			//				} else {
-			//					for (j = 0; j < no_times; j++) {
-			//						if ((time_current > m_out->time_vector[j]) || fabs(
-			//								time_current - m_out->time_vector[j])
-			//								<MKleinsteZahl) {
-			//							m_out->NODWriteLAYDataTEC(j);
-			//							m_out->time_vector.erase(m_out->time_vector.begin()
-			//									+ j);
-			//							break;
-			//						}
-			//					}
-			//				}
-			//
+			//				outputFunction = &COutput::NODWriteLAYDataTEC;	
 			//				break;
 			//------------------------------------------------------------------
 
 		default:
 			break;
-	}
+	} // end switch
+	///
+	if (outputFunction != NULL) // not for point, averaged surface since output already written
+		WritePotentially(time_current, time_step_number, output_by_steps, no_times, outputFunction );
 
+	if (!_new_file_opened)
+		//WW
+		_new_file_opened = true;
 }
 
 /**************************************************************************
 OpenGeoSys - Funktion
 Task: TECPLOT domain output
+    switch between output of node or element (parameter) values 
 Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
 
-void COutput::WriteTEC_DOMAIN()
+void COutput::WriteTEC_DOMAIN(int time_step_number)
 {
 
 #if defined (USE_PETSC) // || defined (other parallel solver lib). 12.2012 WW
@@ -5352,7 +5289,6 @@ void COutput::WriteTEC_DOMAIN()
 	else
 	{
 #endif
-
 		if (_pcon_value_vector.size() > 0)
 			PCONWriteDOMDataTEC();  //MX
 		else
@@ -5379,14 +5315,15 @@ void COutput::WriteTEC_DOMAIN()
 #if defined (USE_PETSC) // || defined (other parallel solver lib). 12.2012 WW
 	}
 #endif
-	if (!_new_file_opened)
-		//WW
-		_new_file_opened = true;
+
+
 }
 
 /**************************************************************************
 OpenGeoSys - Funktion
 Task: TECPLOT polyline output
+   Individual function because of individual function for file handling (TIMVALUE_TEC())
+   although I do not see what this is used for
 Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
@@ -5398,9 +5335,6 @@ void COutput::WriteTEC_POLYLINE(int time_step_number)
 	if (tim_value > 0.0)
 		//OK
 		TIMValue_TEC(tim_value);
-	if (!_new_file_opened)
-		//WW
-		_new_file_opened = true;
 }
 
 
@@ -5416,3 +5350,41 @@ void COutput::setFileBaseName(const std::string& fn)
 }
 
 
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:
+    calls output function if output by steps or if current time is one of the selected times (is in output vector)
+	initial time in time_vector causes additional output step
+	values in time_vector must increase with each entry
+Programming:
+11/2015 JOD Introduce function
+**************************************************************************/
+
+void COutput::WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times, void(COutput::*outputFunction)(int))
+{
+	
+	if (output_by_steps)
+	{
+		(this->*(outputFunction))(time_step_number);
+		if (time_vector.size() > 0) 
+		{       // this block added in case initial time is given in output instance (smaller times not permitted)
+			if ( fabs(time_current - time_vector[0])
+					< MKleinsteZahl) //WW MKleinsteZahl
+					time_vector.erase(time_vector.begin());
+		}
+	}
+    else
+    {
+		for (size_t j = 0; j < no_times; j++)
+		{
+			if ((time_current > time_vector[j]) ||
+				fabs(time_current - time_vector[j])
+				< MKleinsteZahl) //WW MKleinsteZahl
+			{
+				(this->*(outputFunction))(j + 1);
+				time_vector.erase(time_vector.begin() + j);
+			}
+			break;				
+		}
+    }		
+}

@@ -1242,16 +1242,30 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 
 					if (bc->getProcessDistributionType() == FiniteElement::GRADIENT) // 6/2012 JOD
 					{
-            nodes_vector.clear();
-						m_msh->GetNODOnPLY(ply, nodes_vector);
+						double msh_min_edge_length =         // JOD 2015-11-20
+							m_msh->getMinEdgeLength();
+						m_msh->setMinEdgeLength(m_polyline->epsilon);
+						std::vector<size_t> my_nodes_vector;
+						m_msh->GetNODOnPLY(ply, my_nodes_vector);
+						m_msh->setMinEdgeLength(msh_min_edge_length);
+
+						nodes_vector.clear();
+						for (size_t k(0); k < my_nodes_vector.size(); k++)
+							nodes_vector.push_back(my_nodes_vector[k]);
+
+						// for some benchmarks we need the vector entries sorted by index
+						std::sort(nodes_vector.begin(), nodes_vector.end());
 
 						for (size_t k(0); k < nodes_vector.size(); k++) {
 							m_node_value = new CBoundaryConditionNode();
 							m_node_value->msh_node_number = -1;
 							m_node_value->msh_node_number = nodes_vector[k] + ShiftInNodeVector;
 							m_node_value->geo_node_number = nodes_vector[k];
-							m_node_value->node_value = bc->gradient_ref_depth_gradient * 
-                      (bc->gradient_ref_depth - m_msh->nod_vector[nodes_vector[k]]->getData()[2]) + bc->gradient_ref_depth_value;
+							m_node_value->node_value
+											= bc->gradient_ref_depth_gradient
+															* (bc->gradient_ref_depth
+																			- m_msh->nod_vector[nodes_vector[k]]->getData()[2])
+															+ bc->gradient_ref_depth_value;
 							m_node_value->CurveIndex = bc->getCurveIndex();
               m_node_value->fct_name = bc->fct_name;  // CB added here
 							m_node_value->pcs_pv_name = _pcs_pv_name;

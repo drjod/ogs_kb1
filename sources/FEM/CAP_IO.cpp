@@ -12,7 +12,7 @@
   #include <sys/types.h>
 #endif
 #include <makros.h>
-
+  
 #ifdef OGS_FEM_CAP // CAP_REACT
    #include "cacint.h"
 #endif
@@ -399,7 +399,7 @@ void read_file(void)
 			getline(in, instr);	
 			//CHEM_STATE.push_back(REACT_PRQ::string2vector(instr));
 			CHEM_STATE.push_back(REACTINT::string2vector(instr));
-			std::cout << "CHEM_STATE pushback: size: " << CHEM_STATE.size() << " CAP_Time: " << CAP_Time << " CaP_Node: " << CAP_Node << " CAP_icount: " << CAP_icount << " f:" << file_name << "\n";
+      //std::cout << "CHEM_STATE pushback: size: " << CHEM_STATE.size() << " CAP_Time: " << CAP_Time << " CaP_Node: " << CAP_Node << " CAP_icount: " << CAP_icount << " f:" << file_name << "\n";
 		}
 	}
 	in.close();

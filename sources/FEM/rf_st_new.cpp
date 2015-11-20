@@ -108,13 +108,13 @@ CSourceTerm::CSourceTerm() :
    time_contr_function = "";
    _isConstrainedST = false;
 
-   everyoneWithEveryone = false;  // JODNEW
+   everyoneWithEveryone = false;  //  JOD 2015-11-18
 
    this->connected_geometry = false;
    this->connected_geometry_verbose_level = 0;
    this->connected_geometry_exchange_term = 0.0;
    this->connected_geometry_mode = -1;
-   this->connected_geometry_minimum_velocity_abs = -1;               // JODNEW
+   this->connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
    this->connected_geometry_ref_element_number = -1;
    this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
 
@@ -510,7 +510,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.clear();
 	  }
 // CB JOD MERGE //
-	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015   JODNEW
+	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015    JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_type >> connected_geometry_name;                             
@@ -519,7 +519,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$CONNECT_PARAMETER") != std::string::npos) // JODNEW
+	  if (line_string.find("$CONNECT_PARAMETER") != std::string::npos) //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_exchange_term >> connected_geometry_verbose_level;
@@ -528,7 +528,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$CONNECT_MODE") != std::string::npos)  // JODNEW
+	  if (line_string.find("$CONNECT_MODE") != std::string::npos)  //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;
@@ -540,7 +540,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  }
 
 	  if (line_string.find("$EVERYONE_WITH_EVERYONE") != std::string::npos)
-	  {       // JODNEW
+	  {       //  JOD 2015-11-18
 		  in.clear();
 		  everyoneWithEveryone = true;
 		  continue;
@@ -853,7 +853,7 @@ const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name)
             st_vector.push_back(st);
 
          }
-         /*else   removed by JODNEW
+         /*else   removed by  JOD 2015-11-18
          {
             std::cerr << "WARNING: in STRead: could not read source term" << "\n";
             delete st;
@@ -4193,14 +4193,17 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
    size_t number_of_nodes (nodes.size());
 
 
-   // Added by CB
-   double geometry_area = 1.0;
+   // Added by CB;  removed by JOD 2015-11-19 
+   /*double geometry_area = 1.0;
    if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
    {
-     long msh_ele = fem_msh_vector[0]->nod_vector[nodes[0] + ShiftInNodeVector]->getConnectedElementIDs()[0];
-     if (mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
-       geometry_area = mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
-   }
+     //long msh_ele = fem_msh_vector[0]->nod_vector[nodes[0] + ShiftInNodeVector]->getConnectedElementIDs()[0];
+     //if (mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
+     //  geometry_area = mmp_vector[fem_msh_vector[0]->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
+     if (mmp_vector[0]->GetGeoDimension() < 3)
+       geometry_area = mmp_vector[0]->geo_area;
+
+   }*/
 
    for (size_t i = 0; i < number_of_nodes; i++)
    {
@@ -4210,9 +4213,9 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->setProcessDistributionType (getProcessDistributionType());
       m_nod_val->node_value = node_values[i];
 	  
-      // Added by CB
-      if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
-        m_nod_val->node_value *= geometry_area;
+      // Added by CB;  removed by JOD 2015-11-19 
+      //if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+      //  m_nod_val->node_value *= geometry_area;
       m_nod_val->CurveIndex = CurveIndex;
 // CB JOD MERGE //
 	
