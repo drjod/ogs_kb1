@@ -2192,6 +2192,8 @@ double COutput::NODWritePLYDataTEC(int number)
 	{
 		//project_title;
 		std::string project_title_string = "Profiles along polylines";
+		tec_file << " TITLE = \"" << project_title_string
+			<< "\"" << "\n";
 		tec_file << " VARIABLES = \"DIST\" ";
 		for (size_t k = 0; k < no_variables; k++)
 		{
