@@ -1,32 +1,6 @@
 ## Kiel Branch One of OpenGeoSys http://www.opengeosys.org/
 
-
-
-
 ### Cheat sheet 
-
-for OGS on RZ cluster Kiel
-
-#### PBS
-qstat <br>
-qstat –u $LOGIN <br>
-qstat –q angus <br>
-qdel –f $JOBID <br>
-mpi: #PBS -l select=1:ncpus=2:mpiprocs=2:mem=1gb:place=scatter <br>
-omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host <br>
-
-#### Compilation
-
-Script compileInKiel.sh for RZ cluster, NEC Cluster, Lokstedt server Kiel in repository tUNIX <br>
-
-#### Mesh partitioning 
-
-Script partition.sh for domain decomposition with METIS in repository icbc/remote/easyPeasy (calls partmesh from  ufz/mesh_partition) <br>
-
-For OGE_FEM_MPI: ./partition.sh numberOfPartitions –e –asci path (or no path) <br>
-For OGS_FEM_PETSC: ./partition.sh numberOfPartitions –n –bin path (or no path) <br>
-
-numberOfPartitions = 2, 3, 4,... <br>
 
 #### Numerics
 
@@ -263,8 +237,132 @@ $CONNECT_MODE
 ; 2 ref_element_number n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs
 ```
 
+##### Fluid properties
+
+###### Density models
+
+0: Curve rho(x) <br>
+1: rho = const <br>
+2: rho(p) = rho_0*(1+beta_p*(p-p_0)) <br>
+3: rho(C) = rho_0*(1+beta_C*(C-C_0)) <br>
+4: rho(T) = rho_0*(1+beta_T*(T-T_0)) <br>
+5: rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0)) <br>
+6: rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0)) <br>
+7: Pefect gas <br>
+8: Density output AB-model <br>
+10: density from fct-file with temperature-pressure values <br>
+11: Redlich-Kwong EOS for different fluids <br>
+12: Peng-Robinson EOS for different fluids <br>
+13: Helmholtz free Energy <br>
+14: Exponential law <br>
+15: Amagat's law for mixture <br>
+18: Density at nodes from the phase transition model <br>
+19: Density from GEMS <br>
+20: rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C  <br>
+21: rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0)) <br>
+26: Dalton's law + ideal gas for use with TNEQ/TES <br><br>
+
+Example specifications in input file *mfp:<br>
+1. Model 0 - rho = rho(x): <br>
+```
+$DENSITY 
+ 0 1 
+```
+Parameter "1" refers to the first data table in a *.rfd ascii input file, which you will have to provide in this case:<br>
+```
+;Curve 1  Temp Density
+#CURVES
+ 273.15  999.8675792
+ 274.15  999.9265054
+ ...
+#STOP
+```
+<br>
+2.  Model 4 - rho = rho(T): <br>
+```
+$DENSITY
+ 4 1.000000e+003	0	0.2	; C0 is 0. beta_C (drho_dC) is 0.2
+```
+<br>
+
+More information: <br>
+CFluidProperties::Read(std::ifstream*)<br>
+CFluidProperties::Density(double*) [separate calculation for solving PDEs and density output]<br>
+
+###### Viscosity models
+0: Curve my(x) <br>
+1: my = const <br>
+2: my(p) = my_0*(1+gamma_p*(p-p_0)) <br>
+3: my^l(T) acoording toYaws et al. (1976) <br>
+4: my^g(T) acoording to Marsily (1986) <br>
+5: my^g(p,T) acoording toReichenberg (1971) <br>
+6: my(C,T) <br>
+8: my(p,C,T) <br>
+9: my(rho,T) <br>
+15: VTPR-EoS <br>
+18: ViscositY at nodes from the phase transition model <br>
+19: Viscosity for GEMS  <br>
+26: Wilke (see Poling, B. E.; Prausnitz, J. M.; John Paul, O. & Reid, R. C. The properties of gases and liquids McGraw-Hill New York, 2001, 5: page 9.21) <br> <br>
+
+More information: <br>
+CFluidProperties::Read(std::ifstream*)<br>
+CFluidProperties::Viscosity(double* variables)
+
+#### To run OGS on RZ cluster Kiel
+
+##### PBS
+qstat <br>
+qstat –u $LOGIN <br>
+qstat –q angus <br>
+qdel –f $JOBID <br>
+mpi: #PBS -l select=1:ncpus=2:mpiprocs=2:mem=1gb:place=scatter <br>
+omp: #PBS -l select=1:ncpus=1:ompthreads=4:mem=1gb:place=group=host <br>
+
+An example bash script for an MPI-Job with 8 cores on the angus queue (rz cluster):
+```
+#!/bin/bash
+#PBS -o screenout.txt
+#PBS -j oe
+#PBS -r n
+#PBS -l walltime=2:00:00
+#PBS -l select=1:ncpus=8:mem=3gb
+#PBS -l place=scatter
+#PBS -q angus
+#PBS -N test
+
+cd $PBS_O_WORKDIR
+
+. /usr/share/Modules/init/bash
+
+. /cluster/Software/intel1502/composer_xe_2015.2.164/bin/compilervars.sh  intel64
+. /cluster/Software/intel1502/composer_xe_2015.2.164/mkl/bin/intel64/mklvars_intel64.sh
+. /cluster/Software/intel1502/impi/5.0.3.048/intel64/bin/mpivars.sh
+
+time mpirun -r rsh -machinefile $PBS_NODEFILE -n 8 ogs_OGS_FEM_MPI testCase
+
+qstat -f $PBS_JOBID
+exit
+```
+In this example, name of ogs is 'ogs_OGS_FEM_MPI' and of input files 'testCase'. Put this script with ogs and input files into one folder, cd there and execute the script. Output will be written into screenout.txt. <br>
+To change the number of cores, you modify the number (8) in two locations of the script. These are in the PBS script command ncpus=8 and the mpirun command $PBS_NODEFILE -n 8. Important: Each node hosts 16 cores. You can select more than 16 cores by taking more nodes. For instance, you get with the PBS- command   
+```
+#PBS -l select=3:ncpus=8:mem=64gb
+```
+24 cores (set also $PBS_NODEFILE -n 24). <br>
+The example script sets maximum wall time as 2 hours,  3G of memory are available for the simulation (each cluster node has 64 (128)GB available in total). 
 
 
+##### Compilation
 
+You find the newest script compileInKiel.sh for RZ cluster, NEC Cluster, Lokstedt server Kiel in repository tUNIX. Instructions are in the script.  <br>
+
+##### Mesh partitioning 
+
+Script partition.sh for domain decomposition with METIS in repository icbc/remote/easyPeasy (calls partmesh from  ufz/mesh_partition) <br>
+
+For OGE_FEM_MPI: ./partition.sh numberOfPartitions –e –asci path (or no path) <br>
+For OGS_FEM_PETSC: ./partition.sh numberOfPartitions –n –bin path (or no path) <br>
+
+numberOfPartitions = 2, 3, 4,... <br>
   
   
