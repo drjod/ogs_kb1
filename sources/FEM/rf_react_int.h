@@ -14,6 +14,9 @@
 /* Structure for exchange of reaction related data */
 class REACTINT{
   private:
+
+	 
+
 	public:
     REACTINT(void);
 	~REACTINT(void);
@@ -24,7 +27,7 @@ class REACTINT{
     bool constanttemperature;
     bool constantpressure;
 	bool residual_back;
-    double c_TT, c_PP;  // CB check for variable type c_PP
+    double c_TT, c_PP, c_salt;  // CB check for variable type c_PP; JOD 2015-11-23 add salt for density model 23
     int ssp_outstep;
     int pcs_outstep;
     bool dump_min_moles;
@@ -148,6 +151,7 @@ class REACTINT{
 
     void CopyConcentrations(void); //SB 01.2011
     void PrintGCCdata(void);
+	double CalcDeltaDensityFromCO2(double, std::vector<double>&, long);  // JOD 2015-11-23 for density model 23
 
 };
 extern std::vector <REACTINT*> REACTINT_vec;

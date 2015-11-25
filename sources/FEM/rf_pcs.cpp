@@ -4259,6 +4259,7 @@ void CRFProcess:: Def_Variable_LiquidFlow()
 		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
 		pcs_number_of_secondary_nvals++;				  //WX 08.2011
 	}
+	/* removed by JOD 2015-11-25 since double definition of DENSITY1 causes inconsistent indexing in density calculation and output 
 	//if (simulator.compare("ECLIPSE") == 0) //02.2013. WW
 	//{
 		// BG 01/2011, variables necessary for ECLIPSE
@@ -4272,6 +4273,7 @@ void CRFProcess:: Def_Variable_LiquidFlow()
 		pcs_number_of_secondary_nvals++;
 
 	//}
+	*/
 
 	// 1.3 elemental variables
 	//pcs_number_of_evals = 0;
@@ -9274,7 +9276,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			break;
 		case FiniteElement::LIQUID_FLOW:
 			if(aktueller_zeitschritt>0)
-				CalcSecondaryVariablesLiquidFlow();
+				CalcSecondaryVariablesDensity();
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
 			break;
@@ -11134,7 +11136,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			{
 
 				if (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT || m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT ) // JOD 2015-11-18
-				   if (var_name.find("VELOCITY") != std::string::npos)                   // if variable is of VELOCITY, do not return not a transport, but a flow process
+				if (var_name.find("VELOCITY") != std::string::npos || var_name.find("DENSITY") != std::string::npos )                   // if variable is of VELOCITY, do not return not a transport, but a flow process
 					  continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
 
 				pcs_var_name = m_pcs->pcs_secondary_function_name[j];
@@ -11446,52 +11448,68 @@ void CRFProcess::CalcSecondaryVariablesTES(const bool initial)
 
 /*************************************************************************
 GeoSys-FEM Function:
-Task: Updating secondary variables for Multiphase flow in PS_GLOBAL
-
+Task: Originally, updating secondary variables for Multiphase flow in PS_GLOBAL CalcSecondaryVariablesLiquidFlow()
+      now, set density at nodes for output
 Programming:
 03/2009 PCH Implementation
+11/2015 JOD generalization - density_pcs_name_vector from mfp is taken to get values density depends on 
+
 **************************************************************************/
-  void CRFProcess::CalcSecondaryVariablesLiquidFlow()
-  {
-    long i;
-    int ndx_dens, idx_t, idx_m;
-    double  var[3] = { 0, 0, 0 };
-    bool heattransport = false;
-    bool masstransport = false;
-
-    ndx_dens = GetNodeValueIndex("DENSITY1");
-
-    CRFProcess *m_pcs_t = NULL;
-    if ((m_pcs_t = PCSGet("HEAT_TRANSPORT"))){
-      heattransport = true;
-      idx_t = m_pcs_t->GetNodeValueIndex("TEMPERATURE1");
-    }
-    CRFProcess *m_pcs_m = NULL;
-    if ((m_pcs_m = PCSGet("MASS_TRANSPORT"))){
-      masstransport = true;
-      idx_m = m_pcs_m->GetNodeValueIndex("CONCENTRATION1");
-      if (idx_m < 0)
-        idx_m = 1;
-    }
-    CFluidProperties* m_mfp = NULL;
-    m_mfp = mfp_vector[0];
-
-    double dens;
-    for (i = 0; i<(long)m_msh->GetNodesNumber(false); i++)
+	void CRFProcess::CalcSecondaryVariablesDensity()
+ {
+	CFluidProperties* m_mfp = NULL;
+	CRFProcess* m_pcs = NULL;
+	vector<int> processNDXs;
+	int ndx_dens = GetNodeValueIndex("DENSITY1");
+	// get mfp instance for LIQUID --------------------------------------------
+	for (int i = 0; i < mfp_vector.size(); i++)
     {
-      // get pressure
-      var[0] = this->GetNodeValue(i, this->GetNodeValueIndex("PRESSURE1"));
-      // get temperature
-      if (heattransport)
-        var[1] = m_pcs_t->GetNodeValue(i, idx_t);
-      // Set salinity
-      if (masstransport) // JOD 8 /2015
-        var[2] = m_pcs_m->GetNodeValue(i, idx_m);
-      dens = m_mfp->Density(var);
-      // Assigning the secondary variable
-      SetNodeValue(i, ndx_dens, dens);
-    }
+        if (mfp_vector[i]->name == "LIQUID")
+	    {
+		   m_mfp = mfp_vector[i];
+		   break;
+		}
+	}
 
+	if (m_mfp != NULL)
+	{
+		//  get process indices --------------------------------------------
+		int numberOfVariables = (int)m_mfp->density_pcs_name_vector.size();
+
+		for (int i = 0; i < numberOfVariables; i++)
+		{
+			for (int j = 0; j < pcs_vector.size(); j++)
+			{
+				if (m_mfp->density_pcs_name_vector[i].compare(pcs_vector[j]->pcs_primary_function_name[0]) == 0)
+				{
+					processNDXs.push_back(j);
+					break;
+				}
+			}
+		}
+
+		if ((int)processNDXs.size() == numberOfVariables)
+		{
+			// calculate and assign density values to nodes --------------------------------------------
+			double* values = (double *)malloc(numberOfVariables* sizeof(double)); // values density depends on (e.g. p, T, C)
+
+			for (int i = 0; i < (long)m_msh->GetNodesNumber(false); i++)
+			{
+				for (int j = 0; j < numberOfVariables; j++)
+				{   // set values (at node)
+					values[j] = pcs_vector[processNDXs[j]]->GetNodeValue(i,
+						pcs_vector[processNDXs[j]]->GetNodeValueIndex(m_mfp->density_pcs_name_vector[j]));
+				}
+				SetNodeValue(i, ndx_dens, m_mfp->Density(values)); // calculate and set density
+			}
+			//
+			free(values);
+		}
+		else
+			std::cout << "ERROR in CalcSecondaryVariablesDensity() - Do not get process indices" << std::endl;
+	}
+	else
+		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << std::endl;
   }
 /**************************************************************************
    FEMLib-Method:

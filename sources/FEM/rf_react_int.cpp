@@ -320,6 +320,13 @@ bool REACTINT::Read(ifstream* rfd_file, const GEOLIB::GEOObjects& geo_obj, const
         cout << " Warning in REACTINT::Read - No valid keyword for $TEMPERATURE." << "\n";
 	    in.clear();
     }
+	// AB 12.05.2015: ... for geting salt concentration in the liquid 
+	// hence CONCENTRATION1 refers only for delta salt in density driven study
+	if (line_string.find("$INITIAL_SALT_CONCENTRATION") != string::npos) { // subkeyword found
+		in.str(GetLineFromFile1(rfd_file));
+		in >> c_salt;
+		in.clear();
+	}
     if(line_string.find("$WATER_SATURATION_LIMIT")!=string::npos) { // subkeyword found
 	    in.str(GetLineFromFile1(rfd_file));
       in >> this->WaterSatLimit ;
@@ -3786,3 +3793,32 @@ void REACTINT::CopyConcentrations(void){
   // end function
 }
 
+/**************************************************************************
+Reaction-Method:
+Task: Calculate impact of CO2 concentration on fluid density in density model 23  - CO2 disolved in salt water
+Programing:
+// ABM / JOD  11.2015:  
+**************************************************************************/
+
+double REACTINT::CalcDeltaDensityFromCO2(double CO2Dissolved, vector<double> &CO2_vector, long Index)
+{
+	double density_new, density_old;
+	double unitfactor_l = 1.0, unitfactor_s = 1.0;
+	double mNaCl;
+
+	if (unitconversion)
+		CalcUnitConversionFactors(0, &unitfactor_l, &unitfactor_s, true);// mol/m³l --> mol/kg
+	// for salt concentration in molality
+	mNaCl = c_salt * unitfactor_l * 1000;
+	// ----------------------------------------
+	//old time step
+	if (CO2_vector[Index] >= 1.0e-12)
+		density_old = density::CO2brine(GetTemperature(0), GetPressure(0), mNaCl, CO2_vector[Index] * unitfactor_l); // pressure and temperature from node 0
+	else
+		density_old = 0;
+	//new time step
+	CO2_vector[Index] = max(1.0e-12, CO2Dissolved);   //  store CO2 concentration value for next time step
+	density_new = density::CO2brine(GetTemperature(0), GetPressure(0), mNaCl, CO2_vector[Index] * unitfactor_l); // pressure and temperature from node 0
+	
+	return 1000 * (density_new - density_old);  // Delta_density
+}

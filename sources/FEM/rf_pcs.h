@@ -861,7 +861,7 @@ public:
 	void CalcSecondaryVariablesTES(const bool initial = true);      //HS
 	void CalcSecondaryVariablesUnsaturatedFlow(bool initial = false);
 	void CalcSecondaryVariablesPSGLOBAL(); // PCH
-	void CalcSecondaryVariablesLiquidFlow();                                                  // PCH
+	void CalcSecondaryVariablesDensity();                                                  // PCH
 	double GetCapillaryPressureOnNodeByNeighobringElementPatches(int nodeIdx,
 	                                                             int meanOption,
 	                                                             double Sw);

@@ -22,6 +22,9 @@
 //
 #include "rf_mfp_new.h"
 //#include "rf_mmp_new.h"
+#include "rf_react_int.h"  //ABM for coding density_model 23  JOD 2015-11-23
+
+
 extern double InterpolValue(long number,int ndx,double r,double s,double t);
 //#include "rf_pcs.h"
 #include "rfmat_cp.h"
@@ -409,6 +412,15 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				density_pcs_name_vector.push_back("PRESSURE1");
 				density_pcs_name_vector.push_back("CONCENTRATION1");
 				density_pcs_name_vector.push_back("TEMPERATURE1");
+			}
+			// ABM. 07.2015 -> this density model calulates density change due to [CO2 dissolution] and [chemical rxn:: rho(C) = rho_0*(1+beta_C*(C-C_0))]
+			if (density_model == 23)
+			{
+				in >> rho_0;
+				in >> C_0;
+				in >> drho_dC;
+				density_pcs_name_vector.push_back("CONCENTRATION1");
+				density_pcs_name_vector.push_back("CO2_DISSOLVED");
 			}
 			if (density_model == 26) // && pcs_vector[0]->getProcessType() != FiniteElement::TNEQ)
 			{
@@ -1191,280 +1203,502 @@ void CFluidProperties::CalPrimaryVariable(std::vector<std::string>& pcs_name_vec
            based on MATCalcFluidDensity by OK/JdJ,AH,MB
    11/2005 YD Modification
    05/2008 WW Add an argument: double* variables: P, T, C
+   11/2015 JOD merge density calculation for gauss point and node (output) 
    last modification:
    NB 4.9.05
 **************************************************************************/
-double CFluidProperties::Density(double* variables)
+double CFluidProperties::Density(double* values)
 {
 	double pressure;
 	double Rho = 0.0;
 	static double density;
 	// static double air_gas_density,vapour_density,vapour_pressure;
-	
-	int gueltig,i;
+	double* primVal;
+	int density_model_used, valid, i;
 	long material=-1, index=-1;
-	
-	//----------------------------------------------------------------------
-	if(variables)                         // This condition is added by WW
+	//--- set primVal -------------------------------------------------------------------
+	if (values)                         // for secondary variable output (on nodes)
+		primVal = values;
+	else                                   // for PDE calculation (on gauss points)
 	{
-		//----------------------------------------------------------------------
-		// Duplicate the following lines just to enhance computation. WW
-		switch(density_model)
-		{
-		case 0:                   // rho = f(x)
-			density = GetCurveValue(density_curve_number, 0, variables[1], &gueltig);
-			break;
-		case 1:                   // rho = const
-			density = rho_0;
-			break;
-		case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
-			density = rho_0 * (1. + drho_dp * (max(variables[0],0.0) - p_0));
-			break;
-		case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
-			density = rho_0 * (1. + drho_dC * (max(variables[2],0.0) - C_0));
-			break;
-		case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
-			density = rho_0 * (1. + drho_dT * (max(variables[1],0.0) - T_0));
-			break;
-		case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
-			density = rho_0 *
-			          (1. + drho_dC *
-			           (max(variables[2],
-			                0.0) - C_0) + drho_dT * (max(variables[1],0.0) - T_0));
-			break;
-		case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
-			density = rho_0 *
-			          (1. + drho_dp *
-			           (max(variables[0],
-			                0.0) - p_0) + drho_dT * (max(variables[1],0.0) - T_0));
-			break;
-		case 7:                   // Pefect gas. WW
-			density = variables[0] * molar_mass / (GAS_CONSTANT * variables[1]);
-			break;
-         case 8:                                  // M14 von JdJ // 25.1.12 Added by CB for density output AB-model
-			density = MATCalcFluidDensityMethod8(variables[0],variables[1],variables[2]);
-            break;
-		case 10:                  // Get density from temperature-pressure values from fct-file	NB 4.8.01
-			if(!T_Process)
-				variables[1] = T_0;
-			else variables[1]+=T_0;  //JM if T_0==273 (user defined), Celsius can be used within this model
-			density = GetMatrixValue(variables[1],variables[0],fluid_name,&gueltig);
-			break;
-		case 11:                  // Redlich-Kwong EOS for different fluids NB 4.9.05
-			if(!T_Process)
-				variables[1] = T_0;
-			else variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
-			density = rkeos(variables[1],variables[0],fluid_id);
-			break;
-		case 12:                  //Peng-Robinson EOS for different fluids NB 4.9.05
-			if(!T_Process)
-				variables[1] = T_0;
-			else variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
-			//NB
-			density = preos(this, variables[1],variables[0]);
-			break;
-		case 13:                  // Helmholtz free Energy NB JUN 09
-			variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
-			//NB
-			density = zbrent(variables[1],variables[0],fluid_id,1e-8);
-			break;
-		case 14: // #Exponential law#
-		density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
-		break;
-
-		case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:->Amagat's law#
-		for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
-		density =  1/Rho;
-			break;
-
-		case 18: //using calculated densities at nodes from the phase transition model, BG, NB 11/2010
-			variables[2] = phase;
-			density = GetElementValueFromNodes(int(variables[0]),
-			                                   int(variables[1]),
-			                                   int(variables[2]),
-			                                   0);                                // hand over element index, Gauss point index and phase index
-			break;
-		case 19:                // KG44 get the density from GEMS calculations
-		                       // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
-		     //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
- 		       density=1000.0;
-#ifdef GEM_REACT
-			if (!Fem_Ele_Std) //for Richards flow (when saturation is needed initially in GEMS setup) we have to make 
+		if (this->density_model_mat.size() == 0){
+			CalPrimaryVariable(density_pcs_name_vector);
+			primVal = primary_variable;
+		}
+		else
+		{ // density depends on material group
+			if (Fem_Ele_Std)
 			{
-			     density=1000.0;
+				material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
+				for (i = 0; i < (int)this->density_model_mat.size(); i++)
+				{
+					if ((int)material == (int)this->dens_material[i])
+					{
+						CalPrimaryVariable(density_pcs_name_vector_mat[i]);   // JOD 2015-11-17
+						primVal = primary_variable;
+					}
+				}
 			}
 			else
-			{
- 			    // elem = Fem_Ele_Std->GetMeshElement()->GetIndex(); //kg44 need element index or node index for GEMS ...currently we stick to arithmetric average of node data (even for gauss points!)
-                             density=m_vec_GEM->REACT_GEM::FluidDensity( long(variables[0]), int(variables[1])); //hand over element index and gauss point index 
-			     // here we can interpolate values from nodes to elemnt or to gauss points
-			}
-#endif
-		       //insert call for GEMS densities..
-		       break;
-	case 20: // rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C   Magri GFZ thesis
-
-		pressure = variables[0] / 1e5;
-			density =
-				9.99792877961606e+02 + 5.07605113140940e-04 * max(pressure, 0.0) - 5.28425478164183e-10 * pow(max(pressure, 0.0), 2.)
-				+ (5.13864847162196e-02 - 3.61991396354483e-06 * max(pressure, 0.0) + 7.97204102509724e-12 * pow(max(pressure, 0.0), 2.)) * max(variables[1], 0.0)
-				+ (-7.53557031774437e-03 + 6.32712093275576e-08 * max(pressure, 0.0) - 1.66203631393248e-13 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 2.)
-				+ (4.60380647957350e-05 - 5.61299059722121e-10 * max(pressure, 0.0) + 1.80924436489400e-15 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 3.)
-				+ (-2.26651454175013e-07 + 3.36874416675978e-12 * max(pressure, 0.0) - 1.30352149261326e-17 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 4.)
-				+ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 5.)
-				+ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 6.);
-
-			if (fabs(drho_dC) > 1.e-20)
-			   density *= 1. + drho_dC * (max(variables[2], 0.0) - C_0);
-			
-			break;
-	case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))   //  JOD 2015-11-18
-		density = rho_0 *(1. + drho_dp * (max(variables[0], 0.0) - p_0)
-			+ drho_dT * (max(variables[1], 0.0) - T_0)
-			+ drho_dC * (max(variables[2], 0.0) - C_0));
-		break;
-	case 26: //Dalton's law + ideal gas for use with TNEQ/TES
-		{
-			const double M0 = cp_vec[0]->molar_mass; // molar mass of component 0
-			const double M1 = cp_vec[1]->molar_mass;
-			const double p = variables[0];
-			const double T = variables[1];
-			const double x = variables[2]; // gas mass fraction of component 1
-			// assert(0.0 <= x && x <= 1.0);
-
-			// gas molar fraction of component 1
-			const double xn = M0*x/(M0*x + M1*(1.0-x));
-
-			density = p / (Phys::R * T) * (M1*xn + M0*(1.0-xn)); //R_uni in mNs
+				std::cout << "Error in CFluidProperties::Density: No Fem_Ele_Std" << endl;
 		}
-			break;
-
-		default:
-			std::cout << "Error in CFluidProperties::Density: no valid model" <<
-			"\n";
-			break;
+	}
+	//--- set density_model_used -------------------------------------------------------------------
+	if (this->density_model_mat.size() > 0){
+		if (Fem_Ele_Std) 
+		{
+			material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
+			for (i = 0; i < (int)this->density_model_mat.size(); i++)
+			{
+				if ((int)material == (int)this->dens_material[i])
+				{
+					density_model_used = density_model_mat[i];
+					break; // found it
+				}
+			}
+		}
+		else
+			std::cout << "Error in CFluidProperties::Density: No Fem_Ele_Std" << endl;
+	}
+	else if (this->density_model_idx.size()>0){  
+		index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
+		for (i = 0; i < (int)this->density_model_idx.size(); i++)
+		{
+			if ((int)index == (int)this->dens_index[i])
+			{
+				density_model_used = density_model_idx[i];
+				break; // found it
+			}
 		}
 	}
 	else
+		density_model_used = density_model;
+	//--- and now calculate the density -------------------------------------------------------------------
+	switch (density_model_used)
 	{
-		CalPrimaryVariable(density_pcs_name_vector);
-		//----------------------------------------------------------------------
-		switch(density_model)
+	case 0:                   // rho = f(x)
+		density = GetCurveValue(density_curve_number, 0, primVal[0], &valid);
+		break;
+	case 1:                   // rho = const
+		density = rho_0;
+		break;
+	case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
+		density = rho_0 * (1. + drho_dp * (max(primVal[0], 0.0) - p_0));
+		break;
+	case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
+		density = rho_0 * (1. + drho_dC * (max(primVal[0], 0.0) - C_0));
+		break;
+	case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
+		density = rho_0 * (1. + drho_dT * (max(primVal[0], 0.0) - T_0));
+		break;
+	case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
+		density = rho_0 *
+			(1. + drho_dC *
+			(max(primVal[0],
+			0.0) - C_0) + drho_dT * (max(primVal[1], 0.0) - T_0));
+		break;
+	case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
+		density = rho_0 *
+			(1. + drho_dp *
+			(max(primVal[0],
+			0.0) - p_0) + drho_dT * (max(primVal[1], 0.0) - T_0));
+		break;
+	case 7:                   // rho_w^l(p,T) for gas phase
+		//WW
+		//vapour_pressure = MFPCalcVapourPressure(primVal[0]);
+		//air_gas_density = (COMP_MOL_MASS_AIR * (primVal[1]-vapour_pressure)) / (GAS_CONSTANT*(primVal[0]+0.0));
+		//vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primVal[0]+0.0));
+		//density = vapour_density + air_gas_density;
+		//
+		break;
+	case 8:                   // M14 von JdJ
+		density = MATCalcFluidDensityMethod8(primVal[0],
+			primVal[1],
+			primVal[2]);
+		break;
+	case 10:                  // Get density from temperature-pressure values from fct-file NB
+		if (!T_Process)
+			primVal[1] = T_0;
+		else primVal[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+		density = GetMatrixValue(primVal[1],
+			primVal[0],
+			fluid_name,
+			&valid);
+		break;
+	case 11:                  //Peng-Robinson equation of state NB
+		if (!T_Process)
+			primVal[1] = T_0;
+		else primVal[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+		density = rkeos(primVal[1], primVal[0], fluid_id);
+		break;
+	case 12:                  //Redlich-Kwong equation of state NB
+		if (!T_Process)
+			primVal[1] = T_0;
+		else primVal[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+		density = preos(this, primVal[1], primVal[0]);
+		break;
+	case 13:                  // Helmholtz free Energy NB JUN 09
+		if (!T_Process)
+			primVal[1] = T_0;
+		else primVal[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+		//NB
+		density = zbrent(primVal[1], primVal[0], fluid_id, 1e-8);
+		break;
+	case 14: // #Exponential law#
+		density = rho_0 *exp(drho_dp * (max(primVal[0], 0.0) - p_0) + drho_dT * (max(primVal[2], 0.0)) + drho_dC *max(primVal[2], 0.0));
+		break;
+	case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
+		for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += primVal[CIndex] / ComponentDensity(CIndex, primVal);
+		density = 1 / Rho;
+		break;
+	case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
+		// Just dummy function, so density is not 0 ;
+		std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
+		density = 1000; // Achtung - dummy
+		break;
+	case 19:                // KG44 get the density from GEMS calculations
+		// seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+		//  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+		density = 1000.0;
+#ifdef GEM_REACT
+		if (!Fem_Ele_Std) //for Richards flow (when saturation is needed initially in GEMS setup) we have to make 
 		{
-		case 0:                   // rho = f(x)
-			density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
-			break;
-		case 1:                   // rho = const
-			density = rho_0;
-			break;
-		case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
-			density = rho_0 * (1. + drho_dp * (max(primary_variable[0],0.0) - p_0));
-			break;
-		case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
-			density = rho_0 * (1. + drho_dC * (max(primary_variable[0],0.0) - C_0));
-			break;
-		case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
-			density = rho_0 * (1. + drho_dT * (max(primary_variable[0],0.0) - T_0));
-			break;
-		case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
-			density = rho_0 *
-			          (1. + drho_dC *
-			           (max(primary_variable[0],
-			                0.0) - C_0) + drho_dT * (max(primary_variable[1],0.0) - T_0));
-			break;
-		case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
-			density = rho_0 *
-			          (1. + drho_dp *
-			           (max(primary_variable[0],
-			                0.0) - p_0) + drho_dT * (max(primary_variable[1],0.0) - T_0));
-			break;
-		case 7:                   // rho_w^l(p,T) for gas phase
-			/* //WW
-			   vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
-			   air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-			   vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-			   density = vapour_density + air_gas_density;
-			 */
-			break;
+			density = 1000.0;
+		}
+		else
+		{
+			long elem = Fem_Ele_Std->GetMeshElement()->GetIndex(); //kg44 need element index or node index for GEMS ...currently we stick to arithmetric average of node data (even for gauss points!)
+			density = m_vec_GEM->REACT_GEM::FluidDensity(elem, -1); //hand over element index and set gauss point to -1... 
+			// Remark: Interpolation from Gauss points to element is not possible here: Fluid densities are only calculated at nodes, therefore interpolation from gauss points onto element will not work
+		}
+#endif
+		//insert call for GEMS densities..
+		break;
+	case 20: // rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C   Magri GFZ thesis
+		pressure = primVal[0] / 1e5;
+
+		density =
+			9.99792877961606e+02 + 5.07605113140940e-04 * max(pressure, 0.0) - 5.28425478164183e-10 * pow(max(pressure, 0.0), 2.)
+			+ (5.13864847162196e-02 - 3.61991396354483e-06 * max(pressure, 0.0) + 7.97204102509724e-12 * pow(max(pressure, 0.0), 2.)) * max(primVal[1], 0.0)
+			+ (-7.53557031774437e-03 + 6.32712093275576e-08 * max(pressure, 0.0) - 1.66203631393248e-13 * pow(max(pressure, 0.0), 2.)) * pow(max(primVal[1], 0.0), 2.)
+			+ (4.60380647957350e-05 - 5.61299059722121e-10 * max(pressure, 0.0) + 1.80924436489400e-15 * pow(max(pressure, 0.0), 2.)) * pow(max(primVal[1], 0.0), 3.)
+			+ (-2.26651454175013e-07 + 3.36874416675978e-12 * max(pressure, 0.0) - 1.30352149261326e-17 * pow(max(pressure, 0.0), 2.)) * pow(max(primVal[1], 0.0), 4.)
+			+ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(primVal[1], 0.0), 5.)
+			+ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(primVal[1], 0.0), 6.);
+
+		if (fabs(drho_dC) > 1.e-20)
+			density *= 1. + drho_dC * (max(primVal[2], 0.0) - C_0);
+		break;
+	case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))    //  JOD 2015-11-18
+		density = rho_0 *(1. + drho_dp * (max(primVal[0], 0.0) - p_0)
+			+ drho_dC * (max(primVal[1], 0.0) - C_0)
+			+ drho_dT * (max(primVal[2], 0.0) - T_0));
+		break;
+	case 23:          // density change due to [CO2 dissolution] and [chemical rxn:: rho(C) = rho_0*(1+beta_C*(C-C_0))]    JOD / ABM 2015-11-23
+		              // takes first instance of REACTINT
+		              // impact of CO2 taken into account with time step 1 or higher
+		density = rho_0 * (1. + drho_dC * (max(primVal[0], 0.0) - C_0));  // impact of salt
+		if (aktueller_zeitschritt > 0)  // add impact of CO2
+		{   
+			// Get the reaction interface data
+			if (Fem_Ele_Std->gp == 0) // once per element (take first Gauss point)
+			{   
+				if (aktueller_zeitschritt == 1) // Initialize one per element - element index assumed to increment, else segmentation fault 
+					Con_CO2_vector.push_back(1.0e-12);
+				// Calc Delta_density for element
+				if (REACTINT_vec.size() > 0)
+					Delta_density = REACTINT_vec[0]->CalcDeltaDensityFromCO2( primVal[1], // CO2_Disolved at gauss point or node (later for output)
+					                                                          Con_CO2_vector, // Co2 concentration on element (updated each time step)
+					                                                          Fem_Ele_Std->GetMeshElement()->GetIndex() ); 
+				else
+					std::cout << "Error in CFluidProperties::No reaction model" << std::endl;
+			}
+			//------------------------------------------------------------------------------------
+			density += Delta_density; 
+		}
+		break;
+	default:
+		std::cout << "Error in CFluidProperties::Density: no valid model" <<
+			"\n";
+		break;
+	} // end switch
+
+	return density;
+}
+
+
+/*
+double CFluidProperties::Density(double* variables)
+{
+double pressure;
+double Rho = 0.0;
+static double density;
+// static double air_gas_density,vapour_density,vapour_pressure;
+
+int gueltig,i;
+long material=-1, index=-1;
+
+//----------------------------------------------------------------------
+if(variables)                         // This condition is added by WW
+{
+//----------------------------------------------------------------------
+// Duplicate the following lines just to enhance computation. WW
+switch(density_model)
+{
+case 0:                   // rho = f(x)
+density = GetCurveValue(density_curve_number, 0, variables[1], &gueltig);
+break;
+case 1:                   // rho = const
+density = rho_0;
+break;
+case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
+density = rho_0 * (1. + drho_dp * (max(variables[0],0.0) - p_0));
+break;
+case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
+density = rho_0 * (1. + drho_dC * (max(variables[2],0.0) - C_0));
+break;
+case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
+density = rho_0 * (1. + drho_dT * (max(variables[1],0.0) - T_0));
+break;
+case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
+density = rho_0 *
+(1. + drho_dC *
+(max(variables[2],
+0.0) - C_0) + drho_dT * (max(variables[1],0.0) - T_0));
+break;
+case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
+density = rho_0 *
+(1. + drho_dp *
+(max(variables[0],
+0.0) - p_0) + drho_dT * (max(variables[1],0.0) - T_0));
+break;
+case 7:                   // Pefect gas. WW
+density = variables[0] * molar_mass / (GAS_CONSTANT * variables[1]);
+break;
+case 8:                                  // M14 von JdJ // 25.1.12 Added by CB for density output AB-model
+density = MATCalcFluidDensityMethod8(variables[0],variables[1],variables[2]);
+break;
+case 10:                  // Get density from temperature-pressure values from fct-file	NB 4.8.01
+if(!T_Process)
+variables[1] = T_0;
+else variables[1]+=T_0;  //JM if T_0==273 (user defined), Celsius can be used within this model
+density = GetMatrixValue(variables[1],variables[0],fluid_name,&gueltig);
+break;
+case 11:                  // Redlich-Kwong EOS for different fluids NB 4.9.05
+if(!T_Process)
+variables[1] = T_0;
+else variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+density = rkeos(variables[1],variables[0],fluid_id);
+break;
+case 12:                  //Peng-Robinson EOS for different fluids NB 4.9.05
+if(!T_Process)
+variables[1] = T_0;
+else variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+//NB
+density = preos(this, variables[1],variables[0]);
+break;
+case 13:                  // Helmholtz free Energy NB JUN 09
+variables[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+//NB
+density = zbrent(variables[1],variables[0],fluid_id,1e-8);
+break;
+case 14: // #Exponential law#
+density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+break;
+
+case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:->Amagat's law#
+for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
+density =  1/Rho;
+break;
+
+case 18: //using calculated densities at nodes from the phase transition model, BG, NB 11/2010
+variables[2] = phase;
+density = GetElementValueFromNodes(int(variables[0]),
+int(variables[1]),
+int(variables[2]),
+0);                                // hand over element index, Gauss point index and phase index
+break;
+case 19:                // KG44 get the density from GEMS calculations
+// seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+//  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+density=1000.0;
+#ifdef GEM_REACT
+if (!Fem_Ele_Std) //for Richards flow (when saturation is needed initially in GEMS setup) we have to make
+{
+density=1000.0;
+}
+else
+{
+// elem = Fem_Ele_Std->GetMeshElement()->GetIndex(); //kg44 need element index or node index for GEMS ...currently we stick to arithmetric average of node data (even for gauss points!)
+density=m_vec_GEM->REACT_GEM::FluidDensity( long(variables[0]), int(variables[1])); //hand over element index and gauss point index
+// here we can interpolate values from nodes to elemnt or to gauss points
+}
+#endif
+//insert call for GEMS densities..
+break;
+case 20: // rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C   Magri GFZ thesis
+
+pressure = variables[0] / 1e5;
+density =
+9.99792877961606e+02 + 5.07605113140940e-04 * max(pressure, 0.0) - 5.28425478164183e-10 * pow(max(pressure, 0.0), 2.)
++ (5.13864847162196e-02 - 3.61991396354483e-06 * max(pressure, 0.0) + 7.97204102509724e-12 * pow(max(pressure, 0.0), 2.)) * max(variables[1], 0.0)
++ (-7.53557031774437e-03 + 6.32712093275576e-08 * max(pressure, 0.0) - 1.66203631393248e-13 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 2.)
++ (4.60380647957350e-05 - 5.61299059722121e-10 * max(pressure, 0.0) + 1.80924436489400e-15 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 3.)
++ (-2.26651454175013e-07 + 3.36874416675978e-12 * max(pressure, 0.0) - 1.30352149261326e-17 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 4.)
++ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 5.)
++ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(variables[1], 0.0), 6.);
+
+if (fabs(drho_dC) > 1.e-20)
+density *= 1. + drho_dC * (max(variables[2], 0.0) - C_0);
+
+break;
+case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))   //  JOD 2015-11-18
+density = rho_0 *(1. + drho_dp * (max(variables[0], 0.0) - p_0)
++ drho_dT * (max(variables[1], 0.0) - T_0)
++ drho_dC * (max(variables[2], 0.0) - C_0));
+break;
+case 26: //Dalton's law + ideal gas for use with TNEQ/TES
+{
+const double M0 = cp_vec[0]->molar_mass; // molar mass of component 0
+const double M1 = cp_vec[1]->molar_mass;
+const double p = variables[0];
+const double T = variables[1];
+const double x = variables[2]; // gas mass fraction of component 1
+// assert(0.0 <= x && x <= 1.0);
+
+// gas molar fraction of component 1
+const double xn = M0*x/(M0*x + M1*(1.0-x));
+
+density = p / (Phys::R * T) * (M1*xn + M0*(1.0-xn)); //R_uni in mNs
+}
+break;
+
+default:
+std::cout << "Error in CFluidProperties::Density: no valid model" <<
+"\n";
+break;
+}
+}
+else
+{
+CalPrimaryVariable(density_pcs_name_vector);
+//----------------------------------------------------------------------
+switch(density_model)
+{
+case 0:                   // rho = f(x)
+density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
+break;
+case 1:                   // rho = const
+density = rho_0;
+break;
+case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
+density = rho_0 * (1. + drho_dp * (max(primary_variable[0],0.0) - p_0));
+break;
+case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
+density = rho_0 * (1. + drho_dC * (max(primary_variable[0],0.0) - C_0));
+break;
+case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
+density = rho_0 * (1. + drho_dT * (max(primary_variable[0],0.0) - T_0));
+break;
+case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
+density = rho_0 *
+(1. + drho_dC *
+(max(primary_variable[0],
+0.0) - C_0) + drho_dT * (max(primary_variable[1],0.0) - T_0));
+break;
+case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
+density = rho_0 *
+(1. + drho_dp *
+(max(primary_variable[0],
+0.0) - p_0) + drho_dT * (max(primary_variable[1],0.0) - T_0));
+break;
+case 7:                   // rho_w^l(p,T) for gas phase
+//WW
+//vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
+//air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+//vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+//density = vapour_density + air_gas_density;
+
+break;
 		case 8:                   // M14 von JdJ
 			density = MATCalcFluidDensityMethod8(primary_variable[0],
-			                                     primary_variable[1],
-			                                     primary_variable[2]);
+				primary_variable[1],
+				primary_variable[2]);
 			break;
 		case 10:                  // Get density from temperature-pressure values from fct-file NB
-			if(!T_Process)
+			if (!T_Process)
 				primary_variable[1] = T_0;
-			else primary_variable[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+			else primary_variable[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
 			density = GetMatrixValue(primary_variable[1],
-			                         primary_variable[0],
-			                         fluid_name,
-			                         &gueltig);
+				primary_variable[0],
+				fluid_name,
+				&gueltig);
 			break;
 		case 11:                  //Peng-Robinson equation of state NB
-			if(!T_Process)
+			if (!T_Process)
 				primary_variable[1] = T_0;
-			else primary_variable[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
-			density = rkeos(primary_variable[1],primary_variable[0],fluid_id);
+			else primary_variable[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+			density = rkeos(primary_variable[1], primary_variable[0], fluid_id);
 			break;
 		case 12:                  //Redlich-Kwong equation of state NB
-			if(!T_Process)
+			if (!T_Process)
 				primary_variable[1] = T_0;
-			else primary_variable[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
-			density = preos(this, primary_variable[1],primary_variable[0]);
+			else primary_variable[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+			density = preos(this, primary_variable[1], primary_variable[0]);
 			break;
 		case 13:                  // Helmholtz free Energy NB JUN 09
-			if(!T_Process)
+			if (!T_Process)
 				primary_variable[1] = T_0;
-			else primary_variable[1]+=T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
+			else primary_variable[1] += T_0; //JM if T_0==273 (user defined), Celsius can be used within this model
 			//NB
-			density = zbrent(primary_variable[1],primary_variable[0],fluid_id,1e-8);
+			density = zbrent(primary_variable[1], primary_variable[0], fluid_id, 1e-8);
 			break;
 
 		case 14: // #Exponential law#
-		density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
-		break;
+			density = rho_0 *exp(drho_dp * (max(variables[0], 0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+			break;
 		case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
-			 for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
-			     density =  1/Rho;
-		    break;
-         case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
-		    // Just dummy function, so density is not 0 ;
+			for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex] / ComponentDensity(CIndex, variables);
+			density = 1 / Rho;
+			break;
+		case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
+			// Just dummy function, so density is not 0 ;
 			std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
-	  	    density = 1000; // Achtung - dummy
-			
+			density = 1000; // Achtung - dummy
+
 
 		case 19:                // KG44 get the density from GEMS calculations
-		                       // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
-		     //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
- 		       density=1000.0;
+			// seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+			//  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+			density = 1000.0;
 #ifdef GEM_REACT
 			if (!Fem_Ele_Std) //for Richards flow (when saturation is needed initially in GEMS setup) we have to make 
 			{
-			     density=1000.0;
+				density = 1000.0;
 			}
 			else
 			{
-  			    long elem = Fem_Ele_Std->GetMeshElement()->GetIndex(); //kg44 need element index or node index for GEMS ...currently we stick to arithmetric average of node data (even for gauss points!)
-                             density=m_vec_GEM->REACT_GEM::FluidDensity( elem, -1); //hand over element index and set gauss point to -1... 
-			     // Remark: Interpolation from Gauss points to element is not possible here: Fluid densities are only calculated at nodes, therefore interpolation from gauss points onto element will not work
+				long elem = Fem_Ele_Std->GetMeshElement()->GetIndex(); //kg44 need element index or node index for GEMS ...currently we stick to arithmetric average of node data (even for gauss points!)
+				density = m_vec_GEM->REACT_GEM::FluidDensity(elem, -1); //hand over element index and set gauss point to -1... 
+				// Remark: Interpolation from Gauss points to element is not possible here: Fluid densities are only calculated at nodes, therefore interpolation from gauss points onto element will not work
 			}
 #endif
-		       //insert call for GEMS densities..
-		       break;
+			//insert call for GEMS densities..
+			break;
 		case 20: // rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C   Magri GFZ thesis
 			pressure = primary_variable[0] / 1e5;
-		
-				density =
-					9.99792877961606e+02 + 5.07605113140940e-04 * max(pressure, 0.0) - 5.28425478164183e-10 * pow(max(pressure, 0.0), 2.)
-					+ (5.13864847162196e-02 - 3.61991396354483e-06 * max(pressure, 0.0) + 7.97204102509724e-12 * pow(max(pressure, 0.0), 2.)) * max(primary_variable[1], 0.0)
-					+ (-7.53557031774437e-03 + 6.32712093275576e-08 * max(pressure, 0.0) - 1.66203631393248e-13 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 2.)
-					+ (4.60380647957350e-05 - 5.61299059722121e-10 * max(pressure, 0.0) + 1.80924436489400e-15 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 3.)
-					+ (-2.26651454175013e-07 + 3.36874416675978e-12 * max(pressure, 0.0) - 1.30352149261326e-17 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 4.)
-					+ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 5.)
-					+ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 6.);
 
-		    if (fabs(drho_dC) > 1.e-20)
-			    density *= 1. + drho_dC * (max(primary_variable[2], 0.0) - C_0);
+			density =
+				9.99792877961606e+02 + 5.07605113140940e-04 * max(pressure, 0.0) - 5.28425478164183e-10 * pow(max(pressure, 0.0), 2.)
+				+ (5.13864847162196e-02 - 3.61991396354483e-06 * max(pressure, 0.0) + 7.97204102509724e-12 * pow(max(pressure, 0.0), 2.)) * max(primary_variable[1], 0.0)
+				+ (-7.53557031774437e-03 + 6.32712093275576e-08 * max(pressure, 0.0) - 1.66203631393248e-13 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 2.)
+				+ (4.60380647957350e-05 - 5.61299059722121e-10 * max(pressure, 0.0) + 1.80924436489400e-15 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 3.)
+				+ (-2.26651454175013e-07 + 3.36874416675978e-12 * max(pressure, 0.0) - 1.30352149261326e-17 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 4.)
+				+ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 5.)
+				+ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 6.);
+
+			if (fabs(drho_dC) > 1.e-20)
+				density *= 1. + drho_dC * (max(primary_variable[2], 0.0) - C_0);
 			break;
 		case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))    //  JOD 2015-11-18
 			density = rho_0 *(1. + drho_dp * (max(primary_variable[0], 0.0) - p_0)
@@ -1473,210 +1707,211 @@ double CFluidProperties::Density(double* variables)
 			break;
 		default:
 			std::cout << "Error in CFluidProperties::Density: no valid model" <<
-			"\n";
+				"\n";
 			break;
 		}
-		
-			if (Fem_Ele_Std) {
+
+		if (Fem_Ele_Std) {
 			//material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
-			if(this->density_model_mat.size()>0){
+			if (this->density_model_mat.size()>0){
 				material = this->Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
-				for(i=0;i<(int)this->density_model_mat.size();i++){
-					if((int)material == (int)this->dens_material[i]){
+				for (i = 0; i<(int)this->density_model_mat.size(); i++){
+					if ((int)material == (int)this->dens_material[i]){
 						CalPrimaryVariable(density_pcs_name_vector_mat[i]);   // JOD 2015-11-17
-						switch(density_model_mat[i])
+						switch (density_model_mat[i])
 						{
 						case 0:                   // rho = f(x)
-							density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
+							density = GetCurveValue(density_curve_number, 0, primary_variable[0], &gueltig);
 							break;
 						case 1:                   // rho = const
 							density = rho_0_mat[i];
 							break;
 						case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
-							density = rho_0_mat[i] * (1. + drho_dp_mat[i] * (max(primary_variable[0],0.0) - p_0_mat[i]));
+							density = rho_0_mat[i] * (1. + drho_dp_mat[i] * (max(primary_variable[0], 0.0) - p_0_mat[i]));
 							break;
 						case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
-							density = rho_0_mat[i] * (1. + drho_dC_mat[i] * (max(primary_variable[0],0.0) - C_0_mat[i]));
+							density = rho_0_mat[i] * (1. + drho_dC_mat[i] * (max(primary_variable[0], 0.0) - C_0_mat[i]));
 							break;
 						case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
-							density = rho_0_mat[i] * (1. + drho_dT_mat[i] * (max(primary_variable[0],0.0) - T_0_mat[i]));
+							density = rho_0_mat[i] * (1. + drho_dT_mat[i] * (max(primary_variable[0], 0.0) - T_0_mat[i]));
 							break;
 						case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
 							density = rho_0_mat[i] *
-									  (1. + drho_dC_mat[i] *
-									   (max(primary_variable[0],
-											0.0) - C_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1],0.0) - T_0_mat[i]));
+								(1. + drho_dC_mat[i] *
+								(max(primary_variable[0],
+								0.0) - C_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1], 0.0) - T_0_mat[i]));
 							break;
 						case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
 							density = rho_0_mat[i] *
-									  (1. + drho_dp_mat[i] *
-									   (max(primary_variable[0],
-											0.0) - p_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1],0.0) - T_0_mat[i]));
+								(1. + drho_dp_mat[i] *
+								(max(primary_variable[0],
+								0.0) - p_0_mat[i]) + drho_dT_mat[i] * (max(primary_variable[1], 0.0) - T_0_mat[i]));
 							break;
 						case 7:                   // rho_w^l(p,T) for gas phase
-							/* //WW
-							   vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
-							   air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-							   vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-							   density = vapour_density + air_gas_density;
-							 */
+							//WW
+							//vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
+							//air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							//vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							//density = vapour_density + air_gas_density;
+							//
 							break;
 						case 8:                   // M14 von JdJ
 							density = MATCalcFluidDensityMethod8(primary_variable[0],
-																 primary_variable[1],
-																 primary_variable[2]);
+								primary_variable[1],
+								primary_variable[2]);
 							break;
 						case 10:                  // Get density from temperature-pressure values from fct-file NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
 							density = GetMatrixValue(primary_variable[1],
-													 primary_variable[0],
-													 fluid_name,
-													 &gueltig);
+								primary_variable[0],
+								fluid_name,
+								&gueltig);
 							break;
 						case 11:                  //Peng-Robinson equation of state NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
-							density = rkeos(primary_variable[1],primary_variable[0],fluid_id);
+							density = rkeos(primary_variable[1], primary_variable[0], fluid_id);
 							break;
 						case 12:                  //Redlich-Kwong equation of state NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
-							density = preos(this, primary_variable[1],primary_variable[0]);
+							density = preos(this, primary_variable[1], primary_variable[0]);
 							break;
 						case 13:                  // Helmholtz free Energy NB JUN 09
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
 							//NB
-							density = zbrent(primary_variable[1],primary_variable[0],fluid_id,1e-8);
+							density = zbrent(primary_variable[1], primary_variable[0], fluid_id, 1e-8);
 							break;
 
 						case 14: // #Exponential law#
-							density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+							density = rho_0 *exp(drho_dp * (max(variables[0], 0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
 							break;
 						case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
-							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
-								 density =  1/Rho;
+							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex] / ComponentDensity(CIndex, variables);
+							density = 1 / Rho;
 							break;
-						 //case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
-						 //   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
-						 //   break;
+							//case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
+							//   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
+							//   break;
 						case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
 							// Just dummy function, so density is not 0 ;
 							std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
-	  						density = 1000; // Achtung - dummy
-							
+							density = 1000; // Achtung - dummy
+
 
 						case 19:                // KG44 get the density from GEMS calculations
-											   // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
-							 //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
- 							   density=1000.0;
+							// seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+							//  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+							density = 1000.0;
 						} // end switch
 					}
 				}
 			}//end if mat
 
 
-			if(this->density_model_idx.size()>0){
-                index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
-				for(i=0;i<(int)this->density_model_idx.size();i++){
-					if((int)index == (int)this->dens_index[i]){
-						switch(density_model_idx[i])
+			if (this->density_model_idx.size()>0){
+				index = this->Fem_Ele_Std->GetMeshElement()->GetIndex();
+				for (i = 0; i<(int)this->density_model_idx.size(); i++){
+					if ((int)index == (int)this->dens_index[i]){
+						switch (density_model_idx[i])
 						{
 						case 0:                   // rho = f(x)
-							density = GetCurveValue(density_curve_number,0,primary_variable[0],&gueltig);
+							density = GetCurveValue(density_curve_number, 0, primary_variable[0], &gueltig);
 							break;
 						case 1:                   // rho = const
 							density = rho_0_idx[i];
 							break;
 						case 2:                   // rho(p) = rho_0*(1+beta_p*(p-p_0))
-							density = rho_0_idx[i] * (1. + drho_dp_idx[i] * (max(primary_variable[0],0.0) - p_0_idx[i]));
+							density = rho_0_idx[i] * (1. + drho_dp_idx[i] * (max(primary_variable[0], 0.0) - p_0_idx[i]));
 							break;
 						case 3:                   // rho(C) = rho_0*(1+beta_C*(C-C_0))
-							density = rho_0_idx[i] * (1. + drho_dC_idx[i] * (max(primary_variable[0],0.0) - C_0_idx[i]));
+							density = rho_0_idx[i] * (1. + drho_dC_idx[i] * (max(primary_variable[0], 0.0) - C_0_idx[i]));
 							break;
 						case 4:                   // rho(T) = rho_0*(1+beta_T*(T-T_0))
-							density = rho_0_idx[i] * (1. + drho_dT_idx[i] * (max(primary_variable[0],0.0) - T_0_idx[i]));
+							density = rho_0_idx[i] * (1. + drho_dT_idx[i] * (max(primary_variable[0], 0.0) - T_0_idx[i]));
 							break;
 						case 5:                   // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
 							density = rho_0_idx[i] *
-									  (1. + drho_dC_idx[i] *
-									   (max(primary_variable[0],
-											0.0) - C_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1],0.0) - T_0_idx[i]));
+								(1. + drho_dC_idx[i] *
+								(max(primary_variable[0],
+								0.0) - C_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1], 0.0) - T_0_idx[i]));
 							break;
 						case 6:                   // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
 							density = rho_0_idx[i] *
-									  (1. + drho_dp_idx[i] *
-									   (max(primary_variable[0],
-											0.0) - p_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1],0.0) - T_0_idx[i]));
+								(1. + drho_dp_idx[i] *
+								(max(primary_variable[0],
+								0.0) - p_0_idx[i]) + drho_dT_idx[i] * (max(primary_variable[1], 0.0) - T_0_idx[i]));
 							break;
 						case 7:                   // rho_w^l(p,T) for gas phase
-							/* //WW
-							   vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
-							   air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-							   vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
-							   density = vapour_density + air_gas_density;
-							 */
+							// 
+							//vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
+							//air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							//vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							//density = vapour_density + air_gas_density;
+							//
 							break;
 						case 8:                   // M14 von JdJ
 							density = MATCalcFluidDensityMethod8(primary_variable[0],
-																 primary_variable[1],
-																 primary_variable[2]);
+								primary_variable[1],
+								primary_variable[2]);
 							break;
 						case 10:                  // Get density from temperature-pressure values from fct-file NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
 							density = GetMatrixValue(primary_variable[1],
-													 primary_variable[0],
-													 fluid_name,
-													 &gueltig);
+								primary_variable[0],
+								fluid_name,
+								&gueltig);
 							break;
 						case 11:                  //Peng-Robinson equation of state NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
-							density = rkeos(primary_variable[1],primary_variable[0],fluid_id);
+							density = rkeos(primary_variable[1], primary_variable[0], fluid_id);
 							break;
 						case 12:                  //Redlich-Kwong equation of state NB
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
-							density = preos(this, primary_variable[1],primary_variable[0]);
+							density = preos(this, primary_variable[1], primary_variable[0]);
 							break;
 						case 13:                  // Helmholtz free Energy NB JUN 09
-							if(!T_Process)
+							if (!T_Process)
 								primary_variable[1] = T_0;
 							//NB
-							density = zbrent(primary_variable[1],primary_variable[0],fluid_id,1e-8);
+							density = zbrent(primary_variable[1], primary_variable[0], fluid_id, 1e-8);
 							break;
 
 						case 14: // #Exponential law#
-							density = rho_0 *exp(drho_dp * (max(variables[0],0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
+							density = rho_0 *exp(drho_dp * (max(variables[0], 0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
 							break;
 						case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
-							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex]/ComponentDensity(CIndex, variables);
-								 density =  1/Rho;
+							for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex] / ComponentDensity(CIndex, variables);
+							density = 1 / Rho;
 							break;
-						 //case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
-						 //   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
-						 //   break;
+							//case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
+							//   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
+							//   break;
 						case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
 							// Just dummy function, so density is not 0 ;
 							std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
-	  						density = 1000; // Achtung - dummy
-							
+							density = 1000; // Achtung - dummy
+
 
 						case 19:                // KG44 get the density from GEMS calculations
-											   // seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
-							 //  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
- 							   density=1000.0;
+							// seems complicated, as we probably have to call GEMS.....or take values from last GEMS calculation ---> update during iterations is not possible
+							//  long elem = Fem_Ele_Std->GetMeshElement()->GetIndex();
+							density = 1000.0;
 						} // end switch
 					}
 				}
 			}//end if idx
-		}	
-		
+		}
+
 	}
 	return density;
 }
+*/
 
 /*-------------------------------------------------------------------------
    GeoSys - Function: GetElementValueFromNodes

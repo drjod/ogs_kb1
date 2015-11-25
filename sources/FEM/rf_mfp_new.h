@@ -76,6 +76,11 @@ public:
 	double getReferenceTemperature() const { return T_0; }
 
 private:
+
+
+	std::vector<double> Con_CO2_vector;
+	double Delta_density;
+
 	double rhoc;                          //critical_density; //NB
 	double Tc;                            //critical_temperature;
 	double pc;                            //critical_pressure;
@@ -230,7 +235,7 @@ public:
 	void Write(std::ofstream*) const;
 	void CalPrimaryVariable(std::vector<std::string>& pcs_name_vector);
 	// Add an argument: double* variables = NULL. 28.05.2008 WW
-	double Density(double* variables = NULL);
+	double Density(double* values = NULL);
 	double GetElementValueFromNodes(long ElementIndex,
 	                                int GPIndex,
 	                                int PhaseIndex,
