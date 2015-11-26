@@ -1731,11 +1731,8 @@ inline double Problem::LiquidFlow()
 		PCSCalcSecondaryVariables(); // PCS member function
 #endif
 		m_pcs->CalIntegrationPointValue(); //WW
-		if(m_pcs->tim_type == TimType::STEADY)
-			m_pcs->selected = false;
 	}
-
-	if(m_pcs->simulator.compare("ECLIPSE") == 0) // use ECLIPSE to calculate one phase liquid flow, BG
+	else if(m_pcs->simulator.compare("ECLIPSE") == 0) // use ECLIPSE to calculate one phase liquid flow, BG
 	{
 		if(m_pcs->EclipseData == NULL) //SBG if this is the first call, make a new instance
 			m_pcs->EclipseData = new CECLIPSEData();
@@ -1743,8 +1740,6 @@ inline double Problem::LiquidFlow()
 		success = m_pcs->EclipseData->RunEclipse(m_pcs->Tim->step_current, m_pcs);
 		if (success == 0)
 			std::cout << "Error running Eclipse!" << "\n";
-		if(m_pcs->tim_type == TimType::STEADY)
-			m_pcs->selected = false;
 	}
 
 	else if (m_pcs->simulator.compare("DUMUX") == 0)
@@ -1756,6 +1751,12 @@ inline double Problem::LiquidFlow()
 		if (success == 0)
 			std::cout << "Error running DuMux!" << "\n";
 	}
+	else
+		std::cout << "Error in Problem::LiquidFlow() - Simulator not known" << "\n";
+
+	if (m_pcs->tim_type == TimType::STEADY)
+		m_pcs->selected = false; // calculate process only once
+
 	m_pcs->CalcELEVelocities();// Evaluate the element velocities,10.2014 BW
     
 	if (ClockTimeVec.size()>0){

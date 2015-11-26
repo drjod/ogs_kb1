@@ -2028,6 +2028,7 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 		// subkeyword found
 		if (line_string.find("$TIM_TYPE") != string::npos)
 		{
+			std::cout << "Set TIM_TYPE STEADY - " << pcs_type_name << " only calculated once in first time step (no coupling iteration) ";
 			std::string tim_type_name;
 			*pcs_file >> tim_type_name;
 			tim_type = convertTimType(tim_type_name);

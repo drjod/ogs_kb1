@@ -126,7 +126,7 @@ CMediumProperties::CMediumProperties() :
     betaexpo = 0;
 	ElementVolumeMultiplyer = 1.0; //SB / JOD 2014-11-10
 	ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1]
-		= ElementLengthMultiplyer_vector[2] = 1;            //  JOD 2015-11-18 - blow up element in certain direction
+		= ElementLengthMultiplyer_vector[2] = 1;            //  JOD 2015-11-18 LPVC 
 	permeability_pressure_model = -1; //01.09.2011. WW
 	permeability_strain_model = -1; //01.09.2011. WW
     forchheimer_cf = 0.0; //NW
@@ -1902,7 +1902,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
           case 0:                               // f(x)
               break;
           case 1:                               // Constant value
-              std::cout << "-> Particle dimaeter is set" << '\n';
+              std::cout << "-> Particle diameter is set" << '\n';
               in >> particle_diameter_model_value;
               break;
           default:
@@ -1924,39 +1924,46 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
          continue;
       }
 	  //------------------------------------------------------------------------
-	  // Element volme multiplyer
+	  // Element volume multiplyer
+	  // mode  0: only storage term modified (mass matrix)
+	  //       1: mass matrix, laplace, advection, and velocities modified 
 	  //------------------------------------------------------------------------
 	  if (line_string.find("$ELEMENT_VOLUME_MULTIPLYER") != std::string::npos)
 	  {
+		  int mode;
+
 		 std::string ElementVolumeMultiplyer_vector_type_name;
 		 in.str(GetLineFromFile1(mmp_file));
 
-	     if (geo_dimension == 1){
-			in >> ElementLengthMultiplyer_vector[0];
-			ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
-	     }
-		 else if (geo_dimension == 2)
+		 if (mode == 0) // JOD 2015-11-26
 		 {
-			in >> ElementLengthMultiplyer_vector[0];
-		    in >> ElementLengthMultiplyer_vector[1];
-		    ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
+			 in >> ElementVolumeMultiplyer;
 		 }
-		 else if (geo_dimension == 3)
+		 else if (mode == 1)
 		 {
-			in >> ElementLengthMultiplyer_vector[0];
-			in >> ElementLengthMultiplyer_vector[1];
-		    in >> ElementLengthMultiplyer_vector[2];
-			ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
+			 if (geo_dimension == 1){
+				 in >> ElementLengthMultiplyer_vector[0];
+				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
+			 }
+			 else if (geo_dimension == 2)
+			 {
+				 in >> ElementLengthMultiplyer_vector[0];
+				 in >> ElementLengthMultiplyer_vector[1];
+				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
+			 }
+			 else if (geo_dimension == 3)
+			 {
+				 in >> ElementLengthMultiplyer_vector[0];
+				 in >> ElementLengthMultiplyer_vector[1];
+				 in >> ElementLengthMultiplyer_vector[2];
+				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
+			 }
 		 }
-			 
-			
+		 else
+		     std::cout << "Error in CMediumProperties::Read: ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1";
 
-		  in.clear();
-		  continue;
-
-		  //in.str(GetLineFromFile1(mmp_file));
-		  //in >> ElementVolumeMultiplyer;
-		  //std::cout << " Setting ElementVolumeMultiplyer to " << ElementVolumeMultiplyer << "- times the grid value \n";
+		 in.clear();
+		 continue;
 	  }
 
 
@@ -3040,10 +3047,11 @@ double* CMediumProperties::MassDispersionTensorNew(int ip, int tr_phase) // SB +
   // here, the dispersive part of Dmech = Dp + Ddisp is divided by vg to obtain a Daq-dependent alpha_t
   // which is used in the dispersion tensor in the usual way
   if(alpha_t_model == 1) {
-    Pec = vg / poro*graindiameter / Daq;
+    double va = vg / poro ; 
+    Pec = va * graindiameter / Daq;
     arg = pow(Pec, 2) / (Pec + 2 + 4 * pow(graindiameter/hydraulicrad, 2));
     alpha_t = Daq * pow(arg, betaexpo); // D_disp_t (without the diffusion term)
-    alpha_t /= (vg/poro);                      
+    alpha_t /= va;                      
   }
 	// hard stabilization
 	if(this->lgpn > 0.0)

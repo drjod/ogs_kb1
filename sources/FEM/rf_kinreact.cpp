@@ -12,7 +12,7 @@
  ***************************************************************************/
 
 #include <cfloat>
-#include <cstdio>
+#include <cstdio> 
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -9864,7 +9864,7 @@ void SetIniNAPLSatAndDens()
       // Now set the saturations
       if (psg) // Set NAPL sat
       {
-        m_pcs->SetNodeValue(i, idxS2, satu_NW_new);
+        m_pcs->SetNodeValue(i, idxS2, satu_NW_new); // CB deactivate temporarily for benchmark matching
         m_pcs->SetNodeValue(i, idxS2 + 1, satu_NW_new);  // the NAPL or GAS sat, just 1 nw phase
         if (gasmixdissolution){
           m_pcs->SetNodeValue(i, idxS3, satu_G_new);   // the GAS sat, in case of two nw phases 

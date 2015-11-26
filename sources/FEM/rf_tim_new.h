@@ -55,6 +55,7 @@ private:
 	int dynamic_time_buffer;							//JT2012
 	double dynamic_minimum_suggestion;				    //JT2012
 	double dynamic_failure_threshold;					//JT2012
+	bool pay_no_mind_to_output;  // JOD 2015-11-26
 public:                                           //OK
 	int PI_tsize_ctrl_type;
 private:

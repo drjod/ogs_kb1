@@ -90,6 +90,7 @@ CTimeDiscretization::CTimeDiscretization(void)
 	min_increase = 0.25;
 	last_time_step_length = 0;
 	dampening = 0;
+	pay_no_mind_to_output = false; // JOD 2014-11-26
 
 }
 
@@ -612,6 +613,12 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 				}
 			}             // end of while
 		// end of "TIME_CONTROL"
+	    //....................................................................
+		if(line_string.find("$PAY_NO_MIND_TO_OUTPUT")!=string::npos) { // subkeyword found JOD 2015-11-26  provisional
+			pay_no_mind_to_output = true;
+			continue;
+		}
+
 		//....................................................................
 		/* //WW
 		   if(line_string.find("$SUBSTEPS")!=string::npos) { // subkeyword found JOD 4.7.10
@@ -875,31 +882,31 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	// ------------------------------------------------------
   for (int i = 0; i < (int)critical_time.size(); i++)
   {
-    //if (adapt){   //    < --------- this causes differences in the results of H_us/Wet/h_us_line_celia, H2M_TEP/w_exp
-		          // since (critical) output times are not captured. In the examples, time steps are given.
-      if (current_time < critical_time[i])
-      {
-        next = current_time + time_step_length;
-		tval = next + time_step_length / 1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step. JOD takes a power of 2 to speedup multiplication
-        if (tval > critical_time[i]){						// Critical time is hit
-          if (next != critical_time[i]){					// otherwise, match is already exact
-            time_step_length = (critical_time[i] - current_time);
+	  if (pay_no_mind_to_output = false) // JOD 2015-11-26
+	  {    
+        if (current_time < critical_time[i])
+        {
+          next = current_time + time_step_length;
+	   	  tval = next + time_step_length / 1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step. JOD takes a power of 2 to speedup multiplication
+          if (tval > critical_time[i]){						// Critical time is hit
+            if (next != critical_time[i]){					// otherwise, match is already exact
+              time_step_length = (critical_time[i] - current_time);
+            }
+            break;
+          }
+          else if (tval + time_step_length > critical_time[i]){ // We can hit the critical time in 2 time steps, smooth the transition
+            if (next + time_step_length != critical_time[i]){ // otherwise, match is already exact
+             time_step_length = (critical_time[i] - current_time) / 2.0;
+            }
+            break;
           }
           break;
         }
-        else if (tval + time_step_length > critical_time[i]){ // We can hit the critical time in 2 time steps, smooth the transition
-          if (next + time_step_length != critical_time[i]){ // otherwise, match is already exact
-            time_step_length = (critical_time[i] - current_time) / 2.0;
-          }
-          break;
-        }
-        break;
-      //}
-    }
+      }
   }
-	//
-	next_active_time = current_time + time_step_length;
-	return time_step_length;
+  //
+  next_active_time = current_time + time_step_length;
+  return time_step_length;
 }
 
 /**************************************************************************
