@@ -30,6 +30,21 @@ With OGS_FEM_MKL
 1 Jacobi (for OGS_FEM_MPI) <br>
 100 ILU <br>
 
+##### Matrix storage
+
+1) vollbesetzte Matrix <br>
+( param1 = Dimension ) <br>
+(2) nur A[i,j]!=0 werden gespeichert (Sparse) <br>
+( param1 = Dimension ) <br>
+(3) symmetrische sparse Matrix <br>
+fuer Preconditioner "incomplete Cholesky" <br>
+nur Aik !=0 mit k>=i werden gespeichert <br>
+( param1 = Dimension ) <br>
+(4) unsymmetrische sparse Matrix <br>
+fuer Preconditioner "incomplete LDU-Zerlegung" <br>
+nur Aik !=0 werden gespeichert <br>
+( param1 = Dimension ) <br>
+
 ##### Coupled Simulation
 
 Example *.num file:
@@ -87,20 +102,7 @@ petsc solver preconditioner errorTolerance maxInterations Theta
 5 r_n1/max(x,b,r_n)<e 
 6 ??? 
 ```
-##### Matrix storage
 
-1) vollbesetzte Matrix <br>
-( param1 = Dimension ) <br>
-(2) nur A[i,j]!=0 werden gespeichert (Sparse) <br>
-( param1 = Dimension ) <br>
-(3) symmetrische sparse Matrix <br>
-fuer Preconditioner "incomplete Cholesky" <br>
-nur Aik !=0 mit k>=i werden gespeichert <br>
-( param1 = Dimension ) <br>
-(4) unsymmetrische sparse Matrix <br>
-fuer Preconditioner "incomplete LDU-Zerlegung" <br>
-nur Aik !=0 werden gespeichert <br>
-( param1 = Dimension ) <br>
 
 ##### Flux corrected transport (FCT)
 
@@ -212,7 +214,21 @@ $TIM_TYPE
 STEPS 1
 ```
 
-##### Nom-neighbor node connections
+##### Cutting and plumbing
+
+###### Copy Gauss point velocities
+Copy GP velocities from one element to a number of other elements:
+```
+#PROCESS
+ $PCS_TYPE
+  LIQUID_FLOW
+ $NUM_TYPE
+  NEW
+ $COPY_GP_VELOCITIES  ; Give total number of indices, then index to copy from, the indices to copy to.
+   2  44  46
+  ```
+
+###### Non-neighbor node connections (NNNC)
 
 See [wiki page] (https://github.com/drjod/ogs_kb1/wiki/NNNC) <br>
 
@@ -236,7 +252,26 @@ $CONNECT_MODE
 ; mode ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
 ; 2 ref_element_number n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs
 ```
+###### Deactivated subdomain
 
+```
+#PROCESS
+ $PCS_TYPE
+  LIQUID_FLOW
+ $DEACTIVATED_SUBDOMAIN
+  2  ; number of deactivated subdomains
+  1 2   ; patch indices (mmp groups)
+```
+###### Material density
+Different fluid density models dor different patch indices (mmp groups). Supported are density models 1-8 and 14, e.g.:
+```
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+  LIQUID
+ $MATERIAL_DENSITY
+  0 1 1000    ; density model 1 for patch index 0
+  1 8 0       ; density model 8 for patch index 1
+  ```
 ##### Fluid properties
 
 ###### Density models
@@ -260,6 +295,7 @@ $CONNECT_MODE
 19: Density from GEMS <br>
 20: rho(p,T, C) for water, range p < 100 MPa, 0 <= T <= 350 °C  <br>
 21: rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0)) <br>
+23: Density depends on concentration of salt and dissolved CO2 
 26: Dalton's law + ideal gas for use with TNEQ/TES <br><br>
 
 Example specifications in input file *mfp:<br>
