@@ -591,4 +591,8 @@ void PETScLinearSolver::EQSV_Viewer(std::string file_name)
  
 }
 
+void PETScLinearSolver::getMatrixValues(PetscInt m, const PetscInt idxm[], PetscInt n, const PetscInt idxn[], PetscScalar v[])
+{
+	MatGetValues(A, m, idxm, n, idxn, v);
+}
 } //end of namespace

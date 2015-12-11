@@ -41,6 +41,7 @@ public:
     void AssembleRHS_PETSc();
     void AssembleUnkowns_PETSc();
     void AssembleMatrixPETSc(const MatAssemblyType type = MAT_FINAL_ASSEMBLY); //MAT_FLUSH_ASSEMBLY
+	void getMatrixValues(PetscInt m, const PetscInt idxm[], PetscInt n, const PetscInt idxn[], PetscScalar v[]); // JOD 2015-12-7 alias WW
 
     void MappingSolution();
 
