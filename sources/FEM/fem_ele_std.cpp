@@ -12010,8 +12010,36 @@ Programming:
 void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric)
 {
 
-#if defined(USE_PETSC) 
-	// TODO
+
+#if defined(USE_PETSC)   // JOD 2015-12-7 alias WW
+	petsc_group::PETScLinearSolver *eqs = pcs->eqs_new;
+
+	int idxm = To;
+	int idxn[2];
+	idxn[0] = To;
+	idxn[1] = From;
+	double vals[2];
+	eqs->getMatrixValues(1, &idxm, 2, idxn, vals);
+	vals[0] = (factor -1.0) * vals[0];
+	vals[1] = (-factor -1.0) * vals[1];
+
+	int dof = pcs->pcs_number_of_primary_nvals;
+	idxn[0] *= -1;
+	idxn[1] *= -1;
+	for (int ia = 0; ia < act_nodes; ia++)
+	{
+		const int i = MeshElement->nodes[local_idx[ia]]->GetEquationIndex() * dof;
+		if (i == To)
+			idxn[0] *= -1;
+		else if (i + 1 == To)
+			idxn[0] *= -1;
+		else if (i == From)
+			idxn[1] *= -1;
+		else if (i + 1 == From)
+			idxn[1] *= -1;
+	}
+
+	eqs->addMatrixEntries(1, &idxm, 2, idxn, vals);
 #else
 #ifdef NEW_EQS
 

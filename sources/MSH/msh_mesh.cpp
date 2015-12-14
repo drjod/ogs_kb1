@@ -1805,8 +1805,8 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 #else
 	const size_t nodes_in_usage((size_t) NodesInUsage());
 	for (size_t j(0); j < nodes_in_usage; j++) {
-		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length*0.375)) {
-			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length*0.375)) {
+		if (sfc->isPntInBV((nod_vector[j])->getData(), _search_length / 128)) { //*0.375  JOD 2015-12-14  got too many nodes in NNNC example from Kerstin
+			if (sfc->isPntInSfc((nod_vector[j])->getData(), _search_length / 128)) {
 				msh_nod_vector.push_back(nod_vector[j]->GetIndex());
 			}
 		}
