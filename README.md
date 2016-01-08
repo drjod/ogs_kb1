@@ -140,6 +140,37 @@ COUPLED ; for outer coupling loop (take keyword LINEAR for solver, NONLINEAR for
 #STOP
 ```
 
+### Reload results
+
+You can store primary variable values with the DAT_TYPE PRIMARY_VARIABLES and reload them as initial conditions with the DIS_TYPE DIRECT into your next simulation 
+
+Example:
+
+1. Generate output file with pressure from LIQUID_FLOW at time 1000:
+```
+#OUTPUT
+$PCS_TYPE
+LIQUID_FLOW
+$NOD_VALUES
+PRESSURE1
+$GEO_TYPE
+DOMAIN
+$DAT_TYPE
+PRIMARY_VARIABLES
+$TIM_TYPE
+1000
+```
+2. Read the file: 
+```
+#INITIAL_CONDITION
+$PCS_TYPE
+LIQUID_FLOW
+$PRIMARY_VARIABLE
+PRESSURE1
+$DIS_TYPE
+DIRECT LIQUID_FLOW_domain_primary_variables.txt
+```
+  
 #### Large pore volume cells (LPVC)
 
 See [wiki page](https://github.com/drjod/ogs_kb1/wiki/LPVC) <br>
