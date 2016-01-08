@@ -146,7 +146,7 @@ You can store primary variable values with the DAT_TYPE PRIMARY_VARIABLES and re
 
 Example:
 
-1. Generate output file with pressure from LIQUID_FLOW at time 1000:
+- Generate output file with pressure from LIQUID_FLOW at time 1000:
 ```
 #OUTPUT
 $PCS_TYPE
@@ -160,7 +160,7 @@ PRIMARY_VARIABLES
 $TIM_TYPE
 1000
 ```
-2. Read the file: 
+- Read the file: 
 ```
 #INITIAL_CONDITION
 $PCS_TYPE
