@@ -179,8 +179,12 @@ Example:
 #MEDIUM PROPERTIES
 …
 $ELEMENT_VOLUME_MULTIPLYER
-1 8 ; 2D case x, y (z) - 1 parameter if 1D - 3 parameter if 3D
+1 1 8 ; 2D case x, y (z) - first number is mode, then 1 parameter if 1D, 2 parameter if 2D, 3 parameter if 3D
 ```
+modes <br> 
+0: increase storage only <br>
+1: increase storage and adapt Laplace, advection, velocity
+
 
 #### BC / IC GRADIENT
 
