@@ -1934,7 +1934,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 
 		 std::string ElementVolumeMultiplyer_vector_type_name;
 		 in.str(GetLineFromFile1(mmp_file));
-
+		 in >> mode;
 		 if (mode == 0) // JOD 2015-11-26
 		 {
 			 in >> ElementVolumeMultiplyer;

@@ -2256,14 +2256,15 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				for(size_t j = 0; j < dim; j++)
 					tensor[dim * i + j] = global_tensor(i,j);
 		}
+		/* removed by JOD 2016-1-11
 		variables[0] = interpolate(NodalVal1); //OK4709 pressure
 		if(T_Flag)
 		variables[1] = interpolate(NodalValC); //OK4709 temperature
 		else
 			variables[1] = 15;//WX
-
+		*/
 		                                       //OK4709
-		mat_fac = FluidProp->Viscosity(variables);
+		mat_fac = FluidProp->Viscosity();// variables);
 		//OK4709 mat_fac = FluidProp->Viscosity();
 		if(gravity_constant < MKleinsteZahl) // HEAD version
 			mat_fac = 1.0;

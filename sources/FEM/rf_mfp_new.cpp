@@ -286,6 +286,7 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 			{         // JOD 2014-11-10
 				in >> density_curve_number;
 				density_pcs_name_vector.push_back("TEMPERATURE1"); 
+				std::cout << "   Density depends on TEMPERATURE1 - Curve " << density_curve_number << std::endl;
 			}
 			if(density_model == 1) // rho = const
 				in >> rho_0;
@@ -704,8 +705,12 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 			in >> viscosity_model;
 			// TF 11/2011 - used only in read- and write-method
 			if (viscosity_model == 0) // my = fct(x)
+			{
 				in >> viscosity_curve_number; // JOD 2014-11-10
 //				in >> _my_fct_name;
+				viscosity_pcs_name_vector.push_back("TEMPERATURE1"); // JOD 2016-1-11
+				std::cout << "   Viscosity depends on TEMPERATURE1 - Curve " << viscosity_curve_number << std::endl;
+			}
 			if(viscosity_model == 1) // my = const
 				in >> my_0;
 
@@ -1214,7 +1219,7 @@ double CFluidProperties::Density(double* values)
 	static double density;
 	// static double air_gas_density,vapour_density,vapour_pressure;
 	double* primVal;
-	int density_model_used, valid, i;
+	int density_model_used, i;
 	long material=-1, index=-1;
 	//--- set primVal -------------------------------------------------------------------
 	if (values)                         // for secondary variable output (on nodes)
@@ -1277,7 +1282,10 @@ double CFluidProperties::Density(double* values)
 	switch (density_model_used)
 	{
 	case 0:                   // rho = f(x)
+		int valid;
 		density = GetCurveValue(density_curve_number, 0, primVal[0], &valid);
+		if (valid != 1)
+			cout << "Error in CFluidProperties::Density: Did not get curve value" << "\n";
 		break;
 	case 1:                   // rho = const
 		density = rho_0;
@@ -2194,33 +2202,34 @@ double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK, 
    03/2009 NB Viscosity depending on Density()
 **************************************************************************/
 //OK4709
-double CFluidProperties::Viscosity(double* variables)
+double CFluidProperties::Viscosity(double* values)
 {
 	double viscosity = 0.0;
-
+	double* primVal;
 	//----------------------------------------------------------------------
-	if(variables)                         //OK4709: faster data access
+	if (values)                         // for secondary variable output (on nodes)
+		primVal = values;
+	else                                   // for PDE calculation (on gauss points)
 	{
-		primary_variable[0] = variables[0]; //p (single phase)
-		primary_variable[1] = variables[1]; //T (temperature)
-		primary_variable[2] = variables[2]; //C (salinity)//index in case of AIR_FLOW
-	}
-	else
 		CalPrimaryVariable(viscosity_pcs_name_vector);
+		primVal = primary_variable;
+	}
 	//----------------------------------------------------------------------
 	switch(viscosity_model)
 	{
 	case 0:                               // rho = f(x)
 	{
-		int gueltig;
-		viscosity = GetCurveValue(viscosity_curve_number,0,primary_variable[1],&gueltig);
+		int valid;
+		viscosity = GetCurveValue(viscosity_curve_number, 0, primVal[0], &valid);
+		if ( valid != 1)
+		  cout << "Error in CFluidProperties::Viscosity: Did not get curve value" << "\n";
 		break;
 	}
 	case 1:                               // my = const
 		viscosity = my_0;
 		break;
 	case 2:                               // my(p) = my_0*(1+gamma_p*(p-p_0))
-		viscosity = my_0 * (1. + dmy_dp * (max(primary_variable[0],0.0) - p_0));
+		viscosity = my_0 * (1. + dmy_dp * (max(primVal[0], 0.0) - p_0));
 		break;
 	case 3:                               // my^l(T), Yaws et al. (1976)
 	{
@@ -2230,43 +2239,43 @@ double CFluidProperties::Viscosity(double* variables)
 		{
 			m_pcs = PCSGet("HEAT_TRANSPORT");
 			//if(!m_pcs) return 0.0;
-			primary_variable[1] =
+			primVal[0] =
 			        m_pcs->GetNodeValue(node,m_pcs->GetNodeValueIndex(
 			                                    "TEMPERATURE1") + 1);
 		}
 		//ToDo pcs_name
  		if(!T_Process) 
-		    primary_variable[1] = T_0+viscosity_T_shift;
- 		else primary_variable[1]+=viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
-		viscosity = LiquidViscosity_Yaws_1976(primary_variable[1]);
+			primVal[0] = T_0 + viscosity_T_shift;
+		else primVal[0] += viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
+		viscosity = LiquidViscosity_Yaws_1976(primVal[0]);
 		break;
 	}
 	case 4:                               // my^g(T), Marsily (1986)
-         viscosity = LiquidViscosity_Marsily_1986(primary_variable[1]);
+		viscosity = LiquidViscosity_Marsily_1986(primVal[0]);
          //viscosity = LiquidViscosity_Marsily_1986(primary_variable[0]);
 		break;
 	case 5:                               // my^g(p,T), Reichenberg (1971)
-		viscosity = GasViscosity_Reichenberg_1971(primary_variable[0],primary_variable[1]);
+		viscosity = GasViscosity_Reichenberg_1971(primVal[0], primVal[1]);
 		break;
 	case 6:                               // my(C,T),
-		viscosity = LiquidViscosity_NN(primary_variable[0],primary_variable[1]);
+		viscosity = LiquidViscosity_NN(primVal[0], primVal[1]);
 		break;
 	case 8:                               // my(p,C,T),
-		viscosity = LiquidViscosity_CMCD(primary_variable[0],
-		                                 primary_variable[1],
-		                                 primary_variable[2]);
+		viscosity = LiquidViscosity_CMCD(primVal[0],
+			primVal[1],
+			primVal[2]);
 		break;
 	case 9:                               // viscosity as function of density and temperature, NB
 	{
 		double mfp_arguments[2];
 
 		if(!T_Process)
-			primary_variable[1] = T_0;
+			primVal[1] = T_0;
 		// TODO: switch case different models...
 		// Problem.cpp 3 PS_GLOBAL, 1212,1313 pcs_type
 		//TODO: default fluid_ID, if not specified
-		mfp_arguments[0] = primary_variable[0]; // rescue primary_variable before its destroyed by Density();
-		mfp_arguments[1] = primary_variable[1];
+		mfp_arguments[0] = primVal[0]; // rescue primary_variable before its destroyed by Density();
+		mfp_arguments[1] = primVal[1];
 
 		const double density = Density(mfp_arguments); //TODO: (NB) store density (and viscosity) as secondary variable
 		                                  //NB
@@ -2282,12 +2291,12 @@ double CFluidProperties::Viscosity(double* variables)
 		{
 			if(eos_name == "CONSTANT")
 			{
-				my += variables[CIndex]/mu[CIndex-2];
+				my += primVal[CIndex] / mu[CIndex - 2];
 			}
 			else
 			{
 				therm_prop(m_pcs->pcs_primary_function_name[CIndex]);
-				my += variables[CIndex]/Fluid_Viscosity(ComponentDensity(CIndex, variables), variables[1], variables[0], fluid_id);
+				my += primVal[CIndex] / Fluid_Viscosity(ComponentDensity(CIndex, primVal), primVal[1], primVal[0], fluid_id);
 			}
 		}
 		viscosity =  1.0/my;
@@ -2296,10 +2305,10 @@ double CFluidProperties::Viscosity(double* variables)
 
 
 	case 18: //BG, NB using calculated viscosities at nodes from the phase transition model
-		variables[2] = phase;
+		primVal[2] = phase;
 		viscosity =
-		        GetElementValueFromNodes(int(variables[0]), int(variables[1]),
-		                                 int(variables[2]), 1);                           // hand over element index, Gauss point index, phase index and variable index
+			GetElementValueFromNodes(int(primVal[0]), int(primVal[1]),
+			int(primVal[2]), 1);                           // hand over element index, Gauss point index, phase index and variable index
 		break;
 	case 19: // reserved for GEMS coupling
 	        break;
@@ -2310,9 +2319,9 @@ double CFluidProperties::Viscosity(double* variables)
 		const double M1 = cp_vec[0]->molar_mass;
 		const double M2 = cp_vec[1]->molar_mass;
 
-		const double p = variables[0];
-		const double T = variables[1];
-		const double X = variables[2];
+		const double p = primVal[0];
+		const double T = primVal[1];
+		const double X = primVal[2];
 
 		//reactive component
 		x[0] = M1*X/(M1*X + M2*(1.0-X)); //mass in mole fraction

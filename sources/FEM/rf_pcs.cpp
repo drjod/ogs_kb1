@@ -9277,7 +9277,10 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			break;
 		case FiniteElement::LIQUID_FLOW:
 			if(aktueller_zeitschritt>0)
+			{
 				CalcSecondaryVariablesDensity();
+				CalcSecondaryVariablesViscosity();  // JOD 2016-1-11
+			}
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
 			break;
@@ -11512,6 +11515,62 @@ Programming:
 	else
 		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << std::endl;
   }
+void CRFProcess::CalcSecondaryVariablesViscosity()
+{
+	CFluidProperties* m_mfp = NULL;
+	CRFProcess* m_pcs = NULL;
+	vector<int> processNDXs;
+	int ndx_visc = GetNodeValueIndex("VISCOSITY1");
+	for (int i = 0; i < mfp_vector.size(); i++)
+	{
+		if (mfp_vector[i]->name == "LIQUID")
+		{
+			m_mfp = mfp_vector[i];
+			break;
+		}
+	}
+	if (m_mfp != NULL)
+	{
+		int numberOfVariables = (int)m_mfp->viscosity_pcs_name_vector.size();
+		if (numberOfVariables == 0)
+		{ // take primary variable
+			processNDXs.push_back(1);
+		}
+		else
+		{
+			for (int i = 0; i < numberOfVariables; i++)
+			{
+				for (int j = 0; j < pcs_vector.size(); j++)
+				{
+					if (m_mfp->viscosity_pcs_name_vector[i].compare(pcs_vector[j]->pcs_primary_function_name[0]) == 0)
+					{
+						processNDXs.push_back(j);
+						break;
+					}
+				}
+			}
+		}
+
+		if ((int)processNDXs.size() == numberOfVariables)
+		{
+			double* values = (double *)malloc(numberOfVariables* sizeof(double)); // values viscosity depends on (e.g. p, T, C)
+			for (int i = 0; i < (long)m_msh->GetNodesNumber(false); i++)
+			{
+				for (int j = 0; j < numberOfVariables; j++)
+				{   // set values (at node)
+					values[j] = pcs_vector[processNDXs[j]]->GetNodeValue(i,
+						pcs_vector[processNDXs[j]]->GetNodeValueIndex(m_mfp->viscosity_pcs_name_vector[j]));
+				}
+				SetNodeValue(i, ndx_visc, m_mfp->Viscosity(values)); // calculate and set viscosity
+			}
+			free(values);
+		}
+		else
+			std::cout << "ERROR in CalcSecondaryVariablesViscosity() - Do not get process indices" << std::endl;
+	}
+	else
+		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << std::endl;
+}
 /**************************************************************************
    FEMLib-Method:
    Task: Calculate saturation on node by averaging the patches of the

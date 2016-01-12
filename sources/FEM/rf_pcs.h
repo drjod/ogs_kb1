@@ -862,6 +862,7 @@ public:
 	void CalcSecondaryVariablesUnsaturatedFlow(bool initial = false);
 	void CalcSecondaryVariablesPSGLOBAL(); // PCH
 	void CalcSecondaryVariablesDensity();                                                  // PCH
+	void CalcSecondaryVariablesViscosity(); // JOD 2016-1-11
 	double GetCapillaryPressureOnNodeByNeighobringElementPatches(int nodeIdx,
 	                                                             int meanOption,
 	                                                             double Sw);
