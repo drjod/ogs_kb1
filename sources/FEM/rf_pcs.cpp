@@ -11532,11 +11532,7 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 	if (m_mfp != NULL)
 	{
 		int numberOfVariables = (int)m_mfp->viscosity_pcs_name_vector.size();
-		if (numberOfVariables == 0)
-		{ // take primary variable
-			processNDXs.push_back(1);
-		}
-		else
+		if (numberOfVariables != 0)
 		{
 			for (int i = 0; i < numberOfVariables; i++)
 			{

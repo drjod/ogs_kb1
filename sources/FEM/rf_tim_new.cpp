@@ -882,7 +882,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	// ------------------------------------------------------
   for (int i = 0; i < (int)critical_time.size(); i++)
   {
-	  if (pay_no_mind_to_output = false) // JOD 2015-11-26
+	  if (pay_no_mind_to_output == false) // JOD 2015-11-26
 	  {    
         if (current_time < critical_time[i])
         {
