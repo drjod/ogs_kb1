@@ -11532,7 +11532,11 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 	if (m_mfp != NULL)
 	{
 		int numberOfVariables = (int)m_mfp->viscosity_pcs_name_vector.size();
-		if (numberOfVariables != 0)
+		if (numberOfVariables == 0)
+		{ // take primary variable
+			processNDXs.push_back(1);
+		}
+		else
 		{
 			for (int i = 0; i < numberOfVariables; i++)
 			{
@@ -11547,8 +11551,6 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 			}
 		}
 
-		if ((int)processNDXs.size() == numberOfVariables)
-		{
 			double* values = (double *)malloc(numberOfVariables* sizeof(double)); // values viscosity depends on (e.g. p, T, C)
 			for (int i = 0; i < (long)m_msh->GetNodesNumber(false); i++)
 			{
@@ -11560,9 +11562,7 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 				SetNodeValue(i, ndx_visc, m_mfp->Viscosity(values)); // calculate and set viscosity
 			}
 			free(values);
-		}
-		else
-			std::cout << "ERROR in CalcSecondaryVariablesViscosity() - Do not get process indices" << std::endl;
+
 	}
 	else
 		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << std::endl;

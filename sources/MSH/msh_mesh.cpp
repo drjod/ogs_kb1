@@ -826,6 +826,9 @@ void CFEMesh::ConstructGrid()
 	// Node information
 	// 1. Default node index <---> eqs index relationship
 	// 2. Coordiate system flag
+	double tolerance = MKleinsteZahl * 128; // JOD 2016-2-1 - to get mesh orientation 
+	                                        // take higher value than machine accuracy 
+	                                        // since meshes often have little numbers in coordinates instead zero
 	double x_sum(0.0), y_sum(0.0), z_sum(0.0);
 	Eqs2Global_NodeIndex.clear();
 	double xyz_max[3] = //NW
@@ -864,36 +867,57 @@ void CFEMesh::ConstructGrid()
 	xyz_dim[2] = xyz_max[2] - xyz_min[2];
 
 	//check dimension of the domain to select appropriate coordinate system
-	if (xyz_dim[0] > 0.0 && xyz_dim[1] < MKleinsteZahl && xyz_dim[2]
-		< MKleinsteZahl)	// only x-direction
+	std::cout << " identify mesh orientation - ";    // JOD 2016-2-1
+	if (xyz_dim[0] > 0.0 && xyz_dim[1] < tolerance && xyz_dim[2] < tolerance)	
+	{
+	 	std::cout << "only x - direction";
 		coordinate_system = 10;
-	else if (xyz_dim[1] > 0.0 && xyz_dim[0] < MKleinsteZahl && xyz_dim[2]
-	         < MKleinsteZahl)	// only y-direction
+    }
+    else if (xyz_dim[1] > 0.0 && xyz_dim[0] < tolerance && xyz_dim[2] < tolerance)	
+    {
+		std::cout << "only y-direction";
 		coordinate_system = 11;
-	else if (xyz_dim[2] > 0.0 && xyz_dim[0] < MKleinsteZahl && xyz_dim[1]
-	         < MKleinsteZahl)	// only z-direction
+    }
+    else if (xyz_dim[2] > 0.0 && xyz_dim[0] < tolerance && xyz_dim[1] < tolerance)	
+	{
+		std::cout << "only z-direction";
 		coordinate_system = 12;
-	else if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] < MKleinsteZahl)
+	}
+	else if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] < tolerance)
+	{
+		std::cout << "x & y direction";
+		if (_msh_n_lines > 0) 
+		{
+			std::cout << " - 1D in 2D";
+			coordinate_system = 32;
+		}
+		else
 		coordinate_system = 21;	// x & y direction
-	else if (xyz_dim[0] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[1] < MKleinsteZahl)
+	}
+	else if (xyz_dim[0] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[1] < tolerance)
+	{
+		std::cout << "x & z direction";
+		if (_msh_n_lines > 0)
+		{
+			std::cout << " - 1D in 2D";
+			coordinate_system = 32;
+		}
+		else
 		coordinate_system = 22;	// x & z direction
-	else if (xyz_dim[1] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[0] < MKleinsteZahl)
+	}
+	else if (xyz_dim[1] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[0] < tolerance)
+	{
+		std::cout << "y & z direction";
 		coordinate_system = 23;	// y & z direction
+	}
 	else if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] > 0.0)	// x, y & z direction
-		coordinate_system
-		        = 32;
 
 	// 1D in 2D
-	if (_msh_n_lines > 0)
 	{
-		if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] < MKleinsteZahl)
-			coordinate_system
-			        = 32;
-		if (xyz_dim[0] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[1] < MKleinsteZahl)
-			coordinate_system
-			        = 32;
+		std::cout << "x, y & z direction";
+		coordinate_system = 32;
 	}
-
+	std::cout << std::endl;
 	max_dim = coordinate_system / 10 - 1;
 	//----------------------------------------------------------------------
 	// Gravity center
@@ -941,7 +965,7 @@ void CFEMesh::constructMeshGrid()
 //	clock_t start(clock());
 //#endif
 	if (_mesh_grid == NULL)
-		_mesh_grid = new GEOLIB::Grid<MeshLib::CNode>(this->getNodeVector(), 511);
+		_mesh_grid = new GEOLIB::Grid<MeshLib::CNode>(this->getNodeVector(), 512);
 //#ifndef NDEBUG
 //	clock_t end(clock());
 //	std::cout << "done, took " << (end-start)/(double)(CLOCKS_PER_SEC) << " s -- " << std::flush;

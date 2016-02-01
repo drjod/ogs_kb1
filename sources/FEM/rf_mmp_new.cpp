@@ -1935,6 +1935,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		 std::string ElementVolumeMultiplyer_vector_type_name;
 		 in.str(GetLineFromFile1(mmp_file));
 		 in >> mode;
+		 std::cout << "Setting LPVC - mode " << mode << " for geo dimension " << geo_dimension << " - factors ";
 		 if (mode == 0) // JOD 2015-11-26
 		 {
 			 in >> ElementVolumeMultiplyer;
@@ -1944,12 +1945,14 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			 if (geo_dimension == 1){
 				 in >> ElementLengthMultiplyer_vector[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
+				 std::cout << ElementLengthMultiplyer_vector[0]  << std::endl;
 			 }
 			 else if (geo_dimension == 2)
 			 {
 				 in >> ElementLengthMultiplyer_vector[0];
 				 in >> ElementLengthMultiplyer_vector[1];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << std::endl;
 			 }
 			 else if (geo_dimension == 3)
 			 {
@@ -1957,10 +1960,13 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				 in >> ElementLengthMultiplyer_vector[1];
 				 in >> ElementLengthMultiplyer_vector[2];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << std::endl;
 			 }
+			 else
+				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension";
 		 }
 		 else
-		     std::cout << "Error in CMediumProperties::Read: ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1";
+		     std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1";
 
 		 in.clear();
 		 continue;
