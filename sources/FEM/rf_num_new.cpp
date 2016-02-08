@@ -581,7 +581,7 @@ ios::pos_type CNumerics::Read(ifstream* num_file)
 			line.str(GetLineFromFile1(num_file));
 			line >> ele_mass_lumping;
 			line.clear();
-			cout << "-> Mass lumping selected for " << pcs_type_name << "\n";// JOD 2014-11-10
+			cout << "-> Mass lumping for " << pcs_type_name << "\n";// JOD 2014-11-10
 			continue;
 		}
 		// subkeyword found

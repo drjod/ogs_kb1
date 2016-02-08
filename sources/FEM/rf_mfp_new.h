@@ -75,10 +75,10 @@ public:
 	 */
 	double getReferenceTemperature() const { return T_0; }
 
+	std::vector<double> Con_CO2_vector;  // public since initialized with Create LIQUID_FLOW
 private:
 
 
-	std::vector<double> Con_CO2_vector;
 	double Delta_density;
 
 	double rhoc;                          //critical_density; //NB

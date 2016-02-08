@@ -1411,22 +1411,20 @@ double CFluidProperties::Density(double* values)
 			// Get the reaction interface data
 			if (Fem_Ele_Std->gp == 0) // once per element (take first Gauss point)
 			{   
-				if (aktueller_zeitschritt == 1) // Initialize one per element - element index assumed to increment, else segmentation fault 
-					Con_CO2_vector.push_back(1.0e-12);
 				// Calc Delta_density for element
 				if (REACTINT_vec.size() > 0)
 					Delta_density = REACTINT_vec[0]->CalcDeltaDensityFromCO2( primVal[1], // CO2_Disolved at gauss point or node (later for output)
 					                                                          Con_CO2_vector, // Co2 concentration on element (updated each time step)
 					                                                          Fem_Ele_Std->GetMeshElement()->GetIndex() ); 
 				else
-					std::cout << "Error in CFluidProperties::No reaction model" << std::endl;
+					std::cout << "Error in CFluidProperties::Density() - No reaction model" << std::endl;
 			}
 			//------------------------------------------------------------------------------------
 			density += Delta_density; 
 		}
 		break;
 	default:
-		std::cout << "Error in CFluidProperties::Density: no valid model" <<
+		std::cout << "Error in CFluidProperties::Density - no valid model" <<
 			"\n";
 		break;
 	} // end switch

@@ -925,39 +925,21 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
   CFluidProperties* m_mfp = NULL;
 	 m_mfp = MFPGet( "LIQUID" );
   double variables[3];
-  variables[0]=variables[1]=variables[2]=0;
-  switch(m_mfp->density_model){
-         case 0:                                  // rho = f(x)
-            break;
-         case 1:                                  // rho = const
-            break;
-         case 2:                                  // rho(p) = rho_0*(1+beta_p*(p-p_0))
-           variables[0] = GetPressure(0);
-            break;
-         case 3:                                  // rho(C) = rho_0*(1+beta_C*(C-C_0))
+  
+  for (int i = 0; i < m_mfp->density_pcs_name_vector.size(); i++) // JOD 2016-2-8
+  {
+	  if ( m_mfp->density_pcs_name_vector[i] == "PRESSURE1")  
+		  variables[i] = GetPressure(0); // value at node 0
+	  else if (m_mfp->density_pcs_name_vector[i] == "TEMPERATURE1")  
            //variables[2] = GetConcentration(0);
-           break;
-         case 4:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
-            variables[1] = GetTemperature(0);            
-            break;
-         case 5:                                  // rho(C,T) = rho_0*(1+beta_C*(C-C_0)+beta_T*(T-T_0))
-           variables[1] = GetTemperature(0);            
+		  variables[i] = GetTemperature(0);// value at node 0
+	  else
            //variables[2] = GetConcentration(0);
-            break;
-         case 6:                                  // rho(p,T) = rho_0*(1+beta_p*(p-p_0)+beta_T*(T-T_0))
-           variables[0] = GetPressure(0);
-           variables[1] = GetTemperature(0);            
-            break;
-         case 7:                                  // Pefect gas. WW
-            break;
-         case 8:                                  // M14 von JdJ // 25.1.12 Added by CB for density output AB-model
-           variables[0] = GetPressure(0);
-           variables[1] = GetTemperature(0);            
+	  {
+		  variables[i] = 0;
+		  std::cout << "   Setting " << m_mfp->density_pcs_name_vector[i] << " = 0 in density initialization for reaction model \n";
+	  }
            //variables[2] = GetConcentration(0);
-            break;
-         default:
-            std::cout << "Density in ReactInt: no valid model" << "\n";
-            break;
   }
   double dens = m_mfp->Density(variables);
   if(unitconversion)

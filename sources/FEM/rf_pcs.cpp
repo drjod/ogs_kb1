@@ -688,6 +688,34 @@ void CRFProcess::Create()
 		}
 	m_mmp_group = NULL;
 	//----------------------------------------------------------------------------
+	// MFP
+	//
+	// allocate vector for disolved CO2 if density model 23 is used (and initialize with small value)  - JOD 2016-2-8
+	// the vector it stored into LIQUID fluid property 
+	// it is set up when LIQUID_FLOW is created 
+	if (this->getProcessType() == FiniteElement::LIQUID_FLOW) 
+	{
+		CFluidProperties* m_mfp = NULL;
+		m_mfp = MFPGet("LIQUID");
+
+		if (m_mfp != NULL)
+		{
+			bool densityModel23Used = false;
+			if (m_mfp->density_model == 23)
+				densityModel23Used = true;
+			for (int j = 0; j < m_mfp->density_model_mat.size(); j++) // density depends on material group
+			    if (m_mfp->density_model_mat[j] == 23)
+				  densityModel23Used = true;
+			for (int j = 0; j < m_mfp->density_model_idx.size(); j++)
+			  if (m_mfp->density_model_idx[j] == 23)
+				  densityModel23Used = true;
+			//
+		    if (densityModel23Used == true)
+		  	   for (int j = 0; j < m_msh->GetNodesNumber(false); j++) // now allocate
+				   m_mfp->Con_CO2_vector.push_back(1.0e-12);
+		
+		}
+	}
 	// NUM_NEW
 	std::cout << "->Create NUM" << "\n";
 	//	if (pcs_type_name.compare("RANDOM_WALK")) { // PCH RWPT does not need this.
