@@ -51,6 +51,7 @@ public:
 	double Vm;                // Vm [m3/kmol]: Molar volume used in interation parameter calculation 
 	double Vd;                 //[cm3/mol] diffusion volume
 	int OutputMassOfComponentInModel;		// 05/2012 BG
+	bool tracer_flag;  // JOD 2016-18-2
 
 	/* Diffusionsmodelle und zugehoerige Beschreibungswerte */
 	int diffusion_model;                  /* Zerfallsmodell in geloester Phase */

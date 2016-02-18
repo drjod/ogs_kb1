@@ -105,6 +105,7 @@ Problem::Problem (char* filename) :
 	dt0(0.), print_result(true), _geo_obj (new GEOLIB::GEOObjects), _geo_name (filename), 
     mrank(0), msize(0)
 {
+
 	if (filename != NULL)
 	{
 		// read data
@@ -1526,9 +1527,10 @@ bool Problem::CouplingLoop()
     }
     // Coupling convergence criteria
     //if(max_outer_error <= 1.0 && outer_index+2 > cpl_overall_min_iterations) // JT: error is relative to the tolerance.	//MW outer_index + 2 is hard to follow - is it faster to write it like this?
-    if (max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
-      break;
+	if (max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
+			break;
 
+	
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
     {
@@ -1542,7 +1544,7 @@ bool Problem::CouplingLoop()
         //	index = active_process_index[i];
         //	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
         //}
-        PostMassTrasportReact();
+        PostMassTrasport();
       }
     }
 	
@@ -3302,11 +3304,13 @@ inline double Problem::MassTrasport()
 			}
 		}
 
-		if(CPGetMobil(m_pcs->GetProcessComponentNumber()) > 0)
-			error = m_pcs->ExecuteNonLinear(loop_process_number);  //NW. ExecuteNonLinear() is called to use the adaptive time step scheme
-
 		int component = m_pcs->pcs_component_number;
 		CompProperties* m_cp = cp_vec[component];
+
+		if (CPGetMobil(component) > 0 && m_cp->tracer_flag == false)
+			error = m_pcs->ExecuteNonLinear(loop_process_number);  //NW. ExecuteNonLinear() is called to use the adaptive time step scheme
+
+
 
 		if (m_cp->OutputMassOfComponentInModel == 1) {			// 05/2012 BG
 			// TODO: Check
@@ -3351,13 +3355,18 @@ inline double Problem::MassTrasport()
 }
 
 
-inline double Problem::PostMassTrasportReact()
+inline double Problem::PostMassTrasport()
 {
+	//  COMPUTE TRACER   JOD 2016-2-16        
+	for (int i = 0; i < (int)transport_processes.size(); i++)
+		if ( CPGetMobil(transport_processes[i]->pcs_component_number) > 0 && 
+			 cp_vec[ transport_processes[i]->pcs_component_number]->tracer_flag == true )
+		  	     double error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
+  // REACTIONS
   bool capvec = false;
   bool prqvec = false;
   //
    if (REACT_CAP_vec.size() > 0) capvec = true;
-
 
   //if( (KinReactData_vector.size() > 0) || (REACT_vec.size()>0) ||  capvec || (REACT_PRQ_vec.size()>0) )  //CB merge CAP 0311
   if (REACTINT_vec.size()>0)

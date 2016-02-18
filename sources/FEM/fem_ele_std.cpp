@@ -11989,7 +11989,7 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 		}
 		
 		Gauss_val = 0.0;
-		for (i = 0; i < nNodes; i++)	   // Interpolation of value at Gauss point
+		for (i = 0; i < nNodes; i++)	   // Interpolation of value to Gauss point
 			Gauss_val += NodeVal_shifted[i] * shapefct[i];
 		
 		// Integration

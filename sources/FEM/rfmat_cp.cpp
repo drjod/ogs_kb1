@@ -88,6 +88,7 @@ CompProperties::CompProperties(/* int n // HS we do not need this. */)
    molar_weight = 0;
    max_solubility = 0;
    molar_gas_dens = false;
+   tracer_flag = false;
    
    omega=0;
    Tc=0;
@@ -290,6 +291,14 @@ ios::pos_type CompProperties::Read(ifstream* rfd_file)
 			in >> compname; //sub_line
 			in.clear();
 			//	  compname = (char *) sub_line.c_str();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("$TRACER") != std::string::npos)
+		{
+			in.str(GetLineFromFile1(rfd_file));
+			in >> tracer_flag; //sub_line
+			in.clear();
 		}
 		//....................................................................
 		// subkeyword found

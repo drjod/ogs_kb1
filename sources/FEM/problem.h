@@ -128,7 +128,7 @@ class Problem
       inline double FluidMomentum();
       inline double RandomWalker();
       inline double MassTrasport();
-      inline double PostMassTrasportReact();
+      inline double PostMassTrasport();
       inline double Deformation();
       // Accessory
 	void LOPExecuteRegionalRichardsFlow(CRFProcess* m_pcs_global, int loop_process_number);
