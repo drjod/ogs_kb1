@@ -11961,15 +11961,9 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 
 	int i, gp, gp_r, gp_s, gp_t;
 	double fkt = 0.0, det, Gauss_val, content = 0, NodeVal_shifted[8];
-
-	cpl_pcs = NULL;
+	
 	Config();
 	setOrder(Order);
-	for (size_t i = 0; i < pcs_vector.size(); i++) {
-		if (isFlowProcess(pcs_vector[i]->getProcessType()))
-			cpl_pcs = pcs_vector[i];  // for heat transport
-	}
-
 	det = MeshElement->GetVolume();
 
 	for (gp = 0; gp < nGaussPoints; gp++)
@@ -11994,8 +11988,9 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 		
 		// Integration
 		content += fkt * Gauss_val * CalCoefMass() * MediaProp->ElementVolumeMultiplyer;
+		
 	}
-
+	
 	return content;
 
 }

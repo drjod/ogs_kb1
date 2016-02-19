@@ -59,6 +59,7 @@ int number_of_load_steps = 1;
 int problem_dimension_dm = 0;
 int PreLoad = 0;
 bool GravityForce = true;
+int Gravity_on = 1; //KB0216 for Eclipse interface JOD 2016-2-19
 
 bool Localizing = false;                          // for tracing localization
 // Last discontinuity element correponding to SeedElement
@@ -3639,24 +3640,22 @@ bool CRFProcessDeformation::CalcBC_or_SecondaryVariable_Dynamics(bool BC)
 
 	return BC;
 }
-//***************************************************************************
-//GeoSys - Funktion:
-//CFiniteElementStd::VolumeStrainIntegrationForEclipse
-//Aufgabe :
-//Integrating strain changes for the Eclipse coupling
-//
-//Programming :
-//07 / 2014 KB, WW
-//************************************************************************** /
+/***************************************************************************
+GeoSys - Funktion:CFiniteElementStd::VolumeStrainIntegrationForEclipse
+Task :
+    Integrating strain changes for the Eclipse coupling
+	puts result on pcs_vector[0]->d_strain_2  (LIQUID_FLOW)
+Programming :
+    07 / 2014 KB, WW
+	2/2016 JOD
+**************************************************************************/
 void CRFProcessDeformation::VolumeStrainIntegrationForEclipse()
 {
 
 	CFEMesh* m_msh = fem_msh_vector[0];
 	MeshLib::CElem* elem = NULL;
 	//WTP CMediumProperties* m_mmp;
-
-	CRFProcess* m_pcs = pcs_vector[0];
-	d_strain_2.clear();
+	pcs_vector[0]->d_strain_2.clear();  // LIQUID_FLOW
 
 	//WTP for (size_t i = 0; i < (long)m_msh->ele_vector.size(); i++)
 	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
@@ -3666,10 +3665,7 @@ void CRFProcessDeformation::VolumeStrainIntegrationForEclipse()
 			continue;
 		elem->SetOrder(true);
 		fem_dm->ConfigElement(elem, m_num->ele_gauss_points);
-		const double vstr = fem_dm->VolumeStrainIntegrationForEclipse();
-		m_pcs->d_strain_2.push_back(vstr);
+		pcs_vector[0]->d_strain_2.push_back(fem_dm->VolumeStrainIntegrationForEclipse());
 	}
-	int i = 0;
-	return;
 }
 }                                                 // end namespace

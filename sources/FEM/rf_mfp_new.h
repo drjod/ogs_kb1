@@ -79,7 +79,7 @@ public:
 private:
 
 
-	double Delta_density;
+	double Delta_density;  // JOD density model 23
 
 	double rhoc;                          //critical_density; //NB
 	double Tc;                            //critical_temperature;

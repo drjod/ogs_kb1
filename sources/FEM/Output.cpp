@@ -4799,9 +4799,8 @@ void COutput::WriteContent(double time_current, int time_step_number)
 		tec_file << "TIME                   CONTENT" << "\n";
 	else 
 	{
-
-		//if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
-		output = true;
+		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
+		  output = true;
 
 		for (size_t j = 0; j < time_vector.size(); j++)
 		if ((fabs(time_current - time_vector[j])) < MKleinsteZahl)
@@ -4942,7 +4941,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 
 	int nfaces, nfn, nodesFace[8], count;
 	double fac, nodesFVal[8], nodesFVal_adv[8];
-	int Axisymm = 1;                               // ani-axisymmetry
+	int j, k, Axisymm = 1;                               // ani-axisymmetry
 	if (m_pcs->m_msh->isAxisymmetry())
 		Axisymm = -1;                               // Axisymmetry is true
 	CNode* e_node;
@@ -4984,7 +4983,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 		nfaces = elem->GetFacesNumber();
 		elem->SetOrder(m_pcs->m_msh->getOrder());
 		
-		for (long j = 0; j < nfaces; j++) {
+		for (j = 0; j < nfaces; j++) {
 
 			e_nei = elem->GetNeighbor(j);
 			nfn = elem->GetElementFaceNodes(j, nodesFace);
@@ -4993,7 +4992,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 				continue;
 			//2nd check
 			count = 0;
-			for (int k = 0; k < nfn; k++)
+			for (k = 0; k < nfn; k++)
 			{
 				e_node = elem->GetNode(nodesFace[k]);
 				if (set_nodes_on_geo.count(e_node->GetIndex()) > 0)
@@ -5026,9 +5025,9 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	ElementValue* gp_ele = NULL;
 	if (ele_gp_flux.size() > 0)  // release memory
 	{
-		for (int i = 0; i < (long)ele_gp_flux.size(); i++)
+		for (j = 0; j < (int)ele_gp_flux.size(); j++)
 		{
-			gp_ele = ele_gp_flux[i];
+			gp_ele = ele_gp_flux[j];
 			delete gp_ele;
 			gp_ele = NULL;
 		}

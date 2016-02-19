@@ -177,7 +177,8 @@ CECLIPSEData::CECLIPSEData(void)
 	elements = 0;
 	layers = 0;
 	//WTP 04/2014 this->times = 0;
-	timestep_adjustment = 0;
+	timestep_adjust_initial = 0;
+	timestep_adjust_iteration_tot = 0;
 	numberOutputParameters = 0;
 	activeCells = 0;
 	eclgridelenum = 0;
@@ -522,8 +523,8 @@ bool CECLIPSEData::SetFilenamesAndPaths(CRFProcess* m_pcs, long Timestep)
 	{
 		// Get timestep adjustment variable
 		if (m_pcs->ecl_time_adjust > 0)
-			this->timestep_adjustment = m_pcs->ecl_time_adjust;
-		if (timestep_adjustment > 0)
+			this->timestep_adjust_initial = m_pcs->ecl_time_adjust;
+		if (timestep_adjust_initial > 0)
 			std::cout << " Attention: Eclipse simulation is a restart-based simulation" << std::endl;
 
 		if (m_pcs->simulator_path.find("eclrun") != std::string::npos)
@@ -603,9 +604,14 @@ bool CECLIPSEData::SetFilenamesAndPaths(CRFProcess* m_pcs, long Timestep)
 	if (Timestep>1 || m_pcs->iter_outer_cpl > 0)
 	{
 		if (this->UsePrecalculatedFiles != true)//BW:running benchmark the file cannot be read, there is no temporaryresults.F, is that right? WTP: Yes, correct
-			this->pathECLFFile = this->pathECLFolder + "TEMPORARYRESULTS.F" + AddZero(m_pcs->Tim->step_current - 1 + timestep_adjustment, 4, true);
+		{
+			if (m_pcs->Iterative_Eclipse_coupling == true)
+				this->pathECLFFile = this->pathECLFolder + "TEMPORARYRESULTS.F" + AddZero(this->timestep_adjust_iteration_tot - 1 + timestep_adjust_initial, 4, true);
+			else
+				this->pathECLFFile = this->pathECLFolder + "TEMPORARYRESULTS.F" + AddZero(m_pcs->Tim->step_current - 1 + timestep_adjust_initial, 4, true);
+		}
 		else
-			this->pathECLFFile = pathECLProject + ".F" + AddZero(m_pcs->Tim->step_current + timestep_adjustment, 4, true);
+			this->pathECLFFile = pathECLProject + ".F" + AddZero(m_pcs->Tim->step_current + timestep_adjust_initial, 4, true);
 	};
 	return success;
 }
@@ -7059,7 +7065,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 
 	if (UsePrecalculatedFiles) // file id# for jenkins bm
 	{
-		int timestep = aktueller_zeitschritt + timestep_adjustment;
+		int timestep = aktueller_zeitschritt + timestep_adjust_initial;
 		temp.str(""); temp.clear(); temp << timestep;
 		if (timestep < 10)
 			file_id += "000" + temp.str();
@@ -7174,7 +7180,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 						exit(0);
 					}
 				}
-				this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjustment, 4, true);
+				this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true);
 				//std::cout << "path to F-File: " << pathECLFFile << std::endl;
 				number_loops += 1;
 			} while ((CheckIfFileExists(pathECLFFile) == false) && (number_loops <= maximum_loops));
@@ -7217,7 +7223,10 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 		tempstring += "' ";
 		temp.str("");
 		temp.clear();
-		temp << Timestep - 1 + timestep_adjustment;
+		if (m_pcs->Iterative_Eclipse_coupling == true)
+			temp << this->timestep_adjust_iteration_tot - 1 + timestep_adjust_initial;
+		else 
+			temp << Timestep - 1 + timestep_adjust_initial;
 		tempstring = tempstring + temp.str();
 		tempstring = tempstring + " /";
 		//tempstring = tempstring + " SAVE FORMATTED /";
@@ -7299,7 +7308,10 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 						exit(0);
 					}
 				}
-				this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjustment, 4, true);
+				if (m_pcs->Iterative_Eclipse_coupling == true)
+					this->pathECLFFile = this->pathECLProject + ".F" + AddZero(this->timestep_adjust_iteration_tot + timestep_adjust_initial, 4, true);
+				else
+					this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true);
 				//std::cout << "path to F-File: " << pathECLFFile << std::endl;
 				number_loops += 1;
 			} while ((CheckIfFileExists(pathECLFFile) == false) && (number_loops <= maximum_loops));
@@ -7331,7 +7343,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
    Programming: 09/2009 BG
    Modification: 04/2014 WTP minor changes
    -------------------------------------------------------------------------*/
-bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectname)
+bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectname, long Timestep, CRFProcess* m_pcs)
 {
 	std::string systemcommand;
 	std::string system_delete;
@@ -7373,7 +7385,9 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 	//if (UseSaveEclipseDataFiles == true)
 	//{
 		extension = ".F";
-		int timestep = aktueller_zeitschritt + timestep_adjustment;
+		if (m_pcs->Iterative_Eclipse_coupling == true) //KB0116
+		{
+			int timestep = this->timestep_adjust_iteration_tot + timestep_adjust_initial;
 		temp.str(""); temp.clear(); temp << timestep;
 		if  (timestep < 10)
 			extension += "000" + temp.str() + " ";
@@ -7383,7 +7397,20 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			extension += "0" + temp.str() + " ";
 		else
 			extension += temp.str() + " ";
-	//}
+		}
+		else
+		{
+			int timestep = aktueller_zeitschritt + timestep_adjust_initial;
+			temp.str(""); temp.clear(); temp << timestep;
+			if (timestep < 10)
+				extension += "000" + temp.str() + " ";
+			else if (timestep < 100)
+				extension += "00" + temp.str() + " ";
+			else if (timestep < 1000)
+				extension += "0" + temp.str() + " ";
+			else
+ 				extension += temp.str() + " ";
+		}
 	//copy original result files
 	if (this->Windows_System == true)
 	{
@@ -7547,7 +7574,7 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 	}
 
 	extension = "_";
-	int timestep = aktueller_zeitschritt + timestep_adjustment;
+	int timestep = aktueller_zeitschritt + timestep_adjust_initial + this->timestep_adjust_iteration_tot;
 	temp.str(""); temp.clear(); temp << timestep;
 	if (timestep < 10)
 		extension += "000" + temp.str() + " ";
@@ -8605,7 +8632,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 			
             if (M_Process == false)//&& m_pcs->M_feedback == false) // KB0815
                 continue;
-			else if (m_pcs->M_feedback)
+			else if (m_pcs->M_feedback != false) // KB0116 mechanical feedback allowed
 				vec_PRESS2[i] += m_pcs->d_strain_2[i];
 
 				// Now interpolate the saturation and pressure data for the oil phase
@@ -8750,13 +8777,13 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 			//Testoutput KB
 			//cout << vec_PRESS1[i] << "\n";
 
-			// KB (?)
-			if (m_pcs->d_strain_2.size() > 0) // calculation of d_strain done 
-			{
+			if (M_Process == false)// KB0815
+				continue;
+			else if (m_pcs->M_feedback)
 				//if (m_pcs->d_strain_2[i] > 0) vec_PRESS1[i] -= m_pcs->d_strain_2[i]; // increase in strain --> decrease in pressure
-			 vec_PRESS1[i] -= m_pcs->d_strain_2[i]; // increase in strain --> decrease in pressure
+				vec_PRESS1[i] += m_pcs->d_strain_2[i]; // increase in strain --> decrease in pressure
 				//else vec_PRESS1[i] += m_pcs->d_strain_2[i]; // decrease in strain --> increase in pressure 
-			}
+
 		}
 	} // end of element loop
 	return test;
@@ -9318,7 +9345,7 @@ Modification:
 		ostringstream temp; //WTP pretty time consuming constructor...
 		std::string file_id = "_SAVE";
 
-		int timestep = aktueller_zeitschritt + timestep_adjustment;
+		int timestep = aktueller_zeitschritt + timestep_adjust_initial + this->timestep_adjust_iteration_tot;
 		temp.str(""); temp.clear(); temp << timestep;
 		if (timestep < 10)
 			file_id += "000" + temp.str();
@@ -9515,6 +9542,8 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 		actual_time += m_pcs->Tim->time_step_vector[m_pcs->Tim->step_current - 2];
 	}
 
+	if (m_pcs->Iterative_Eclipse_coupling == true)
+		this->timestep_adjust_iteration_tot = this->timestep_adjust_iteration_tot + 1;
 	// set the filenames & paths
 	if (this->SetFilenamesAndPaths(m_pcs, Timestep) == false)
 	{
@@ -9580,7 +9609,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 	}
 	else
 	{
-		if (T_Process == true && timestep_adjustment > 0) // TEMPI only works with restarts anyway
+		if (T_Process == true && timestep_adjust_initial > 0) // TEMPI only works with restarts anyway
         {
             this->ReadEclipseGrid(pathECLProject + ".FGRID");
             this->ReadCorrespondingList(pathECLProject + ".list");
@@ -9600,7 +9629,10 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 
 	
 	//Read the ECLIPSE model output data
-	this->ReadEclipseData(pathECLProject + ".F" + AddZero(Timestep + timestep_adjustment, 4, true));
+	if ( m_pcs->Iterative_Eclipse_coupling == true ) //KB0116
+		this->ReadEclipseData(pathECLProject + ".F" + AddZero(this->timestep_adjust_iteration_tot + timestep_adjust_initial, 4, true));
+	else
+		this->ReadEclipseData(pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true));
 	
 	// WTP if any component is transported, convert units to 
 	// DEBUG: Consistency Check
@@ -9635,7 +9667,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 
 	if (UsePrecalculatedFiles == false || UseSaveEclipseDataFiles == true)
 	{
-		CleanUpEclipseFiles(pathECLFolder, pathECLProject);
+			CleanUpEclipseFiles(pathECLFolder, pathECLProject, Timestep, m_pcs);
 	}
 
 	const clock_t finish = clock();

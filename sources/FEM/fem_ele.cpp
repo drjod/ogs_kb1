@@ -1558,7 +1558,7 @@ Programming:
 void CElement::CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux)
 {
 
-	int gp, gp_r, gp_s, gp_t;
+	int i, gp, gp_r, gp_s, gp_t;
 	double fkt = 0.0, det;
 	double Gauss_val_normal_diff_flux, Gauss_val_normal_adv_flux;
 
@@ -1607,7 +1607,7 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 		Gauss_val_normal_diff_flux = 0;
 		Gauss_val_normal_adv_flux = 0;
 
-		for (int i = 0; i < nNodes; i++) {	// Interpolation to Gauss point
+		for (i = 0; i < nNodes; i++) {	// Interpolation to Gauss point
 			Gauss_val_normal_diff_flux += NodeVal[i] * shapefct[i];
 			Gauss_val_normal_adv_flux += NodeVal_adv[i] * shapefct[i];
 		}

@@ -998,7 +998,11 @@ void CFiniteElementVec::ComputeMatrix_RHS(const double fkt,
 		// 2D, in y-direction
 		// 3D, in z-direction
 		i = (ele_dim - 1) * nnodesHQ;
-		const double coeff = LoadFactor * rho * smat->grav_const * fkt;
+		double coeff = LoadFactor * rho * smat->grav_const * fkt;
+		if (pcs->Gravity_on == 0) //KB:swich off gravity effect    JOD 2016-2-19
+		{	
+			coeff *= 0;
+		}
 		for (k = 0; k < act_r; k++)
         {
 
@@ -4070,29 +4074,16 @@ double CFiniteElementVec:: CalcStrain_v()
 //************************************************************************** /
 double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 {
-	double fac;
+	double fac = 1.0 / dt;
 	double disp[60]; // put as a pointer to fem_ele_std.h
-	double e_v;	//KB0714
 	// Fetch displacement to local array.
-	CFEMesh* m_msh = fem_msh_vector[0];
-	MeshLib::CElem* elem = NULL;
 	//WTP CFiniteElementVec* fem_dm;
-	CRFProcess* m_pcs = pcs_vector[0];
 	//WTP CFiniteElementStd* fem;
 	//fem = m_pcs->fem;
 	//CMediumProperties* m_mmp = NULL;
 
-	std::fstream datei_ecl; //KB1114
-	datei_ecl.clear(); //KB1114
 
-	std::vector <std::string> vec_string;
-	std::string tempstring;
-	tempstring = "";
-	std::ostringstream temp;
-	temp.str("");
-	temp.clear();
 
-	fac = 1.0 / dt;
 
 	for (int k = 0; k < nnodesHQ; k++) //Calculation of delta_u for t1-t0 for all High Order nodes 
 	{
@@ -4136,15 +4127,14 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 
 	}
 	int kl, gp, gp_r, gp_s, gp_t;
-	double fkt, dshp = 0.0;
+	double fkt, dshp = 0.0, grad_du_dt;
 
 	//fem->SetHighOrderNodes();
 
-	int i = 0;
 
 
-	e_v = 0;
-	for (gp = 0; gp < nGauss; gp++)
+	double e_v = 0;	//KB0714
+	for (gp = 0; gp < nGaussPoints; gp++)
 	{
 
 		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
@@ -4153,7 +4143,7 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 		ComputeShapefct(2);
 
 		// Compute grad (du/dt=u') at Gauss
-		double grad_du_dt = 0;
+		grad_du_dt = 0;
 
 		for (size_t n = 0; n < dim; n++)
 		{
@@ -4166,13 +4156,11 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 				//double factor = dshp * disp[n * nnodesHQ + l];// *fkt;
 				grad_du_dt += dshp * disp[kl];
 
-				//e_v += grad_du_dt * fkt;
+				e_v += grad_du_dt * fkt;
 			}
 		}
 
-		e_v += grad_du_dt * fkt; // * density ; 1000
 	}
-	setOrder(1);
 
 	if (m_mmp->storage_model == 21)
 	{
@@ -4182,10 +4170,9 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 	}
 	else
 	{
-		double S_p = 1.0;
+		double S_p = 4.5E-5;
 		e_v /= S_p;
 	}
-	e_v /= 100000; // Umrechnen in Bar
 	return e_v;
 };
 }                                                 // end namespace FiniteElement

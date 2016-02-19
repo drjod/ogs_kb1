@@ -516,6 +516,10 @@ public:
 	bool JTC_fct_file_flag;
 	bool ECLunits_reservoir_conditions;
 
+	bool M_feedback;				//KB1014
+	int Gravity_on;				//KB1014
+	int therzagi;				//KB1014
+	bool Iterative_Eclipse_coupling; //KB0116
 	std::string simulator_well_path;      // path to well schedule ( *.well), with extension
 	std::vector <std::vector < std::string > > vec_component_pcs_names;   // WTP 04/2014 new data structure for coupling the ogs pcs names to ECL component names
 	int ecl_time_adjust; // variable to adjust # of current timestep in ecl
@@ -802,6 +806,7 @@ public:
 	int iter_outer_cpl;							// JT2012
 	int iter_inner_cpl;							// JT2012
 	int pcs_num_dof_errors;						// JT2012
+	int iter_out_cpl_tot;						// KB1115 : counts sum of iterations of simulation for Eclipse coupling
 	double pcs_relative_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store relative error for each DOF
 	double pcs_absolute_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store error for each DOF
 	double pcs_unknowns_norm;
@@ -812,6 +817,8 @@ public:
 	int temporary_num_dof_errors;
 	int cpl_num_dof_errors;						// JT2012
 	bool first_coupling_iteration;				// JT2012
+	int timestep_adjust_iteration; //KB1115 is needed for iterations between OGS and Eclipse for coupled HM simulations
+	int timestep_adjust_iteration_tot; //KB1115 counts total iterations of simulation
 	//
 	// Specials
 	void PCSMoveNOD();
@@ -928,9 +935,9 @@ public:
 	int PCS_ExcavState;                   //WX
 	int Neglect_H_ini;                    //WX
 	int UpdateIniState;                   //WX
-	bool M_feedback;				//KB1014
-	int Gravity_on;				//KB1014
-	int therzagi;				//KB1014
+	//bool M_feedback;				//KB1014
+	//int Gravity_on;				//KB1014
+	//int therzagi;				//KB1014
 #if defined(USE_MPI) || defined (USE_PETSC)                                 //WW
 	void Print_CPU_time_byAssembly(std::ostream &os = std::cout) const
 	{

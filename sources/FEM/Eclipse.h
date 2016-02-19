@@ -183,7 +183,9 @@ public:
 	long columns;
 	long layers;
 	//WTP long times;
-	int timestep_adjustment; // WTP useful if the (first) eclipse run is already a restart of some other simulation
+	int timestep_adjust_initial; // WTP useful if the (first) eclipse run is already a restart of some other simulation
+	int timestep_adjust_iteration; //KB1115 is needed for iterations between OGS and Eclipse for coupled HM simulations
+	int timestep_adjust_iteration_tot; //KB1115 counts total iterations of simulation
 	int numberOutputParameters;
 	int activeCells;
 	// Adjust for counting the number of Eclipse grid appears in OGS mesh,BW
@@ -437,7 +439,7 @@ public:
 	
 	void SaveEclipseDataFile(long Timestep, CRFProcess* m_pcs); // WTP function to save a copy of the .data file 
 
-	bool CleanUpEclipseFiles(std::string folder, std::string projectname);
+	bool CleanUpEclipseFiles(std::string folder, std::string projectname, long Timestep, CRFProcess* m_pcs);
 
 	bool SaveEclipseInputFiles(std::string folder, std::string projectname);
 

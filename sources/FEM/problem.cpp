@@ -1717,7 +1717,7 @@ const std::string& Problem::getGeoObjName () const
    -------------------------------------------------------------------------*/
 inline double Problem::LiquidFlow()
 {
-	int success;
+
 	double error = 0.;
 	CRFProcess* m_pcs = total_processes[6];
 	if(!m_pcs->selected)
@@ -1738,9 +1738,8 @@ inline double Problem::LiquidFlow()
 	{
 		if(m_pcs->EclipseData == NULL) //SBG if this is the first call, make a new instance
 			m_pcs->EclipseData = new CECLIPSEData();
-		// call ECLIPSE interface
-		success = m_pcs->EclipseData->RunEclipse(m_pcs->Tim->step_current, m_pcs);
-		if (success == 0)
+		m_pcs->EclipseData->verbosity = m_pcs->ecl_verbosity;
+		if ( m_pcs->EclipseData->RunEclipse(m_pcs->Tim->step_current, m_pcs) == 0)// call ECLIPSE interface
 			std::cout << "Error running Eclipse!" << "\n";
 	}
 
@@ -1749,17 +1748,16 @@ inline double Problem::LiquidFlow()
 		if(m_pcs->DuMuxData == NULL) //SBG if this is the first call, make a new instance
 			m_pcs->DuMuxData = new CDUMUXData();
 		// call DUMUX interface
-		success = m_pcs->DuMuxData->RunDuMux(m_pcs->Tim->step_current, m_pcs);
-		if (success == 0)
+		if (m_pcs->DuMuxData->RunDuMux(m_pcs->Tim->step_current, m_pcs) == 0) // call DUMUX interface
 			std::cout << "Error running DuMux!" << "\n";
 	}
 	else
-		std::cout << "Error in Problem::LiquidFlow() - Simulator not known" << "\n";
+		std::cout << "Error - Simulator " << m_pcs->simulator  << " unknown\n";
 
+	m_pcs->CalcELEVelocities();// Evaluate the element velocities, for block output 10.2014 BW 
 	if (m_pcs->tim_type == TimType::STEADY)
 		m_pcs->selected = false; // calculate process only once
 
-	m_pcs->CalcELEVelocities();// Evaluate the element velocities,10.2014 BW
     
 	if (ClockTimeVec.size()>0){
       ClockTimeVec[0]->StopTime("Flow", aktueller_zeitschritt); // SB time
@@ -3305,10 +3303,12 @@ inline double Problem::MassTrasport()
 		}
 
 		int component = m_pcs->pcs_component_number;
-		CompProperties* m_cp = cp_vec[component];
+		   CompProperties* m_cp = cp_vec[component];
 
-		if (CPGetMobil(component) > 0 && m_cp->tracer_flag == false)
+		if(CPGetMobil( m_pcs->GetProcessComponentNumber()) > 0 && m_cp->tracer_flag == false )
 			error = m_pcs->ExecuteNonLinear(loop_process_number);  //NW. ExecuteNonLinear() is called to use the adaptive time step scheme
+
+
 
 
 

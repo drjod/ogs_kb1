@@ -238,6 +238,7 @@ CRFProcess::CRFProcess(void) :
 	iter_nlin_max = 0;
 	iter_inner_cpl = 0;
 	iter_outer_cpl = 0;
+	iter_out_cpl_tot = 0; // JOD 2015-2-19  for Eclipse with mechanics
 	TempArry = NULL;
 	//SB:GS4  pcs_component_number=0; //SB: counter for transport components
 	pcs_component_number = pcs_no_components - 1;
@@ -394,7 +395,8 @@ CRFProcess::CRFProcess(void) :
 	ExcavMaterialGroup = -1;              //01.2010 WX
 	PCS_ExcavState = -1;                  //WX
 	Neglect_H_ini = -1;                   //WX
-	M_feedback = -1;                   //WX
+	M_feedback = true;                   //WX
+	Iterative_Eclipse_coupling = false;  // JOD 2016-2-19
    m_conversion_rate = NULL;                         //WW
    m_solver  = NULL;                              //WW
 	isRSM = false; //WW
@@ -1881,6 +1883,7 @@ CRFProcess* CRFProcess::CopyPCStoDM_PCS()
 	}
 	dm_pcs->Neglect_H_ini = Neglect_H_ini;//WX:08.2011
 	dm_pcs->UpdateIniState = UpdateIniState;//WX:10.2011
+	dm_pcs->Gravity_on = Gravity_on; //KB0216  JOD 2016-2-19
 	//dm_pcs->M_feedback = M_feedback; //KB 1114
 	//
 	return dynamic_cast<CRFProcess*> (dm_pcs);
@@ -2391,7 +2394,11 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 		if (line_string.find("$NEGLECT_MECHANICAL_FEEDBACK_ON_FLOW") == 0)//KB1014
 		{
 			M_feedback = false;
-			//*pcs_file >> M_feedback; // 0 = neglect mechanical feedback, 1 = consider
+			continue;
+		}   
+		if (line_string.find("$ITERATIVE_ECLIPSE_COUPLING") == 0)//KB1014 JOD 2016-2-19
+		{
+			Iterative_Eclipse_coupling = true;
 			continue;
 		}
 		if (line_string.find("$GRAVITY_ON") == 0)//KB1014
@@ -17187,18 +17194,20 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 
 	double nodesVal[8], z_coord[8], content = 0, geoArea;
 	CNode* e_node;
+	CElem* elem;
+	size_t i, j, nn;
 	int nidx1;
 	if (_nod_value_vector.size() == 1)
 		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true) + 1;   // only one component in  MASS TRANSPORT !!!!
 	else
 		nidx1 = 1;
 
-	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+	for (i = 0; i < m_msh->ele_vector.size(); i++)
 	{
 		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index == -1)
 		{ // -1 : take all
 
-			CElem* elem(m_msh->ele_vector[i]);
+			elem = m_msh->ele_vector[i];
 			if (!elem->GetMark())
 				continue;
 			
@@ -17206,8 +17215,8 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
 			geoArea = elem->GetFluxArea();
-			size_t nn = elem->GetNodesNumber(m_msh->getOrder());
-			for (size_t j = 0; j < nn; j++) {
+			nn = elem->GetNodesNumber(m_msh->getOrder());
+			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
