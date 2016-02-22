@@ -4173,6 +4173,8 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 		double S_p = 4.5E-5;
 		e_v /= S_p;
 	}
+	e_v /= 1e5;
+
 	return e_v;
 };
 }                                                 // end namespace FiniteElement
