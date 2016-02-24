@@ -45,6 +45,7 @@ public:
 	std::vector<double> DistribedBC;
 	std::string dis_type;
 
+	double accumulatedFlux_diffusive, accumulatedFlux_advective;  // JOD 2016-2-24  mass balance toolkit
 	/**
 	 * scaling factor for values
 	 * @param amplifier - a double value for scaling data

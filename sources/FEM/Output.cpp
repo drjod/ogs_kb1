@@ -78,6 +78,9 @@ COutput::COutput() :
 	tecplot_zone_share = false; // 10.2012. WW
 	tecplot_datapack_block = 0; // 10.2014 BW
 	VARIABLESHARING = false;	//BG
+	accumulatedFlux_diffusive = 0.;
+	accumulatedFlux_advective = 0.;
+
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
 	int_disp = 0;
 	offset = 0;
@@ -173,7 +176,6 @@ void COutput::init()
 COutput::~COutput()
 {
 	mmp_value_vector.clear();             //OK
-
 	if (this->vtk != NULL)
 		delete vtk;               //NW
 }
@@ -4637,9 +4639,9 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 	{
 		tec_file << "TIME                   ";
 		if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT || m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
-			tec_file << "DIFFUSION / DISPERSION FLUX             ADVECTION FLUX";
+			tec_file << "DIFFUSION / DISPERSION FLUX             ADVECTION FLUX             ACCUMULATED";
 		else
-			tec_file << "DARCY FLUX";
+			tec_file << "DARCY FLUX             ACCUMULATED";
 		tec_file << "\n";
 	}
 	else 
@@ -4657,7 +4659,16 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 			AccumulateTotalFlux(m_pcs, &total_normal_flux_diff, &total_normal_flux_adv);
 			tec_file << time_current << "    " << total_normal_flux_diff << "         ";
 			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
-				tec_file << total_normal_flux_adv;
+				tec_file << total_normal_flux_adv << "         ";
+            // accumulated
+			accumulatedFlux_diffusive += total_normal_flux_diff;
+			tec_file << accumulatedFlux_diffusive << "         ";
+			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
+			{
+				accumulatedFlux_advective += total_normal_flux_adv;
+				tec_file << accumulatedFlux_advective;
+			}
+			//
 			tec_file << "\n";
 
 			cout << "Data output: " << convertProcessTypeToString(getProcessType());
