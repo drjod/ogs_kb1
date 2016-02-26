@@ -880,6 +880,30 @@ void CInitialCondition::SetDomain(int nidx)
 				        m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
 			}
 		//if(dis_type_name.find("GRADIENT")!=string::npos)
+		if (this->getProcessDistributionType() == FiniteElement::BOUNDED)  // JOD 2016-2-16
+			{
+				for (i = 0; i < m_msh->GetNodesNumber(true); i++)
+				{
+					if (onZ == 1) //2D
+						node_depth = m_msh->nod_vector[i]->getData()[1];
+					if (onZ == 2) //3D
+						node_depth = m_msh->nod_vector[i]->getData()[2];
+
+					node_val = gradient_ref_depth_value + (node_depth - gradient_ref_depth)  * (gradient_ref_depth_value1 - gradient_ref_depth_value) / (gradient_ref_depth1 - gradient_ref_depth);
+					// y = y0 + (x-x0) (y1 - y0) / (x1-x0)	
+					/*if (node_val < gradient_ref_depth_value)   // bound
+					node_val = gradient_ref_depth_value;
+					if (node_val > gradient_ref_depth_value1)
+					node_val = gradient_ref_depth_value1;*/
+
+					if (node_val >= gradient_ref_depth_value && node_val <= gradient_ref_depth_value1) // bound
+					{
+						this->getProcess()->SetNodeValue(
+							m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
+					}
+				}
+			}
+			//----------------------------------------------------------------------
 		//----------------------------------------------------------------------
 		if (this->getProcessDistributionType() == FiniteElement::RESTART)
 		{
