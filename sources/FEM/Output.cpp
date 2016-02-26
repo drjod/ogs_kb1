@@ -4661,11 +4661,11 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
 				tec_file << total_normal_flux_adv << "         ";
             // accumulated
-			accumulatedFlux_diffusive += total_normal_flux_diff;
+			accumulatedFlux_diffusive += total_normal_flux_diff  * dt;
 			tec_file << accumulatedFlux_diffusive << "         ";
 			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
 			{
-				accumulatedFlux_advective += total_normal_flux_adv;
+				accumulatedFlux_advective += total_normal_flux_adv * dt;
 				tec_file << accumulatedFlux_advective;
 			}
 			//
