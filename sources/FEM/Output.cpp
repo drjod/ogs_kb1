@@ -4471,116 +4471,97 @@ Programing:
 void COutput::NODWritePrimaryVariableList(double time_current, int time_step_number)
 {
 
-
 	CFEMesh* m_msh = NULL;
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	CRFProcess* m_pcs_out = NULL;
-	if ((m_pcs_out = PCSGet(getProcessType())) == 0)
-	{
-		cout << "error in NODWritePrimaryVariableList - Process " << convertProcessTypeToString(getProcessType()) << " not known" << endl;
-		return;
-	}
-
 	vector<long> nodes_vector;
+	Surface *m_sfc = NULL;
+	CGLPolyline* m_polyline = NULL;
+	GEOLIB::Polyline const* const ply(
+		dynamic_cast<GEOLIB::Polyline const* const> (this->getGeoObj()));
 	//////////////
 	bool output = false;
 	char number_char[3];
-	string number_string = number_char;
-	if (geo_name.size() == 0)
-		geo_name = "domain";
-	string tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_" + geo_name + "_primary_variables";
+	string number_string = number_char, tec_file_name;
 
+	if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number
+		% nSteps == 0))
+		output = true;
+
+	for (size_t j = 0; j < time_vector.size(); j++)
+	if ((fabs(time_current - time_vector[j])) < MKleinsteZahl) //WW MKleinsteZahl
+		output = true;
+
+	if (output == true)
+	{
+
+	  if ((m_pcs_out = PCSGet(getProcessType())) == 0)
+	  {
+	 	cout << "error in NODWritePrimaryVariableList - Process " << convertProcessTypeToString(getProcessType()) << " not known" << endl;
+		return;
+	  }
+
+	  for (size_t ndx = 0; ndx < _nod_value_vector.size(); ndx++)
+	  {
+ 	    if (geo_name.size() == 0)
+	 	   geo_name = "domain";
+
+	    tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_" + geo_name + "_primary_variable_" + _nod_value_vector[ndx];
 
 #if defined(USE_PETSC) 
-	tec_file_name += "_" + mrank_str;
+		tec_file_name += "_" + mrank_str;
 #endif
 
-	tec_file_name += ".txt";
+	    tec_file_name += ".txt";
 
-	//if (time_step_number == 0)
-	//{
-		//remove(tec_file_name.c_str());
-		//return;
-	//}
-	//else {
-
-		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number
-			% nSteps == 0))
-			output = true;
-
-		for (size_t j = 0; j < time_vector.size(); j++)
-		if ((fabs(time_current - time_vector[j])) < MKleinsteZahl) //WW MKleinsteZahl
-			output = true;
-
-		if (output == true)
-		{
-			remove(tec_file_name.c_str());
-			fstream tec_file(tec_file_name.data(), ios::app | ios::out);
-			tec_file.setf(ios::scientific, ios::floatfield);
-			tec_file.precision(12);
-			if (!tec_file.good()) return;
-			tec_file.seekg(0L, ios::beg);
-			//--------------------------------------------------------------------
-			Surface *m_sfc = NULL;
-			CGLPolyline* m_polyline = NULL;
-			GEOLIB::Polyline const* const ply(
-				dynamic_cast<GEOLIB::Polyline const* const> (this->getGeoObj()));
-
-		//tec_file << "TIME " << time_current << "\n";
-
+		remove(tec_file_name.c_str());
+		fstream tec_file(tec_file_name.data(), ios::app | ios::out);
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good()) return;
+		tec_file.seekg(0L, ios::beg);
+		//--------------------------------------------------------------------
 		switch (getGeoType()) {
 
-		case GEOLIB::GEODOMAIN:
+	  	  case GEOLIB::GEODOMAIN:		
+			for (long i = 0; i < (long)m_msh->nod_vector.size(); i++)
+				tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
 
-				for (long i = 0; i < (long)m_msh->nod_vector.size(); i++)
-				if (convertProcessTypeToString(getProcessType()) == "MULTI_COMPONENTIAL_FLOW")  // PRESSURE1, TEMPERATURE1, CONCENTRATION1 
-						tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 1) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 3)  << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 5) << "\n";
-					else
-						tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 1) << "\n";
-
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables - DOMAIN - " << m_msh->nod_vector.size() << " nodes" << endl;
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variable " << _nod_value_vector[ndx] << " - DOMAIN - " << m_msh->nod_vector.size() << " nodes" << endl;
 			break;
-		case GEOLIB::SURFACE:
-
+		  case GEOLIB::SURFACE:
 			m_sfc = GEOGetSFCByName(geo_name);
 			if (m_sfc)
 				m_msh->GetNODOnSFC(m_sfc, nodes_vector);
 
-				for (long i = 0; i < (long)nodes_vector.size(); i++)
-				if (convertProcessTypeToString(getProcessType()) == "MULTI_COMPONENTIAL_FLOW")  // PRESSURE1, TEMPERATURE1, CONCENTRATION1 
-					tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 1) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 3) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 5) << "\n";
-				else
-					tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], 1) << "\n";
+			for (long i = 0; i < (long)nodes_vector.size(); i++)
+				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
 
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables - SURFACE " << geo_name << " -  " << nodes_vector.size() << " nodes" << endl;
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[ndx] << " - SURFACE " << geo_name << " -  " << nodes_vector.size() << " nodes" << endl;
 			break;
-		case GEOLIB::POLYLINE:
+		  case GEOLIB::POLYLINE:
+			m_polyline = GEOGetPLYByName(geo_name);
+			if (ply) {
+				double min_edge_length(m_msh->getMinEdgeLength());
+				m_msh->setMinEdgeLength(m_polyline->epsilon);
+				m_msh->GetNODOnPLY(ply, nodes_vector);
+			}
 
-				m_polyline = GEOGetPLYByName(geo_name);
-				if (ply) {
-					double min_edge_length(m_msh->getMinEdgeLength());
-					m_msh->setMinEdgeLength(m_polyline->epsilon);
-					m_msh->GetNODOnPLY(ply, nodes_vector);
-				}
+			for (long i = 0; i < (long)nodes_vector.size(); i++)
+				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
 
-				for (long i = 0; i < (long)nodes_vector.size(); i++)
-				if (convertProcessTypeToString(getProcessType()) == "MULTI_COMPONENTIAL_FLOW")  // PRESSURE1, TEMPERATURE1, CONCENTRATION1 
-					tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 1) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 3) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 5) << "\n";
-				else
-					tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], 1) << "\n";
-
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables - POLYLINE " << geo_name << " - " << nodes_vector.size() << " nodes" << endl;
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[ndx] << " - POLYLINE " << geo_name << " - " << nodes_vector.size() << " nodes" << endl;
 			break;
-		default:
+		  default:
 			break;
 
-			} // end case
-			//////////////
-			tec_file << "#STOP";
-			tec_file.close();
-		} // end output true
-	//} // end timestep != 0
-	
+		} // end case
+		//////////////
+		tec_file << "#STOP";
+		tec_file.close();
+	  } // end 	_nod_value_vector
+	} // end output true
+
 }
 
 /**************************************************************************
