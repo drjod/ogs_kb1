@@ -4477,6 +4477,7 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 	vector<long> nodes_vector;
 	Surface *m_sfc = NULL;
 	CGLPolyline* m_polyline = NULL;
+	int index;
 	GEOLIB::Polyline const* const ply(
 		dynamic_cast<GEOLIB::Polyline const* const> (this->getGeoObj()));
 	//////////////
@@ -4501,12 +4502,13 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 		return;
 	  }
 
-	  for (size_t ndx = 0; ndx < _nod_value_vector.size(); ndx++)
+	  for (size_t k = 0; k < _nod_value_vector.size(); k++)
 	  {
  	    if (geo_name.size() == 0)
 	 	   geo_name = "domain";
 
-	    tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_" + geo_name + "_primary_variable_" + _nod_value_vector[ndx];
+		index = m_pcs_out->GetNodeValueIndex(_nod_value_vector[k], true);
+	    tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_" + geo_name + "_primary_variable_" + _nod_value_vector[k];
 
 #if defined(USE_PETSC) 
 		tec_file_name += "_" + mrank_str;
@@ -4525,9 +4527,9 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 
 	  	  case GEOLIB::GEODOMAIN:		
 			for (long i = 0; i < (long)m_msh->nod_vector.size(); i++)
-				tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
-
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variable " << _nod_value_vector[ndx] << " - DOMAIN - " << m_msh->nod_vector.size() << " nodes" << endl;
+				tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue( m_msh->nod_vector[i]->GetIndex(), index ) << "\n";
+			
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variable " << _nod_value_vector[k] << " - DOMAIN - " << m_msh->nod_vector.size() << " nodes" << endl;
 			break;
 		  case GEOLIB::SURFACE:
 			m_sfc = GEOGetSFCByName(geo_name);
@@ -4535,9 +4537,9 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 				m_msh->GetNODOnSFC(m_sfc, nodes_vector);
 
 			for (long i = 0; i < (long)nodes_vector.size(); i++)
-				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
+				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue( nodes_vector[i], index ) << "\n";
 
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[ndx] << " - SURFACE " << geo_name << " -  " << nodes_vector.size() << " nodes" << endl;
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[k] << " - SURFACE " << geo_name << " -  " << nodes_vector.size() << " nodes" << endl;
 			break;
 		  case GEOLIB::POLYLINE:
 			m_polyline = GEOGetPLYByName(geo_name);
@@ -4548,9 +4550,9 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 			}
 
 			for (long i = 0; i < (long)nodes_vector.size(); i++)
-				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue(nodes_vector[i], m_pcs_out->GetNodeValueIndex(_nod_value_vector[ndx]) + 1) << "\n";
+				tec_file << nodes_vector[i] << "        " << m_pcs_out->GetNodeValue( nodes_vector[i], index ) << "\n";
 
-			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[ndx] << " - POLYLINE " << geo_name << " - " << nodes_vector.size() << " nodes" << endl;
+			cout << "Data output: " << convertProcessTypeToString(getProcessType()) << " primary variables " << _nod_value_vector[k] << " - POLYLINE " << geo_name << " - " << nodes_vector.size() << " nodes" << endl;
 			break;
 		  default:
 			break;
