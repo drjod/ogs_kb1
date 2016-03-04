@@ -4496,14 +4496,18 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 	if (output == true)
 	{
 
-	  if ((m_pcs_out = PCSGet(getProcessType())) == 0)
-	  {
-	 	cout << "error in NODWritePrimaryVariableList - Process " << convertProcessTypeToString(getProcessType()) << " not known" << endl;
-		return;
-	  }
+	  //if ((m_pcs_out = PCSGet(getProcessType())) == 0)
+	 
 
 	  for (size_t k = 0; k < _nod_value_vector.size(); k++)
 	  {
+		  m_pcs_out = PCSGet(_nod_value_vector[k], true);
+		  if (m_pcs_out == 0)
+		  {
+			  cout << "error in NODWritePrimaryVariableList - Process " << convertProcessTypeToString(getProcessType()) << " not known" << endl;
+			  return;
+		  }
+
  	    if (geo_name.size() == 0)
 	 	   geo_name = "domain";
 
