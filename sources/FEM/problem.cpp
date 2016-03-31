@@ -1544,7 +1544,11 @@ bool Problem::CouplingLoop()
         //	index = active_process_index[i];
         //	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
         //}
-        PostMassTrasport();
+		  double errorPostMass;
+        errorPostMass = PostMassTrasport();
+		std::cout << " ----------- TRACER ERROR: " << errorPostMass  << "\n";
+		//if (errorPostMass > 1000.)
+		//	accept = false;
       }
     }
 	
@@ -3357,11 +3361,12 @@ inline double Problem::MassTrasport()
 
 inline double Problem::PostMassTrasport()
 {
+	double error = 1.;
 	//  COMPUTE TRACER   JOD 2016-2-16        
 	for (int i = 0; i < (int)transport_processes.size(); i++)
 		if ( CPGetMobil(transport_processes[i]->pcs_component_number) > 0 && 
 			 cp_vec[ transport_processes[i]->pcs_component_number]->tracer_flag == true )
-		  	     double error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
+		  	     error = max( error, transport_processes[i]->ExecuteNonLinear(loop_process_number));  // tracer found (error not used)
   // REACTIONS
   bool capvec = false;
   bool prqvec = false;
@@ -3422,7 +3427,7 @@ inline double Problem::PostMassTrasport()
   if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StopTime("EquiReact", aktueller_zeitschritt); // CB time
 
-  return 1;
+  return error;
 }
 
 /*-------------------------------------------------------------------------
