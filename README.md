@@ -287,6 +287,41 @@ $CONNECT_MODE
 ; mode ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
 ; 2 ref_element_number n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs
 ```
+
+###### Process coupling 
+
+Flux for RICHARDS_FLOW to couple to OVERLAND_FLOW:
+```
+#SOURCE_TERM
+ $PCS_TYPE
+  RICHARDS_FLOW
+ $PRIMARY_VARIABLE
+  PRESSURE1
+ $GEO_TYPE
+  POLYLINE INTERFACE
+ $DIS_TYPE_CONDITION
+  CONSTANT_NEUMANN 1
+  PCS OVERLAND_FLOW
+  HEAD
+  2.83333333e-2 1.e-3 0.0 0.0 ; leakage, rill height, given value, residual permeability 
+```
+Couple HEAT_TRANSPORT to a given temperature of 10:
+```
+#SOURCE_TERM
+ $PCS_TYPE
+  HEAT_TRANSPORT
+ $PRIMARY_VARIABLE
+  TEMPERATURE1
+ $GEO_TYPE
+  POLYLINE INTERFACE
+ $DIS_TYPE_CONDITION
+  CONSTANT_NEUMANN 1
+  HEAT_TRANSPORT
+  GIVEN_TEMPERATURE
+  0.1 0.0 10.0 0.0 ; leakage, rill height, given value, residual permeability 
+```
+
+
 ###### Deactivated subdomain
 
 ```
