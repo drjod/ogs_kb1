@@ -12003,7 +12003,7 @@ Programming:
 
 **************************************************************************/
 
-void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric)
+void CFiniteElementStd::IncorporateSourceTerm(long From, long To, double factor, bool symmetric, bool diagonalOnly)
 {
 
 
@@ -12046,11 +12046,13 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 		A = pcs->eqs_new->A;
 
 	(*A)(To, To) += factor;
-	(*A)(To, From) -= factor;
+	if ( diagonalOnly == false )  // 2016-4-19  for flow coupling, normal depth, critical depth (only non-symmetric)
+	    (*A)(To, From) -= factor;
 #else
 
 	MXInc(To, To, factor ); // ToNode on diagonal
-	MXInc(To, From, -factor); //
+	if ( diagonalOnly == false )   // 2016-4-19 for flow coupling, normal depth, critical depth (only non-symmetric)
+	    MXInc(To, From, -factor); 
 
 #endif	
 #endif

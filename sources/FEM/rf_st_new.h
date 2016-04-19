@@ -210,6 +210,7 @@ public:
 	  std::vector<long> st_node_ids;
 	  // NNNC
 	  bool connected_geometry;			// SB 02/2015
+	  bool diagonalOnly;			// JOD 2016-4-18 - true for flow coupling, normal depth, critical depth 
 	  std::string connected_geometry_type;
 	  std::string connected_geometry_name;
 	  std::vector<long> connected_nodes_idx;
@@ -447,13 +448,13 @@ extern void GetCriticalDepthNODValue(double& value, CSourceTerm*, long msh_node)
 extern void GetCouplingNODValue(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
 // JOD
 extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
-#if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
+//#if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
                                                   //MB JOD
 extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 // JOD
 extern void GetCouplingNODValuePicard(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
-#endif
+//#endif
 // JOD
 extern double CalcCouplingValue(double factor,
                                 double h_this,
@@ -461,7 +462,7 @@ extern double CalcCouplingValue(double factor,
                                 double z_cond,
                                 CSourceTerm* m_st);
 // JOD
-extern void GetCouplingNODValueMixed(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
+//extern void GetCouplingNODValueMixed(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
 // JOD
 extern void GetCouplingFieldVariables(CRFProcess* m_pcs_this,  
                                       CRFProcess* m_pcs_cond,

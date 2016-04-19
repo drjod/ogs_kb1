@@ -110,7 +110,7 @@ public:
 	// 9. Content matrix
 	void CalcContent();
 	double CalculateContent(double *, double *);       // for budgets JOD 2/2015
-	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
+	void IncorporateSourceTerm(long UpwindNode, long DownwindNode, double factor, bool symmetric, bool diagonalOnly); // JOD 2/2015
 	void CalcContentTNEQ(); //NW
 	void CalcContentTES(); //NW
 	//

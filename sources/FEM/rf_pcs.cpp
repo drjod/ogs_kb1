@@ -17248,7 +17248,7 @@ mode 0: symmetric
  if abs(v) < min_vel:  symmetric
 **************************************************************************/
 
-void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode, double factor, CSourceTerm* m_st)
+void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, double factor, CSourceTerm* m_st)
 {
 
 	double velocity_ref[3];
@@ -17269,7 +17269,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode
 		  if (m_st->connected_geometry_verbose_level > 0)
 			std::cout << "        Incorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+		  fem->IncorporateSourceTerm( FromNode, ToNode, factor, true, m_st->diagonalOnly );
 		  break;
 
 	  case 1 : // non-symmetric - downstream fixed
@@ -17277,7 +17277,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode
 		  if (m_st->connected_geometry_verbose_level > 0)
 			std::cout << "        Incorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
+		  fem->IncorporateSourceTerm( FromNode, ToNode, factor, false, m_st->diagonalOnly );
 		  break;
 
 	  case 2 : // variable - dependent on velocity in reference element
@@ -17294,14 +17294,14 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode
 				if (m_st->connected_geometry_verbose_level > 0)
 					std::cout << "        Incorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
+				fem->IncorporateSourceTerm( FromNode, ToNode, factor, false, m_st->diagonalOnly ); // non-symmetric in direction of n_ref
 			}
 			else            // swap nodes
 			{
 				if (m_st->connected_geometry_verbose_level > 0)
 					std::cout << "        Incorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
+				fem->IncorporateSourceTerm( ToNode, FromNode, factor, false, m_st->diagonalOnly ); // non-symmetric in direction of -n_ref
 			}
 
 		}
@@ -17310,7 +17310,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode
 			if (m_st->connected_geometry_verbose_level > 0)
 				std::cout << "        Incorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+			fem->IncorporateSourceTerm( FromNode, ToNode, factor, true, m_st->diagonalOnly );
 		}
 
 		break;

@@ -609,7 +609,7 @@ public:
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
 	double AccumulateContent(int, std::vector<std::string>); // JOD 2/2015
-	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
+	void IncorporateSourceTermIntoMatrix(long, long, double, CSourceTerm*); // JOD 2/2015
 
 	// MSH
 	CFEMesh* m_msh;                       //OK
