@@ -353,7 +353,7 @@ CRFProcess::CRFProcess(void) :
 	dissolved_co2_pcs_name = ""; // SB, CB 10/2011 Name of MASS_TRANSPORT process used to store dissolved total CO2 in water
 	dissolved_co2_ingas_pcs_name = "";
 	this->Gravity_on = 1; // SB 03/2015
-	this->therzagi = 0; // WTP 07/2015
+	Terzaghi = false; // WTP 07/2015
 
 	//----------------------------------------------------------------------
 	m_bCheck = false;                     //OK
@@ -2406,9 +2406,9 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 			*pcs_file >> Gravity_on; // 0 = neglect, 1 = consider
 			continue;
 		}
-		if (line_string.find("$THERZAGI") == 0)//KB1014
+		if (line_string.find("$TERZAGHI") == 0)//KB1014
 		{
-			*pcs_file >> therzagi; // 0 = false, 1 = true
+			Terzaghi = true; 
 			continue;
 		}
 		//....................................................................

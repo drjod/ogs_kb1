@@ -11974,7 +11974,7 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 
 		for (i = 0; i < nNodes; i++)
 		{
-			if (PcsType == FiniteElement::LIQUID_FLOW)  
+			if (PcsType == EPT_LIQUID_FLOW)
 			{                                           // take hydrostatic gradient into account 
 				NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
 			}

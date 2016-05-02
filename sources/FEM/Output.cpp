@@ -4759,7 +4759,8 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	bool output = false;
 
 	if (m_pcs->m_msh->isAxisymmetry())
-		factor = 6.283185307; // 2 Pi 
+		factor = 6.28318530717958; // 2 Pi 
+
 	else
 		factor = 1;
 	//--------------------------------------------------------------------

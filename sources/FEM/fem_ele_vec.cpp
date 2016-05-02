@@ -4071,77 +4071,31 @@ double CFiniteElementVec:: CalcStrain_v()
 //07 / 2014 KB, WW
 // Modififaction:
 // 07/2015 WTP  - moved into Finite Elemente namespace
+// 5/2016 KB/JOD - Terzaghi benchmark
 //************************************************************************** /
 double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 {
-	double fac = 1.0 / dt;
+	double fac = 1.0;
 	double disp[60]; // put as a pointer to fem_ele_std.h
-	// Fetch displacement to local array.
-	//WTP CFiniteElementVec* fem_dm;
-	//WTP CFiniteElementStd* fem;
-	//fem = m_pcs->fem;
-	//CMediumProperties* m_mmp = NULL;
 
-
-
-
+    // calc displacement
 	for (int k = 0; k < nnodesHQ; k++) //Calculation of delta_u for t1-t0 for all High Order nodes 
 	{
-		//disp[k] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[0] + 1) - pcs->GetNodeValue(nodes[k], Idx_dm1[0])); // ux1-ux0
-
-		//disp[k + nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[1] + 1) - pcs->GetNodeValue(nodes[k], Idx_dm1[1])); // uy1-uy0
-
-
-		//if (dim == 3) // 3D.
-
-		//disp[k + 2 * nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[2] + 1) - pcs->GetNodeValue(nodes[k], Idx_dm1[2])); // uz1-uz0
-
-
 		disp[k] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[0]) - pcs->GetNodeValue(nodes[k], Idx_dm0[0])); // ux1-ux0, 
-
 		disp[k + nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[1]) - pcs->GetNodeValue(nodes[k], Idx_dm0[1])); // uy1-uy0
-
 		if (dim == 3) // 3D.
-
 			disp[k + 2 * nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[2]) - pcs->GetNodeValue(nodes[k], Idx_dm0[2])); // uz1-uz0
-
-		//KB: test output
-		//test output
-
-		//if (k == 0) vec_string.push_back("Element; HQnode; Disp_X; Disp_Y; Disp_Z");
-		//temp.str("");
-		//temp.clear();
-		//temp << MeshElement->patch_index << " " << k << " " << disp[k] << " " << disp[k + nnodesHQ] << " " << disp[k + 2 * nnodesHQ] << std::endl;
-		//tempstring = temp.str();
-		//vec_string.push_back(tempstring);
-
-		//if (k == nnodesHQ - 1)
-		//{
-		//	datei_ecl.open(FilePath + "\\displacement.txt", std::ios::out);
-		//	for (int j = 0; j < vec_string.size(); j++)
-		//	{
-		//		datei_ecl << vec_string[j] << std::endl;
-		//	}
-		//	datei_ecl.close();
-		//}
-
 	}
+
+	// integrate
 	int kl, gp, gp_r, gp_s, gp_t;
 	double fkt, dshp = 0.0, grad_du_dt;
-
-	//fem->SetHighOrderNodes();
-
-
-
 	double e_v = 0;	//KB0714
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
-
 		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
-
 		ComputeGradShapefct(2);
 		ComputeShapefct(2);
-
 		// Compute grad (du/dt=u') at Gauss
 		grad_du_dt = 0;
 
@@ -4155,26 +4109,25 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 					dshp += shapefctHQ[l] / Radius;
 				//double factor = dshp * disp[n * nnodesHQ + l];// *fkt;
 				grad_du_dt += dshp * disp[kl];
-
-				e_v += grad_du_dt * fkt;
 			}
 		}
-
+        e_v += grad_du_dt * fkt;
 	}
-
+	// divide strain by storage to add result to pressure
 	if (m_mmp->storage_model == 21)
 	{
-
 		m_mmp->storage = m_mmp->porosity_model_values[0] * m_mfp->Density() * m_mmp->storage_model_values[0] + m_mfp->Density() * (1 - m_mmp->porosity_model_values[0]) * m_mmp->storage_model_values[1];
 		e_v /= m_mmp->storage;
 	}
 	else
 	{
-		double S_p = 4.5E-5;
+		double S_p = 4.5E-3;  // HARDCODED
 		e_v /= S_p;
 	}
 	e_v /= 1e5;
 
 	return e_v;
-};
-}                                                 // end namespace FiniteElement
+}
+
+
+}  // end namespace FiniteElement

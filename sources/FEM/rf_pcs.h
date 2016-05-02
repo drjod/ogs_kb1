@@ -518,7 +518,7 @@ public:
 
 	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014
-	int therzagi;				//KB1014
+	bool Terzaghi;				//KB1014
 	bool Iterative_Eclipse_coupling; //KB0116
 	std::string simulator_well_path;      // path to well schedule ( *.well), with extension
 	std::vector <std::vector < std::string > > vec_component_pcs_names;   // WTP 04/2014 new data structure for coupling the ogs pcs names to ECL component names

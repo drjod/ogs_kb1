@@ -1990,6 +1990,7 @@ int CECLIPSEData::AnalyzeDataFromInputFile(CReadTextfiles_ECL* eclDataFile, CRFP
 		//The total pressure is only defined once
 		this->Variables.push_back("PRESSURE");
 		this->Variables.push_back("ACAQNUM");
+		this->Variables.push_back("P_INIT");
 
 		for (unsigned int i = 0; i < this->Phases.size(); i++)
 		{
@@ -2118,6 +2119,7 @@ int CECLIPSEData::AnalyzeDataFromInputFile(CReadTextfiles_ECL* eclDataFile, CRFP
 		this->Variables.push_back("PWAT"); // water phase pressure
 		this->Variables.push_back("PGAS"); // gas phase pressure
 		this->Variables.push_back("POIL"); // oil phase pressure
+		this->Variables.push_back("P_INIT"); // initial phase pressure
 
 		this->Variables.push_back("PCOW"); // oil water capillary pressure
 		this->Variables.push_back("PCOG"); // oil gas capillary pressure
@@ -2611,7 +2613,7 @@ bool CECLIPSEData::ReadBoundaryData(int index_boundary, vector <string> Data)
    Programming: 09/2009 BG
    Modification: 04/2014 WTP minor changes, added support for 3 phases
    -------------------------------------------------------------------------*/
-void CECLIPSEData::ReadEclipseData(std::string Filename)
+void CECLIPSEData::ReadEclipseData(std::string Filename, CRFProcess* m_pcs, long Timestep)
 {
 	//WTP (void)Timestep; // unused
 	vector<string> files = vector<string>();
@@ -2751,8 +2753,7 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 						saturation_oil = true;
 
 					// read number of datapoints
-					double tempNumber =
-						atoi(TextFile->Data[j].substr(12, 13).data());
+					double tempNumber =atoi(TextFile->Data[j].substr(12, 13).data());
 					long temprows = 0;
 					if (tempNumber == this->elements)
 					{
@@ -2760,41 +2761,19 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 						temprows = static_cast<int>(ceil(tempNumber / 4.0));
 						//Read data for identified variable
 						long rowindex = 0;
-						for (long l = j + 1; l < j + temprows + 1;
-							l++)
+						for (long l = j + 1; l < j + temprows + 1; l++)
 						{
 							if (l < (j + temprows))
 							{
 								std::string Dataline[4]; // Definition einen strings mit 4 Arrays, Arrays immer in eckigen Klammern definieren
-								Dataline[0] =
-									TextFile->Data[l].
-									substr(2,
-									15);
-								Dataline[1] =
-									TextFile->Data[l].
-									substr(19,
-									15);
-								Dataline[2] =
-									TextFile->Data[l].
-									substr(36,
-									15);
-								Dataline[3] =
-									TextFile->Data[l].
-									substr(53,
-									15);
-								for (unsigned int m = 0;
-									m < 4; m++)
+								Dataline[0] = TextFile->Data[l].substr(2, 15);
+								Dataline[1] = TextFile->Data[l].substr(19, 15);
+								Dataline[2] = TextFile->Data[l].substr(36, 15);
+								Dataline[3] = TextFile->Data[l].substr(53, 15);
+								for (unsigned int m = 0; m < 4; m++)
 								{
-									rowindex =
-										rowindex +
-										1; //zaehlt die gesplitteten Zeilen in der Zeile, in Variante KB4 entspricht das 4
-									this->Data[rowindex
-										- 1][k]
-										= atof(
-										Dataline[m]
-										.data())
-										*
-										Multiplier;
+									rowindex++; //zaehlt die gesplitteten Zeilen in der Zeile, in Variante KB4 entspricht das 4
+									this->Data[rowindex- 1][k]= atof(Dataline[m].data())*Multiplier;
 									//std::cout << "Element: " << rowindex << " Variable: " << this->Variables[k] 
 									//<< " Value: " << this->Data[rowindex-1][k] << "\n";
 
@@ -2804,29 +2783,16 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 							{
 								std::string delimiter = " ";
 								SplittedString.clear();
-								SplitStrings(
-									TextFile->Data[l],
-									delimiter);
+								SplitStrings(TextFile->Data[l],delimiter);
 								//std::cout << TextFile->Daten[l] << "\n";
-								for (unsigned int m = 0;
-									m <
-									SplittedString.size();
-								m++)
+								for (unsigned int m = 0;m <SplittedString.size();m++)
 								{
-									rowindex =
-										rowindex +
-										1;
+									rowindex++;
 									//std::cout << rowindex-1 << " " << k << " " << " " << this->eclgrid[rowindex-1]->x_barycentre <<  " " 
 									//<< this->eclgrid[rowindex-1]->y_barycentre  << " " 
 									//<< this->eclgrid[rowindex-1]->z_barycentre  << " " 
 									//<< atof(SplittedString[m].data()) << "\n";
-									this->Data[rowindex
-										- 1][k]
-										= atof(
-										SplittedString
-										[m].
-										data()) *
-										Multiplier;
+									this->Data[rowindex- 1][k]= atof(SplittedString[m].data()) *Multiplier;
 									//std::cout << "Element: " << rowindex << " Variable: " << this->Variables[k] << " Value: " 
 									//<< this->Data[rowindex-1][k] << "\n";
 
@@ -2850,67 +2816,23 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 							if (l < (j + temprows))
 							{
 								std::string Dataline[4]; // Definition einen strings mit 4 Arrays, Arrays immer in eckigen Klammern definieren
-								Dataline[0] =
-									TextFile->Data[l].
-									substr(3,
-									15);
-								Dataline[1] =
-									TextFile->Data[l].
-									substr(20,
-									15);
-								Dataline[2] =
-									TextFile->Data[l].
-									substr(38,
-									15);
-								Dataline[3] =
-									TextFile->Data[l].
-									substr(55,
-									15);
+								Dataline[0] = TextFile->Data[l].substr(3, 15);
+								Dataline[1] = TextFile->Data[l].substr(20, 15);
+								Dataline[2] = TextFile->Data[l].substr(38, 15);
+								Dataline[3] = TextFile->Data[l].substr(55, 15);
 								//string delimiter=" ";
 								//SplittedString.clear();
 								//SplitStrings(TextFile->Daten[l], delimiter);
 								//cout << TextFile->Daten[l] << "\n";
-								for (unsigned int m = 0;
-									m < 4; m++)
+								for (unsigned int m = 0; m < 4; m++)
 								{
-									rowindex =
-										rowindex +
-										1;
-									while (this->
-										eclgrid[
-											rowindex
-												-
-												1]->
-												active ==
-												0 &&
-												rowindex <
-												this->
-												elements)
-												rowindex =
-												rowindex
-												+ 1;
-											if (rowindex <
-												this->elements)
-												this->Data[
-													rowindex
-														-
-														1][
-															k]
-																=
-																atof(
-																Dataline
-																[
-																	m
-																]
-															.
-																data())
-																*
-																Multiplier;
+									rowindex++;
+									while (this->eclgrid[rowindex-1]->active == 0 && rowindex <this->elements)
+										rowindex = rowindex+ 1;
+                                   if (rowindex < this->elements) 
+									   this->Data[rowindex-1][k] = atof(Dataline[m].data()) * Multiplier;
 											else if (verbosity > 1)
-												std::cout <<
-												" WARNING: 1 data point couldn't be allocated to a grid point"
-												<<
-												"\n";
+	                                   std::cout << " WARNING: 1 data point couldn't be allocated to a grid point" << "\n";
 								}
 							}
 							else
@@ -2921,26 +2843,15 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 									TextFile->Data[l],
 									delimiter);
 								//cout << TextFile->Daten[l] << "\n";
-								for (unsigned int m = 0;
-									m <
-									SplittedString.size();
-								m++)
+								for (unsigned int m = 0; m < SplittedString.size(); m++)
 								{
-									rowindex =
-										rowindex +
-										1;
+									rowindex++;
 									//std::cout << rowindex-1 << " " << timestep << " " << k << " " << " " 
 									//<< this->eclgrid[rowindex-1]->x_barycentre 
 									//<<  " " << this->eclgrid[rowindex-1]->y_barycentre  << " " <
 									//< this->eclgrid[rowindex-1]->z_barycentre  << " " 
 									//<< atof(SplittedString[m].data()) << "\n";
-									this->Data[rowindex
-										- 1][k]
-										= atof(
-										SplittedString
-										[m].
-										data()) *
-										Multiplier;
+									this->Data[rowindex- 1][k] = atof(SplittedString[m].data()) * Multiplier;
 									//    std::cout << "Element: " << rowindex << " Variable: " << this->Variables[k] << " Value: " 
 									//<< this->Data[rowindex-1][timestep][k] << "\n";
 
@@ -2965,12 +2876,13 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 		//WTP if (int(this->Phases.size()) == 1)
 		if (static_cast<int>(this->Phases.size()) == 1)
 		{
-			int index_pwat, index_pgas, index_poil, index_pressure;
+			int index_pwat, index_pgas, index_poil, index_pressure, index_p_init;
 			int index_aim = -1;
 			index_pwat = this->GetVariableIndex("PWAT");
 			index_pgas = this->GetVariableIndex("PGAS");
 			index_poil = this->GetVariableIndex("POIL");
 			index_pressure = this->GetVariableIndex("PRESSURE");
+			index_p_init = this->GetVariableIndex("P_INIT");
 
 			if (index_pwat >= 0)
 				index_aim = index_pwat;
@@ -2981,7 +2893,11 @@ void CECLIPSEData::ReadEclipseData(std::string Filename)
 
 			// Transfer the pressure
 			for (int i = 0; i < this->elements; i++)
+			{
 				this->Data[i][index_aim] = this->Data[i][index_pressure];
+				if (m_pcs->Iterative_Eclipse_coupling == true && Timestep == 1 && m_pcs->iter_outer_cpl == 0)
+					vec_P_init.push_back(this->Data[i][index_pressure]);
+			}
 		}
 		//assumption: if water and oil -> pressure = oil pressure
 		//WTP if (int(this->Phases.size()) == 2)
@@ -6523,13 +6439,14 @@ void CECLIPSEData::InterpolateGeosysVelocitiesToNodes(CRFProcess* m_pcs, double*
    Programming: 09/2009 SB
    Modification: 04/2014 WTP: added support for multi comps & 3 phases
    -------------------------------------------------------------------------*/
-void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path)
+void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path, long Timestep)
 {
 	//Datenuebergabe: pressure, saturation (ev. kf, n)
 	long index_pressure1, index_pressure2, index_pressure3;
 	long index_saturation1, index_saturation2, index_saturation3;
 	long index_water_density, index_gas_density, index_oil_density;
 	long index_water_viscosity, index_gas_viscosity, index_oil_viscosity;
+	long index_p_initial;
 	//long index_water_fvf, index_gas_fvf;
 	int phase1, phase2, phase3 = 0; // , transportphase = 0; // WTP
 	double value = 0.0; // , value_gas = 0.0; // WTP
@@ -6560,6 +6477,8 @@ void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path)
 		index_water_density = m_pcs->GetNodeValueIndex("DENSITY1");  //DENSITY1 is not a variable for some flow process, e.g. LIQUID_FLOW
 		//WTP_CB: new way to get the total number of nodes in the mesh since nod_val_vector is not suitable anymore
 		//for(unsigned long i = 0; i < m_pcs->nod_val_vector.size(); i++)
+		if (m_pcs->Neglect_H_ini == 2)
+			index_p_initial = m_pcs->GetNodeValueIndex("PRESSURE1_Ini");
 		for (long i = 0; i < nnodes; i++)
 		{
 			value = this->NodeData[i]->pressure;
@@ -6570,7 +6489,14 @@ void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path)
 			//WTP value = this->NodeData[i]->phase_density[0];
             value = this->NodeData[i]->phase_reservoir_density[0];
 			m_pcs->SetNodeValue(i, index_water_density, value);
-			//datei.close();
+			if (m_pcs->Neglect_H_ini == 2)
+			{
+				if ( Timestep == 1 && m_pcs->iter_outer_cpl == 0)
+				{
+					value = this->NodeData[i]->pressure;
+					m_pcs->SetNodeValue(i, index_p_initial, value);
+				}
+			}
 		}
 	}
 	//WTP else if (int(this->Phases.size()) > 1)
@@ -8189,7 +8115,7 @@ bool CECLIPSEData::CalculateDeltaGeoSysECL(CRFProcess* m_pcs)
    Programming: 01/2014 WTP
    Modification:
    -------------------------------------------------------------------------*/
-bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
+bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs, long Timestep)
 {
 	//MeshLib::CElem* m_element = NULL;
 	CFEMesh* m_msh = fem_msh_vector[0];
@@ -8729,6 +8655,8 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 		} // end of phases > 1 condition
 		else if (static_cast<int>(this->Phases.size()) == 1)   // KB0714: One Phase only
 		{
+			if (Timestep > 1 && m_pcs->iter_outer_cpl == 0 && i == 0) // KB Mechanic sequential coupling
+				vec_P_init.clear();
 			int variable_index_water_pressure = this->GetVariableIndex("PRESSURE");
 			// Now calculate interpolate the pressure change from the nodes to the elements
 			double delta_pressure1 = 0.0;
@@ -8781,9 +8709,18 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 				continue;
 			else if (m_pcs->M_feedback)
 				//if (m_pcs->d_strain_2[i] > 0) vec_PRESS1[i] -= m_pcs->d_strain_2[i]; // increase in strain --> decrease in pressure
-				vec_PRESS1[i] += m_pcs->d_strain_2[i]; // increase in strain --> decrease in pressure
+			{
+				if (m_pcs->Iterative_Eclipse_coupling == true && m_pcs->iter_outer_cpl > 0)
+				{
+					vec_PRESS1[i] = (vec_P_init[i] / 1E5) + m_pcs->d_strain_2[i];// increase in strain-- > decrease in pressure
 				//else vec_PRESS1[i] += m_pcs->d_strain_2[i]; // decrease in strain --> increase in pressure 
 
+				}
+				else if (m_pcs->Iterative_Eclipse_coupling == true && m_pcs->iter_outer_cpl == 0)
+				{
+					vec_P_init.push_back(Data[i][variable_index_water_pressure]);
+				}
+			}
 		}
 	} // end of element loop
 	return test;
@@ -8801,7 +8738,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
    04/2014 WTP added support for 3phases
    07/2014 KB added support for 1 phase and deformation feedback
    -------------------------------------------------------------------------*/
-int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string folder)
+int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string folder, long Timestep)
 {
 	std::string Filename;
 	//MeshLib::CElem* m_element = NULL;
@@ -8853,7 +8790,7 @@ int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadText
 	CalculateDeltaGeoSysECL(m_pcs);
 
 	//WTP 04/2014: FUNCTION CALL FOR THE INTERPOLATION OF THE DELTA VALUES
-    InterpolateDeltaGeoSysECL(m_pcs);
+    InterpolateDeltaGeoSysECL(m_pcs, Timestep);
 
     // NOW WRITE THE DATA INTO THE FILES
 	//write dissolved components (RS/MLSC), SGAS, PRESSURE, POROPERM  and temperature data into the Eclipse restart file
@@ -9009,7 +8946,7 @@ int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadText
 	// CB PRESS independent of e100 / e300
 	Keyword = " 'PRESSURE";
 	vecString.clear();
-	if (m_pcs->therzagi == 1)// KB:Manipulating the fluid pressure for special BC in Therzagi Benchmark
+	if (m_pcs->Terzaghi == true)// KB:Manipulating the fluid pressure for special BC in Therzagi Benchmark
 	{
 		if (vec_PRESS2.size() == 0)
 		{
@@ -9597,7 +9534,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 					<< "\n";
 			}
             //else
-			if (this->WriteDataBackToEclipse(eclFFile, eclDataFile, m_pcs, pathECLFolder) == 0)
+			if (this->WriteDataBackToEclipse(eclFFile, eclDataFile, m_pcs, pathECLFolder, Timestep) == 0)
             {
                 std::cout <<
 					" ERROR: WriteDataBackToEclipse() was not finished properly!"
@@ -9630,9 +9567,9 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 	
 	//Read the ECLIPSE model output data
 	if ( m_pcs->Iterative_Eclipse_coupling == true ) //KB0116
-		this->ReadEclipseData(pathECLProject + ".F" + AddZero(this->timestep_adjust_iteration_tot + timestep_adjust_initial, 4, true));
+		this->ReadEclipseData(pathECLProject + ".F" + AddZero(this->timestep_adjust_iteration_tot + timestep_adjust_initial, 4, true), m_pcs, Timestep);
 	else
-		this->ReadEclipseData(pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true));
+		this->ReadEclipseData(pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true), m_pcs, Timestep);
 	
 	// WTP if any component is transported, convert units to 
 	// DEBUG: Consistency Check
@@ -9655,7 +9592,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 		this->InterpolateDataFromBlocksToNodes(m_pcs, pathECLFolder, i, Timestep);
 	}
 	
-	WriteDataToGeoSys(m_pcs, pathECLFolder);
+	WriteDataToGeoSys(m_pcs, pathECLFolder, Timestep);
 	
 	// WTP Save old .data files from eclipse for benchmarking if wanted 
 	// we should also add saving of the *.FXXX files since OGS writes stuff back to ECLIPSE using them
