@@ -102,7 +102,7 @@ public:
 	// Integrate Neumman type BC
 	void FaceIntegration(double* NodeVal);
 	
-	void CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux); // JOD 2/2015
+	void CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_gas, double *NodeVal_adv, double* normal_diff_flux, double* normal_gas_diff_flux, double* normal_adv_flux); // JOD 2/2015
 
 	void FaceNormalFluxIntegration(long index, double *NodeVal_adv, double *NodeVal, int* nodesFace, CElem* face, CRFProcess* m_pcs, double* normal_vector); // JOD 2014-11-10
 	

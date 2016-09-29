@@ -79,6 +79,7 @@ COutput::COutput() :
 	tecplot_datapack_block = 0; // 10.2014 BW
 	VARIABLESHARING = false;	//BG
 	accumulatedFlux_diffusive = 0.;
+	accumulatedFlux_diffusive_gas = 0.;
 	accumulatedFlux_advective = 0.;
 
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
@@ -98,6 +99,9 @@ COutput::COutput(size_t id) :
 	tecplot_zone_share = false; // 10.2012. WW
 	tecplot_datapack_block = 0; // 10.2014 BW
 	VARIABLESHARING = false;	//BG
+	accumulatedFlux_diffusive = 0.; // JOD - mass balance toolkit  
+	accumulatedFlux_diffusive_gas = 0.;
+	accumulatedFlux_advective = 0.;
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
 	int_disp = 0;
 	domain_output_counter = 0;
@@ -1550,8 +1554,8 @@ void COutput::BLOCKWriteDOMDataTEC()
 	//----------------------------------------------------------------------
 	// Tests
 	//OK4704
-	if ((_nod_value_vector.size() == 0) && (mfp_value_vector.size() == 0)
-		&& (_ele_value_vector.size() == 0))
+	if (_nod_value_vector.size() == 0 && mfp_value_vector.size() == 0
+		&& _ele_value_vector.size() == 0 && mmp_value_vector.size() == 0 ) // JOD 2016-8-12 - mmp added
 		return;
 	//......................................................................
 	// MSH
@@ -1711,18 +1715,19 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 				<< "]=CELLCENTERED)";
 		}
 
-		if ((ele_value_vector_size == 0 && mmp_value_vector_size == 1))
+		else if ((ele_value_vector_size == 0 && mmp_value_vector_size == 1))
 		{
 			tec_file << "VARLOCATION=" << "(["
 				<< nName + mfp_value_vector_size + nPconName + 4
 				<< "]=CELLCENTERED)";
 		}
-
+		else {
 		tec_file << "VARLOCATION=" << "(["
 			<< nName + mfp_value_vector_size + nPconName + 4
 			<< "-"
 			<< nName + mfp_value_vector_size + nPconName + ele_value_vector_size + mmp_value_vector_size + 3
 			<< "]=CELLCENTERED)";
+		}
 	}
 
 	tec_file << "\n";
@@ -4588,7 +4593,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 	else
 	  m_pcs = PCSGet(getProcessType());
 
-	double total_normal_flux_diff = 0, total_normal_flux_adv = 0;
+	double total_normal_flux_diff = 0, total_normal_flux_diff_gas = 0, total_normal_flux_adv = 0;
 	bool output = false;
 
 	// File handling
@@ -4626,15 +4631,18 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 	{
 		tec_file << "TIME                   ";
 		if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT || m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
-			tec_file << "DIFFUSION / DISPERSION FLUX             ADVECTION FLUX             ACCUMULATED";
+			tec_file << "DIFFUSION / DISPERSION FLUX ACCUMULATED                 ADVECTION FLUX             ACCUMULATED\n";
 		else
-			tec_file << "DARCY FLUX             ACCUMULATED";
+		{
+			tec_file << "DARCY LIQUID FLUX           ACCUMULATED                 ";
+			if ((m_pcs->getProcessType() == FiniteElement::PS_GLOBAL) || (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW))
+				tec_file << "DARCY GAS FLUX              ACCUMULATED";
 		tec_file << "\n";
+		}
 	}
 	else 
 	{
-		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number
-			% nSteps == 0))
+		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
 			output = true;
 
 		for (size_t j = 0; j < time_vector.size(); j++)
@@ -4643,17 +4651,19 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 
 		if (output == true)
 		{
-			AccumulateTotalFlux(m_pcs, &total_normal_flux_diff, &total_normal_flux_adv);
-			tec_file << time_current << "    " << total_normal_flux_diff << "         ";
-			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
-				tec_file << total_normal_flux_adv << "         ";
+			AccumulateTotalFlux(m_pcs, &total_normal_flux_diff, &total_normal_flux_diff_gas, &total_normal_flux_adv);
             // accumulated
 			accumulatedFlux_diffusive += total_normal_flux_diff  * dt;
-			tec_file << accumulatedFlux_diffusive << "         ";
+			tec_file << time_current << "    " << total_normal_flux_diff << "         " << accumulatedFlux_diffusive << "         ";
+			if ((m_pcs->getProcessType() == FiniteElement::PS_GLOBAL) || (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW))
+			{   //	2. Darcy gas
+				accumulatedFlux_diffusive_gas += total_normal_flux_diff_gas  * dt;
+				tec_file << total_normal_flux_diff_gas << "         " << accumulatedFlux_diffusive_gas;
+			}
 			if ((m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT))
 			{
 				accumulatedFlux_advective += total_normal_flux_adv * dt;
-				tec_file << accumulatedFlux_advective;
+				tec_file << total_normal_flux_adv << "         " << accumulatedFlux_advective;
 			}
 			//
 			tec_file << "\n";
@@ -4748,24 +4758,17 @@ Programing:
 void COutput::WriteContent(double time_current, int time_step_number)
 {
 
-	double factor;
-	CFEMesh* m_msh = NULL;
-	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+	string tec_file_name;
+	double content[2];  // 0: liquid, 1: gas
 	CRFProcess* m_pcs = NULL;
 	if (_nod_value_vector.size() > 0)
 		m_pcs = PCSGet(_nod_value_vector[0], true);
 	else
 		m_pcs = PCSGet(getProcessType());
-	bool output = false;
 
-	if (m_pcs->m_msh->isAxisymmetry())
-		factor = 6.28318530717958; // 2 Pi 
 
-	else
-		factor = 1;
 	//--------------------------------------------------------------------
 	// File handling
-	string tec_file_name;
 	
 	tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) ;
 	if (_nod_value_vector.size() > 0)
@@ -4794,10 +4797,13 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	if (!tec_file.good()) return;
 	tec_file.seekg(0L, ios::beg);
 
-	if (time_step_number == 0)
-		tec_file << "TIME                   CONTENT" << "\n";
-	else 
-	{
+	if (time_step_number == 0) {	// header
+		tec_file << "TIME                   LIQUID CONTENT";
+		if (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
+			tec_file << "         GAS CONTENT";
+		tec_file << "\n";
+	}
+	bool output = false;
 		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
 		  output = true;
 
@@ -4807,12 +4813,24 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 		if (output == true)
 		{
-			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index, _nod_value_vector) << "\n";
+		double factor;
+		CFEMesh* m_msh = NULL;
+		m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+		if (m_pcs->m_msh->isAxisymmetry())
+			factor = 6.28318530717958; // 2 Pi 
+		else
+			factor = 1;
 			cout << "Data output: " << convertProcessTypeToString(getProcessType());
 			if (_nod_value_vector.size() == 1)
 				cout << " " << _nod_value_vector[0]; 
 			cout << " TOTAL_CONTENT " << mmp_index << endl;
-		}
+		tec_file << time_current;
+		m_pcs->CalculateTotalContent(mmp_index, _nod_value_vector);
+
+		tec_file << "    " << factor * m_pcs->getTotalLiquidContent();
+		if (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
+				tec_file << "    " << factor * m_pcs->getTotalGasContent(); // gas phase
+		tec_file << endl;	
 	}
 
 	tec_file.close();
@@ -4865,16 +4883,19 @@ Programming:
 7/2015 JOD axisymmetry
 **************************************************************************/
 
-void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* nodesFace, int nfn, double *NodeVal, double *NodeVal_adv)
+void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* nodesFace, int nfn, double *NodeVal_diff, double *NodeVal_diff2, double *NodeVal_adv)
 {
 
-	double flux[3], flux_normal, factor;
+	double flux_diff[3], flux_normal; // liquid, diffusive transport 
+	double flux_diff2[3], flux2_normal; // gas
+	double factor = elem->GetFluxArea();  //geo_area
 	CNode* e_node;
 	CRFProcess *m_pcs_flow = NULL;
+	int ndx1 = 1; // implicit only
 	for (size_t i = 0; i < pcs_vector.size(); i++)
 	if (isFlowProcess(pcs_vector[i]->getProcessType()))
 		m_pcs_flow = pcs_vector[i];
-	int ndx1 = 1;
+	
 	if (_nod_value_vector.size() == 1) // for MASS_TRANSPORT
 		ndx1 = m_pcs->GetNodeValueIndex(_nod_value_vector[0]) + 1;
 
@@ -4883,29 +4904,40 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 		e_node = elem->GetNode(nodesFace[k]);
 
 		if (m_pcs->m_msh->isAxisymmetry())
-		{
-			factor = elem->GetFluxArea() * m_pcs->m_msh->nod_vector[e_node->GetIndex()]->getData()[0] * 6.283185307; // 2 Pi x (x is radius) 
-		}
-		else
-			factor = elem->GetFluxArea();
-
-
+			factor *= m_pcs->m_msh->nod_vector[e_node->GetIndex()]->getData()[0] * 6.283185307; // 2 Pi x (x is radius) 
 		if (m_pcs_flow == NULL)
-			flux[0] = flux[1] = flux[2] = 0;
+		{
+			flux_diff[0] = flux_diff[1] = flux_diff[2] = flux_diff2[0] = flux_diff2[1] = flux_diff2[2] = flux_normal = flux2_normal = 0;
+			cout << "ERROR in COutput::NODCalcFlux - Did not get flow process" << endl;
+		}
 		else
 		{
-			flux[0] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_X1")); // Darcy
-			flux[1] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Y1"));
-			flux[2] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Z1"));
+			flux_diff[0] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_X1")); // Liquid - Darcy
+			flux_diff[1] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Y1"));
+			flux_diff[2] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Z1"));
+
+			flux_normal = PointProduction(flux_diff, face->normal_vector);
+
+			if (m_pcs->getProcessType() == FiniteElement::PS_GLOBAL || m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW)
+		{
+				flux_diff2[0] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_X2")); // Gas - Darcy
+				flux_diff2[1] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Y2"));
+				flux_diff2[2] = m_pcs_flow->GetNodeValue(e_node->GetIndex(), m_pcs_flow->GetNodeValueIndex("VELOCITY_Z2"));
+				flux2_normal = PointProduction(flux_diff2, face->normal_vector);
+			}
 		}
-		flux_normal = PointProduction(flux, face->normal_vector);
 
 		switch (m_pcs->getProcessType())
 		{
 		case FiniteElement::LIQUID_FLOW:
-			NodeVal[k] = flux_normal * factor;
+		case FiniteElement::RICHARDS_FLOW:
+			NodeVal_diff[k] = flux_normal * factor;
 			break;
-
+		case FiniteElement::PS_GLOBAL:
+		case FiniteElement::MULTI_PHASE_FLOW:
+			NodeVal_diff[k] = flux_normal * factor;
+			NodeVal_diff2[k] = flux2_normal * factor;
+			break;
 		case FiniteElement::MASS_TRANSPORT: case FiniteElement::HEAT_TRANSPORT:
 
 			NodeVal_adv[k] = m_pcs->GetNodeValue(e_node->GetIndex(), ndx1) * flux_normal * factor;				// advection
@@ -4913,15 +4945,15 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 			if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
 				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
 			// diffusion
-			flux[0] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_X1"));  // Fick / Fourrier
-			flux[1] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Y1"));
-			flux[2] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Z1"));
+			flux_diff[0] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_X1"));  // Fick / Fourrier
+			flux_diff[1] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Y1"));
+			flux_diff[2] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Z1"));
 
-			NodeVal[k] = PointProduction(flux, face->normal_vector) * factor;  // Fick / Fourrier
+			NodeVal_diff[k] = PointProduction(flux_diff, face->normal_vector) * factor;  // Fick / Fourrier
 			break;
 
 		default:
-			cout << "ERROR - " << m_pcs->getProcessType() << " not supportet in TOTAL FLUX calculation" << endl;
+			cout << "ERROR in COutput::NODCalcFlux - " << m_pcs->getProcessType() << " not supportet in TOTAL FLUX calculation" << endl;
 		}
 
 	}
@@ -4935,20 +4967,24 @@ flux from element Gauss points extrapolated to nodes (and later on interpolated 
 Programming:
 12/2014 JOD Implementation
 **************************************************************************/
-void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, double* normal_flux_adv) //const
+void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, double* normal_flux_diff_gas, double* normal_flux_adv) //const
 {
 
-	int nfaces, nfn, nodesFace[8], count;
-	double fac, nodesFVal[8], nodesFVal_adv[8];
+	int numberOfNodesOnFace, nodesOnFace[8], count;
+	double location_factor = 1, nodesVal[8], nodesVal2[8], nodesVal_adv[8];
 	int j, k, Axisymm = 1;                               // ani-axisymmetry
 	if (m_pcs->m_msh->isAxisymmetry())
 		Axisymm = -1;                               // Axisymmetry is true
 	CNode* e_node;
-	CElem *elem = NULL, *e_nei = NULL, *face = new CElem(1);
+	CElem *elem = NULL, *elem_neighbor = NULL, *face = new CElem(1);
 	FiniteElement::CElement* element = new FiniteElement::CElement(Axisymm * m_pcs->m_msh->GetCoordinateFlag());
-	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
+	//CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
 	vector<long> nodes_on_geo, elements_at_geo;
 	set<long> set_nodes_on_geo;
+	bool Check2D3D; // for fem
+	Check2D3D = false;
+	if (m_pcs->type == 66)                       //Overland flow
+		Check2D3D = true;
 
 	// ----- initialize --------------------------------------------------------------------
 	SetTotalFluxNodes(nodes_on_geo);  //get  nodes on geo object (put in preprocess)
@@ -4977,32 +5013,29 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	for (long i = 0; i < (long)elements_at_geo.size(); i++) {
 
 		elem = m_pcs->m_msh->ele_vector[elements_at_geo[i]];
-		if (!elem->GetMark())
-			continue;
-		nfaces = elem->GetFacesNumber();
 		elem->SetOrder(m_pcs->m_msh->getOrder());
 		
-		for (j = 0; j < nfaces; j++) {
+		for (j = 0; j < elem->GetFacesNumber(); j++) {
 
-			e_nei = elem->GetNeighbor(j);
-			nfn = elem->GetElementFaceNodes(j, nodesFace);
+			elem_neighbor = elem->GetNeighbor(j);
+			numberOfNodesOnFace = elem->GetElementFaceNodes(j, nodesOnFace);
 			// is element face on surface? 1st check
-			if (elem->selected < nfn)
+			if (elem->selected < numberOfNodesOnFace)
 				continue;
 			//2nd check
 			count = 0;
-			for (k = 0; k < nfn; k++)
+			for (k = 0; k < numberOfNodesOnFace; k++)
 			{
-				e_node = elem->GetNode(nodesFace[k]);
+				e_node = elem->GetNode(nodesOnFace[k]);
 				if (set_nodes_on_geo.count(e_node->GetIndex()) > 0)
 					count++;
 			}
-			if (count != nfn)
+			if (count != numberOfNodesOnFace)
 				continue;
 			// --------
-			fac = 1.0;
-			if (elem->GetDimension() == e_nei->GetDimension())
-				fac = 0.5;   // Not a surface face
+
+			if (elem->GetDimension() == elem_neighbor->GetDimension())
+				location_factor = 0.5;   // Not a surface face
 			face->SetFace(elem, j);
 			face->SetOrder(m_pcs->m_msh->getOrder());
 			face->ComputeVolume();
@@ -5011,15 +5044,15 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			element->ConfigElement(face, m_pcs->m_num->ele_gauss_points, true); // 2D fem	
 			//element->setOrder(m_pcs->m_msh->getOrder() + 1);
 			//face->ComputeVolume();    
-			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
-			element->CalculateFluxThroughFace(elements_at_geo[i], fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
+			NODCalcFlux(m_pcs, elem, face, nodesOnFace, numberOfNodesOnFace, nodesVal, nodesVal2, nodesVal_adv);
+			element->CalculateFluxThroughFace(elements_at_geo[i], location_factor, nodesVal, nodesVal2, nodesVal_adv, normal_flux_diff, normal_flux_diff_gas, normal_flux_adv);
 
 		} // end j, faces
 	} // end i, elements at surface
 
 	delete element;
 	delete face;
-	delete fem;
+	//delete fem;
 
 	ElementValue* gp_ele = NULL;
 	if (ele_gp_flux.size() > 0)  // release memory
