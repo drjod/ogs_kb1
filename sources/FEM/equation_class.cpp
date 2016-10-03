@@ -286,7 +286,7 @@ void Linear_EQS::ConfigNumerics(CNumerics* m_num, const long n)
 #endif
 		break;
 	case 100:
-		// precond_name = "ILU"; break;
+		precond_name = "ILU"; break;
 		// If ILU is ready, remove follows
 		// ----------------------------------------------
 		//precond_name = "ILU not available. Use Jacobi";
@@ -1778,6 +1778,7 @@ void Linear_EQS::Precond_Jacobi(const double* vec_s, double* vec_r)
  **************************************************************************/
 void Linear_EQS::ComputePreconditioner_Jacobi()
 {
+	std::cout << "        Preconditioner Jacobi" << std::endl; 
 	//
 	A->DiagonalEntries(prec_M);
 	//

@@ -68,7 +68,7 @@ public:
 #endif
 	void ComputePreconditioner();
 	void ComputePreconditioner_Jacobi();
-	void ComputePreconditioner_ILU() {       }
+	void ComputePreconditioner_ILU() { std::cerr << "    WARNING: ILU not implemented - No preconditioner used" << std::endl; }
 	//
 	// Solver
 #if defined(USE_MPI)

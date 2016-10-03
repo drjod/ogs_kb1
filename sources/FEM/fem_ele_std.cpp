@@ -1535,7 +1535,7 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass()
+double CFiniteElementStd::CalCoefMass(bool balance = false)
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -1787,6 +1787,10 @@ double CFiniteElementStd::CalCoefMass()
 			val -= poro * rhov * dSdp / rhow;
 			val += (1.0 - Sw) * poro * rhov / (rhow * rhow * GAS_CONSTANT_V * TG);
 		}
+		if (balance == true)
+		{
+			val = Sw * rhow  * poro;
+		}
 		break;
 	case EPT_FLUID_MOMENTUM:                               // Fluid Momentum
 		val = 1.0;
@@ -1805,7 +1809,7 @@ double CFiniteElementStd::CalCoefMass()
    02/2007 WW Multi-phase flow
    05/2008 WW Generalization
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass2(int dof_index)
+double CFiniteElementStd::CalCoefMass2(int dof_index, bool balance = true)
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -11956,43 +11960,93 @@ Programming:
 7/2015 JOD  take hydrostatic pressure into account
 **************************************************************************/
 
-double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
+void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
-	double fkt = 0.0, det, Gauss_val, content = 0, NodeVal_shifted[8];
+	double fkt, Gauss_val;
+	bool diffusion = false;
 	
 	Config();
 	setOrder(Order);
-	det = MeshElement->GetVolume();
+	if (PcsType == EPT_MULTIPHASE_FLOW && MediaProp->heat_diffusion_model == 1 && cpl_pcs)
+		diffusion = true;  // account for temperature in density
+	double dens_arg[3]; // 0: pressure, 1: temperature considered
+	double geo_factor = MediaProp->ElementVolumeMultiplyer;
+	//det = MeshElement->GetVolume();
+	double content_liquid = 0, content_gas = 0;
 
+	ElementValue* ele_value;
+	ele_value = ele_gp_value[Index];
+	if (PcsType == EPT_LIQUID_FLOW)
+	{
+		for (i = 0; i < nNodes; i++)
+			NodeVal[i] += FluidProp->Density() * gravity_constant * z_coord[i];   // take hydrostatic gradient into account 
+	}
+	else{
+	}
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
 
-		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
+		fkt = geo_factor * GetGaussData(gp, gp_r, gp_s, gp_t);
 		ComputeShapefct(Order);
+		Gauss_val = 0.0;
 
-		for (i = 0; i < nNodes; i++)
+		for (i = 0; i < nNodes; i++) {
+			Gauss_val += NodeVal[i] * shapefct[i]; // Interpolation of value to Gauss point
+		}
+		switch (PcsType)
 		{
-			if (PcsType == EPT_LIQUID_FLOW)
+			case EPT_PSGLOBAL:
+				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+				content_liquid += fkt * (1 - Gauss_val) * FluidProp->Density() * poro;
+				content_gas += fkt * Gauss_val * GasProp->Density() * poro;
+				break;
+			case EPT_MULTIPHASE_FLOW:
+				dens_arg[0] = Gauss_val;
+				dens_arg[1] = 293.15;
+				if (diffusion)
 			{                                           // take hydrostatic gradient into account 
-				NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
+					TG = interpolate(NodalValC1) + T_KILVIN_ZERO;
+					dens_arg[1] = TG;
+				}
+				rhow = FluidProp->Density(dens_arg);
+				Sw = MediaProp->SaturationCapillaryPressureFunction(Gauss_val);
+				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+				content_liquid += fkt * Sw * rhow * poro;
+				rho_ga = GasProp->Density(dens_arg);
+				content_gas += fkt * (1 - Sw) * rho_ga * poro;
+				break;
+			case EPT_RICHARDS_FLOW:
+				rhow = FluidProp->Density(dens_arg);
+				if (Gauss_val < 0.) {
+					Sw = MediaProp->SaturationCapillaryPressureFunction(-Gauss_val);
 			}
 			else                                        // do nothing
-				NodeVal_shifted[i] = NodeVal[i];
+					Sw = 1;
+				content_liquid += fkt * Sw * rhow * MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+				break;
+			case EPT_LIQUID_FLOW:
+			case EPT_HEAT_TRANSPORT:
+			case EPT_MASS_TRANSPORT:
+				content_liquid += fkt * Gauss_val * CalCoefMass(true);
+				break;
+			default:
+				cout << "ERROR in CalculateContent - Process " << PcsType << "not supported" << endl;
 		}
 		
-		Gauss_val = 0.0;
-		for (i = 0; i < nNodes; i++)	   // Interpolation of value to Gauss point
-			Gauss_val += NodeVal_shifted[i] * shapefct[i];
-		
-		// Integration
-		content += fkt * Gauss_val * CalCoefMass() * MediaProp->ElementVolumeMultiplyer;
-		
+		/*for (i = 0; i < nnodes; i++)
+		for (int j = 0; j < nnodes; j++)
+			// bei CT: phi * omega; phi beinh. uw-fakt.
+			content_liquid += factor *
+			(shapefct[i] ) * shapefct[j];
+			*/
 	}
-	
-	return content;
 
+	//content_liquid *= Gauss_val;
+
+	ele_value->setLiquidContent(content_liquid);
+	ele_value->setGasContent(content_gas);
 }
 
 /**************************************************************************

@@ -217,6 +217,7 @@ private:
 	bool _hasConstrainedBC;
 	bool _hasConstrainedST;
 	long _idxVx, _idxVy, _idxVz;
+	double totalContent[2]; // JOD - 2016-7-28 - for mass balance toolkit- 0: liquid, 1: gas getter below
 
 protected:                                        //WW
 	friend class FiniteElement::CFiniteElementStd;
@@ -341,6 +342,8 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
+	double getTotalLiquidContent(void) { return totalContent[0]; }  // JOD 2016-7-28 - balancing toolkit
+	double getTotalGasContent(void) { return totalContent[1]; }
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -608,7 +611,7 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
-	double AccumulateContent(int, std::vector<std::string>); // JOD 2/2015
+	void CalculateTotalContent(int, std::vector<std::string>); // JOD 2/2015
 	void IncorporateSourceTermIntoMatrix(long, long, double, CSourceTerm*); // JOD 2/2015
 
 	// MSH

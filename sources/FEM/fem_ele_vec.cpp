@@ -4073,7 +4073,7 @@ double CFiniteElementVec:: CalcStrain_v()
 // 07/2015 WTP  - moved into Finite Elemente namespace
 // 5/2016 KB/JOD - Terzaghi benchmark
 //************************************************************************** /
-double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
+double CFiniteElementVec::VolumeStrainIntegrationForEclipse(MeshLib::CElem* elem)
 {
 	double fac = 1.0;
 	double disp[60]; // put as a pointer to fem_ele_std.h
@@ -4124,7 +4124,8 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 		double S_p = 4.5E-3;  // HARDCODED
 		e_v /= S_p;
 	}
-	e_v /= 1e5;
+
+	 e_v /= elem->volume * 100000.; // Volumenintegration plus Umrechnen in Bar
 
 	return e_v;
 }

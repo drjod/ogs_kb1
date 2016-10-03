@@ -17189,22 +17189,31 @@ Programming:
 7/2015 JOD consider geoArea
 **************************************************************************/
 
-double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
+void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
 {
 
-	double nodesVal[8], z_coord[8], content = 0, geoArea;
+	double nodesVal[8], z_coord[8];
 	CNode* e_node;
 	CElem* elem;
 	size_t i, j, nn;
 	int nidx1;
 	if (_nod_value_vector.size() == 1)
-		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true) + 1;   // only one component in  MASS TRANSPORT !!!!
+	{   // take variable as selected in input file (for MASS_TRANSPORT) - only one component in each output instance!!!
+		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true);// +1; provides index for new time step 
+	}
 	else
+	{   // take primary variable
+		if (getProcessType() == FiniteElement::PS_GLOBAL)
+			nidx1 = 3; // SATURATION2
+		else
 		nidx1 = 1;
+	}
 
+	totalContent[0] = totalContent[1] = 0.; // 0: liquid, 1: gas
 	for (i = 0; i < m_msh->ele_vector.size(); i++)
 	{
-		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index == -1)
+		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index // elements for index selected in input file
+			                                        || mmp_index == -1 /* complete domain, all elements */ )
 		{ // -1 : take all
 
 			elem = m_msh->ele_vector[i];
@@ -17214,18 +17223,20 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
-			geoArea = elem->GetFluxArea();
+			//geoArea = elem->GetFluxArea(); // thickness of 2D aquifer - is media prop in calculateContent()
 			nn = elem->GetNodesNumber(m_msh->getOrder());
 			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
-			content += fem->CalculateContent(nodesVal, z_coord) * geoArea;
+			fem->CalculateContent(nodesVal, z_coord);
+			totalContent[0] += ele_gp_value[i]->getLiquidContent(); // liquid (sums up element values)
+			if (getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
+			    totalContent[1] += ele_gp_value[i]->getGasContent(); // gas (sums up element values)
 		}
 	}
 
-	return content;
 
 }
 
