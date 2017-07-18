@@ -17,7 +17,8 @@
 #                   5: OGS_FEN_PETSC (parallel)
 #                            (more can be added in 1./3. below)
 #       $3: BUILD_CONFIGURATION   [Debug, Release]   No Debug for NEC 
-#                                 if BUILD_CONFIGURATION preselected, then BUILD_flag=0  (no cmake)
+#                                 if BUILD_CONFIGURATION preselected
+#       $4: for BUILD_flag, if $4 = build BUILD_flag is set 1 (and build executed), else 0
 #
 #############################################################################################  
 #  
@@ -111,19 +112,21 @@ initialize()
     
      if [ "$3" == "Debug" ]; then
         BUILD_CONFIGURATION="Debug"
-        BUILD_flag="0"
         IDE="ECLIPSE"             # [empty,ECLIPSE]
     elif [ "$3" == "Release" ]; then    
         BUILD_CONFIGURATION="Release"
-        BUILD_flag="0"
         IDE=""
     else
         BUILD_CONFIGURATION=""    
-        BUILD_flag="-1" #[0: do not cmake, 1: do cmake]
         IDE=""
     fi    
-
     
+    if [ "$4" == "build" ]; then
+        BUILD_flag="1"
+    else
+        BUILD_flag="0"
+    fi
+
     COMPILER_VERSION=""
  
     # paths to 
@@ -420,7 +423,7 @@ build()
 main()
 {
     # config - variables and paths
-    initialize $1 $2 $3                
+    initialize $1 $2 $3 $4               
     setPaths
     setCompilerTable
     
@@ -479,5 +482,5 @@ main()
 } 
 
 if [ "$configurationSELECTED" != "x" ]; then
-    main $1 $2 $3 # start
+    main $1 $2 $3 $4 # start
 fi # else exit
