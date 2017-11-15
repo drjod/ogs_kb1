@@ -101,7 +101,7 @@ CNumerics::CNumerics(string name)
     //Local picard1                                //NW
     local_picard1_tolerance = 1.0e-3;
     local_picard1_max_iterations = 1;
-    update_velocity_within_nonlinear = 0; 
+    update_velocity_within_nonlinear = 0;
 
 	for(size_t i=0; i<DOF_NUMBER_MAX; i++)	//JT2012
 		cpl_error_tolerance[i] = -1.0;			//JT2012: should not default this. Should always be entered by user!
@@ -652,7 +652,6 @@ ios::pos_type CNumerics::Read(ifstream* num_file)
 			cout << "->FEM_FCT method is selected." << "\n";
 			continue;
 		}
-
 		//....................................................................
 		/*
 		    if(line_string.find("$TIME_STEPS")!=string::npos) { // subkeyword found

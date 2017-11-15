@@ -1124,8 +1124,6 @@ void Problem::Euler_TimeDiscretize()
 		if(mrank == 0)
 		{
 #endif
-			if (aktueller_zeitschritt == 10)
-				aktueller_zeitschritt = aktueller_zeitschritt;
 		std::cout << "\n\n#############################################################\n";
 		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
 		current_time << "|  Time step size: " << dt << "\n";
