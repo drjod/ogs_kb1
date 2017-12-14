@@ -4591,7 +4591,6 @@ Programing:
 
 void COutput::WriteTotalFlux(double time_current, int time_step_number)
 {
-
 	CRFProcess* m_pcs = NULL;
 
 	if (_nod_value_vector.size() > 0)
@@ -4823,7 +4822,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 /**************************************************************************
 OpenGeoSys - Funktion
-Task:  For axisymmetric Wärmesonde example
+Task:  For axisymmetric Wï¿½rmesonde example
 provisional - needs to be put to GEO together with integration in ST
 Programming:
 2/2015 JOD Implementation
@@ -4955,7 +4954,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	SetTotalFluxNodes(nodes_on_geo);  //get  nodes on geo object (put in preprocess)
 	std::vector<double> nod_val_vector;
 	nod_val_vector.resize(nodes_on_geo.size());
-	//if (dis_type == "LINEAR")  //  used in radial Wärmesonde example with axisymmetry keyword - INACTIVE RIGHT NOW
+	//if (dis_type == "LINEAR")  //  used in radial Wï¿½rmesonde example with axisymmetry keyword - INACTIVE RIGHT NOW
 	//	InterpolatePoints2Nodes(nod_val_vector);
 
 	face->SetFace();
@@ -5014,7 +5013,6 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			//face->ComputeVolume();    
 			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
 			element->CalculateFluxThroughFace(elements_at_geo[i], fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
-
 		} // end j, faces
 	} // end i, elements at surface
 
