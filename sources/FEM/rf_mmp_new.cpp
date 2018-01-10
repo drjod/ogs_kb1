@@ -144,6 +144,8 @@ CMediumProperties::CMediumProperties() :
 	storage_effstress_model = 0;
 	permeability_effstress_model = 0;
 	evaporation = -1;
+
+	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
 }
 
 /**************************************************************************
@@ -1971,7 +1973,16 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		 in.clear();
 		 continue;
 	  }
-
+	  //------------------------------------------------------------------------
+	  if (line_string.find("$DEPENDENT_FLUID") != std::string::npos)  // JOD 2018-1-10 material-dependent fluid properties
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> dependent_fluid_name;
+		  dependent_fluid_name = "_" + dependent_fluid_name;
+		  in.clear();
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
 
    }
 	return position;

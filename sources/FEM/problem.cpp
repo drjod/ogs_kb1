@@ -3355,11 +3355,12 @@ inline double Problem::MassTrasport()
 
 inline double Problem::PostMassTrasport()
 {
-	//  COMPUTE TRACER   JOD 2016-2-16        
+	//  COMPUTE TRACER   JOD 2016-2-16
+	double error;  // error not used !!!!!
 	for (int i = 0; i < (int)transport_processes.size(); i++)
 		if ( CPGetMobil(transport_processes[i]->pcs_component_number) > 0 && 
 			 cp_vec[ transport_processes[i]->pcs_component_number]->tracer_flag == true )
-		  	     double error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
+		  	     error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
   // REACTIONS
   bool capvec = false;
   bool prqvec = false;

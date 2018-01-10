@@ -184,6 +184,7 @@ public:
 
 	double density;
 	std::string name;
+	std::string dependent_fluid_name; // JOD 2018-1-10 material-dependent fluid properties
 	int number;
 	int porosity_model;                   // porosity
 	int porosity_curve;
