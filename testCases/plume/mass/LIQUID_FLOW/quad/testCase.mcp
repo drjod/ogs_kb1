@@ -1,0 +1,10 @@
+
+#COMPONENT_PROPERTIES  
+ $NAME
+  ConsTracer ;
+ $MOBILE
+  1; MOBIL-Flag: 0=immobile, 1=mobile/transported
+ $DIFFUSION
+  1  7.245983008821985e-07             ; diffusion model type, diffusion constant
+  
+#STOP  

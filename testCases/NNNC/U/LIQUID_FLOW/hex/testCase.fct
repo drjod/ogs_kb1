@@ -1,0 +1,34 @@
+GeoSys-FCT: Functions ------------------------------------------------
+#FUNCTION
+ $TYPE
+  Time_ST_curve
+ $VARIABLES
+  TIME FLOWRATE
+ $DATA
+  0          1
+  100        1
+  100.0001   -1
+  100000000  -1
+#FUNCTION
+ $TYPE
+  TIME_BC_0 
+ $VARIABLES
+  TIME TEMPERATURE1
+ $DATA
+  0          1
+  100        1
+  100.0001   0
+  100000000  0
+#FUNCTION
+ $TYPE
+  TIME_BC_1 
+ $VARIABLES
+  TIME TEMPERATURE1
+ $DATA
+  0          0
+  100        0
+  100.001    1
+  100000000  1
+#STOP
+  
+  

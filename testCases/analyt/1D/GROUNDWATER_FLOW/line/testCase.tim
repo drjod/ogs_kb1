@@ -1,0 +1,23 @@
+; give more time steps since time step size might get reduced to a critical time step size
+
+#TIME_STEPPING
+ $PCS_TYPE
+  GROUNDWATER_FLOW
+ $TIME_STEPS
+  8640 2000
+ $TIME_END
+  8640000.0
+ $TIME_START
+  0.0
+
+#TIME_STEPPING
+ $PCS_TYPE
+  MASS_TRANSPORT
+ $TIME_STEPS
+  8640 2000
+ $TIME_END
+  8640000.0
+ $TIME_START
+  0.0
+
+#STOP

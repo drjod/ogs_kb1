@@ -1,0 +1,14 @@
+
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+  LIQUID
+ $DENSITY
+  0 1         ; take 1st CURVE from *.rfd
+ $VISCOSITY
+  0 2         ; take 2nd CURVE from *.rfd
+ $HEAT_CONDUCTIVITY
+  1 1.49
+ $SPECIFIC_HEAT_CAPACITY
+  1 4200
+
+#STOP

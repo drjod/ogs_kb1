@@ -1,0 +1,12 @@
+#POINTS
+0   0   0  0   $MD 2 $NAME P0 
+1   2   0  0   $MD 2 $NAME P1  
+#POLYLINE
+ $NAME
+  ALL
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  1 
+#STOP

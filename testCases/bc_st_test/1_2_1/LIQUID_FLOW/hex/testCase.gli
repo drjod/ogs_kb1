@@ -1,0 +1,114 @@
+#POINTS
+0 0 0 0 $NAME P_IN
+1 0 .1 0 
+2 0 .1 -.1 
+3 0 0 -.1 
+4 1 0 0 $NAME P_OUT
+5 1 .1 0 
+6 1 .1 -.1 
+7 1 0 -.1 
+8 .5 0 0 $NAME P_MID
+9 .5 .1 0 
+10 .5 .1 -.1 
+11 .5 0 -.1 
+#POLYLINE
+ $NAME
+  PLY_1
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  1
+  2
+  3
+  0
+#POLYLINE
+ $NAME
+  PLY_2
+ $EPSILON
+  0.0001
+ $POINTS
+  4
+  5
+  6
+  7
+  4
+#POLYLINE
+ $NAME
+  PLY_3
+ $EPSILON
+  0.0001
+ $POINTS
+  8
+  9
+  10
+  11
+  8
+#POLYLINE
+ $NAME
+  PLY_4
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  4
+#POLYLINE
+ $NAME
+  PLY_5
+ $EPSILON
+  0.0001
+ $POINTS
+  8
+  4
+#POLYLINE
+ $NAME
+  PLY_6
+ $EPSILON
+  0.0001
+ $POINTS
+  5
+  9
+#POLYLINE
+ $NAME
+  PLY_7
+ $EPSILON
+  0.0001
+ $POINTS
+  6
+  10
+#POLYLINE
+ $NAME
+  PLY_8
+ $EPSILON
+  0.0001  
+ $POINTS
+  7
+  11        
+#SURFACE
+ $NAME
+  SURF_1
+ $POLYLINES
+  PLY_1
+ $EPSILON
+  0.0001
+ $TYPE
+  0
+#SURFACE
+ $NAME
+  SURF_2
+ $POLYLINES
+  PLY_2
+ $EPSILON
+  0.0001
+ $TYPE
+  0
+#SURFACE
+ $NAME
+  SURF_3
+ $POLYLINES
+  PLY_3
+ $EPSILON
+  0.0001  
+ $TYPE
+  0
+#STOP

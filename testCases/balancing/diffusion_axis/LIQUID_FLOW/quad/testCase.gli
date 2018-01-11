@@ -1,0 +1,41 @@
+#POINTS
+0   0        0  0   $MD 2 $NAME P0 
+1   0        0  100 $MD 2 $NAME P1 
+2   0        0  50  $MD 2 $NAME P2 
+3   100      0  50  $MD 2 $NAME P3 
+4   100      0  0   $MD 2 $NAME P4 
+5   100      0  100 $MD 2 $NAME P5 
+6   50       0  0   $MD 2 $NAME P6 
+#POLYLINE
+ $NAME
+  BOTTOM
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  4
+#POLYLINE
+ $NAME
+  MIDDLE
+ $EPSILON
+  0.0001
+ $POINTS
+  2
+  3
+#POLYLINE
+ $NAME
+  TOP
+ $EPSILON
+  0.0001
+ $POINTS
+  1
+  5
+#POLYLINE
+ $NAME
+  BOTTOM_INNER
+ $EPSILON
+  0.0001
+ $POINTS
+  0
+  6
+#STOP
