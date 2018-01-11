@@ -5294,26 +5294,38 @@ double CRFProcess::Execute()
 #endif
 	//----------------------------------------------------------------------
 	// Execute linear solver
+	try
+	{
+
 #if defined(USE_PETSC) // || defined(other parallel libs)//03.3012. WW
 		eqs_new->Solver();
 		//TEST 	double x_norm = eqs_new->GetVecNormX();
 		eqs_new->MappingSolution();
-#elif defined(NEW_EQS)                                 //WW
-#if defined(USE_MPI)
-	//21.12.2007
-	iter_lin = dom->eqs->Solver(eqs_new->x, global_eqs_dim);
+#elif defined(NEW_EQS)
+	//WW
+	#if defined(USE_MPI)
+		//21.12.2007
+		iter_lin = dom->eqs->Solver(eqs_new->x, global_eqs_dim);
+	#else
+		#ifdef LIS
+			iter_lin = eqs_new->Solver(this->m_num); //NW
+		#else
+			iter_lin = eqs_new->Solver();  // OGS_FEM_SP
+		#endif
+	#endif
 #else
-#ifdef LIS
-	iter_lin = eqs_new->Solver(this->m_num); //NW
-#else
-	iter_lin = eqs_new->Solver();
+	iter_lin = ExecuteLinearSolver();  // OGS_FEM
 #endif
-#endif
-#else
-	iter_lin = ExecuteLinearSolver();
-#endif
-	iter_lin_max = std::max(iter_lin_max, iter_lin);
 
+
+	}
+	catch(std::runtime_error& e)
+	{
+		std::cout << "ERROR - " << e.what() << std::endl;
+		accepted = false;	// JOD 2017-11-15  reduce time step or quit
+	}
+
+	iter_lin_max = std::max(iter_lin_max, iter_lin);
 	//----------------------------------------------------------------------
 	// Linearized Flux corrected transport (FCT) by Kuzmin 2009
 	//----------------------------------------------------------------------
@@ -5578,6 +5590,7 @@ double CRFProcess::Execute()
 		eqs_new->Clean();
 #endif
 #endif
+
 
 	if(BASELIB::isNAN(pcs_error))
 	{

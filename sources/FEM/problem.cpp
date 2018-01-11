@@ -1124,8 +1124,6 @@ void Problem::Euler_TimeDiscretize()
 		if(mrank == 0)
 		{
 #endif
-			if (aktueller_zeitschritt == 10)
-				aktueller_zeitschritt = aktueller_zeitschritt;
 		std::cout << "\n\n#############################################################\n";
 		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
 		current_time << "|  Time step size: " << dt << "\n";
@@ -3361,12 +3359,12 @@ inline double Problem::MassTrasport()
 
 inline double Problem::PostMassTrasport()
 {
-	double error = 1.;
-	//  COMPUTE TRACER   JOD 2016-2-16        
+	//  COMPUTE TRACER   JOD 2016-2-16
+	double error;  // error not used !!!!!
 	for (int i = 0; i < (int)transport_processes.size(); i++)
 		if ( CPGetMobil(transport_processes[i]->pcs_component_number) > 0 && 
 			 cp_vec[ transport_processes[i]->pcs_component_number]->tracer_flag == true )
-		  	     error = max( error, transport_processes[i]->ExecuteNonLinear(loop_process_number));  // tracer found (error not used)
+		  	     error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
   // REACTIONS
   bool capvec = false;
   bool prqvec = false;

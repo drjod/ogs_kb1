@@ -943,12 +943,13 @@ void CFiniteElementStd::SetMaterial(int /*phase*/)
 	// 03.2009 PCH
 	// or JFNK. 10.08.2010. WW
 	if(pcs->type == 1212 || pcs->type == 1313 || pcs->type == 42
-		|| (pcs->getProcessType()==FiniteElement::HEAT_TRANSPORT && (PCSGet("PS_GLOBAL") || PCSGet("RICHARDS_FLOW"))))
+		|| (pcs->getProcessType()==FiniteElement::HEAT_TRANSPORT && (PCSGet("PS_GLOBAL") || PCSGet("RICHARDS_FLOW")))
+		|| MediaProp->dependent_fluid_name != "")  // JOD 2018-1-10  material-dependent fluid properties
 	{
-		FluidProp = MFPGet("LIQUID");
+		FluidProp = MFPGet("LIQUID" + MediaProp->dependent_fluid_name);
 		FluidProp->Fem_Ele_Std = this;
 		//FluidProp = mfp_vector[0];
-		GasProp = MFPGet("GAS");
+		GasProp = MFPGet("GAS" + MediaProp->dependent_fluid_name);
 		if (GasProp)
 			GasProp->Fem_Ele_Std = this;
 	}

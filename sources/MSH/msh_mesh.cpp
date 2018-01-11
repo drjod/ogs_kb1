@@ -1754,6 +1754,8 @@ void CFEMesh::GetNODOnSFC(Surface* m_sfc, std::vector<long>&msh_nod_vector, cons
 	case 4: // layer polyline, all z
 		GetNODOnSFC_PLY_Z(m_sfc, msh_nod_vector);
 		break;
+    default:
+            std::cerr << "WARNING - Surface type not given" << std::endl;
 	}
 }
 
@@ -1774,7 +1776,6 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 	) const
 {
 	msh_nod_vector.clear();
-
 #ifdef TIME_MEASUREMENT
 	clock_t begin, end;
 	std::cout << "[CFEMesh::GetNODOnSFC] init SurfaceGrid ... " << std::flush;

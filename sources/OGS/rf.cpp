@@ -53,6 +53,7 @@
 #endif
 #include "problem.h"
 
+
 /* Deklarationen */
 int main ( int argc, char* argv[] );
 void ShowSwitches ( void );

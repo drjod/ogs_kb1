@@ -64,6 +64,9 @@ extern int PARDISO
 #include "rf_pcs.h"
 #endif
 
+#include <stdexcept>
+#include "isnan.h"
+
 std::vector<Math_Group::Linear_EQS*> EQS_Vector;
 using namespace std;
 
@@ -1078,8 +1081,8 @@ void Linear_EQS::Message()
 	cout << "      Iterations |" << " Max Iters |" << " Norm of b |" << " Error\n";
 	cout << "      " << setw(11) << iter << "|" << setw(11) << max_iter << "|"
 	     << setw(11) << bNorm << "|" << setw(11) << error << "\n";
-	if (iter == max_iter) 
-		cout << "      WARNING: Maximum iterations reached !!! \n";
+	if (iter > max_iter)  // JOD 2017-11-15
+		cout << "      WARNING: Maximum iterations exceeded !!! \n";
 	cout << "      ------------------------------------------------\n";
 	cout.flush();
 }
@@ -1175,6 +1178,12 @@ int Linear_EQS::CG()
 	}
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 	return iter <= max_iter;
 }
 /**************************************************************************
@@ -1268,6 +1277,12 @@ int Linear_EQS::BiCG()
 	}
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 	return iter <= max_iter;
 }
 
@@ -1409,7 +1424,12 @@ int Linear_EQS::BiCGStab()
 	}
 	//
 	Message();
-	//
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 	return iter;
 }
 
@@ -1506,6 +1526,11 @@ int Linear_EQS::CGS()
 	}
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
 	//
 	return iter <= max_iter;
 }
@@ -1731,6 +1756,12 @@ int Linear_EQS::GMRES()
 	}
 
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 	return iter <= max_iter;
 }
 //-----------------------------------------------------------------
@@ -1895,6 +1926,12 @@ int Linear_EQS::CG(double* xg, const long n)
 	dom->CatInnerX(xg, x, n);
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 	return iter <= max_iter;
 }
 
@@ -2009,6 +2046,11 @@ int Linear_EQS::CGS(double* xg, const long n)
 	dom->CatInnerX(xg, x, n);
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
 	//
 	return iter <= max_iter;
 }
@@ -2282,6 +2324,11 @@ int Linear_EQS::BiCGStab(double* xg, const long n)
 
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
 	//
 	//  return iter <= max_iter;
 	return iter;
@@ -2430,6 +2477,12 @@ int Linear_EQS::BiCG(double* xg, const long n)
 
 	//
 	Message();
+
+	if(BASELIB::isNAN(error))  // JOD 2015-11-15
+	{
+		throw std::runtime_error("Solver produced nan");;
+	}
+
 #ifdef CG_test
 	exit(0);
 #endif

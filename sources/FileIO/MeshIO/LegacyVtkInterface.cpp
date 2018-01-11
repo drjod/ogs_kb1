@@ -212,8 +212,6 @@ void LegacyVtkInterface::WriteVTKCellDataPETSC(PetscViewer viewer) const
 	// test vtk output
 	PETSc_Vec e, eglob,x; //
 
-
-
 	// vector for elements ...contains number of nodes connected to form a element in first entry and then the node numbers
 	VecCreate(PETSC_COMM_WORLD, &e);
 	VecSetSizes(e, numAllPoints,PETSC_DECIDE); // nummAllPoints is local lenght of the vector we need
@@ -238,6 +236,7 @@ void LegacyVtkInterface::WriteVTKCellDataPETSC(PetscViewer viewer) const
 	// get range of local variables
 	VecGetOwnershipRange(x, &low, &high);
 	VecGetSize(x,&nn);
+
 //  cout << " " << low << " " << high << " \n";
 // low is now the first node number
 
@@ -309,7 +308,7 @@ void LegacyVtkInterface::WriteVTKCellDataPETSC(PetscViewer viewer) const
 				i+=4+1;
 				break;
 			case 12: //HEXAHEDRON:
-				i+=6+1;
+				i+=8+1;
 				break;
 			case 5: // TRIANGLE:
 				i+=3+1;
@@ -350,9 +349,9 @@ void LegacyVtkInterface::WriteVTKCellDataPETSC(PetscViewer viewer) const
 				i+=4+1;
 				break;
 			case 12: //HEXAHEDRON:
-				PetscViewerASCIIPrintf(viewer," 6 ");
-				for(size_t j = 0; j < 6; j++) PetscViewerASCIIPrintf(viewer," %d ",(long) eglobp[i+j+1]);
-				i+=6+1;
+				PetscViewerASCIIPrintf(viewer," 8 ");
+				for(size_t j = 0; j < 8; j++) PetscViewerASCIIPrintf(viewer," %d ",(long) eglobp[i+j+1]);
+				i+=8+1;
 				break;
 			case 5: // TRIANGLE:
 				PetscViewerASCIIPrintf(viewer," 3 ");
@@ -401,7 +400,7 @@ void LegacyVtkInterface::WriteVTKCellDataPETSC(PetscViewer viewer) const
 				break;
 			case 12: //HEXAHEDRON:
 				PetscViewerASCIIPrintf(viewer," 12 \n");
-				i+=6+1;
+				i+=8+1;
 				break;
 			case 5: // TRIANGLE:
 				PetscViewerASCIIPrintf(viewer," 5 \n");
