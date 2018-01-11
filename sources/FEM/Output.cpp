@@ -5043,8 +5043,9 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			element->ConfigElement(face, m_pcs->m_num->ele_gauss_points, true); // 2D fem	
 			//element->setOrder(m_pcs->m_msh->getOrder() + 1);
 			//face->ComputeVolume();    
-			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
-			element->CalculateFluxThroughFace(elements_at_geo[i], fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
+			NODCalcFlux(m_pcs, elem, face, nodesOnFace, numberOfNodesOnFace, nodesVal, nodesVal2, nodesVal_adv);
+			element->CalculateFluxThroughFace(elements_at_geo[i], location_factor, nodesVal, nodesVal2, nodesVal_adv, normal_flux_diff, normal_flux_diff_gas, normal_flux_adv);
+
 		} // end j, faces
 	} // end i, elements at surface
 
