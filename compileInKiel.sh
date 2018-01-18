@@ -170,15 +170,20 @@ setPaths()
             # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2013_sp1.2.144"     
             # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/4.1.3.048"  
  
-            COMPILER_VERSION="intel1502"      
-            COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
-            MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
-            module load $COMPILER_VERSION   
+            #COMPILER_VERSION="intel1502"      
+            #COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
+            #MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
+            #module load $COMPILER_VERSION   
             
-            # COMPILER_VERSION="intel16"      
-            # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
-            # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux/mpi" 
-            # module load intel16.0.0
+            COMPILER_VERSION="intel16"      
+            COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
+            MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux/mpi" 
+            module load intel16.0.0
+		#######
+
+
+            export PETSC_DIR=/cluster/Software/petsc/petsc3.7.5/source/petsc-3.7.5   
+            export PETSC_ARCH=linux-opt            
             
             ICC="$COMPOSER_ROOT/bin/intel64/icc"
             ICPC="$COMPOSER_ROOT/bin/intel64/icpc"
@@ -187,8 +192,8 @@ setPaths()
             MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"
                 
             #module load petsc-3.5.3-intel14
-            export PETSC_DIR=/cluster/Software/Dpetsc/petsc-3.5.3    
-            export PETSC_ARCH=linux-intel1502-opt            
+            #export PETSC_DIR=/cluster/Software/Dpetsc/petsc-3.5.3    
+            #export PETSC_ARCH=linux-intel1502-opt            
             #export PETSC_ARCH=linux-intel-opt
             
             module load eclipse
@@ -197,7 +202,6 @@ setPaths()
 
             export PATH=$PATH:$MKLROOT/lib/intel64
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
-            export MKL_INCLUDE=/cluster/Software/intel16/compilers_and_libraries_2016.0.109/linux/mkl/include
             . $MKLROOT/bin/intel64/mklvars_intel64.sh            
                 ;;
         ne) # NEC cluster 
