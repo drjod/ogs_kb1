@@ -299,7 +299,7 @@ setCompilerTable()
             "ON"                    "$ICC"                    "$ICPC"                    # OGS_FEM_MKL   
             "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_MPI  
             "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_MPI_KRC 
-            "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_PETSC                      
+            "ON"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_PETSC                      
     )    
 }  
     
@@ -404,9 +404,9 @@ build()
 
     printMessage "INFO" "Building files - Debugger $build__COMPILER_C $build__COMPILER_CXX"
     if [ "$IDE" == "ECLIPSE" ]; then  # only difference is GENERATOR_OPTION -G
-        cmake $OGS_FOLDER/sources -G "Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=${compilerTable[(($1 * 3))]} -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                       
+        cmake ../../sources -G "Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=${compilerTable[(($1 * 3))]} -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                       
     else
-        cmake $OGS_FOLDER/sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+        cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
     fi
 }
 
@@ -462,7 +462,7 @@ main()
                     fi
                     cd $BUILD_FOLDER # step into build folder for make
                 fi  
-                echo $(pwd)
+
                 # compile
                 printMessage "INFO" "Compiling"
                 make -j $nCPUs    

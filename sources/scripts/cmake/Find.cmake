@@ -99,7 +99,7 @@ endif()
 ######################
 ### Find libraries ###
 ######################
-if(OGS_FEM_PETSC OR OGS_NO_EXTERNAL_LIBS)
+if(OGS_NO_EXTERNAL_LIBS)
 	return()
 endif()
 
@@ -155,7 +155,7 @@ else()
         message(STATUS "** Boost libraries: ${Boost_LIBRARIES}")
 endif()
 
-if(OGS_FEM_MKL)
+if(OGS_FEM_MKL OR OGS_FEM_PETSC)
 	# Find MKLlib
 	find_package( MKL REQUIRED )
 	include_directories (${MKL_INCLUDE_DIR})
