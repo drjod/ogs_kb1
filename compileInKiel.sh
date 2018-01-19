@@ -131,7 +131,7 @@ initialize()
  
     # paths to 
     ROOT_FOLDER=""    # where folder for code configurations will be placed 
-                         # for specific BUILD_CONFIGURATION 
+                         # for specific BUILD_CONFIGURATION (Debug, Release) and COMPILER_VERSION 
                          # ($OGS_FOLDER/"Build_${BUILD_CONFIGURATION}_$COMPILER_VERSION")
     BUILD_FOLDER=""   # where folder for specific BUILD_CONFIGURATION will be placed 
                          #($ROOT_FOLDER/$cConfigurationSELECTED)
@@ -178,28 +178,19 @@ setPaths()
             COMPILER_VERSION="intel16"      
             COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
             MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux/mpi" 
-            module load intel16.0.0
-		#######
 
-
-            export PETSC_DIR=/cluster/Software/petsc/petsc3.7.5/source/petsc-3.7.5   
-            export PETSC_ARCH=linux-opt            
-            
             ICC="$COMPOSER_ROOT/bin/intel64/icc"
             ICPC="$COMPOSER_ROOT/bin/intel64/icpc"
 
             MPIICC="$MPI_ROOT/intel64/bin/mpiicc"  
             MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"
                 
-            #module load petsc-3.5.3-intel14
-            #export PETSC_DIR=/cluster/Software/Dpetsc/petsc-3.5.3    
-            #export PETSC_ARCH=linux-intel1502-opt            
-            #export PETSC_ARCH=linux-intel-opt
-            
+            module load intel16.0.0
+            module load intelmpi16.0.0
+	    module load petsc-3.7.5            
             module load eclipse
             
             MKLROOT="$COMPOSER_ROOT/mkl"   
-
             export PATH=$PATH:$MKLROOT/lib/intel64
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
             . $MKLROOT/bin/intel64/mklvars_intel64.sh            
@@ -396,7 +387,9 @@ build()
     rm -rf $BUILD_FOLDER  # remove old build
     mkdir $BUILD_FOLDER  
     cd $BUILD_FOLDER   # step into build folder for cmake
-    
+ echo "BUILD foder"
+echo $BUILD_FOLDER
+   
     # local variables
     OPENMP=${compilerTable[(($1 * 3))]}          
     build__COMPILER_C=${compilerTable[(($1 * 3 + 1))]} 
@@ -466,7 +459,8 @@ main()
                 # compile
                 printMessage "INFO" "Compiling"
                 make -j $nCPUs    
-            
+
+		cd ../..  # step into ROOT_FOLDER
                 # post-processing
                 if [ -e $BUILD_FOLDER/bin/ogs ]; then            
                     mv $BUILD_FOLDER/bin/ogs $BUILD_FOLDER/bin/ogs_$cConfigurationSELECTED     # rename
