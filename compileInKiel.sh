@@ -23,26 +23,10 @@
 #############################################################################################  
 #  
 # USER GUIDE: 
-#   a) Put in OGS folder (same level as sources and libs)  
-#      cd into this folder and type ./compileInKiel.sh  
-#      as an option, call script from somewhere else 
-#      ogs folder as parameter $1
+#     Put in OGS folder (same level as sources and libs)  
+#     cd into this folder and type ./compileInKiel.sh  
+#     as an option, call script from somewhere else and pass ogs folder as argument $1
 # 
-#   b) To avoid SEEK_SET ERROR when using mpi compiler, add into CMakeLists.txt:    
-#      IF(OGS_FEM_MPI OR OGS_FEM_MPI_KRC OR OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)   
-#         SET(CMAKE_CXX_FLAGS -DMPICH_IGNORE_CXX_SEEK)  
-#      ENDIF(OGS_FEM_MPI OR OGS_FEM_MPI_KRC OR OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)  
-#  
-#   c) For OGS_FEM_MKL, set compiler flag -mkl and do not use FindMKL.cmake, 
-#      e.g. by adapting CMakeConfiguration/Find.cmake to 
-#        IF(OGS_FEM_MKL)  
-#           SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mkl")      
-#           SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mkl")
-#           # Find MKLlib 
-#           # FIND_PACKAGE( MKL REQUIRED ) 
-#           # INCLUDE_DIRECTORIES (${MKL_INCLUDE_DIR}) 
-#        ENDIF()  
-#
 
 
 #############################################################################################
@@ -85,10 +69,11 @@ initialize()
 {
     nCPUs=6      # number of CPUs for compilation (<= number of nodes on cluster login node or server)
     CALLEDFROM=$PWD         
-    if [ "$1" != "" ]; then        
-        OGS_FOLDER=$1          # path passed as parameter into script
-    else
+
+    if [ -z $1 ]; then
         OGS_FOLDER=$CALLEDFROM # call from ogs folder
+    else
+        OGS_FOLDER=$1          # path passed as parameter into script
     fi
     
     printMessage "INFO" "Up to compile ${OGS_FOLDER##*/}"
@@ -163,17 +148,17 @@ setPaths()
     setPaths__host=$HOSTNAME
     
     case ${setPaths__host:0:2} in 
-        rz)      # rzcluster 
+        rz) # rzcluster 
             SOFTWARE_FOLDER="/cluster/Software"
             
             # COMPILER_VERSION="intel1402"   
             # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2013_sp1.2.144"     
             # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/4.1.3.048"  
  
-            #COMPILER_VERSION="intel1502"      
-            #COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
-            #MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
-            #module load $COMPILER_VERSION   
+            # COMPILER_VERSION="intel1502"      
+            # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
+            # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
+            # module load $COMPILER_VERSION   
             
             COMPILER_VERSION="intel16"      
             COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
@@ -215,7 +200,7 @@ setPaths()
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
             . $MKLROOT/bin/intel64/mklvars_intel64.sh
                 ;;
-        Lo)    # GPI server 
+        Lo) # GPI server 
             SOFTWARE_FOLDER="/opt"
             COMPOSER_ROOT="$SOFTWARE_FOLDER/intel/composer_xe_2013.2.146"
             MPI_ROOT="$SOFTWARE_FOLDER/openmpi"
@@ -231,16 +216,15 @@ setPaths()
         
             COMPILER_VERSION="intel" 
                 ;;
-	am)	# AMAK
-
+	am) # AMAK
 	    ICC="/usr/bin/gcc"
 	    ICPC="/usr/bin/g++"
 	    
 	    MPIICC="/usr/bin/mpicc"
 	    MPIICPC="/usr/bin/mpicxx"
 
-		export PATH=/usr/bin:$PATH
-		export LD_LIBRARY_PATH=/usr/lib
+            export PATH=/usr/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib
 
 	    . /opt/intel/compilers_and_libraries_2017.0.098/linux/mkl/bin/mklvars.sh intel64
 
@@ -250,17 +234,17 @@ setPaths()
 	    COMPILER_VERSION="gnu"
 		;;
 
-	co)   # DOCKER CONTAINER
-                ICC="/usr/bin/gcc"
-                ICPC="/usr/bin/g++"
-                MPIICC="/usr/local/bin/mpicc"
-                MPIICPC="/usr/local/bin/mpicxx"
+	co) # DOCKER CONTAINER
+            ICC="/usr/bin/gcc"
+            ICPC="/usr/bin/g++"
+            MPIICC="/usr/local/bin/mpicc"
+            MPIICPC="/usr/local/bin/mpicxx"
 
-                export PATH=/usr/bin:/usr/local/bin:$PATH
-                export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
+            export PATH=/usr/bin:/usr/local/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
 
-                export PETSC_DIR=/home/ogs_user/petsc-3.7.6
-                export PETSC_ARCH=arch-linux2-c-debug
+            export PETSC_DIR=/home/ogs_user/petsc-3.7.6
+            export PETSC_ARCH=arch-linux2-c-debug
             COMPILER_VERSION="gnu"
                 ;;
         *)
@@ -357,13 +341,13 @@ selectBuild()
     fi    
         
     # flag
-        echo -e "\n--------------------------------------------------\n"
-        echo -e "\nCreate Build Files ([y]es or [n]o)?"  
-        read -n1 selectBuild__cInput  
-        if [ "$selectBuild__cInput" == "y" ]; then  
-           BUILD_flag=1  
-        elif [ "$selectBuild__cInput" == "n" ]; then  
-           BUILD_flag=0
+    echo -e "\n--------------------------------------------------\n"
+    echo -e "\nCreate Build Files ([y]es or [n]o)?"  
+    read -n1 selectBuild__cInput  
+    if [ "$selectBuild__cInput" == "y" ]; then  
+       BUILD_flag=1  
+    elif [ "$selectBuild__cInput" == "n" ]; then  
+       BUILD_flag=0
     else
         printMessage "ERROR" "Take \"y\" or \"n\" - Restart"        
         main
@@ -387,8 +371,6 @@ build()
     rm -rf $BUILD_FOLDER  # remove old build
     mkdir $BUILD_FOLDER  
     cd $BUILD_FOLDER   # step into build folder for cmake
- echo "BUILD foder"
-echo $BUILD_FOLDER
    
     # local variables
     OPENMP=${compilerTable[(($1 * 3))]}          
@@ -425,12 +407,12 @@ main()
     setCompilerTable
     
     # user input
-    if [ "$2" == "" ]; then
+    if [ -z $2 ]; then # configuration not preselected (by argument)
         selectConfiguration    
     fi
     
     if [ "$configurationSELECTED" != "x" ]; then # else exit
-        if [ "$3" == "" ]; then
+        if [ -z $3 ]; then # build flag not previously set (by argument)
             selectBuild 
         fi
         # config main loop
@@ -473,7 +455,7 @@ main()
 
         cd $CALLEDFROM      # back to initial folder
     
-        if [ "$2" == "" ]; then 
+        if [ -z $2 ]; then 
             main $1 "" "" # restart - than BUILD_CONFIGURATION, Build_flag and configuration always selected by user
         fi   # else BUILD_CONFIGURATION was preselected - exit now
     fi
