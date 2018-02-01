@@ -8659,38 +8659,47 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
         std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
       }
 
-// CB JOD MERGE //			//----------------------------------------------------------------------------------------
-      if (m_st != NULL)
-        if (m_st->isConnected())  // JOD 2/2015
-				  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
-			//--------------------------------------------------------------------
+		//----------------------------------------------------------------------------------------
 
-			//----------------------------------------------------------------------------------------
-			//SB: check if st is active, when Time_Controlled_Aktive for this ST is defined
-			// WTP: if m_st is not defined, the next if statement will cause a crash maybe use (?):
-			//if (st_node.size() > 0 && (long)st_node.size() > i)
-			//{
-			//	m_st = st_node[gindex];
-			if (m_st != NULL)
-			{
-        // TIME_CONTROLLED_ACTIVE curve
-        if (m_st->getTimeContrCurve() > 0){
-          val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
-        }
-        // TIME_CONTROLLED_ACTIVE fct
-        std::string test_fct_name = m_st->getTimeContrFunction();
-				if (test_fct_name.length() > 0){
-					m_fct = FCTGet(test_fct_name);
-					if (m_fct)
-						val = m_fct->GetValue(aktuelle_zeit, &is_valid);
-        }
-        if (val < MKleinsteZahl)
-          time_fac = 0.0;
+		if (m_st != NULL)  // some Kiel-stuff - switching source term on and off, and NNNC
+		{
+			  if (m_st->isConnected())  // JOD 2/2015
+					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
+			  //--------------------------------------------------------------------
+			  if(m_st->fluxFromTransport.apply == true)
+					  value = m_st->CalculateFluxFromTransport(value, cnodev);
+			  //----------------------------------------------------------------------------------------
+			  if(m_st->threshold.type != 0)
+					  value = m_st->CheckThreshold(value, cnodev);
+			  //----------------------------------------------------------------------------------------
+			  //SB: check if st is active, when Time_Controlled_Aktive for this ST is define
+			  // WTP: if m_st is not defined, the next if statement will cause a crash maybe use (?):
+			  //if (st_node.size() > 0 && (long)st_node.size() > i)
+			  //{
+			  //    m_st = st_node[gindex];
 
+			  // TIME_CONTROLLED_ACTIVE curve
+			  if (m_st->getTimeContrCurve() > 0)
+			  {
+					  val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
+			  }
 
-			}
-			//--------------------------------------------------------------------
-			// Please do not move the this section
+			  // TIME_CONTROLLED_ACTIVE fct
+
+			  std::string test_fct_name = m_st->getTimeContrFunction();
+			  if (test_fct_name.length() > 0)
+			  {
+					  m_fct = FCTGet(test_fct_name);
+							  if (m_fct)
+									  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
+			  }
+			  if (val < MKleinsteZahl)
+					  time_fac = 0.0;
+
+		}
+
+		//--------------------------------------------------------------------
+		// Please do not move the this section
 			curve = cnodev->CurveIndex;
 			if (curve > 0)
 			{

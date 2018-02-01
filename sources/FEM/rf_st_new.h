@@ -40,6 +40,27 @@ class MeshNodesAlongPolyline;
 
 class SourceTerm;
 
+
+struct Threshold
+{
+	enum Type { no, lower, upper};
+	enum Scheme {_explicit, _implicit};
+
+	Type type;
+	Scheme scheme;
+	double value;
+	double delta;
+	std::string process;
+	int verbosity;
+};
+
+struct FluxFromTransport
+{
+	std::string process;
+	bool apply; // true: is flux from transport, false: is not (default)
+	int verbosity;
+};
+
 typedef struct
 {
 	std::vector<double> value_reference;
@@ -180,6 +201,9 @@ public:
                                               double head,
                                               long msh_node);
 
+	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
+	double CalculateFluxFromTransport(const double &value, const CNodeValue* cnodev) const;
+
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
 	int geo_node_number;
@@ -300,6 +324,8 @@ private:                                          // TF, KR
 
 	std::size_t _st_vector_group;
 
+	Threshold threshold; // JOD 2018-1-31
+	FluxFromTransport fluxFromTransport;
 };
 
 class CSourceTermGroup

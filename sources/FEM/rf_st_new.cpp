@@ -109,6 +109,8 @@ CSourceTerm::CSourceTerm() :
    _isConstrainedST = false;
 
    everyoneWithEveryone = false;  //  JOD 2015-11-18
+   threshold.type = Threshold::no;
+   fluxFromTransport.apply = false;
 
    this->connected_geometry = false;
    this->connected_geometry_verbose_level = 0;
@@ -533,17 +535,45 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;
 		  if (connected_geometry_mode == 2)
-			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >> connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >> connected_geometry_minimum_velocity_abs;
+			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
+			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
+			  connected_geometry_minimum_velocity_abs;
 		  this->connected_geometry = true;
 		  in.clear();
 		  continue;
 	  }
-
+	  //....................................................................
 	  if (line_string.find("$EVERYONE_WITH_EVERYONE") != std::string::npos)
 	  {       //  JOD 2015-11-18
 		  in.clear();
 		  everyoneWithEveryone = true;
 		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$THRESHOLD") != std::string::npos)
+	  {       //  JOD 2018-1-31
+		  int threshold_type, threshold_scheme;
+
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> threshold_type >> threshold.process >> threshold.value >> threshold_scheme;
+
+		  threshold.type = static_cast<Threshold::Type>(threshold_type);  //  enum Type { no, lower, upper};
+		  threshold.scheme = static_cast<Threshold::Scheme>(threshold_scheme);  //  enum Scheme {_explicit, _implicit};
+
+		  if (threshold.scheme == Threshold::_implicit)
+			  in >> threshold.delta;  // smoothed threshold
+		  in >> threshold.verbosity;
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$FLUX_FROM_TRANSPORT") != std::string::npos)
+	  {       //  JOD 2018-1-31
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+	  	  in >> fluxFromTransport.process >> fluxFromTransport.verbosity;
+		  in.clear();
+		  fluxFromTransport.apply = true;
+	  	  continue;
 	  }
 	  //....................................................................
     /**/
@@ -5161,3 +5191,125 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	value = 0;  // !!! implicit source term only right now
 
 }
+
+/**************************************************************************
+FEMLib-Method:
+Task:	Switch source term off if primary variable of transport process
+        passes an upper or lower threshold
+Programing:
+01/2018 JOD implementation  - restricted to LIQUID_FLOW with HEAT_TRANSPORT
+							 temperature taken either explicit or implicit
+**************************************************************************/
+
+double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev) const
+{
+        CRFProcess* m_pcs = PCSGet(threshold.process);  // HEAT_TRANSPORT
+        double distance, result;
+        double running_value = m_pcs->GetNodeValue(cnodev->msh_node_number, threshold.scheme);  // temperature
+        int sign;
+
+        if(threshold.type == Threshold::lower)
+                sign = 1;
+        else if(threshold.type == Threshold::upper)
+                sign = -1;
+        else
+        {
+                throw runtime_error("SourceTerm::CheckThreshold - Threshold type must be 1 or 2");
+        }
+
+        if(m_pcs == NULL)
+        {
+                throw runtime_error("SourceTerm::CheckThreshold - Process unknown");
+        }
+        else
+        {
+                distance = sign * (running_value - threshold.value);  // positive if source-term should be on, else negative
+
+                if(threshold.scheme == Threshold::_explicit)  // explicit
+                { // hard switch
+                        if(distance > 0)
+                                result = value;  // source-term on (completely)
+                        else
+                                result = 0;  // source-term off
+                }
+                else if(threshold.scheme == Threshold::_implicit)  // implicit
+                { // soft switch by smoothing - generate S-curve between threshold.value and threshold.value + threshold.delta
+                        double relativeDistance = distance / threshold.delta;
+
+                        if(relativeDistance < 0)
+                        {
+                                result = 0;  // source-term off
+                        }
+                        else if(relativeDistance > 1)
+                                result = value;  // source-term on (completely)
+                        else
+                        {
+                        	result = pow(relativeDistance, 2*(1-relativeDistance)) * value;  // source-term partly on
+                        }
+                }
+                else
+                {
+                        throw runtime_error("SourceTerm::CheckThreshold - Threshold scheme must be 0 (explicit) or 1 (implicit)");
+                }
+        }
+
+        if (threshold.verbosity > 0)
+        	std::cout << "Source term with threshold -- value at node " << cnodev->msh_node_number << " : " << result << std::endl;
+        if (threshold.verbosity > 1)
+            std::cout << "                              distance to threshold: " << distance << std::endl;
+
+        return result;
+
+}
+
+
+/**************************************************************************
+FEMLib-Method:
+Task:	Calculates an LIQUID_FLOW flow for a given power value
+        Temperature from HEAT_TRANSPORT
+        might be extended to MASS_TRANSPORT
+Programing:
+01/2018 JOD implementation
+**************************************************************************/
+
+double CSourceTerm::CalculateFluxFromTransport(const double &value, const CNodeValue* cnodev) const
+{
+		CRFProcess* m_pcs = PCSGet(getProcessType());
+        CRFProcess* m_pcs_transport = PCSGet(fluxFromTransport.process);
+        double density, specCapacity, temperature, factor, result;
+        double primVals[3]; // for density and specific capacity
+
+        if(m_pcs == NULL)
+        {
+                throw runtime_error("SourceTerm::CalculateContentDriven - Process unknown");
+                return 0;
+        }
+
+        primVals[0] = m_pcs->GetNodeValue(cnodev->msh_node_number, 1);  // pressure
+        primVals[1] = m_pcs_transport->GetNodeValue(cnodev->msh_node_number, 1);  // must be HEAT_TRANSPORT, so works only for this
+        //primVals[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+
+        density = mfp_vector[0]->Density(primVals);
+        specCapacity = mfp_vector[0]->SpecificHeatCapacity(primVals);
+        temperature = m_pcs_transport->GetNodeValue(cnodev->msh_node_number, m_pcs->m_num->ls_theta);  // usually implicit
+
+        factor = density * specCapacity * temperature;
+        result = value / factor;
+
+        if(fluxFromTransport.verbosity > 0)
+        	std::cout << "Flux from transport -- source term value at node " << cnodev->msh_node_number << " : " << result << std::endl;
+        if(fluxFromTransport.verbosity > 1)
+        {
+        	std::cout << "                         density              : " << density << std::endl;
+        	std::cout << "                         specific capacity    : " << specCapacity << std::endl;
+        	std::cout << "                         temperature          : " << temperature << std::endl;
+        	std::cout << "                         thermal flux (input) : " << factor * result << std::endl;
+        }
+
+        return result;
+}
+
+
+
+
+
