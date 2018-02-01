@@ -1,0 +1,12 @@
+#SOLID_PROPERTIES ; Materialgruppe 2 (Aquifer 1[Speicherhorizont])
+ $DENSITY
+   1 2100
+ $THERMAL
+  EXPANSION
+   1 0
+  CAPACITY
+   1 890
+  CONDUCTIVITY
+   1 2.4
+
+#STOP   

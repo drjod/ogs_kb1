@@ -1,0 +1,14 @@
+#MEDIUM_PROPERTIES ; Materialgruppe 2 (Aquifer 1 [Speicherhorizont])
+ $GEOMETRY_DIMENSION
+  3
+ $POROSITY
+  1 0.3
+ $TORTUOSITY
+  1 1.0
+ $STORAGE
+  1 7.15e-9	
+ $PERMEABILITY_TENSOR
+  ISOTROPIC 1.019e-11 ; [m^2] entspricht kf = 10^-4 m/s
+ $HEAT_DISPERSION
+  1 2.5 0.25  
+#STOP

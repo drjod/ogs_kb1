@@ -997,6 +997,8 @@ COPY cases (id, name, mass_flag, heat_flag, coupled_flag, deformation_flag, over
 44	pole_diffusive	t	t	f	f	f	f	t
 20	2_2_1	t	t	f	f	f	f	t
 77	fluid_momentum	f	f	f	f	f	t	t
+85	threshold	f	t	t	f	f	f	t
+86	fluxFromTransport	f	t	t	f	f	f	t
 \.
 
 
@@ -1180,6 +1182,8 @@ COPY examples (id, type_id, case_id) FROM stdin;
 82	16	82
 83	16	83
 84	16	84
+85	17	85
+86	17	86
 \.
 
 
@@ -1187,7 +1191,7 @@ COPY examples (id, type_id, case_id) FROM stdin;
 -- Name: examples_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('examples_id_seq', 1, false);
+SELECT pg_catalog.setval('examples_id_seq', 7, true);
 
 
 --
@@ -1399,6 +1403,8 @@ COPY numerics (id, theta_flow, theta_mass, theta_heat, solver_flow_ogs_fem, solv
 119	1	1	1	2	2	0	2	0	2	2	0	2	0	2	2	0	2	0	1	0	0	0	1	1	0	0	0	1	1	0	0	0	1	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	50	2	1
 118	1	1	1	2	2	0	2	0	2	2	0	2	0	2	2	0	2	0	1	0	0	0	1	1	0	0	0	1	1	0	0	0	1	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	49	5	1
 106	1	1	1	2	2	0	2	0	2	2	0	2	0	2	2	0	2	0	1	0	0	0	1	1	0	0	0	1	1	0	0	0	1	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	47	5	1
+174	1	\N	1	2	2	0	2	0	\N	\N	\N	\N	\N	2	2	0	2	0	1	0	0	0	1	1	\N	\N	\N	\N	1	0	0	0	1	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	86	1	4
+173	1	\N	1	2	2	0	2	0	\N	\N	\N	\N	\N	2	2	0	2	0	1	0	0	0	1	1	\N	\N	\N	\N	1	0	0	0	1	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	85	1	4
 \.
 
 
@@ -1566,6 +1572,7 @@ COPY types (id, name, number_cpus) FROM stdin;
 15	soil	2
 14	plane	2
 16	numerics	2
+17	well	2
 \.
 
 
