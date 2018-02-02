@@ -195,6 +195,7 @@ const std::list<std::string> getAllPrimaryVariableNames();
 	SYSTEM_DEPENDENT,                     // ST
 	TRANSFER_SURROUNDING,
 	NODESCONSTANT,                        // IC (for DOMAIN keyword)
+	ZCURVE,		                          // IC (in DOMAIN only)
 	CLIMATE,	// climate data (by NB)
 	RECHARGE,	// MW
 	// Sort of Neumann BC //WW

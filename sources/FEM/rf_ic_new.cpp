@@ -30,6 +30,8 @@ using namespace std;
 #include "rf_pcs.h"
 #include "rfmat_cp.h"
 
+#include "tools.h"
+
 #include "InitialCondition.h"
 
 //==========================================================================
@@ -339,6 +341,10 @@ ios::pos_type CInitialCondition::Read(std::ifstream* ic_file,
 			{
 				in >> fname;
 				fname = FilePath + fname;
+			}
+			else if(this->getProcessDistributionType() == FiniteElement::ZCURVE)  // JOD 2018-2-2
+			{  // give values in curve (*.rfd), important: list from bottom to top (z increasing), supported only for DOMAIN
+				in >> CurveIndex;
 			}
 			in.clear();
 			continue;
@@ -865,7 +871,7 @@ void CInitialCondition::SetDomain(int nidx)
 		}
 		//--------------------------------------------------------------------
 		// Remove unused stuff by WW
-		if (this->getProcessDistributionType() == FiniteElement::GRADIENT)
+		else if (this->getProcessDistributionType() == FiniteElement::GRADIENT)
 			//WW
 			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
 			{
@@ -881,7 +887,7 @@ void CInitialCondition::SetDomain(int nidx)
 			}
 		//if(dis_type_name.find("GRADIENT")!=string::npos)
 		//----------------------------------------------------------------------
-		if (this->getProcessDistributionType() == FiniteElement::RESTART)
+		else if (this->getProcessDistributionType() == FiniteElement::RESTART)
 		{
 			char line[MAX_ZEILEN];
 			int no_var;
@@ -960,9 +966,33 @@ void CInitialCondition::SetDomain(int nidx)
 			var_name.clear();
 		}
 		//----------------------------------------------------------------------
+		else if(this->getProcessDistributionType() == FiniteElement::ZCURVE)
+		{  // give z-coordinate in curve - z must increase in the list
+			// (else no error, error message only if value apart from given range)
+			int valid;  // for error status when reading curve
+
+			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
+			{
+				if (onZ == 1) //2D
+					node_depth = m_msh->nod_vector[i]->getData()[1];
+				if (onZ == 2) //3D
+					node_depth = m_msh->nod_vector[i]->getData()[2];
+
+				this->getProcess()->SetNodeValue(m_msh->nod_vector[i]->GetIndex(), nidx,
+						GetCurveValue(CurveIndex, 0, node_depth, &valid));
+
+				if(valid == 0)
+					std:cerr << "WARNING: Error when reading curve value - value will be apart of given range" << std::endl;
+			}
+
+		}
+		//----------------------------------------------------------------------
+		else
+			throw std::runtime_error("IC - Distribution type not supported");
+
 	}
 	//========================================================================
-	else                                  //WW
+	else  // Sub_number != 0                                  //WW
 	{
 		bool quadratic = false;
 		/// In case of P_U coupling monolithic scheme
