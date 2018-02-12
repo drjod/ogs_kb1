@@ -48,6 +48,7 @@ struct Threshold
 
 	Type type;
 	Scheme scheme;
+	long node_number;
 	double value;
 	double delta;
 	std::string process;
@@ -243,7 +244,6 @@ public:
 	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
 	  double connected_geometry_minimum_velocity_abs;    //                      
 	  double connected_geometry_reference_direction[3];  //                      
-
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,

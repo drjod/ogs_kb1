@@ -8,7 +8,7 @@
  $DIS_TYPE
   CONSTANT_NEUMANN 1e4 ; 6.25E-03 ;[m^3/s] 19/20 von 30 m^2/h (da 20 Layer und 2 Grenzpunkte, die zusammen einen Punkt ausmachen)
  $THRESHOLD
-  1 HEAT_TRANSPORT 350 1 2 0 ; type [1: lower, 2: upper], process name, threshold value, scheme [0: explicit, 1: implicit], delta [only if scheme is implicit], verbosity [0, 1, 2]
+  1 HEAT_TRANSPORT 350 1245 1 2 0 ; type [1: lower, 2: upper], process name, threshold value, scheme [0: explicit, 1: implicit], delta [only if scheme is implicit], verbosity [0, 1, 2]
  $FLUX_FROM_TRANSPORT
   HEAT_TRANSPORT 2 ; process name, verbosity [0, 1, 2]
  $FCT_TYPE

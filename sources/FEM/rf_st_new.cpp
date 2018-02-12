@@ -512,6 +512,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.clear();
 	  }
 // CB JOD MERGE //
+	  //....................................................................
 	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015    JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
@@ -555,7 +556,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  int threshold_type, threshold_scheme;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> threshold_type >> threshold.process >> threshold.value >> threshold_scheme;
+		  in >> threshold_type >> threshold.process >> threshold.node_number >> threshold.value >> threshold_scheme;
 
 		  threshold.type = static_cast<Threshold::Type>(threshold_type);  //  enum Type { no, lower, upper};
 		  threshold.scheme = static_cast<Threshold::Scheme>(threshold_scheme);  //  enum Scheme {_explicit, _implicit};
@@ -3253,7 +3254,6 @@ const int ShiftInNodeVector)
    // TF removed some checks - check validity of data while reading data
 
    nod_val->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj())) + ShiftInNodeVector;
-
    nod_val->CurveIndex = st->CurveIndex;
                                                   //WW
    nod_val->geo_node_number = nod_val->msh_node_number - ShiftInNodeVector;
@@ -3560,7 +3560,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
 	  if (m_st->isConnected())   // JOD 2/2015
 		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
-    /**/
+
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
 /*
@@ -4729,10 +4729,6 @@ double CSourceTerm::GetAnalyticalSolution(long location)
       }
    }
    //Identify process
-   if (process_no == 1)
-   {
-      process_no = process_no;
-   }
    process_no *= 2;                               //first column time, second column value, hence two columns per process;
 
    //If time step require new calculation of source term then start
@@ -5162,7 +5158,6 @@ void CSourceTerm::SetSurfaceNodeVectorConnected(std::vector<long>&sfc_nod_vector
 
 }
 
-
 /**************************************************************************
 FEMLib-Method:
 Task:	Incorporate a direct connection between two geometries
@@ -5205,7 +5200,7 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
 {
         CRFProcess* m_pcs = PCSGet(threshold.process);  // HEAT_TRANSPORT
         double distance, result;
-        double running_value = m_pcs->GetNodeValue(cnodev->msh_node_number, threshold.scheme);  // temperature
+        double running_value = m_pcs->GetNodeValue(threshold.node_number, threshold.scheme);  // temperature
         int sign;
 
         if(threshold.type == Threshold::lower)
@@ -5254,10 +5249,16 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
         }
 
         if (threshold.verbosity > 0)
-        	std::cout << "Source term with threshold -- value at node " << cnodev->msh_node_number << " : " << result << std::endl;
+        	std::cout << "Source term with threshold -- value at node " << threshold.node_number << " : " << result << std::endl;
         if (threshold.verbosity > 1)
+        {
             std::cout << "                              distance to threshold: " << distance << std::endl;
+            std::cout << "                              Reference point coordinate: ("
+            		<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[0] << ", "
+					<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[1] << ", "
+					<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[2] << ")" << std::endl;
 
+        }
         return result;
 
 }
