@@ -95,6 +95,9 @@ CSourceTerm::CSourceTerm() :
 	ProcessInfo(), GeoInfo(), _coupled (false), _sub_dom_idx(-1), dis_linear_f(NULL), GIS_shape_head(NULL), _distances(NULL)
                                                   // 07.06.2010, 03.2010. WW
 {
+	geoInfo_connected = new GeoInfo();
+	geoInfo_influencing = new GeoInfo();
+
    CurveIndex = -1;
    //KR critical_depth = false;
    //	COUPLING_SWITCH = false;
@@ -120,6 +123,7 @@ CSourceTerm::CSourceTerm() :
    this->connected_geometry_ref_element_number = -1;
    this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
 
+   this->influencing_geometry = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -129,6 +133,9 @@ CSourceTerm::CSourceTerm(const SourceTerm* st)
 	  DistributionInfo(st->getProcessDistributionType()),
 	  _distances(NULL)
 {
+	geoInfo_connected = new GeoInfo();
+	geoInfo_influencing = new GeoInfo();
+
 	setProcess( PCSGet( this->getProcessType() ) );
 	this->geo_name = st->getGeoName();
 	const std::vector<size_t> dis_nodes = st->getDisNodes();
@@ -165,6 +172,9 @@ CSourceTerm::CSourceTerm(const SourceTerm* st)
  **************************************************************************/
 CSourceTerm::~CSourceTerm()
 {
+	delete geoInfo_connected;
+	delete geoInfo_influencing;
+
 	delete _distances;
 	for (size_t i=0; i<this->_weather_stations.size(); i++) // KR / NB clear climate data information
 	   delete this->_weather_stations[i];
@@ -515,9 +525,20 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015    JOD 2015-11-18
 	  {
-		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> connected_geometry_type >> connected_geometry_name;                             
+	      FileIO::GeoIO::readGeoInfo(geoInfo_connected, *st_file, connected_geometry_name, geo_obj, unique_name);
+	      //in.str(readNonBlankLineFromInputStream(*st_file));
+		  //in >> connected_geometry_type >> connected_geometry_name;
 		  this->connected_geometry = true;
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$INFLUENCE_GEOMETRY") != std::string::npos) // JOD 2018-02-20
+	  {
+	      FileIO::GeoIO::readGeoInfo(geoInfo_influencing, *st_file, influencing_geometry_name, geo_obj, unique_name);
+	      //in.str(readNonBlankLineFromInputStream(*st_file));
+		  //in >> connected_geometry_type >> connected_geometry_name;
+		  this->influencing_geometry = true;
 		  in.clear();
 		  continue;
 	  }
@@ -556,7 +577,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  int threshold_type, threshold_scheme;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> threshold_type >> threshold.process >> threshold.node_number >> threshold.value >> threshold_scheme;
+		  in >> threshold_type >> threshold.process >> threshold.value >> threshold_scheme;
 
 		  threshold.type = static_cast<Threshold::Type>(threshold_type);  //  enum Type { no, lower, upper};
 		  threshold.scheme = static_cast<Threshold::Scheme>(threshold_scheme);  //  enum Scheme {_explicit, _implicit};
@@ -3260,6 +3281,12 @@ const int ShiftInNodeVector)
    nod_val->node_value = st->geo_node_value;
    nod_val->tim_type_name = st->tim_type_name;
 
+   if(st->isConnected()) // JOD 2018-02-20
+   {
+	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
+			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
+   }
+
    if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
    {
       //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
@@ -3437,6 +3464,12 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if (st->isCoupled())
 			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
 		
+	      if(st->isInfluenced()) // JOD 2018-02-20
+	      {  // only point supported
+	    	  st->msh_node_number_influencing = m_msh->GetNODOnPNT(
+	      					static_cast<const GEOLIB::Point*>(st->geoInfo_influencing->getGeoObj()));
+	      }
+
 		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
 
 		if (st->distribute_volume_flux)   // 5.3.07 JOD
@@ -4242,7 +4275,7 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->geo_node_number = nodes[i];
       m_nod_val->setProcessDistributionType (getProcessDistributionType());
       m_nod_val->node_value = node_values[i];
-	  
+
       // Added by CB;  removed by JOD 2015-11-19 
       //if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
       //  m_nod_val->node_value *= geometry_area;
@@ -5199,11 +5232,17 @@ Programing:
 double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev) const
 {
         CRFProcess* m_pcs = PCSGet(threshold.process);  // HEAT_TRANSPORT
-        double distance, result;
-        double running_value = m_pcs->GetNodeValue(threshold.node_number, threshold.scheme);  // temperature
+        double distance, result, running_value;
         int sign;
+    	long node_number;
+    	if(influencing_geometry == true)
+    		node_number = msh_node_number_influencing;  // only for point now
+    	else
+    		node_number = cnodev->msh_node_number;
 
-        if(threshold.type == Threshold::lower)
+    	running_value = m_pcs->GetNodeValue(node_number, threshold.scheme);  // temperature
+
+    	if(threshold.type == Threshold::lower)
                 sign = 1;
         else if(threshold.type == Threshold::upper)
                 sign = -1;
@@ -5249,14 +5288,14 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
         }
 
         if (threshold.verbosity > 0)
-        	std::cout << "Source term with threshold -- value at node " << threshold.node_number << " : " << result << std::endl;
+        	std::cout << "Source term with threshold -- value at node " << node_number << " : " << result << std::endl;
         if (threshold.verbosity > 1)
         {
             std::cout << "                              distance to threshold: " << distance << std::endl;
             std::cout << "                              Reference point coordinate: ("
-            		<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[0] << ", "
-					<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[1] << ", "
-					<< m_pcs->m_msh->nod_vector[threshold.node_number]->getData()[2] << ")" << std::endl;
+            		<< m_pcs->m_msh->nod_vector[node_number]->getData()[0] << ", "
+					<< m_pcs->m_msh->nod_vector[node_number]->getData()[1] << ", "
+					<< m_pcs->m_msh->nod_vector[node_number]->getData()[2] << ")" << std::endl;
 
         }
         return result;

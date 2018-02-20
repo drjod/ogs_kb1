@@ -48,7 +48,6 @@ struct Threshold
 
 	Type type;
 	Scheme scheme;
-	long node_number;
 	double value;
 	double delta;
 	std::string process;
@@ -72,6 +71,9 @@ typedef struct
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
+	GeoInfo* geoInfo_connected;
+	GeoInfo* geoInfo_influencing;  // JOD 2018-02-20
+
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -164,6 +166,7 @@ public:
 	
 	bool isCoupled () const { return _coupled; }
 	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
+	bool isInfluenced() const { return influencing_geometry; }
 	double getNormalDepthSlope () const { return normaldepth_slope; }
 	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface  JOD 2015-11-18
 
@@ -235,7 +238,6 @@ public:
 	  std::vector<long> st_node_ids;
 	  // NNNC
 	  bool connected_geometry;			// SB 02/2015
-	  std::string connected_geometry_type;
 	  std::string connected_geometry_name;
 	  std::vector<long> connected_nodes_idx;
 	  int connected_geometry_verbose_level;
@@ -243,7 +245,12 @@ public:
 	  int connected_geometry_mode;
 	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
 	  double connected_geometry_minimum_velocity_abs;    //                      
-	  double connected_geometry_reference_direction[3];  //                      
+	  double connected_geometry_reference_direction[3];  //
+
+	  bool influencing_geometry;  // JOD 2018-02-20
+	  std::string influencing_geometry_name;
+	  long msh_node_number_influencing;
+
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,
