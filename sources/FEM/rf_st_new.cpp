@@ -96,7 +96,7 @@ CSourceTerm::CSourceTerm() :
                                                   // 07.06.2010, 03.2010. WW
 {
 	geoInfo_connected = new GeoInfo();
-	geoInfo_influencing = new GeoInfo();
+	geoInfo_threshold = new GeoInfo();
 
    CurveIndex = -1;
    //KR critical_depth = false;
@@ -123,7 +123,7 @@ CSourceTerm::CSourceTerm() :
    this->connected_geometry_ref_element_number = -1;
    this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
 
-   this->influencing_geometry = false;
+   this->threshold_geometry = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -134,7 +134,7 @@ CSourceTerm::CSourceTerm(const SourceTerm* st)
 	  _distances(NULL)
 {
 	geoInfo_connected = new GeoInfo();
-	geoInfo_influencing = new GeoInfo();
+	geoInfo_threshold = new GeoInfo();
 
 	setProcess( PCSGet( this->getProcessType() ) );
 	this->geo_name = st->getGeoName();
@@ -173,7 +173,7 @@ CSourceTerm::CSourceTerm(const SourceTerm* st)
 CSourceTerm::~CSourceTerm()
 {
 	delete geoInfo_connected;
-	delete geoInfo_influencing;
+	delete geoInfo_threshold;
 
 	delete _distances;
 	for (size_t i=0; i<this->_weather_stations.size(); i++) // KR / NB clear climate data information
@@ -533,12 +533,12 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$INFLUENCE_GEOMETRY") != std::string::npos) // JOD 2018-02-20
+	  if (line_string.find("$THRESHOLD_GEOMETRY") != std::string::npos) // JOD 2018-02-20
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_influencing, *st_file, influencing_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_threshold, *st_file, threshold_geometry_name, geo_obj, unique_name);
 	      //in.str(readNonBlankLineFromInputStream(*st_file));
 		  //in >> connected_geometry_type >> connected_geometry_name;
-		  this->influencing_geometry = true;
+		  this->threshold_geometry = true;
 		  in.clear();
 		  continue;
 	  }
@@ -3464,10 +3464,10 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if (st->isCoupled())
 			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
 		
-	      if(st->isInfluenced()) // JOD 2018-02-20
+	      if(st->hasThreshold()) // JOD 2018-02-20
 	      {  // only point supported
-	    	  st->msh_node_number_influencing = m_msh->GetNODOnPNT(
-	      					static_cast<const GEOLIB::Point*>(st->geoInfo_influencing->getGeoObj()));
+	    	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+	      					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
 	      }
 
 		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
@@ -5235,8 +5235,8 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
         double distance, result, running_value;
         int sign;
     	long node_number;
-    	if(influencing_geometry == true)
-    		node_number = msh_node_number_influencing;  // only for point now
+    	if(threshold_geometry == true)
+    		node_number = msh_node_number_threshold;  // only for point now
     	else
     		node_number = cnodev->msh_node_number;
 

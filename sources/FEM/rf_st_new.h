@@ -72,7 +72,7 @@ typedef struct
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
 	GeoInfo* geoInfo_connected;
-	GeoInfo* geoInfo_influencing;  // JOD 2018-02-20
+	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
 
 public:
 	CSourceTerm();
@@ -166,7 +166,7 @@ public:
 	
 	bool isCoupled () const { return _coupled; }
 	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
-	bool isInfluenced() const { return influencing_geometry; }
+	bool hasThreshold() const { return threshold_geometry; }
 	double getNormalDepthSlope () const { return normaldepth_slope; }
 	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface  JOD 2015-11-18
 
@@ -247,9 +247,9 @@ public:
 	  double connected_geometry_minimum_velocity_abs;    //                      
 	  double connected_geometry_reference_direction[3];  //
 
-	  bool influencing_geometry;  // JOD 2018-02-20
-	  std::string influencing_geometry_name;
-	  long msh_node_number_influencing;
+	  bool threshold_geometry;  // JOD 2018-02-20
+	  std::string threshold_geometry_name;
+	  long msh_node_number_threshold;
 
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
