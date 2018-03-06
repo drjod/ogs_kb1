@@ -8417,10 +8417,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 			}
 		}
-
-
 		m_st=NULL;
-
 
 //#####################
 
@@ -8663,14 +8660,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		if (m_st != NULL)  // some Kiel-stuff - switching source term on and off, and NNNC
 		{
-			  if (m_st->isConnected())  // JOD 2/2015
-					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
-			  //--------------------------------------------------------------------
-			  if(m_st->fluxFromTransport.apply == true)
-					  value = m_st->CalculateFluxFromTransport(value, cnodev);
-			  //----------------------------------------------------------------------------------------
-			  if(m_st->threshold.type != 0)
-					  value = m_st->CheckThreshold(value, cnodev);
+
 			  //----------------------------------------------------------------------------------------
 			  //SB: check if st is active, when Time_Controlled_Aktive for this ST is define
 			  // WTP: if m_st is not defined, the next if statement will cause a crash maybe use (?):
@@ -8694,8 +8684,22 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 									  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
 			  }
 			  if (val < MKleinsteZahl)
+			  {
 					  time_fac = 0.0;
+					  value = 0;
+			  }
+			  else
+			  {   // only if not switched off
+				  if (m_st->isConnected())  // JOD 2/2015
+						  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
+				  //--------------------------------------------------------------------
+				  if(m_st->storageRate.apply == true)
+						  value = m_st->CalculateFromStorageRate(value, cnodev);
+				  //----------------------------------------------------------------------------------------
+				  if(m_st->threshold.type != Threshold::no)
+						  value = m_st->CheckThreshold(value, cnodev);
 
+			  }
 		}
 
 		//--------------------------------------------------------------------

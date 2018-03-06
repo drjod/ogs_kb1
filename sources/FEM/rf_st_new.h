@@ -54,10 +54,11 @@ struct Threshold
 	int verbosity;
 };
 
-struct FluxFromTransport
+struct StorageRate
 {
 	std::string process;
 	bool apply; // true: is flux from transport, false: is not (default)
+	double absMaximum;
 	int verbosity;
 };
 
@@ -73,6 +74,8 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
 	GeoInfo* geoInfo_connected;
 	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
+	GeoInfo* geoInfo_storageRateInlet;  // JOD 2018-02-22
+	GeoInfo* geoInfo_storageRateOutlet;
 
 public:
 	CSourceTerm();
@@ -167,6 +170,8 @@ public:
 	bool isCoupled () const { return _coupled; }
 	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
 	bool hasThreshold() const { return threshold_geometry; }
+	bool calculatedFromStorageRate() const { return storageRate_geometry; }
+
 	double getNormalDepthSlope () const { return normaldepth_slope; }
 	bool everyoneWithEveryone; // take all nodes from surface and connect with all nodes of other surface  JOD 2015-11-18
 
@@ -206,7 +211,7 @@ public:
                                               long msh_node);
 
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
-	double CalculateFluxFromTransport(const double &value, const CNodeValue* cnodev) const;
+	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
 
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
@@ -250,6 +255,12 @@ public:
 	  bool threshold_geometry;  // JOD 2018-02-20
 	  std::string threshold_geometry_name;
 	  long msh_node_number_threshold;
+
+	  bool storageRate_geometry;  // JOD 2018-02-22
+	  std::string storageRateInlet_geometry_name;
+	  long msh_node_number_storageRateInlet;
+	  std::string storageRateOutlet_geometry_name;
+	  long msh_node_number_storageRateOutlet;
 
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
@@ -332,7 +343,7 @@ private:                                          // TF, KR
 	std::size_t _st_vector_group;
 
 	Threshold threshold; // JOD 2018-1-31
-	FluxFromTransport fluxFromTransport;
+	StorageRate storageRate;
 };
 
 class CSourceTermGroup

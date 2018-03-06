@@ -70,6 +70,7 @@
 
 #include "SourceTerm.h"
 
+
 using FiniteElement::CElement;
 using MeshLib::CElem;
 using MeshLib::CEdge;
@@ -97,6 +98,8 @@ CSourceTerm::CSourceTerm() :
 {
 	geoInfo_connected = new GeoInfo();
 	geoInfo_threshold = new GeoInfo();
+	geoInfo_storageRateInlet = new GeoInfo();
+	geoInfo_storageRateOutlet = new GeoInfo();
 
    CurveIndex = -1;
    //KR critical_depth = false;
@@ -113,7 +116,7 @@ CSourceTerm::CSourceTerm() :
 
    everyoneWithEveryone = false;  //  JOD 2015-11-18
    threshold.type = Threshold::no;
-   fluxFromTransport.apply = false;
+   storageRate.apply = false;
 
    this->connected_geometry = false;
    this->connected_geometry_verbose_level = 0;
@@ -124,6 +127,7 @@ CSourceTerm::CSourceTerm() :
    this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
 
    this->threshold_geometry = false;
+   this->storageRate_geometry = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -174,6 +178,8 @@ CSourceTerm::~CSourceTerm()
 {
 	delete geoInfo_connected;
 	delete geoInfo_threshold;
+	delete geoInfo_storageRateInlet;
+	delete geoInfo_storageRateOutlet;
 
 	delete _distances;
 	for (size_t i=0; i<this->_weather_stations.size(); i++) // KR / NB clear climate data information
@@ -543,6 +549,16 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
+	  if (line_string.find("$STORAGE_RATE_GEOMETRY") != std::string::npos) // JOD 2018-02-22
+	  {
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateInlet, *st_file, storageRateInlet_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateOutlet, *st_file, storageRateOutlet_geometry_name, geo_obj, unique_name);
+
+		  this->storageRate_geometry = true;
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
 	  if (line_string.find("$CONNECT_PARAMETER") != std::string::npos) //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
@@ -589,12 +605,12 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$FLUX_FROM_TRANSPORT") != std::string::npos)
+	  if (line_string.find("$STORAGE_RATE") != std::string::npos)
 	  {       //  JOD 2018-1-31
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-	  	  in >> fluxFromTransport.process >> fluxFromTransport.verbosity;
+	  	  in >> storageRate.process >> storageRate.absMaximum >> storageRate.verbosity;
 		  in.clear();
-		  fluxFromTransport.apply = true;
+		  storageRate.apply = true;
 	  	  continue;
 	  }
 	  //....................................................................
@@ -3287,6 +3303,20 @@ const int ShiftInNodeVector)
 			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
    }
 
+   if(st->hasThreshold()) // JOD 2018-02-20
+   {  // only point supported
+	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+   }
+
+   if(st->calculatedFromStorageRate()) // JOD 2018-02-22
+   {  // only point supported
+	  st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj()));
+	  st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj()));
+   }
+
    if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
    {
       //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
@@ -3464,11 +3494,19 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if (st->isCoupled())
 			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
 		
-	      if(st->hasThreshold()) // JOD 2018-02-20
-	      {  // only point supported
-	    	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
-	      					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
-	      }
+	    if(st->hasThreshold()) // JOD 2018-02-20
+	    {  // only point supported
+		  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+	    }
+
+	    if(st->calculatedFromStorageRate()) // JOD 2018-02-22
+	    {  // only point supported
+		  st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj()));
+		  st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj()));
+	    }
 
 		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
 
@@ -5287,16 +5325,19 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
                 }
         }
 
-        if (threshold.verbosity > 0)
-        	std::cout << "Source term with threshold -- value at node " << node_number << " : " << result << std::endl;
         if (threshold.verbosity > 1)
         {
-            std::cout << "                              distance to threshold: " << distance << std::endl;
-            std::cout << "                              Reference point coordinate: ("
-            		<< m_pcs->m_msh->nod_vector[node_number]->getData()[0] << ", "
-					<< m_pcs->m_msh->nod_vector[node_number]->getData()[1] << ", "
-					<< m_pcs->m_msh->nod_vector[node_number]->getData()[2] << ")" << std::endl;
-
+        	std::cout << "    Source term with ";
+        	if(threshold.type == Threshold::lower)
+        		std::cout << "lower ";
+        	else if(threshold.type == Threshold::upper)
+        		std::cout << "upper ";
+        	std::cout << "threshold temperature of " << threshold.value << std::endl;
+        	std::cout << "        Temperature at reference node " << node_number << " : " << running_value << std::endl;
+        }
+        if (threshold.verbosity > 0)
+        {
+        	std::cout << "        Source term at node " << cnodev->msh_node_number << " : " << result << std::endl;
         }
         return result;
 
@@ -5307,43 +5348,69 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
 FEMLib-Method:
 Task:	Calculates an LIQUID_FLOW flow for a given power value
         Temperature from HEAT_TRANSPORT
-        might be extended to MASS_TRANSPORT
+        can be extended to MASS_TRANSPORT
 Programing:
-01/2018 JOD implementation
+02/2018 JOD implementation
 **************************************************************************/
 
-double CSourceTerm::CalculateFluxFromTransport(const double &value, const CNodeValue* cnodev) const
+double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const
 {
 		CRFProcess* m_pcs = PCSGet(getProcessType());
-        CRFProcess* m_pcs_transport = PCSGet(fluxFromTransport.process);
-        double density, specCapacity, temperature, factor, result;
-        double primVals[3]; // for density and specific capacity
+        CRFProcess* m_pcs_transport = PCSGet(storageRate.process);
+        double densityInlet, specCapacityInlet;
+        double densityOutlet, specCapacityOutlet;
+        double primValsInlet[3]; // for density and specific capacity
+        double primValsOutlet[3];
+		double factor, result;
 
         if(m_pcs == NULL)
         {
-                throw runtime_error("SourceTerm::CalculateContentDriven - Process unknown");
+                throw runtime_error("SourceTerm::CalculateFromStorageRate - Process unknown");
                 return 0;
         }
 
-        primVals[0] = m_pcs->GetNodeValue(cnodev->msh_node_number, 1);  // pressure
-        primVals[1] = m_pcs_transport->GetNodeValue(cnodev->msh_node_number, 1);  // must be HEAT_TRANSPORT, so works only for this
-        //primVals[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+        primValsInlet[0] = m_pcs->GetNodeValue(msh_node_number_storageRateInlet, 1);  // pressure
+        primValsInlet[1] = m_pcs_transport->GetNodeValue(msh_node_number_storageRateInlet, 1);  // temperature, process must be HEAT_TRANSPORT
+        //primValsInlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
 
-        density = mfp_vector[0]->Density(primVals);
-        specCapacity = mfp_vector[0]->SpecificHeatCapacity(primVals);
-        temperature = m_pcs_transport->GetNodeValue(cnodev->msh_node_number, m_pcs->m_num->ls_theta);  // usually implicit
+        densityInlet = mfp_vector[0]->Density(primValsInlet);
+        specCapacityInlet = mfp_vector[0]->SpecificHeatCapacity(primValsInlet);
 
-        factor = density * specCapacity * temperature;
+        primValsOutlet[0] = m_pcs->GetNodeValue(msh_node_number_storageRateOutlet, 1);  // pressure
+        primValsOutlet[1] = m_pcs_transport->GetNodeValue(msh_node_number_storageRateOutlet, 1);  // temperature, process must be HEAT_TRANSPORT
+        //primValsOutlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+
+        densityOutlet = mfp_vector[0]->Density(primValsOutlet);
+        specCapacityOutlet = mfp_vector[0]->SpecificHeatCapacity(primValsOutlet);
+
+        factor = densityInlet * specCapacityInlet * primValsInlet[1] - densityOutlet * specCapacityOutlet * primValsOutlet[1];
+
+        if(fabs(factor) <std::numeric_limits<double>::epsilon())
+        	return 0;  // no division by zero - maximum flow rate treated below
+
         result = value / factor;
+        if(result > storageRate.absMaximum)
+        	result = storageRate.absMaximum;
+        else if(result < -storageRate.absMaximum)
+        	result = -storageRate.absMaximum;
 
-        if(fluxFromTransport.verbosity > 0)
-        	std::cout << "Flux from transport -- source term value at node " << cnodev->msh_node_number << " : " << result << std::endl;
-        if(fluxFromTransport.verbosity > 1)
+        if(storageRate.verbosity > 0)
         {
-        	std::cout << "                         density              : " << density << std::endl;
-        	std::cout << "                         specific capacity    : " << specCapacity << std::endl;
-        	std::cout << "                         temperature          : " << temperature << std::endl;
-        	std::cout << "                         thermal flux (input) : " << factor * result << std::endl;
+        	std::cout << "    Flux from storage rate at node " << cnodev->msh_node_number << std::endl;
+        	std::cout << "        Source term value: " << result << " (at time "
+        			<< aktuelle_zeit  << ")"<<  std::endl;
+        }
+        if(storageRate.verbosity > 1)
+        {
+        	std::cout << "                         Warm well   - node " << msh_node_number_storageRateInlet << std::endl;
+        	std::cout << "                            density              : " << densityInlet << std::endl;
+        	std::cout << "                            specific capacity    : " << specCapacityInlet << std::endl;
+        	std::cout << "                            temperature          : " << primValsInlet[1] << std::endl;
+        	std::cout << "                         Cold well   - node " << msh_node_number_storageRateOutlet << std::endl;
+        	std::cout << "                            density              : " << densityOutlet << std::endl;
+        	std::cout << "                            specific capacity    : " << specCapacityOutlet << std::endl;
+        	std::cout << "                            temperature          : " << primValsOutlet[1] << std::endl;
+        	std::cout << "                         Thermal flux (input) : " << factor * result << std::endl;
         }
 
         return result;
