@@ -1,0 +1,19 @@
+#PROCESS
+ $PCS_TYPE
+  LIQUID_FLOW
+ $NUM_TYPE
+  NEW
+ $COPY_GP_VELOCITIES  ; Give total number of indices, then index to copy from, the indices to copy to.
+   2  44  46
+#PROCESS
+ $PCS_TYPE
+  HEAT_TRANSPORT
+ $NUM_TYPE
+  NEW
+ $BOUNDARY_CONDITION_OUTPUT
+#PROCESS
+ $PCS_TYPE
+  MASS_TRANSPORT
+ $NUM_TYPE
+  NEW
+#STOP

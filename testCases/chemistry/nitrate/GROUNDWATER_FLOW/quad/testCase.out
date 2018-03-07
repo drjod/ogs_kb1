@@ -1,0 +1,55 @@
+GeoSys-OUT: Output ------------------------------------------------
+#OUTPUT
+ $NOD_VALUES
+  HEAD
+  Tracer
+  Toluene
+  Nitrate
+  Aromaticum
+  Comp_C
+  Reaction_Mark
+ $GEO_TYPE
+  DOMAIN
+ $DAT_TYPE
+  VTK
+ $TIM_TYPE
+  50
+  100
+  5000
+#OUTPUT
+ $NOD_VALUES
+  HEAD
+  Tracer
+  Toluene
+  Nitrate
+  Aromaticum
+  Comp_C
+  Reaction_Mark
+ $GEO_TYPE
+  DOMAIN
+ $DAT_TYPE
+  TECPLOT
+ $TIM_TYPE
+  50
+  100
+  5000
+#OUTPUT
+ $NOD_VALUES
+  HEAD
+  Tracer
+  Toluene
+  Nitrate
+  Aromaticum
+  Comp_C
+  Reaction_Mark
+ $GEO_TYPE
+  POLYLINE PLY_PROF1
+ $DAT_TYPE
+  TECPLOT
+ $TIM_TYPE
+  50
+  100
+  5000  
+
+#STOP
+  

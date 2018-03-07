@@ -1,0 +1,50 @@
+#POINTS
+0  0   0 0   $NAME P0
+1  10  0 0   $NAME P1
+2  10  0 -20 $NAME P2
+3  0   0 -20 $NAME P3
+4  5   0 -5  $NAME P4
+5  0   0 -16 $NAME P5
+6  10  0 -4  $NAME P6
+7  10  0 -9  $NAME P7
+#POLYLINE
+ $NAME
+  LEFT
+ $POINTS
+  3
+  5
+#POLYLINE
+ $NAME
+  RIGHT
+ $POINTS
+  1
+  6
+#POLYLINE
+ $NAME
+  BOT
+ $POINTS
+  3
+  2
+#POLYLINE
+ $NAME
+  TOP
+ $POINTS
+  0
+  1
+#POLYLINE
+ $NAME
+  AREA
+ $POINTS
+  0
+  1
+  2
+  3
+  0
+#SURFACE
+ $NAME
+  SURF_AREA
+ $POLYLINES
+  AREA
+ $TYPE
+  0
+#STOP

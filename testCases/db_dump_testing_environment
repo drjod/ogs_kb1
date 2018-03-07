@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 9.5.10
--- Dumped by pg_dump version 9.5.10
+-- Dumped from database version 9.5.11
+-- Dumped by pg_dump version 9.5.11
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -998,7 +998,7 @@ COPY cases (id, name, mass_flag, heat_flag, coupled_flag, deformation_flag, over
 20	2_2_1	t	t	f	f	f	f	t
 77	fluid_momentum	f	f	f	f	f	t	t
 85	threshold	f	t	t	f	f	f	t
-86	fluxFromTransport	f	t	t	f	f	f	t
+86	storageRate	f	t	t	f	f	f	t
 \.
 
 
@@ -2306,7 +2306,7 @@ ALTER TABLE ONLY superusers
 
 
 --
--- Name: public; Type: ACL; Schema: -; Owner: postgres
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: postgres
 --
 
 REVOKE ALL ON SCHEMA public FROM PUBLIC;

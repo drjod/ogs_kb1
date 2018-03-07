@@ -1,0 +1,11 @@
+
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+  LIQUID
+ $DENSITY
+  3 1.000000e+003 0 0.2  ; rho_0, C_0, beta_C - rho(C) = rho_0*(1+beta_C*(C-C_0))
+ $VISCOSITY
+  1 1.000000e-003
+
+#STOP
+

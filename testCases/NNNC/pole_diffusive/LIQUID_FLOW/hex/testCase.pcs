@@ -1,0 +1,23 @@
+GINA - Process
+#PROCESS
+  $PCS_TYPE
+    LIQUID_FLOW
+  $NUM_TYPE
+    NEW
+ ; $BC_ST_ALL_STEPS
+ ;   1
+#PROCESS
+  $PCS_TYPE
+    HEAT_TRANSPORT
+  $NUM_TYPE
+    NEW
+;  $BC_ST_ALL_STEPS    
+;    1            
+#PROCESS
+  $PCS_TYPE
+    MASS_TRANSPORT
+  $NUM_TYPE
+    NEW
+ ; $BC_ST_ALL_STEPS    
+ ;   1            
+#STOP

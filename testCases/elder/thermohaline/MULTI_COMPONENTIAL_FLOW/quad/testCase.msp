@@ -1,0 +1,15 @@
+GeoSys-MSP  Material Medium Properties ------------------------------------
+#SOLID_PROPERTIES
+ $DENSITY
+  1 1.
+ $THERMAL
+  EXPANSION:
+   0
+  CAPACITY
+   1 0.0
+  CONDUCTIVITY
+   1 1.591
+#STOP
+
+
+ 

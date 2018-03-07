@@ -1,0 +1,96 @@
+#KINREACTIONDATA
+ $SOLVER_TYPE
+   1               ; Solver type: 1 = Stiff BS, 2 = RK5, 3 = CVODE
+ ;$NUMERICAL_JACOBIAN
+ $RELATIVE_ERROR
+  1.0e-6    ; 1.0E-8
+ $MIN_TIMESTEP
+  1.0e-4    ; 1.0E-08
+ $INITIAL_TIMESTEP
+  10        ; 1.0E-04
+; $MIN_CONCENTRATION_REPLACEMENT
+;   ; mode cutoff_Conc Replace_by_C   
+;      1           1.0e-19     1.0e-19   ; mode=0: do nothing mode = 1: abs. val. mode=1: plain val.
+; $REACTION_DEACTIVATION	
+;   1   1e-10  ; ReactDeactMode ReactDeactEpsilon  
+; $NO_REACTIONS
+;   SURFACE   SURF_NODissolvedCO2_Area
+; $ALLOW_REACTIONS
+;  SURFACE SURF_DissolvedCO2_Area 
+ $DEBUG_OUTPUT
+; $MIN_BACTERIACONC
+;    1.0E-30    ; 0.5   ; 1.0E-7; 
+															
+#BLOB_PROPERTIES
+ $NAME
+  blob1
+ $D50
+  0.001
+; $CALC_SHERWOOD
+; Sh_factor  Re_expo  Sc_expo
+;   1.15       0.654    0.486
+ $SHERWOOD_MODEL
+   ;shidx  Sh_factor
+     11        1.0 	
+ $GEOMETRY
+    0   ;  0.66
+ $INTERFACIAL_AREA
+  DOMAIN 0.0
+  SURFACE SURF_DissolvedCO2_Area   100									
+  
+
+ 
+#REACTION ;
+ $NAME
+   CO2-dissolution 
+ $TYPE
+   NAPLdissolution 
+ $EQUATION
+   CO2_GAS = - CO2_DISSOLVED
+ $NAPL_PROPERTIES
+; blob_name  Csat [mol/m3]   Density [mol/m3]  (density/molar weight = 692.29kg/44.011g/mol)
+ blob1       550.846           15729.9312    ; 16570.1302  
+ $SWITCH_OFF_GEOMETRY   
+  SURFACE SURF_NODissolvedCO2_Area
+
+
+#REACTION ;
+ $NAME
+   Salt-production 
+ $TYPE
+   monod 
+ $BACTERIANAME
+  CONCENTRATION1
+ $EQUATION
+  CONCENTRATION1 = CONCENTRATION1 ; CO2_DISSOLVED = - CONCENTRATION1     ; CONCENTRATION1 = CONCENTRATION1   ;   
+ $RATECONSTANT
+  1.3680585e-9  0.0            ; in >> rateconstant[mol/m³.sec] ... total= 431.431 [mol/m³] over 10000 yrs >> rateorder/exponent;
+ $GROWTH
+  1
+ $MONODTERMS
+  CO2_DISSOLVED  1.0  5   ; 1    ;5     ; for each monod term: species, M::initial monod's concentration, order ; for each monod term: species, half saturation concentration, order
+ $INHIBITIONTERMS
+ $PRODUCTIONSTOCH
+  CO2_DISSOLVED  -1.03778124
+
+
+
+#STOP
+
+
+; $DM 					; must be set for Sherwood calculations with shidx: 1, 2
+;   0.0005
+; $DS					; must be set for Sherwood calculations with shidx: 7
+;   1
+; $UI 					; must be set for Sherwood calculations with shidx: 1, 2 
+;  1.62
+; $NAPL_CONTENT_INI 		; must be set for Sherwood calculations with shidx: 1, 6, 7
+;  0.05
+; $TORTUOSITY			; must be set for Sherwood calculations with shidx: 6, Tort-factor= (Poro/(Poro^1.5))(Grathwohl,1998) ???
+;  1.69
+; $LENGTH				; must be set for Sherwood calculations with shidx: 6 , Length of NAPL source
+;  8       ; 40.0
+; $SHERWOOD_MODEL 
+;   ;shidx  Sh_factor  NAPLsat_expo Re_expo  	    -> Nambi and Powers(2003)
+;     10		37.2	   1.24		0.61	 	
+
