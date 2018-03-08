@@ -59,6 +59,7 @@ struct StorageRate
 	std::string process;
 	bool apply; // true: is flux from transport, false: is not (default)
 	double absMaximum;
+	double inputValue;
 	int verbosity;
 };
 

@@ -608,7 +608,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  if (line_string.find("$STORAGE_RATE") != std::string::npos)
 	  {       //  JOD 2018-1-31
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-	  	  in >> storageRate.process >> storageRate.absMaximum >> storageRate.verbosity;
+	  	  in >> storageRate.process >> storageRate.inputValue >> storageRate.absMaximum >> storageRate.verbosity;
 		  in.clear();
 		  storageRate.apply = true;
 	  	  continue;
@@ -3632,6 +3632,20 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 	  if (m_st->isConnected())   // JOD 2/2015
 		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
 
+	   if(m_st->hasThreshold()) // JOD 2018-03-7  - copyed from SetPnt
+	   {  // only point supported
+		   m_st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(m_st->geoInfo_threshold->getGeoObj()));
+	   }
+
+	   if(m_st->calculatedFromStorageRate()) // JOD 2018-03-7  - copyed from SetPnt
+	   {  // only point supported
+		   m_st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateInlet->getGeoObj()));
+		   m_st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateOutlet->getGeoObj()));
+	   }
+
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
 /*
@@ -5388,7 +5402,7 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
         if(fabs(factor) <std::numeric_limits<double>::epsilon())
         	return 0;  // no division by zero - maximum flow rate treated below
 
-        result = value / factor;
+        result = storageRate.inputValue / factor;
         if(result > storageRate.absMaximum)
         	result = storageRate.absMaximum;
         else if(result < -storageRate.absMaximum)
@@ -5402,18 +5416,18 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
         }
         if(storageRate.verbosity > 1)
         {
-        	std::cout << "                         Warm well   - node " << msh_node_number_storageRateInlet << std::endl;
+        	std::cout << "                         Warm well / pipe   - node " << msh_node_number_storageRateInlet << std::endl;
         	std::cout << "                            density              : " << densityInlet << std::endl;
         	std::cout << "                            specific capacity    : " << specCapacityInlet << std::endl;
         	std::cout << "                            temperature          : " << primValsInlet[1] << std::endl;
-        	std::cout << "                         Cold well   - node " << msh_node_number_storageRateOutlet << std::endl;
+        	std::cout << "                         Cold well / pipe   - node " << msh_node_number_storageRateOutlet << std::endl;
         	std::cout << "                            density              : " << densityOutlet << std::endl;
         	std::cout << "                            specific capacity    : " << specCapacityOutlet << std::endl;
         	std::cout << "                            temperature          : " << primValsOutlet[1] << std::endl;
         	std::cout << "                         Thermal flux (input) : " << factor * result << std::endl;
         }
 
-        return result;
+        return value * result;
 }
 
 
