@@ -551,8 +551,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$STORAGE_RATE_GEOMETRY") != std::string::npos) // JOD 2018-02-22
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateInlet, *st_file, storageRateInlet_geometry_name, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateOutlet, *st_file, storageRateOutlet_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateInlet, *st_file, storageRate.inlet_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateOutlet, *st_file, storageRate.outlet_geometry_name, geo_obj, unique_name);
 
 		  this->storageRate_geometry = true;
 		  in.clear();
@@ -1854,7 +1854,7 @@ std::vector<double>&node_value_vector) const
  **************************************************************************/
 
 void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
-		std::vector<double>&node_value_vector)
+		std::vector<double>&node_value_vector, Surface* m_surface)
 {
    if (!msh)
    {
@@ -1887,8 +1887,8 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
       double gC[3], p1[3], p2[3], vn[3], unit[3], NTri[3];
 
       CGLPolyline* m_polyline = NULL;
-      Surface *m_surface = NULL;
-      m_surface = GEOGetSFCByName(geo_name);      //CC
+      //Surface *m_surface = NULL;
+      //m_surface = GEOGetSFCByName(geo_name);      //CC
 
       // list<CGLPolyline*>::const_iterator p = m_surface->polyline_of_surface_list.begin();
       std::vector<CGLPolyline*>::iterator p =
@@ -3311,10 +3311,10 @@ const int ShiftInNodeVector)
 
    if(st->calculatedFromStorageRate()) // JOD 2018-02-22
    {  // only point supported
-	  st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj()));
-	  st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj()));
+	  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
+	  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
    }
 
    if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
@@ -3502,10 +3502,10 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 	    if(st->calculatedFromStorageRate()) // JOD 2018-02-22
 	    {  // only point supported
-		  st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj()));
-		  st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj()));
+		  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
+		  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
 	    }
 
 		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
@@ -3640,10 +3640,51 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
 	   if(m_st->calculatedFromStorageRate()) // JOD 2018-03-7  - copyed from SetPnt
 	   {  // only point supported
-		   m_st->msh_node_number_storageRateInlet = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateInlet->getGeoObj()));
-		   m_st->msh_node_number_storageRateOutlet = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateOutlet->getGeoObj()));
+		   if (m_st->geoInfo_storageRateInlet->getGeoType() == GEOLIB::POINT)
+		   {
+			   m_st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateInlet->getGeoObj())));
+			   m_st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateOutlet->getGeoObj())));
+			   m_st->storageRate.inlet_msh_node_areas.push_back(1.);
+			   m_st->storageRate.outlet_msh_node_areas.push_back(1.);
+			   m_st->storageRate.inlet_totalArea = 1.;
+			   m_st->storageRate.outlet_totalArea = 1.;
+		   }
+		   if (m_st->geoInfo_storageRateInlet->getGeoType() == GEOLIB::SURFACE)
+		   {
+			   // inlet surface
+			   sfc_node_ids.clear();
+			   GEOLIB::Surface const& inlet_sfc(
+			   		*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_storageRateInlet->getGeoObj()))
+			         );
+			   SetSurfaceNodeVector(&inlet_sfc, sfc_node_ids);
+			   m_st->storageRate.inlet_msh_node_numbers.insert(m_st->storageRate.inlet_msh_node_numbers.begin(),
+			         sfc_node_ids.begin(), sfc_node_ids.end());
+
+			   SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->storageRate.inlet_geometry_name),
+					   m_st->storageRate.inlet_msh_node_numbers, m_st->storageRate.inlet_msh_node_areas);
+
+			   m_st->storageRate.inlet_totalArea = 0.;
+			   for(int i=0; i < m_st->storageRate.inlet_msh_node_areas.size(); i++)
+				   m_st->storageRate.inlet_totalArea += m_st->storageRate.inlet_msh_node_areas[i];
+
+			   // outlet surface
+			   sfc_node_ids.clear();
+			   GEOLIB::Surface const& outlet_sfc(
+			   		*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_storageRateOutlet->getGeoObj()))
+			         );
+			   SetSurfaceNodeVector(&outlet_sfc, sfc_node_ids);
+			   m_st->storageRate.outlet_msh_node_numbers.insert(m_st->storageRate.outlet_msh_node_numbers.begin(),
+			         sfc_node_ids.begin(), sfc_node_ids.end());
+
+			   SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->storageRate.outlet_geometry_name),
+					   m_st->storageRate.outlet_msh_node_numbers, m_st->storageRate.outlet_msh_node_areas);
+
+			   m_st->storageRate.outlet_totalArea = 0.;
+			   for(int i=0; i < m_st->storageRate.outlet_msh_node_areas.size(); i++)
+				   m_st->storageRate.outlet_totalArea += m_st->storageRate.outlet_msh_node_areas[i];
+		   }
 	   }
 
       //		m_st->SetDISType();
@@ -4162,6 +4203,12 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
 {
    // CRFProcess* m_pcs = NULL;
    // m_pcs = PCSGet(pcs_type_name);
+   if (m_sfc == NULL)
+   {
+	   std::cerr << "Surface unknown" << std::endl;
+	   return;
+   }
+
    long number_of_nodes = (long) sfc_nod_vector.size();
    sfc_nod_val_vector.resize(number_of_nodes);
 
@@ -4223,7 +4270,7 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
          st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements
-         st->FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
+         st->FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc);
    }                                              // end neumann
   else if (st->getProcessDistributionType() == FiniteElement::FUNCTION) // 25.08.2011. WW
    {
@@ -5383,16 +5430,39 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
                 return 0;
         }
 
-        primValsInlet[0] = m_pcs->GetNodeValue(msh_node_number_storageRateInlet, 1);  // pressure
-        primValsInlet[1] = m_pcs_transport->GetNodeValue(msh_node_number_storageRateInlet, 1);  // temperature, process must be HEAT_TRANSPORT
+        primValsInlet[0] = 0.;  // pressure
+        primValsInlet[1] = 0.;  // temperature, process must be HEAT_TRANSPORT
         //primValsInlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+
+        // averaging over surface, one node in case of point
+        for(int i=0; i < storageRate.inlet_msh_node_numbers.size(); i++)
+        {
+        	primValsInlet[0] += m_pcs->GetNodeValue(storageRate.inlet_msh_node_numbers[i], 1)
+        			* storageRate.inlet_msh_node_areas[i];
+        	primValsInlet[1] += m_pcs_transport->GetNodeValue(storageRate.inlet_msh_node_numbers[i], 1)
+        			* storageRate.inlet_msh_node_areas[i];
+        }
+        primValsInlet[0] /= storageRate.inlet_totalArea;
+        primValsInlet[1] /= storageRate.inlet_totalArea;
 
         densityInlet = mfp_vector[0]->Density(primValsInlet);
         specCapacityInlet = mfp_vector[0]->SpecificHeatCapacity(primValsInlet);
 
-        primValsOutlet[0] = m_pcs->GetNodeValue(msh_node_number_storageRateOutlet, 1);  // pressure
-        primValsOutlet[1] = m_pcs_transport->GetNodeValue(msh_node_number_storageRateOutlet, 1);  // temperature, process must be HEAT_TRANSPORT
-        //primValsOutlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+        primValsOutlet[0] = 0.;  // pressure
+        primValsOutlet[1] = 0.;  // temperature, process must be HEAT_TRANSPORT
+        //primValsInlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
+
+        // averaging over surface, one node in case of point
+        for(int i=0; i < storageRate.outlet_msh_node_numbers.size(); i++)
+        {
+        	primValsOutlet[0] += m_pcs->GetNodeValue(storageRate.outlet_msh_node_numbers[i], 1)
+        			* storageRate.outlet_msh_node_areas[i];
+        	primValsOutlet[1] += m_pcs_transport->GetNodeValue(storageRate.outlet_msh_node_numbers[i], 1)
+        			* storageRate.outlet_msh_node_areas[i];
+        }
+        primValsOutlet[0] /= storageRate.outlet_totalArea;
+        primValsOutlet[1] /= storageRate.outlet_totalArea;
+
 
         densityOutlet = mfp_vector[0]->Density(primValsOutlet);
         specCapacityOutlet = mfp_vector[0]->SpecificHeatCapacity(primValsOutlet);
@@ -5416,11 +5486,11 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
         }
         if(storageRate.verbosity > 1)
         {
-        	std::cout << "                         Warm well / pipe   - node " << msh_node_number_storageRateInlet << std::endl;
+        	std::cout << "                         Warm well / pipe   - node " << storageRate.inlet_msh_node_numbers[0] << std::endl;
         	std::cout << "                            density              : " << densityInlet << std::endl;
         	std::cout << "                            specific capacity    : " << specCapacityInlet << std::endl;
         	std::cout << "                            temperature          : " << primValsInlet[1] << std::endl;
-        	std::cout << "                         Cold well / pipe   - node " << msh_node_number_storageRateOutlet << std::endl;
+        	std::cout << "                         Cold well / pipe   - node " << storageRate.outlet_msh_node_numbers[0] << std::endl;
         	std::cout << "                            density              : " << densityOutlet << std::endl;
         	std::cout << "                            specific capacity    : " << specCapacityOutlet << std::endl;
         	std::cout << "                            temperature          : " << primValsOutlet[1] << std::endl;

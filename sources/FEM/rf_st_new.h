@@ -61,6 +61,13 @@ struct StorageRate
 	double absMaximum;
 	double inputValue;
 	int verbosity;
+	std::string inlet_geometry_name;
+	std::string outlet_geometry_name;
+	std::vector<long> inlet_msh_node_numbers;
+	std::vector<long> outlet_msh_node_numbers;
+	std::vector<double> inlet_msh_node_areas;
+	std::vector<double> outlet_msh_node_areas;
+	double inlet_totalArea, outlet_totalArea;
 };
 
 typedef struct
@@ -94,7 +101,8 @@ public:
 
 	void FaceIntegration(MeshLib::CFEMesh* m_msh,
 	                     std::vector<long> const & nodes_on_sfc,
-	                     std::vector<double> & node_value_vector);
+	                     std::vector<double> & node_value_vector,
+						 Surface* m_surface);
 	void DomainIntegration(MeshLib::CFEMesh* m_msh,
 	                       const std::vector<long> & nodes_in_dom,
 	                       std::vector<double> & node_value_vector) const;
@@ -258,10 +266,7 @@ public:
 	  long msh_node_number_threshold;
 
 	  bool storageRate_geometry;  // JOD 2018-02-22
-	  std::string storageRateInlet_geometry_name;
-	  long msh_node_number_storageRateInlet;
-	  std::string storageRateOutlet_geometry_name;
-	  long msh_node_number_storageRateOutlet;
+
 
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
