@@ -5238,8 +5238,10 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			cout << "Data output: Surface profile" << endl;
 			//..............................................................
 			if (getProcessDistributionType() == FiniteElement::AVERAGE)
+			{
 				if (output_by_steps)
-					NODWriteSFCAverageDataTEC(time_current, time_step_number);	
+					NODWriteSFCAverageDataTEC(time_current, time_step_number);
+			}
 			//..............................................................
 			else
 				outputFunction = &COutput::NODWriteSFCDataTEC;
