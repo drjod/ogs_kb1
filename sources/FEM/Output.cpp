@@ -2778,18 +2778,21 @@ void COutput::WriteRFO()
 void COutput::NODWriteSFCDataTEC(int number)
 {
 
-  /*   CB:   Extended for 2D-Element projection along a regular surface   */
-
+	/*   CB:   Extended for 2D-Element projection along a regular surface   */
 	if (_nod_value_vector.size() == 0)
+	{
+		std::cout << "Warning - No nodes for surface " << geo_name << std::endl;
 		return;
+	}
 
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	m_pcs = PCSGet(getProcessType());
 
 	// File handling
-	char number_char[3];
+	char number_char[6];
 	sprintf(number_char, "%i", number);
-	string number_string = number_char;
+	string number_string(number_char);
+
 	//	string tec_file_name = pcs_type_name + "_sfc_" + geo_name + "_t"
 	//				+ number_string + TEC_FILE_EXTENSION;
    //std::string tec_file_name = convertProcessTypeToString (getProcessType()) + "_sfc_" + geo_name + "_t"
@@ -2799,9 +2802,10 @@ void COutput::NODWriteSFCDataTEC(int number)
    //std::string tec_file_name = file_base_name 
 		 //                       + "_sfc_" + geo_name + "_t"
 	  //                          + number_string + TEC_FILE_EXTENSION;   
-   std::string tec_file_name = file_base_name
+
+	std::string tec_file_name = file_base_name
      + "_sfc_" + geo_name + TEC_FILE_EXTENSION;
-      
+
    //if (!_new_file_opened)
    //  remove(tec_file_name.c_str());  //WW
 
@@ -2811,10 +2815,14 @@ void COutput::NODWriteSFCDataTEC(int number)
    else
      tec_file.open(tec_file_name.data(), ios::app);
 
+
 	tec_file.setf(ios::scientific, ios::floatfield);
 	tec_file.precision(12);
 	if (!tec_file.good())
+	{
+		std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
 		return;
+	}
 	tec_file.seekg(0L, ios::beg);
 #ifdef SUPERCOMPUTER
 	// kg44 buffer the output
@@ -2825,6 +2833,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 	//--------------------------------------------------------------------
 	// Write header
 	//project_title;
+
 	string project_title_string = "Profile at surface";
 	tec_file << " TITLE = \"" << project_title_string << "\""
 	         << "\n";
@@ -2833,99 +2842,102 @@ void COutput::NODWriteSFCDataTEC(int number)
 		tec_file << _nod_value_vector[k] << ",";
 	tec_file << "\n";
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
-  tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
+    tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
 	//--------------------------------------------------------------------
 	// Write data
 	std::vector<long> nodes_vector;
 	Surface* m_sfc = NULL;
 	m_sfc = GEOGetSFCByName(geo_name);    //CC
+
 	if (m_sfc)
 	{
 		m_msh->GetNODOnSFC(m_sfc, nodes_vector);
-      //for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+		//for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+
+		// CB set up data for Element section
+		//std::vector < std::vector <long> > eledefvec;
+		std::vector <long> eledef;
+		bool* elecheck;
+		if (aktueller_zeitschritt == 0)
+		{
+
+		  MeshLib::CElem* m_ele = NULL;
+		  MeshLib::CNode* m_node = NULL;
+
+		  elecheck = new bool[m_msh->ele_vector.size()];
+		  for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+			elecheck[i] = false;
 
 
-    // CB set up data for Element section
-    //std::vector < std::vector <long> > eledefvec;
-    std::vector <long> eledef;
-    bool* elecheck;
-    if (aktueller_zeitschritt == 0){
+		  for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+		  {
+			int nd = nodes_vector[i];
+			m_node = m_msh->nod_vector[nd];
 
-      MeshLib::CElem* m_ele = NULL;
-      MeshLib::CNode* m_node = NULL;
+			//test all connected elements of a node
+			for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
+			{
+			  m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
+			  if (elecheck[m_ele->GetIndex()] == true)
+				continue;
+			  //test all faces of the element
+			  for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
+			  {
 
-      elecheck = new bool[m_msh->ele_vector.size()];
-      for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-        elecheck[i] = false;
+				int faceNodeIndex_loc[10];
+				int faceNodeIndex_glo[10];
+				int faceNodeIndex_lis[10];
+				// get # face nodes and their local indices
+				int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
+				int n = 0; // reset counter
 
+				// check if all nodes of a face are in the list of surface nodes
+				for (size_t l = 0; l < n_face_node; l++) // AB SB
+				{
+				  //get global Node index for comparison
+				  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
+				  // compare with all nodes of surface node list
+				  for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
+				  {
+					if (faceNodeIndex_glo[l] == nodes_vector[m])
+					{
+					  n++; // a match --> save the list index
+					  faceNodeIndex_lis[l] = m;
+					}
+					// check if all nodes of face match
+					if (n == n_face_node)
+					  break;  // face identified, skip rest of loop now
+				  }  // end nodes_vector
+				  // check if face in surface
+				  if (n == n_face_node)
+				  {
+					for (size_t l = 0; l < n_face_node; l++)
+					{
+					  eledef.push_back(1 + faceNodeIndex_lis[l]);
+					}
+					eledefvec.push_back(eledef);
+					eledef.clear();
+				  }  // end n == n_face_node
+				}  // end n_face_node
 
-      for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
-      {
-        int nd = nodes_vector[i];
-        m_node = m_msh->nod_vector[nd];
+			  }  // end faces
+			  elecheck[m_ele->GetIndex()] = true;
+			}  // end elements
+		  }  // end nodes_vector
 
-        //test all connected elements of a node
-        for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
-        {
-          m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
-          if (elecheck[m_ele->GetIndex()] == true)
-            continue;
-          //test all faces of the element
-          for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
-          {
+		  delete[] elecheck;
+		  // Element section finished
+		}  // end aktueller_zeitschritt == 0
 
-            int faceNodeIndex_loc[10];
-            int faceNodeIndex_glo[10];
-            int faceNodeIndex_lis[10];
-            // get # face nodes and their local indices
-            int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
-            int n = 0; // reset counter
+		// CB extend header
+		tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
+		if (eledefvec[0].size() == 3)
+		  tec_file << "TRIANGLE" << "\n";
+		if (eledefvec[0].size() == 4)
+		  tec_file << "QUADRILATERAL" << "\n";
 
-            // check if all nodes of a face are in the list of surface nodes
-            for (size_t l = 0; l < n_face_node; l++) // AB SB
-            {
-              //get global Node index for comparison
-              faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
-              // compare with all nodes of surface node list 
-              for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
-              {
-                if (faceNodeIndex_glo[l] == nodes_vector[m])
-                {
-                  n++; // a match --> save the list index
-                  faceNodeIndex_lis[l] = m;
-                }
-                // check if all nodes of face match
-                if (n == n_face_node)
-                  break;  // face identified, skip rest of loop now
-              }
-              // check if face in surface
-              if (n == n_face_node){
-                for (size_t l = 0; l < n_face_node; l++){
-                  eledef.push_back(1 + faceNodeIndex_lis[l]);
-                }
-                eledefvec.push_back(eledef);
-                eledef.clear();
-              }
-            }
-
-          }
-          elecheck[m_ele->GetIndex()] = true;
-        }
-      }
-
-      delete[] elecheck;
-      // Element section finished
-    }
-
-    // CB extend header
-    tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
-    if (eledefvec[0].size() == 3)
-      tec_file << "TRIANGLE" << "\n";
-    if (eledefvec[0].size() == 4)
-      tec_file << "QUADRILATERAL" << "\n";
-
-    // node values
-	  	for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+		// node values
+		for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
 		{
 			double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
 			tec_file << pnt_i[0] << " ";
@@ -2933,7 +2945,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 			tec_file << pnt_i[2] << " ";
 			for (size_t k = 0; k < _nod_value_vector.size(); k++)
 			{
-                m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+				m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
 				int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
 
 				if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
@@ -2942,24 +2954,24 @@ void COutput::NODWriteSFCDataTEC(int number)
 				tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
 			}
 			tec_file << "\n";
-		}
-    
+		}  // end nodes_vector
 
-    // CB print element section
-    for (size_t i = 0; i < eledefvec.size(); i++)
-    {
-      for (size_t j = 0; j < eledefvec[j].size(); j++)
-        tec_file << eledefvec[i][j] << " ";
-      tec_file << "\n";
-    }
-    //clean up
-    //eledefvec.clear();
-    eledef.clear();
-   
-	}
+		// CB print element section
+		for (size_t i = 0; i < eledefvec.size(); i++)
+		{
+		  for (size_t j = 0; j < eledefvec[j].size(); j++)
+			tec_file << eledefvec[i][j] << " ";
+		  tec_file << "\n";
+		}
+		//clean up
+		//eledefvec.clear();
+		eledef.clear();
+
+	}  // end m_sfc
 	else
-		tec_file << "Error in NODWritePLYDataTEC: polyline " << geo_name
-		         << " not found" << "\n";
+		tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
+		         << " not found" << std::endl;
+
 	tec_file.close();                     // kg44 close file
 }
 
