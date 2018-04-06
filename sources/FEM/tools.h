@@ -153,4 +153,5 @@ template<class num> void  DeleteArray(num* an_array)
 		delete [] an_array;
 	an_array = NULL;
 }
+
 #endif

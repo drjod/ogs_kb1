@@ -43,6 +43,8 @@
 #include "tools.h"
 #include "FileTools.h"
 
+#include "rf_st_new.h" /// JOD 2018-4-6 to use FaceIntegration (surface-averaged output)
+
 extern size_t max_dim;                            //OK411 todo
 
 #ifdef CHEMAPP
@@ -2843,11 +2845,13 @@ void COutput::NODWriteSFCDataTEC(int number)
 	tec_file << "\n";
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
     tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
+
 	//--------------------------------------------------------------------
 	// Write data
 	std::vector<long> nodes_vector;
 	Surface* m_sfc = NULL;
 	m_sfc = GEOGetSFCByName(geo_name);    //CC
+
 
 	if (m_sfc)
 	{
@@ -2980,9 +2984,229 @@ void COutput::NODWriteSFCDataTEC(int number)
    12/2005 OK Implementation
    04/2006 CMCD no mesh option & flux weighting
    last modification:
+   03/2018 JOD rewritten to use FaceIntegration
+   	   	   works only for primary variables since index is incremented
 **************************************************************************/
 void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number)
 {
+
+	/*   CB:   Extended for 2D-Element projection along a regular surface   */
+		if (_nod_value_vector.size() == 0)
+		{
+			std::cout << "Warning - No nodes for surface " << geo_name << std::endl;
+			return;
+		}
+
+		m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+		m_pcs = PCSGet(getProcessType());
+		if(m_pcs == NULL)
+		{
+			std::cout << "Warning - PCS not known for surface-averaged output" << std::endl;
+			return;
+		}
+
+		// File handling
+		int number=1;
+		char number_char[6];
+		sprintf(number_char, "%i", number);
+		string number_string(number_char);
+
+
+		std::string tec_file_name = file_base_name
+	     + "_sfc_" + geo_name + "_" + std::string(convertProcessTypeToString(getProcessType()))
+	    		 + "_averaged" + TEC_FILE_EXTENSION;
+
+	   //if (!_new_file_opened)
+	   //  remove(tec_file_name.c_str());  //WW
+
+	   std::fstream tec_file;
+	   if (aktueller_zeitschritt == 0)
+	     tec_file.open(tec_file_name.data(), ios::out);
+	   else
+	     tec_file.open(tec_file_name.data(), ios::app);
+
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+	#ifdef SUPERCOMPUTER
+		// kg44 buffer the output
+		char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+		tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+		//
+	#endif
+		//--------------------------------------------------------------------
+		// Write header
+	    tec_file << "Time "; // << "\n";
+	    for(int n = 0; n < _nod_value_vector.size(); n++)
+	    	 tec_file << _nod_value_vector[n] << " ";
+		tec_file << std::endl;
+		//--------------------------------------------------------------------
+		// Write data
+		std::vector<long> nodes_vector;
+		Surface* m_sfc = NULL;
+		m_sfc = GEOGetSFCByName(geo_name);    //CC
+
+		double total_area, average_value;
+		m_msh->GetNODOnSFC(m_sfc, nodes_vector);
+		std::vector<double> nodes_area_vector(nodes_vector.size(), 1.);
+
+		FaceIntegration(m_msh, nodes_vector, nodes_area_vector, m_sfc, FiniteElement::CONSTANT_NEUMANN,
+				m_pcs->m_num->ele_gauss_points);
+
+		total_area = 0.;
+		for(int i = 0; i<nodes_vector.size(); i++)
+		{
+			total_area += nodes_area_vector[i];
+		}
+
+		tec_file << _time;
+
+		for(int n = 0; n < _nod_value_vector.size(); n++)
+		{
+			average_value = 0;
+			for(int i = 0; i<nodes_vector.size(); i++)
+			{
+				average_value += m_pcs->GetNodeValue(nodes_vector[i],
+						m_pcs->GetNodeValueIndex(_nod_value_vector[n]) + 1)   // index increased by one - new value taken
+								* nodes_area_vector[i];  // only first variable
+			}
+			average_value /= total_area;
+			tec_file << " " << average_value;
+		}
+
+		tec_file << std::endl;
+		/*if (m_sfc)
+		{
+			m_msh->GetNODOnSFC(m_sfc, nodes_vector);
+			//for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+
+			// CB set up data for Element section
+			//std::vector < std::vector <long> > eledefvec;
+			std::vector <long> eledef;
+			bool* elecheck;
+			if (aktueller_zeitschritt == 0)
+			{
+
+			  MeshLib::CElem* m_ele = NULL;
+			  MeshLib::CNode* m_node = NULL;
+
+			  elecheck = new bool[m_msh->ele_vector.size()];
+			  for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+				elecheck[i] = false;
+
+
+			  for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+			  {
+				int nd = nodes_vector[i];
+				m_node = m_msh->nod_vector[nd];
+
+				//test all connected elements of a node
+				for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
+				{
+				  m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
+				  if (elecheck[m_ele->GetIndex()] == true)
+					continue;
+				  //test all faces of the element
+				  for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
+				  {
+
+					int faceNodeIndex_loc[10];
+					int faceNodeIndex_glo[10];
+					int faceNodeIndex_lis[10];
+					// get # face nodes and their local indices
+					int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
+					int n = 0; // reset counter
+
+					// check if all nodes of a face are in the list of surface nodes
+					for (size_t l = 0; l < n_face_node; l++) // AB SB
+					{
+					  //get global Node index for comparison
+					  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
+					  // compare with all nodes of surface node list
+					  for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
+					  {
+						if (faceNodeIndex_glo[l] == nodes_vector[m])
+						{
+						  n++; // a match --> save the list index
+						  faceNodeIndex_lis[l] = m;
+						}
+						// check if all nodes of face match
+						if (n == n_face_node)
+						  break;  // face identified, skip rest of loop now
+					  }  // end nodes_vector
+					  // check if face in surface
+					  if (n == n_face_node)
+					  {
+						for (size_t l = 0; l < n_face_node; l++)
+						{
+						  eledef.push_back(1 + faceNodeIndex_lis[l]);
+						}
+						eledefvec.push_back(eledef);
+						eledef.clear();
+					  }  // end n == n_face_node
+					}  // end n_face_node
+
+				  }  // end faces
+				  elecheck[m_ele->GetIndex()] = true;
+				}  // end elements
+			  }  // end nodes_vector
+
+			  delete[] elecheck;
+			  // Element section finished
+			}  // end aktueller_zeitschritt == 0
+
+			// CB extend header
+			tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
+			if (eledefvec[0].size() == 3)
+			  tec_file << "TRIANGLE" << "\n";
+			if (eledefvec[0].size() == 4)
+			  tec_file << "QUADRILATERAL" << "\n";
+
+			// node values
+			for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+			{
+				double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
+				tec_file << pnt_i[0] << " ";
+				tec_file << pnt_i[1] << " ";
+				tec_file << pnt_i[2] << " ";
+				for (size_t k = 0; k < _nod_value_vector.size(); k++)
+				{
+					m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+					int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
+
+					if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
+						tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
+					else
+					tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
+				}
+				tec_file << "\n";
+			}  // end nodes_vector
+
+			// CB print element section
+			for (size_t i = 0; i < eledefvec.size(); i++)
+			{
+			  for (size_t j = 0; j < eledefvec[j].size(); j++)
+				tec_file << eledefvec[i][j] << " ";
+			  tec_file << "\n";
+			}
+			//clean up
+			//eledefvec.clear();
+			eledef.clear();
+
+		}  // end m_sfc
+		else
+			tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
+			         << " not found" << std::endl;
+*/
+		tec_file.close();                     // kg44 close file
+
+	/*
 	bool no_pcs = false;
 	double dtemp;
 	vector<long> sfc_nodes_vector;
@@ -3122,6 +3346,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		tec_file << "\n";
 	}
 	tec_file.close();                     // kg44 close file
+	*/
 }
 
 void COutput::GetNodeIndexVector(vector<int>&NodeIndex)

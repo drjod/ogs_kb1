@@ -37,6 +37,7 @@ namespace MeshLib
 class CFEMesh;
 }
 
+
 class BoundaryCondition;
 
 class CBoundaryCondition :
@@ -148,6 +149,7 @@ public:
 	bool isSeepageBC() const { return _isSeepageBC; }
 
 private:
+
 	std::vector<std::string> _PointsFCTNames;
 	std::vector<int> _PointsHaveDistribedBC;
 	std::vector<double> _DistribedBC;

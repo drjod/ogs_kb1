@@ -7323,7 +7323,23 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 
 				if(m_bc->isPeriodic()) // JOD
 					bc_value *= sin( 2 * 3.14159 * aktuelle_zeit / m_bc->getPeriodeTimeLength() + m_bc->getPeriodePhaseShift());
+				//----------------------------------------------------------------
+				if(m_bc->coupling.coupled)  // JOD 2018-12-2
+				{
+					CRFProcess* m_pcs_cond = PCSGet(m_bc->coupling.processName);
+					int ndx = m_pcs_cond->GetNodeValueIndex (m_bc->coupling.primaryVariableName) + 1;
 
+					if(m_pcs_cond != NULL)
+					{
+					   bc_value = m_pcs_cond->GetNodeValue(bc_msh_node,
+							   m_pcs_cond->GetNodeValueIndex (m_bc->coupling.primaryVariableName) + 1);
+
+					   if(m_bc->coupling.verbosity > 0)
+						   std::cout << "coupled BC - Mesh node: " << bc_msh_node << ", value: " << bc_value << std::endl;
+					}
+					else
+						std::cout << "Error when incorporating BC - coupled process unknown" << std::endl;
+				}
 				//----------------------------------------------------------------
 #ifndef USE_PETSC
 				if(rank > -1)
@@ -8645,11 +8661,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 						}
 					}
 				}
-				//--------------------------------------------------------------------
-				// MB
-				//if(m_st->conditional && !m_st->river)
-				//{
-
+				//-------------------------------------------------------------------
 				GetNODValue(value, cnodev, m_st);
 			}             // st_node.size()>0&&(long)st_node.size()>i
       else {

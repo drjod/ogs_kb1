@@ -1853,8 +1853,9 @@ std::vector<double>&node_value_vector) const
  01/2010 NW improvement of efficiency to search faces
  **************************************************************************/
 
+/*
 void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
-		std::vector<double>&node_value_vector, Surface* m_surface)
+                std::vector<double>&node_value_vector)
 {
    if (!msh)
    {
@@ -1870,9 +1871,278 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
    double nodesFVal[8];
 
    bool Const = false;
-   if (this->getProcessDistributionType() == FiniteElement::CONSTANT 
-		   || this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN
-		   || this->getProcessDistributionType() == FiniteElement::RECHARGE)	//MW
+   if (this->getProcessDistributionType() == FiniteElement::CONSTANT
+                   || this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN
+                   || this->getProcessDistributionType() == FiniteElement::RECHARGE)    //MW
+      //        if (dis_type_name.find("CONSTANT") != std::string::npos)
+      Const = true;
+   //----------------------------------------------------------------------
+   // Interpolation of polygon values to nodes_on_sfc
+   if (!Const)                                    // Get node BC by interpolation with surface
+   {
+      int nPointsPly = 0;
+      double Area1, Area2;
+      double Tol = 1.0e-9;
+      bool Passed;
+      const int Size = (int) nodes_on_sfc.size();
+      double gC[3], p1[3], p2[3], vn[3], unit[3], NTri[3];
+
+      CGLPolyline* m_polyline = NULL;
+      Surface *m_surface = NULL;
+      m_surface = GEOGetSFCByName(geo_name);      //CC
+
+      // list<CGLPolyline*>::const_iterator p = m_surface->polyline_of_surface_list.begin();
+      std::vector<CGLPolyline*>::iterator p =
+         m_surface->polyline_of_surface_vector.begin();
+
+      for (j = 0; j < Size; j++)
+      {
+          double const*const pn (msh->nod_vector[nodes_on_sfc[j]]->getData());
+//         pn[0] = msh->nod_vector[nodes_on_sfc[j]]->X();
+//         pn[1] = msh->nod_vector[nodes_on_sfc[j]]->Y();
+//         pn[2] = msh->nod_vector[nodes_on_sfc[j]]->Z();
+         node_value_vector[j] = 0.0;
+         Passed = false;
+         // nodes close to first polyline
+         p = m_surface->polyline_of_surface_vector.begin();
+         while (p != m_surface->polyline_of_surface_vector.end())
+         {
+               m_polyline = *p;
+               // Grativity center of this polygon
+               for (i = 0; i < 3; i++)
+                  gC[i] = 0.0;
+               vn[2] = 0.0;
+               nPointsPly = (int) m_polyline->point_vector.size();
+               if (m_polyline->point_vector.front() == m_polyline->point_vector.back())
+                  nPointsPly -= 1;
+               for (i = 0; i < nPointsPly; i++)
+               {
+                  gC[0] += m_polyline->point_vector[i]->x;
+                  gC[1] += m_polyline->point_vector[i]->y;
+                  gC[2] += m_polyline->point_vector[i]->z;
+
+                  vn[2] += m_polyline->point_vector[i]->getPropert();
+               }
+               for (i = 0; i < 3; i++)
+                  gC[i] /= (double) nPointsPly;
+               // BC value at center is an average of all point values of polygon
+               vn[2] /= (double) nPointsPly;
+
+               // Area of this polygon by the grativity center
+               for (i = 0; i < nPointsPly; i++)
+               {
+                  p1[0] = m_polyline->point_vector[i]->x;
+                  p1[1] = m_polyline->point_vector[i]->y;
+                  p1[2] = m_polyline->point_vector[i]->z;
+                  k = i + 1;
+                  if (i == nPointsPly - 1)
+                     k = 0;
+                  p2[0] = m_polyline->point_vector[k]->x;
+                  p2[1] = m_polyline->point_vector[k]->y;
+                  p2[2] = m_polyline->point_vector[k]->z;
+
+                  vn[0] = m_polyline->point_vector[i]->getPropert();
+                  vn[1] = m_polyline->point_vector[k]->getPropert();
+
+                  Area1 = fabs(ComputeDetTri(p1, gC, p2));
+
+                  Area2 = 0.0;
+                  // Check if pn is in the triangle by points (p1, gC, p2)
+                  Area2 = fabs(ComputeDetTri(p2, gC, pn));
+                  unit[0] = fabs(ComputeDetTri(gC, p1, pn));
+                  unit[1] = fabs(ComputeDetTri(p1, p2, pn));
+                  Area2 += unit[0] + unit[1];
+                  if (fabs(Area1 - Area2) < Tol)
+                  {
+                      // Intopolation whin triangle (p1,p2,gC)
+                      // Shape function
+                      for (l = 0; l < 2; l++)
+                         unit[l] /= Area1;
+                      ShapeFunctionTri(NTri, unit);
+                      for (l = 0; l < 3; l++)
+                         node_value_vector[j] += vn[l] * NTri[l];
+                      Passed = true;
+                      break;
+                   }
+
+                }
+                //
+                p++;
+                if (Passed)
+                   break;
+             }                                        // while
+          }                                           //j
+       }
+
+       int Axisymm = 1;                               // ani-axisymmetry
+       //CFEMesh* msh = m_pcs->m_msh;
+       if (msh->isAxisymmetry())
+          Axisymm = -1;                               // Axisymmetry is true
+       CElem* elem = NULL;
+       CElem* face = new CElem(1);
+       CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
+       CNode* e_node = NULL;
+       CElem* e_nei = NULL;
+       //vec<CNode*> e_nodes(20);
+       // vec<CElem*> e_neis(6);
+
+       face->SetFace();
+       this_number_of_nodes = (long) nodes_on_sfc.size();
+       int nSize = (long) msh->nod_vector.size();
+       std::vector<long> G2L(nSize);
+       std::vector<double> NVal(this_number_of_nodes);
+       for (i = 0; i < nSize; i++)
+         {
+            msh->nod_vector[i]->SetMark(false);
+            G2L[i] = -1;
+         }
+
+         for (i = 0; i < this_number_of_nodes; i++)
+         {
+            NVal[i] = 0.0;
+            k = nodes_on_sfc[i];
+            G2L[k] = i;
+         }
+
+         //----------------------------------------------------------------------
+         // NW 15.01.2010
+         // 1) search element faces on the surface
+         // 2) face integration
+
+         //init
+         for (i = 0; i < (long) msh->ele_vector.size(); i++)
+         {
+            msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
+         }
+         std::set<long> set_nodes_on_sfc;               //unique set of node id on the surface
+         for (i = 0; i < (long) nodes_on_sfc.size(); i++)
+         {
+            set_nodes_on_sfc.insert(nodes_on_sfc[i]);
+         }
+
+         //filtering elements: elements should have nodes on the surface
+         //Notice: node-elements relation has to be constructed beforehand
+         // CB THMBM
+         //this->getProcess()->CheckMarkedElement(); // CB added to remove bug with deactivated Subdomains
+         std::vector<long> vec_possible_elements;
+         for (i = 0; i < this_number_of_nodes; i++)
+         {
+            k = nodes_on_sfc[i];
+            for (j = 0; j < (long) msh->nod_vector[k]->getConnectedElementIDs().size(); j++)
+            {
+               l = msh->nod_vector[k]->getConnectedElementIDs()[j];
+               if (msh->ele_vector[l]->selected == 0)
+                  vec_possible_elements.push_back(l);
+               msh->ele_vector[l]->selected += 1;       // remember how many nodes of an element are on the surface
+            }
+         }
+
+         //search elements & face integration
+      #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+            const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
+            const size_t id_act_h_min = msh-> GetNodesNumber(false);
+            const size_t id_act_h_max = msh->getLargestActiveNodeID_Quadratic();
+      #endif
+            int count;
+            double fac = 1.0;
+            for (i = 0; i < (long) vec_possible_elements.size(); i++)
+            {
+               elem = msh->ele_vector[vec_possible_elements[i]];
+               if (!elem->GetMark())
+                  continue;
+               nfaces = elem->GetFacesNumber();
+               elem->SetOrder(msh->getOrder());
+               for (j = 0; j < nfaces; j++)
+               {
+                  e_nei = elem->GetNeighbor(j);
+                  nfn = elem->GetElementFaceNodes(j, nodesFace);
+                  //1st check
+                  if (elem->selected < nfn)
+                     continue;
+
+                  if(elem->GetDimension() != 3)
+                     continue;
+
+                  //2nd check: if all nodes of the face are on the surface
+                  count = 0;
+                  for (k = 0; k < nfn; k++)
+                  {
+                     e_node = elem->GetNode(nodesFace[k]);
+                     if (set_nodes_on_sfc.count(e_node->GetIndex()) > 0)
+                     {
+                        count++;
+                     }
+                  }
+                  if (count != nfn)
+                     continue;
+                  // face integration
+                  for (k = 0; k < nfn; k++)
+                  {
+                     e_node = elem->GetNode(nodesFace[k]);
+                     nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
+                  }
+                  fac = 1.0;
+                                                           // Not a surface face
+                  if (elem->GetDimension() == e_nei->GetDimension())
+                     fac = 0.5;
+                  face->SetFace(elem, j);
+                  face->SetOrder(msh->getOrder());
+                  face->ComputeVolume();
+                  fem->setOrder(msh->getOrder() + 1);
+                  fem->ConfigElement(face, this->_pcs->m_num->ele_gauss_points, true);
+                  fem->FaceIntegration(nodesFVal);
+                      for (k = 0; k < nfn; k++)
+                      {
+                         e_node = elem->GetNode(nodesFace[k]);
+
+             #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+                         if(     (e_node->GetIndex() < id_act_l_max)
+                             ||  (    e_node->GetIndex() >= id_act_h_min
+                                      &&  e_node->GetIndex() < id_act_h_max)
+                          )
+             #endif
+                         NVal[G2L[e_node->GetIndex()]] += fac * nodesFVal[k];
+                      }
+                   }
+                }
+
+
+
+   for (i = 0; i < this_number_of_nodes; i++)
+      node_value_vector[i] = NVal[i];
+   for (i = 0; i < nSize; i++)
+      msh->nod_vector[i]->SetMark(true);
+
+   NVal.clear();
+   G2L.clear();
+   delete fem;
+   delete face;
+}
+*/
+
+
+
+
+void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
+		std::vector<double>&node_value_vector, Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points)
+{
+   if (!msh)
+   {
+      std::cout
+         << "Warning in CSourceTerm::FaceIntegration: no MSH data, function doesn't function";
+      return;
+   }
+
+   long i, j, k, l;
+   long this_number_of_nodes;
+   int nfaces, nfn;
+   int nodesFace[8];
+   double nodesFVal[8];
+
+   bool Const = false;
+   if (disType == FiniteElement::CONSTANT
+		   || disType == FiniteElement::CONSTANT_NEUMANN
+		   || disType == FiniteElement::RECHARGE)	//MW
       //	if (dis_type_name.find("CONSTANT") != std::string::npos)
       Const = true;
    //----------------------------------------------------------------------
@@ -1993,7 +2263,8 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
 
    for (i = 0; i < nSize; i++)
    {
-      msh->nod_vector[i]->SetMark(false);
+
+	   msh->nod_vector[i]->SetMark(false);
       G2L[i] = -1;
    }
 
@@ -2009,11 +2280,7 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
    // 1) search element faces on the surface
    // 2) face integration
 
-   //init
-   for (i = 0; i < (long) msh->ele_vector.size(); i++)
-   {
-      msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
-   }
+
    std::set<long> set_nodes_on_sfc;               //unique set of node id on the surface
    for (i = 0; i < (long) nodes_on_sfc.size(); i++)
    {
@@ -2022,9 +2289,22 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
 
    //filtering elements: elements should have nodes on the surface
    //Notice: node-elements relation has to be constructed beforehand
-   // CB THMBM 
+   // CB THMBM
    //this->getProcess()->CheckMarkedElement(); // CB added to remove bug with deactivated Subdomains
    std::vector<long> vec_possible_elements;
+
+   std::vector<long> elements_at_geo;
+   std::vector<long> nodes_on_sfc2(nodes_on_sfc);
+
+   msh->GetConnectedElements(nodes_on_sfc2, elements_at_geo);
+
+
+   //init
+   for (i = 0; i < (long) msh->ele_vector.size(); i++)
+   {
+      msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
+   }
+
    for (i = 0; i < this_number_of_nodes; i++)
    {
       k = nodes_on_sfc[i];
@@ -2037,6 +2317,8 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
       }
    }
 
+   //for (i = 0; i < msh->ele_vector.size(); i++)
+	 //  std::cout << "----- " << msh->ele_vector[l]->selected << std::endl;
    //search elements & face integration
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
       const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
@@ -2090,14 +2372,14 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
          face->SetOrder(msh->getOrder());
          face->ComputeVolume();
          fem->setOrder(msh->getOrder() + 1);
-         fem->ConfigElement(face, this->_pcs->m_num->ele_gauss_points, true);
+         fem->ConfigElement(face, ele_gauss_points, true);
          fem->FaceIntegration(nodesFVal);
          for (k = 0; k < nfn; k++)
          {
             e_node = elem->GetNode(nodesFace[k]);
 
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-            if(     (e_node->GetIndex() < id_act_l_max) 
+            if(     (e_node->GetIndex() < id_act_l_max)
                 ||  (    e_node->GetIndex() >= id_act_h_min
 			 &&  e_node->GetIndex() < id_act_h_max)
              )
@@ -2106,57 +2388,6 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
          }
       }
    }
-
-   /*
-    //----------------------------------------------------------------------
-    int count;
-    double fac=1.0;
-    for (i = 0; i < (long)msh->ele_vector.size(); i++)
-    {
-    elem = msh->ele_vector[i];
-    if(!elem->GetMark()) continue;
-    nfaces = elem->GetFacesNumber();
-    elem->SetOrder(msh->getOrder());
-    for(j=0; j<nfaces; j++)
-   {
-   e_nei =  elem->GetNeighbor(j);
-   nfn = elem->GetElementFaceNodes(j, nodesFace);
-   count=0;
-   for(k=0; k<nfn; k++)
-   {
-   e_node = elem->GetNode(nodesFace[k]);
-   for (l = 0; l <this_number_of_nodes; l++)
-   {
-   if(*e_node==*msh->nod_vector[nodes_on_sfc[l]])
-   {
-   count++;
-   break;
-   }
-   }
-   }
-   if(count!=nfn) continue;
-   for(k=0; k<nfn; k++)
-   {
-   e_node = elem->GetNode(nodesFace[k]);
-   nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
-   }
-   fac = 1.0;
-   if(elem->GetDimension()==e_nei->GetDimension()) // Not a surface face
-   fac = 0.5;
-   face->SetFace(elem, j);
-   face->SetOrder(msh->getOrder());
-   face->ComputeVolume();
-   fem->setOrder(msh->getOrder()+1);
-   fem->ConfigElement(face, true);
-   fem->FaceIntegration(nodesFVal);
-   for(k=0; k<nfn; k++)
-   {
-   e_node = elem->GetNode(nodesFace[k]);
-   NVal[G2L[e_node->GetIndex()]] += fac*nodesFVal[k];
-   }
-   }
-   }
-   */
 
    for (i = 0; i < this_number_of_nodes; i++)
       node_value_vector[i] = NVal[i];
@@ -2168,6 +2399,7 @@ void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_o
    delete fem;
    delete face;
 }
+
 
 
 /**************************************************************************
@@ -2496,7 +2728,9 @@ void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
    if (st->isCoupled() &&
       (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
       st->getProcessType() == FiniteElement::RICHARDS_FLOW ||
-      st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW) )
+      st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW ||
+      st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
+      st->getProcessType() == FiniteElement::HEAT_TRANSPORT) )
       GetCouplingNODValuePicard(value, st, cnodev);
    else if (st->isCoupled() &&
       st->getProcessType() == FiniteElement::OVERLAND_FLOW)
@@ -4270,7 +4504,8 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
          st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements
-         st->FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc);
+         FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc,
+        		 st->getProcessDistributionType(), st->_pcs->m_num->ele_gauss_points);
    }                                              // end neumann
   else if (st->getProcessDistributionType() == FiniteElement::FUNCTION) // 25.08.2011. WW
    {
@@ -5139,10 +5374,18 @@ CSourceTerm* m_st, CNodeValue* cnodev, long msh_node_number, long msh_node_numbe
 {
 
    int nidx, nidx_cond;
-                                    
-   *z_this = m_pcs_this->m_msh->nod_vector[msh_node_number]->getData()[2];
-   *z_cond  = m_pcs_cond->m_msh->nod_vector[msh_node_number_cond]->getData()[2];
 
+   if (m_st->getProcessType() == FiniteElement::HEAT_TRANSPORT
+	   || m_st->getProcessType() == FiniteElement::MASS_TRANSPORT)
+   {
+	   *z_this = 0;
+	   *z_cond = 0;
+   }
+   else
+   {
+	   *z_this = m_pcs_this->m_msh->nod_vector[msh_node_number]->getData()[2];
+	   *z_cond  = m_pcs_cond->m_msh->nod_vector[msh_node_number_cond]->getData()[2];
+   }
    nidx = m_pcs_this->GetNodeValueIndex (convertPrimaryVariableToString (m_st->getProcessPrimaryVariable())) + 1;
    nidx_cond = m_pcs_cond->GetNodeValueIndex(m_st->pcs_pv_name_cond) + 1;
 

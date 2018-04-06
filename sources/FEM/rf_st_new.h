@@ -99,10 +99,7 @@ public:
 	                     const std::vector<long> & nodes_on_ply,
 	                     std::vector<double> & node_value_vector) const;
 
-	void FaceIntegration(MeshLib::CFEMesh* m_msh,
-	                     std::vector<long> const & nodes_on_sfc,
-	                     std::vector<double> & node_value_vector,
-						 Surface* m_surface);
+
 	void DomainIntegration(MeshLib::CFEMesh* m_msh,
 	                       const std::vector<long> & nodes_in_dom,
 	                       std::vector<double> & node_value_vector) const;
@@ -535,4 +532,9 @@ extern void GetGreenAmptNODValue(double& value, CSourceTerm* m_st, long msh_node
 extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
+
+extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
+                     std::vector<long> const & nodes_on_sfc,
+                     std::vector<double> & node_value_vector,
+					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
 #endif

@@ -38,6 +38,7 @@
 // MSHLib
 #include "msh_elem.h"
 #include "msh_lib.h"
+
 using namespace std;
 
 Kurven* kurven = NULL;
@@ -1568,3 +1569,6 @@ void NsPol3 (double p, double q, double r, vector<double>* roots)
 	for(i = 0; i < nz; i++)
 		roots->push_back(z[i]);
 }
+
+
+

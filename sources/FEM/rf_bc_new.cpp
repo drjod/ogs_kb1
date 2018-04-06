@@ -563,7 +563,6 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			in.clear();
 		}
 		//....................................................................
-
 	}
 	return position;
 }
