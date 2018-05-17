@@ -16,6 +16,7 @@
 #include <vector>
 //
 
+
 #ifdef LIS
 #include "lis.h"
 #endif
@@ -181,6 +182,9 @@ private:                                          // Dot not remove this!
 	friend class process::CRFProcessDeformation;
 	friend class FiniteElement::CFiniteElementStd;
 	friend class FiniteElement::CFiniteElementVec;
+
+public:
+	CSparseMatrix* get_A() { return A; }  // JOD 2018-5-17 to get access for source terms
 	//
 };
 }

@@ -5283,9 +5283,20 @@ void CFiniteElementStd::CalcAdvection()
 		//---------------------------------------------------------
         mat_factor = CalCoefAdvection(); // this should be called after calculating shape functions. NW
 		//Velocity
-		vel[0] = mat_factor * gp_ele->Velocity(0, gp);
-		vel[1] = mat_factor * gp_ele->Velocity(1, gp);
-		vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+        if(MediaProp->fluidVelocity.type != 0)
+        {
+
+
+        	vel[0] = mat_factor * MediaProp->fluidVelocity.x;
+        	vel[1] = mat_factor * MediaProp->fluidVelocity.y;
+        	vel[2] = mat_factor * MediaProp->fluidVelocity.z;
+        }
+        else
+        {
+        	vel[0] = mat_factor * gp_ele->Velocity(0, gp);
+        	vel[1] = mat_factor * gp_ele->Velocity(1, gp);
+        	vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+        }
         // CB _ctx_ : modify v if _ctx_ flux needs to be included
         //if(_ctx_){
         //  vel[0] -= porosity * gp_ele->_ctx_Gauss(0,gp);

@@ -22,6 +22,13 @@
 // PCSLib
 #include "rf_pcs.h"
 
+struct FluidVelocity  // JOD 2018-5-4
+{
+	FluidVelocity() : type(0) {}
+	int type;  // 0: not used
+	double x, y, z;
+};
+
 namespace FiniteElement
 {class CFiniteElementStd;
 }
@@ -158,6 +165,7 @@ private:
 
     CFEMesh* getMesh(void) { return _mesh; }
 
+    FluidVelocity fluidVelocity;  // JOD 2018-5-4
 	// Properties
 private:
 	// PCS

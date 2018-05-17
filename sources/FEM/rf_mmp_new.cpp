@@ -1983,7 +1983,16 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		  continue;
 	  }
 	  //------------------------------------------------------------------------
-
+	  //subkeyword found
+	  if(line_string.find("$FLUID_VELOCITY") != std::string::npos)  // JOD 2018-5-4
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> fluidVelocity.type;
+		  in >> fluidVelocity.x >> fluidVelocity.y >> fluidVelocity.z;
+		  in.clear();
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
    }
 	return position;
 }
@@ -2874,7 +2883,14 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
-	gp_ele->getIPvalue_vec(ip, velocity); //gp velocities
+	if(fluidVelocity.type != 0)
+	{ // only fluid phase - JOD 2018-5-9
+	  velocity[0] = fluidVelocity.x;
+	  velocity[1] = fluidVelocity.y;
+	  velocity[2] = fluidVelocity.z;
+	}
+	else
+		gp_ele->getIPvalue_vec(ip, velocity); //gp velocities
 	vg = MBtrgVec(velocity,3);
 
 	//Dl in local coordinates
@@ -3037,7 +3053,14 @@ double* CMediumProperties::MassDispersionTensorNew(int ip, int tr_phase) // SB +
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
-	gp_ele->getIPvalue_vec_phase(ip, tr_phase, velocity); //gp velocities // SB
+	if(fluidVelocity.type != 0)
+	{ // only fluid phase - JOD 2018-5-9
+	  velocity[0] = fluidVelocity.x;
+	  velocity[1] = fluidVelocity.y;
+	  velocity[2] = fluidVelocity.z;
+	}
+	else
+		gp_ele->getIPvalue_vec_phase(ip, tr_phase, velocity); //gp velocities // SB
 	vg = MBtrgVec(velocity,3);
 	//  if(index < 10) cout <<" Velocity in MassDispersionTensorNew(): "<<velocity[0]<<", "<<velocity[1]<<", "<<velocity[2]<<", "<<vg<<"\n";
 	// test bubble velocity

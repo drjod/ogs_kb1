@@ -7323,23 +7323,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 
 				if(m_bc->isPeriodic()) // JOD
 					bc_value *= sin( 2 * 3.14159 * aktuelle_zeit / m_bc->getPeriodeTimeLength() + m_bc->getPeriodePhaseShift());
-				//----------------------------------------------------------------
-				if(m_bc->coupling.coupled)  // JOD 2018-12-2
-				{
-					CRFProcess* m_pcs_cond = PCSGet(m_bc->coupling.processName);
-					int ndx = m_pcs_cond->GetNodeValueIndex (m_bc->coupling.primaryVariableName) + 1;
 
-					if(m_pcs_cond != NULL)
-					{
-					   bc_value = m_pcs_cond->GetNodeValue(bc_msh_node,
-							   m_pcs_cond->GetNodeValueIndex (m_bc->coupling.primaryVariableName) + 1);
-
-					   if(m_bc->coupling.verbosity > 0)
-						   std::cout << "coupled BC - Mesh node: " << bc_msh_node << ", value: " << bc_value << std::endl;
-					}
-					else
-						std::cout << "Error when incorporating BC - coupled process unknown" << std::endl;
-				}
 				//----------------------------------------------------------------
 #ifndef USE_PETSC
 				if(rank > -1)
@@ -13449,15 +13433,18 @@ CRFProcess* PCSGetMass(size_t component_number)
 		CRFProcess* m_pcs = NULL;
 
 		m_pcs = PCSGetFlow();
-		flowtype = m_pcs->type;
-		no_processes = (int)pcs_vector.size();
-
-		for(i = 0; i < no_processes; i++)
+		if(m_pcs != NULL)  // JOD 2018-5-4
 		{
-			m_pcs = pcs_vector[i];
-			//if(m_pcs->_pcs_type_name.compare("MASS_TRANSPORT")==0)
-			//m_pcs->twophaseflow=true;
-			m_pcs->flow_pcs_type = flowtype;
+			flowtype = m_pcs->type;
+			no_processes = (int)pcs_vector.size();
+
+			for(i = 0; i < no_processes; i++)
+			{
+				m_pcs = pcs_vector[i];
+				//if(m_pcs->_pcs_type_name.compare("MASS_TRANSPORT")==0)
+				//m_pcs->twophaseflow=true;
+				m_pcs->flow_pcs_type = flowtype;
+			}
 		}
 	}
 
