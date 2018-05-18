@@ -2840,12 +2840,14 @@ CNodeValue* cnodev)
    /////
 
 #ifdef NEW_EQS
+#ifdef LIS
    // JOD 2018-5-17
    CSparseMatrix* A = NULL;
    A = m_pcs_this->eqs_new->get_A();
 
    std::cout << "node: " << cnodev->msh_node_number << std::endl;
    (*A)(cnodev->msh_node_number, cnodev->msh_node_number) += condArea;
+#endif
 #else
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, condArea);
 #endif
@@ -2855,8 +2857,10 @@ CNodeValue* cnodev)
    {   // gas pressure term 
 
 #ifdef NEW_EQS
+#ifdef LIS
 	   // JOD 2018-5-17
 	   (*A)(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size()) -= condArea;
+#endif
 #else
 		MXInc(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size(), -condArea);
 #endif
