@@ -105,6 +105,8 @@ CSourceTerm::CSourceTerm() :
 	geoInfo_threshold = new GeoInfo();
 	geoInfo_storageRateInlet = new GeoInfo();
 	geoInfo_storageRateOutlet = new GeoInfo();
+	geoInfo_wellDoublet_well1 = new GeoInfo();
+	geoInfo_wellDoublet_well2 = new GeoInfo();
 
    CurveIndex = -1;
    //KR critical_depth = false;
@@ -185,6 +187,8 @@ CSourceTerm::~CSourceTerm()
 	delete geoInfo_threshold;
 	delete geoInfo_storageRateInlet;
 	delete geoInfo_storageRateOutlet;
+	delete geoInfo_wellDoublet_well1;
+	delete geoInfo_wellDoublet_well2;
 
 	delete _distances;
 	for (size_t i=0; i<this->_weather_stations.size(); i++) // KR / NB clear climate data information
@@ -252,7 +256,6 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
    bool new_keyword = false;
 
    std::stringstream in;
-
                                                   // JOD 
    channel = 0, node_averaging = 0, air_breaking = false;
    no_surface_water_pressure = 0, explicit_surface_water_pressure = false;
@@ -556,8 +559,10 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$STORAGE_RATE_GEOMETRY") != std::string::npos) // JOD 2018-02-22
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateInlet, *st_file, storageRate.inlet_geometry_name, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateOutlet, *st_file, storageRate.outlet_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateInlet, *st_file,
+	    		  	  storageRate.inlet_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_storageRateOutlet, *st_file,
+	    		  	  storageRate.outlet_geometry_name, geo_obj, unique_name);
 
 		  this->storageRate_geometry = true;
 		  in.clear();
@@ -619,6 +624,27 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  	  continue;
 	  }
 	  //....................................................................
+	  if (line_string.find("$WELL_DOUBLET_GEOMETRY") != std::string::npos) // JOD 2018-06-13
+	  {
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1, *st_file,
+	    		  	  wellDoublet.well1_geometry_name, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2, *st_file,
+	    		  	  wellDoublet.well2_geometry_name, geo_obj, unique_name);
+
+		  wellDoublet.status = wellDoublet_t::active;
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> wellDoublet.parameter_file_name;  // only input via file supported
+
+		  in.clear();
+		  continue;
+	 }
+	 //....................................................................
     /**/
    }                                              // end !new_keyword
    return position;
@@ -2844,8 +2870,6 @@ CNodeValue* cnodev)
    // JOD 2018-5-17
    CSparseMatrix* A = NULL;
    A = m_pcs_this->eqs_new->get_A();
-
-   std::cout << "node: " << cnodev->msh_node_number << std::endl;
    (*A)(cnodev->msh_node_number, cnodev->msh_node_number) += condArea;
 #endif
 #else
@@ -3210,10 +3234,12 @@ CNodeValue* cnodev)
          bc_value = pressure1 - deltaZ * gamma + gamma * inf_cap * deltaZ
             * 2 / (cond0 + cond1);
       // bc_value = supplyRate * gamma * dt;
-#ifndef NEW_EQS
+      /*
+#ifndef NEW_EQS && !defined(USE_PETSC)
       MXRandbed(bc_eqs_index, bc_value, m_pcs_this->getEQSPointer()->b); //getEQSPointer. WW 
 //else ...
 #endif
+*/
       value = 0;
 
    }                                              // end Richards
@@ -3323,11 +3349,13 @@ void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
 
       value_jacobi = sqrt(GRAVITY_CONSTANT * flowdepth3_epsilon) * width
          + value;
-#ifndef NEW_EQS
+      /*
+#ifndef NEW_EQS && !defined(USE_PETSC)
                                                   // write source term into jacobi
       MXInc(msh_node, msh_node, value_jacobi / epsilon);
 // else ...
 #endif
+*/
       m_pcs_this->SetNodeValue(msh_node,
          m_pcs_this->GetNodeValueIndex("FLUX") + 0, -value);
 
@@ -3398,12 +3426,13 @@ void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
       value = -pow(flowdepth, depth_exp + 1) * temp;
       value_for_jacobi = pow(flowdepth_epsilon, depth_exp + 1) * temp + value;
    }
-#ifndef NEW_EQS
-
+   /*
+#ifndef NEW_EQS && !defined(USE_PETSC)
                                                   // write source term into jacobi
    MXInc(msh_node, msh_node, value_for_jacobi / epsilon);
 // else
 #endif
+*/
    pcs_this->SetNodeValue(msh_node, pcs_this->GetNodeValueIndex("FLUX")
       + 0, -value);
 }
@@ -3583,6 +3612,15 @@ const int ShiftInNodeVector)
    {  // only point supported
 	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
 					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+   }
+
+   if(st->wellDoublet.status == wellDoublet_t::active)
+   {  // only point supported
+		  st->wellDoublet.msh_node_number_well1 = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1->getGeoObj()));
+		  st->wellDoublet.msh_node_number_well2 = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2->getGeoObj()));
+
    }
 
    if(st->calculatedFromStorageRate()) // JOD 2018-02-22

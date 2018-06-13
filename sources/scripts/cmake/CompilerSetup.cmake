@@ -3,6 +3,11 @@ include(SetDefaultBuildType)
 include(DisableCompilerFlag)
 SET_DEFAULT_BUILD_TYPE(Release)
 include(MSVCMultipleProcessCompile) # /MP Switch for VS
+		
+
+message(STATUS "Set flag for C++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 
 if (WIN32)
 	## For Visual Studio compiler

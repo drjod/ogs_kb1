@@ -70,6 +70,17 @@ struct StorageRate
 	double inlet_totalArea, outlet_totalArea;
 };
 
+struct wellDoublet_t
+{
+	enum {inactive, active} status;
+	std::string well1_geometry_name;
+	std::string well2_geometry_name;
+	long msh_node_number_well1;
+	long msh_node_number_well2;
+	std::string parameter_file_name;
+	wellDoublet_t() : status(inactive) {}
+};
+
 typedef struct
 {
 	std::vector<double> value_reference;
@@ -84,6 +95,8 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
 	GeoInfo* geoInfo_storageRateInlet;  // JOD 2018-02-22
 	GeoInfo* geoInfo_storageRateOutlet;
+	GeoInfo* geoInfo_wellDoublet_well1;  // warm well -  JOD 2018-6-13
+	GeoInfo* geoInfo_wellDoublet_well2;  // cold well
 
 public:
 	CSourceTerm();
@@ -264,7 +277,6 @@ public:
 
 	  bool storageRate_geometry;  // JOD 2018-02-22
 
-
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,
@@ -347,6 +359,7 @@ private:                                          // TF, KR
 
 	Threshold threshold; // JOD 2018-1-31
 	StorageRate storageRate;
+	wellDoublet_t wellDoublet;
 };
 
 class CSourceTermGroup
