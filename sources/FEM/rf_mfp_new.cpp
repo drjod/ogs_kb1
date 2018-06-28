@@ -2049,7 +2049,6 @@ double CFluidProperties::GetElementValueFromNodes(long ElementIndex,
 *************************************************************************/
 double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK, double Conc)
 {
-	Conc = Conc;
 	/*int c_idx;*/
 	double rho_0;
 	double GammaPi, Pressurevar, Tau, pressure_average, temperature_average;
@@ -2189,16 +2188,9 @@ double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK, 
 	/*BEGIN: Calculation of density*/
 	rho_0 = pressure_average / (GazConst * temperature_average * Pressurevar * GammaPi);
 	/*END: Calculation of density*/
-	if(std::isinf(rho_0) || std::isnan(rho_0)  )
-		throw std::runtime_error("Error is density model 8: Calculation failed " +
-		std::to_string(GazConst) + " " +
-		std::to_string(temperature_average) + " " +
-		std::to_string(Pressurevar) + " " +
-		std::to_string(GammaPi)
-		);
+	if(std::isinf(rho_0) || std::isnan(rho_0))
+		throw std::runtime_error("Error is density model 8: Calculation failed ");
 
-	/*  return rho_0 + drho_dC * (concentration_average - c0);   */
-	/*printf("%f", rho_0 + salinity);*/
 	return rho_0 + salinity;
 }
 
@@ -3494,12 +3486,6 @@ double CFluidProperties::LiquidViscosity_CMCD(double Press,double TempK,double C
 	             (sqrt(TempF) - 0.0135 *
 	          TempF) * (0.00276 * Salinity - 0.000344 * (MathLib::fastpow(sqrt(Salinity),3))));
 
-	//if(_isnan(viscosity) || std::isinf(viscosity))
-		//std::runtime_error("Error in Viscosity model 8: calculation failed");
-
-
-	//std::cout << "fastpow: " << MathLib::fastpow(0., 1) << std::endl;
-	//std::cout << "viscosity: " << viscosity << std::endl;
 	return viscosity;
 }
 
