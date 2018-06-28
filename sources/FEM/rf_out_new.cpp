@@ -290,6 +290,8 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 			m_out->NODWritePointsCombined(time_current, time_step_number);	// 6/2012 for calibration JOD
 		else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)
 			m_out->NODWritePrimaryVariableList(time_current, time_step_number); //JOD 2014-11-10
+		else if (m_out->dat_type_name.compare("WELL_DOUBLET_CONTROL") == 0)
+					m_out->WriteWellDoubletControl(time_current, time_step_number); // 2018-06-27 JOD
 		// ELE values, only called if ele values are defined for output, 05/2012 BG
 		if (m_out->getElementValueVector().size() > 0)
 			m_out->CalcELEFluxes();

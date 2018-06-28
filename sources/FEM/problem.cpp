@@ -1454,10 +1454,15 @@ bool Problem::CouplingLoop()
         if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
         //				error = Call_Member_FN(this, active_processes[index])(); // TF: error set, but never used
         Call_Member_FN(this, active_processes[index])();
+
         if (!a_pcs->TimeStepAccept()){
           accept = false;
           break;
         }
+
+        //if(a_pcs->wellDoubletControl_converged == true)
+        //	break;
+
         // SB time control 02/2014
         a_pcs->Tim->last_time_simulated = aktuelle_zeit; //SB
         if (a_pcs->flag_delta_max)
@@ -1487,7 +1492,10 @@ bool Problem::CouplingLoop()
         }
         a_pcs->first_coupling_iteration = false; // No longer true.
         // Check for break criteria
-        max_outer_error = MMax(max_outer_error, a_pcs->cpl_max_relative_error);
+        if(a_pcs->m_num->fct_method == 0)
+        	max_outer_error = MMax(max_outer_error, a_pcs->cpl_max_relative_error);
+        else
+        	max_outer_error = 0.;
 
         // Reapply BCs if constrained BC
 #if defined(USE_MPI) || defined(USE_PETSC)
@@ -1524,8 +1532,10 @@ bool Problem::CouplingLoop()
       std::cout << "\n";
     }
     // Coupling convergence criteria
-    //if(max_outer_error <= 1.0 && outer_index+2 > cpl_overall_min_iterations) // JT: error is relative to the tolerance.	//MW outer_index + 2 is hard to follow - is it faster to write it like this?
-	if (max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
+    //max_outer_error=0.;
+  	if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)  // JT: error is relative to the tolerance.
+			|| a_pcs->wellDoubletControl_converged == true // JOD 2018-06-15?????
+	) // JT: error is relative to the tolerance.
 			break;
 
 	
@@ -1535,6 +1545,8 @@ bool Problem::CouplingLoop()
       accept = false;
       break;
     }
+
+
   }
     if (accept){
       if (cp_vec.size() > 0){

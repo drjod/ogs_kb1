@@ -26,6 +26,7 @@
 #include "StepperBulischStoer.h"   // HS, 10.2011
 
 #include "Eigen/Eigen"
+#include "wellDoubletControl.h"
 
 //#include "rf_st_new.h"//CMCD 02_06
 // C++ STL
@@ -341,6 +342,8 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
+	WellDoubletControl* wellDoubletControl; // JOD 2018-6-27
+
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -807,6 +810,7 @@ public:
 	int iter_inner_cpl;							// JT2012
 	int pcs_num_dof_errors;						// JT2012
 	int iter_out_cpl_tot;						// KB1115 : counts sum of iterations of simulation for Eclipse coupling
+	bool wellDoubletControl_converged;
 	double pcs_relative_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store relative error for each DOF
 	double pcs_absolute_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store error for each DOF
 	double pcs_unknowns_norm;

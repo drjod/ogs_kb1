@@ -16,6 +16,9 @@
 #include "fem_ele.h"
 #include "Constrained.h"
 
+#include "wellDoubletControl.h"
+#include <list>
+
 class CNodeValue;
 class CGLPolyline;
 class CGLLine;
@@ -70,16 +73,7 @@ struct StorageRate
 	double inlet_totalArea, outlet_totalArea;
 };
 
-struct wellDoublet_t
-{
-	enum {inactive, active} status;
-	std::string well1_geometry_name;
-	std::string well2_geometry_name;
-	long msh_node_number_well1;
-	long msh_node_number_well2;
-	std::string parameter_file_name;
-	wellDoublet_t() : status(inactive) {}
-};
+
 
 typedef struct
 {
@@ -91,12 +85,42 @@ typedef struct
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
+	struct wellDoubletData_t
+	{
+		struct parameter_group_t
+		{
+			double time;
+			char indicator;
+			double powerrate;
+			double target_value;
+			double threshold_value;
+			parameter_group_t(const double& _time, const char& _indicator,
+					const double& _powerrate, const double& _target_value, const double& _threshold_value) :
+				time(_time), indicator(_indicator), powerrate(_powerrate),
+				target_value(_target_value), threshold_value(_threshold_value) {}
+			// constructor for replace_back in read function - do not reorder without considering this
+		};
+		std::list<parameter_group_t> parameter_list;
+		std::string well1_geometry_name_measurementPoint;
+		std::string well2_geometry_name_measurementPoint;
+		std::string well1_geometry_name_liquidBCPoint;
+		std::string well2_geometry_name_liquidBCPoint;
+		long msh_node_number_well1_measurementPoint;
+		long msh_node_number_well2_measurementPoint;
+		//long msh_node_number_well1_liquidBCPoint;
+		//long msh_node_number_well2_liquidBCPoint;
+		enum {inactive, active} status;
+		wellDoubletData_t() : status(inactive) {}
+	};
+
 	GeoInfo* geoInfo_connected;
 	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
 	GeoInfo* geoInfo_storageRateInlet;  // JOD 2018-02-22
 	GeoInfo* geoInfo_storageRateOutlet;
-	GeoInfo* geoInfo_wellDoublet_well1;  // warm well -  JOD 2018-6-13
-	GeoInfo* geoInfo_wellDoublet_well2;  // cold well
+	GeoInfo* geoInfo_wellDoublet_well1_measurementPoint;  // warm well -  JOD 2018-6-13
+	GeoInfo* geoInfo_wellDoublet_well2_measurementPoint;  // cold well
+	GeoInfo* geoInfo_wellDoublet_well1_liquidBCPoint;  // warm well
+	GeoInfo* geoInfo_wellDoublet_well2_liquidBCPoint;  // cold well
 
 public:
 	CSourceTerm();
@@ -231,7 +255,8 @@ public:
 
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
-
+	double apply_wellDoubletControl(const double &value, const CNodeValue* cnodev,
+			const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
 	int geo_node_number;
@@ -359,7 +384,7 @@ private:                                          // TF, KR
 
 	Threshold threshold; // JOD 2018-1-31
 	StorageRate storageRate;
-	wellDoublet_t wellDoublet;
+	wellDoubletData_t wellDoubletData;
 };
 
 class CSourceTermGroup

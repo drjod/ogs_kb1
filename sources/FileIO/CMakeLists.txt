@@ -44,6 +44,8 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+
 )
 
 target_link_libraries( FileIO

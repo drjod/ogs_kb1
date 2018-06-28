@@ -5624,3 +5624,74 @@ void COutput::WritePotentially(double time_current, int time_step_number, bool o
 		}
     }		
 }
+
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:
+Use:    $DAT_TYPE
+
+Programing:
+06/2018 JOD Implementation
+**************************************************************************/
+
+void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
+{
+
+	std::cout << "Well-----------------";
+	m_pcs = PCSGet(getProcessType());
+	if(m_pcs == NULL)
+	{
+		std::cout << "Warning - PCS not known for WellDoubletControl output" << std::endl;
+		return;
+	}
+
+		std::string tec_file_name = file_base_name + "_"
+	     + std::string(convertProcessTypeToString(getProcessType()))
+	    		 + "_WellDoublet" + TEC_FILE_EXTENSION;
+
+	   std::fstream tec_file;
+	   if (aktueller_zeitschritt == 0)
+	     tec_file.open(tec_file_name.data(), ios::out);
+	   else
+	     tec_file.open(tec_file_name.data(), ios::app);
+
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+	#ifdef SUPERCOMPUTER
+		// kg44 buffer the output
+		char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+		tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+		//
+	#endif
+		//--------------------------------------------------------------------
+		if (aktueller_zeitschritt == 0)
+			tec_file << "Time step; Simulation time t; Scheme [A, B, C]; " <<
+            "Smiley as power rate adaption identifier; Power rate Q_H; " <<
+            "Flow rate Q_w; T_1 at warm well 1; T_2 at cold well" << std::endl;
+
+		if(m_pcs->wellDoubletControl != NULL)
+		{
+			WellDoubletControl::result_t result = m_pcs->wellDoubletControl->get_result();
+			std::string smiley;
+			smiley = result.flag_powerrateAdapted? ":-(" : ":-)";
+
+			tec_file << aktueller_zeitschritt
+				<< "\t" << time_current
+	    		<< "\t" << m_pcs->wellDoubletControl->get_schemeIdentifier()
+				<< "\t" << smiley
+				<< "\t" << m_pcs->wellDoubletControl->get_result().Q_H
+				<< "\t" << result.Q_w
+				<< "\t" << result.T1
+				<< "\t" << result.T2
+				<< std::endl;
+		}
+	    tec_file.close();
+}
+

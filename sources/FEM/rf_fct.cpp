@@ -241,7 +241,7 @@ std::ios::pos_type CFunction::Read(std::ifstream* fct_file)
 				for(i = 0; i < (int)no_variable_names; i++) //OK411
 				{
 					line_stream >> variable_data[i];
-					variable_data_vector.push_back(variable_data);
+					variable_data_vector.push_back(variable_data);  // ????? not variable_name[i]?
 				}
 				line_stream.clear();
 			}
@@ -607,6 +607,9 @@ double CFunction::GetValue(double point, bool* valid, int method)
 	long j;
 	double value = 1.0;
 	//----------------------------------------------------------------------
+	for(auto elem: variable_data_vector)
+		std::cout << *elem << " ";
+	std::cout << std::endl;
 	//
 	value = variable_data_vector[0][1];
 	if(point < variable_data_vector[0][0])

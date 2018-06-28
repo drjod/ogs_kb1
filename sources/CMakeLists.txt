@@ -305,6 +305,7 @@ add_subdirectory( MSH )
 add_subdirectory( MSHGEOTOOLS )
 add_subdirectory( FEM )
 add_subdirectory( GCC )
+
 if(OGS_FEM_CHEMAPP)
 	add_subdirectory( EQL )
 	link_directories( ${CMAKE_SOURCE_DIR}/EQL )

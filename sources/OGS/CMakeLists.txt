@@ -14,6 +14,8 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+
 )
 
 if (LIS)
@@ -36,6 +38,7 @@ endif ()
 # Create the library
 add_executable( ogs ${SOURCES} )
 
+
 target_link_libraries( ogs
 	${CMAKE_THREAD_LIBS_INIT}
 	Base
@@ -44,6 +47,7 @@ target_link_libraries( ogs
 	GEO
 	MathLib
 	MSH
+	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl/libwellDoubletControl.a
 )
 
 if (OGS_FEM_GEMS OR OGS_FEM_PETSC_GEMS)

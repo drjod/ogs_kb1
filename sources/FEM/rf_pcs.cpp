@@ -239,6 +239,7 @@ CRFProcess::CRFProcess(void) :
 	iter_inner_cpl = 0;
 	iter_outer_cpl = 0;
 	iter_out_cpl_tot = 0; // JOD 2015-2-19  for Eclipse with mechanics
+	wellDoubletControl_converged = false;  // JOD 2018-06-15
 	TempArry = NULL;
 	//SB:GS4  pcs_component_number=0; //SB: counter for transport components
 	pcs_component_number = pcs_no_components - 1;
@@ -8694,7 +8695,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->threshold.type != Threshold::no)
 						  value = m_st->CheckThreshold(value, cnodev);
-
+				  //----------------------------------------------------------------------------------------
+				  if(m_st->wellDoubletData.status == CSourceTerm::wellDoubletData_t::active)
+				  	  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
 			  }
 		}
 
@@ -8716,7 +8719,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 					cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
 					time_fac = 1.0;
 				}
-
 			}
 
 			// Time dependencies - FCT    //YD
@@ -8748,7 +8750,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			}
 			//----------------------------------------------------------------------------------------
 			value *= time_fac * fac;
-            //std::cout << value << " " << time_fac << " " << fac << "\n";
+            std::cout << value << " " << time_fac << " " << fac << " " << cnodev->msh_node_number << "\n";
 
 
 			//------------------------------------------------------------------

@@ -160,6 +160,7 @@ public:
 
 	void WriteTotalFlux(double, int);	// JOD 11/2014 
 	void WriteContent(double, int);     // JOD 2/2015
+	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10

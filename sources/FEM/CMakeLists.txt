@@ -49,8 +49,6 @@ set( HEADERS
 	Stiff_Bulirsch-Stoer.h
 	tools.h
 	vtk.h
-	wellDoubletControl.h
-	comparison.h
 )
 
 set( SOURCES
@@ -104,7 +102,6 @@ set( SOURCES
 	Stiff_Bulirsch-Stoer.cpp
 	tools.cpp
 	vtk.cpp
-	wellDoubletControl.cpp
 )
 
 if(OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)
@@ -142,6 +139,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 )
 
 if (LIS)

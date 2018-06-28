@@ -43,6 +43,8 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MathLib/LinAlg
 	${CMAKE_SOURCE_DIR}/MathLib/PETSC
+${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+
 )
 
 target_link_libraries (
