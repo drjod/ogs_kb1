@@ -576,4 +576,6 @@ extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
                      std::vector<long> const & nodes_on_sfc,
                      std::vector<double> & node_value_vector,
 					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+
+double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 #endif

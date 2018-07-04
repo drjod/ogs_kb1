@@ -8282,7 +8282,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		CElem* elem = NULL;
 		CElem* face = NULL;
 		ElementValue* gp_ele = NULL;
-    double val = 1.;
+		double val = 1.;
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> st_eqs_id;
 		vector<double> st_eqs_value;
@@ -8296,8 +8296,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		bool is_valid;            //YD
 		CFunction* m_fct = NULL;  //YD
 		long i;                   //, group_vector_length;
-    bool transient = false;
-    double *stvals = NULL;
+		bool transient = false;
+		double *stvals = NULL;
 
 		double Scaling = 1.0;
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
@@ -8668,7 +8668,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  // TIME_CONTROLLED_ACTIVE curve
 			  if (m_st->getTimeContrCurve() > 0)
 			  {
-					  val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
+				  val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
 			  }
 
 			  // TIME_CONTROLLED_ACTIVE fct
@@ -8676,25 +8676,25 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  std::string test_fct_name = m_st->getTimeContrFunction();
 			  if (test_fct_name.length() > 0)
 			  {
-					  m_fct = FCTGet(test_fct_name);
-							  if (m_fct)
-									  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
+				  m_fct = FCTGet(test_fct_name);
+				  if (m_fct)
+					  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
 			  }
 			  if (val < MKleinsteZahl)
 			  {
-					  time_fac = 0.0;
-					  value = 0;
+				  time_fac = 0.0;
+				  value = 0;
 			  }
 			  else
 			  {   // only if not switched off
 				  if (m_st->isConnected())  // JOD 2/2015
-						  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
+					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
 				  //--------------------------------------------------------------------
 				  if(m_st->storageRate.apply == true)
-						  value = m_st->CalculateFromStorageRate(value, cnodev);
+					  value = m_st->CalculateFromStorageRate(value, cnodev);
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->threshold.type != Threshold::no)
-						  value = m_st->CheckThreshold(value, cnodev);
+					  value = m_st->CheckThreshold(value, cnodev);
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->wellDoubletData.status == CSourceTerm::wellDoubletData_t::active)
 				  	  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
@@ -8703,83 +8703,83 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		//--------------------------------------------------------------------
 		// Please do not move the this section
-			curve = cnodev->CurveIndex;
-			if (curve > 0)
-			{
-                //Reading Time interpolation method; BG
-				if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
-					if (interp_method != m_st->TimeInterpolation)
-						interp_method = m_st->TimeInterpolation;
+		curve = cnodev->CurveIndex;
+		if (curve > 0)
+		{
+			//Reading Time interpolation method; BG
+			if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
+				if (interp_method != m_st->TimeInterpolation)
+					interp_method = m_st->TimeInterpolation;
 
-				time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
-				//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
-        if (!valid)
+			time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
+			//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
+			if (!valid)
+			{
+				cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
+				cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
+				time_fac = 1.0;
+			}
+		}
+
+		// Time dependencies - FCT    //YD
+		if (m_st)     //WW
+		{
+			//WW/YD //OK
+			if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
+			{
+				if (m_st->getFunctionName().length() > 0)
 				{
-					cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
-					cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
-					time_fac = 1.0;
+					m_fct = FCTGet(pcs_number);
+					if (m_fct)
+						time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
+					else
+						cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
 				}
 			}
-
-			// Time dependencies - FCT    //YD
-			if (m_st)     //WW
+			else if (m_st->getFunctionName().length() > 0)
 			{
-        
-        //WW/YD //OK
-				if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
-				{
-					if (m_st->getFunctionName().length() > 0)
-					{
-						m_fct = FCTGet(pcs_number);
-						if (m_fct)
-							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
-						else
-							cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-					}
+				m_fct = FCTGet(m_st->getFunctionName());
+				if (m_fct){
+					time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
+					//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
 				}
-				else if (m_st->getFunctionName().length() > 0)
-				{
-					m_fct = FCTGet(m_st->getFunctionName());
-          if (m_fct){
-            time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
-            //std::cout << " Function name: " << m_st->getFunctionName() << "\n";
-          }
-          else
+				else
 						cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-				}
 			}
-			//----------------------------------------------------------------------------------------
-			value *= time_fac * fac;
-            std::cout << value << " " << time_fac << " " << fac << " " << cnodev->msh_node_number << "\n";
+		}
+		//----------------------------------------------------------------------------------------
+		value *= time_fac * fac;
+		std::cout << value << " " << time_fac << " " << fac << " " << cnodev->msh_node_number << "\n";
 
 
 			//------------------------------------------------------------------
 			// EQS->RHS
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 
-			st_eqs_id.push_back(static_cast<int>(m_msh->nod_vector[msh_node]->GetEquationIndex() * dof_per_node + shift));
-			st_eqs_value.push_back(value);
+		st_eqs_id.push_back(static_cast<int>(m_msh->nod_vector[msh_node]->GetEquationIndex() * dof_per_node + shift));
+		st_eqs_value.push_back(value);
 
 #else
-			if (rank > -1)
-				bc_eqs_index = msh_node + shift;
-			else
-				bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
-			eqs_rhs[bc_eqs_index] += value;
+		if (rank > -1)
+			bc_eqs_index = msh_node + shift;
+		else
+			bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
+		eqs_rhs[bc_eqs_index] += value;
 #endif
 
       // store transient st values for output
-      if (transient)
+		if (transient)
           stvals[gindex] = value;
 
 		}
 
     
-    // output transient values in ST_RHS file
-    if (transient) {// CB
-        WriteRHS_of_ST_NeumannBC_transient(rank, stvals);
-        free(stvals);
-    }
+		// output transient values in ST_RHS file
+		if (transient)
+		{	// CB
+			WriteRHS_of_ST_NeumannBC_transient(rank, stvals);
+			free(stvals);
+		}
 
 		//====================================================================
 

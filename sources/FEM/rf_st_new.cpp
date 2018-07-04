@@ -3743,11 +3743,19 @@ const int ShiftInNodeVector)
    }
 
    if(st->wellDoubletData.status == CSourceTerm::wellDoubletData_t::active)
-   {  // only point supported
+   {  	  // point for measurements
 		  st->wellDoubletData.msh_node_number_well1_measurementPoint = m_msh->GetNODOnPNT(
 						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_measurementPoint->getGeoObj()));
 		  st->wellDoubletData.msh_node_number_well2_measurementPoint = m_msh->GetNODOnPNT(
 						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_measurementPoint->getGeoObj()));
+		  // polyline for measurements
+		  /*m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+				  st->geoInfo_wellDoublet_well1_measurementPoint->getGeoObj()),
+				  st->wellDoubletData.msh_node_number_well1_measurementPoints, true);
+		  m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+				  st->geoInfo_wellDoublet_well2_measurementPoint->getGeoObj()),
+				  st->wellDoubletData.msh_node_number_well2_measurementPoints, true);
+		  */
 		  // liquid flow BCs
 		  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
 		  // warm well 1 - copy from lines above
@@ -5894,161 +5902,154 @@ only heat capacity and density of fluid is considered (mfp_vector[0])
 double CSourceTerm::apply_wellDoubletControl(const double &value,
 				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
-	static int sign = 1; // for FCT scheme
+	static int sign = 1; // for FCT scheme - takes than same valus for correction
+	int ndx1 = 1;  // implicit - take new values for capacity calculations
+	double variables_well1[3], variables_well2[3];
+	double pressure_well1, pressure_well2, temperature_well1, temperature_well2;
 
 		// get current parameter list (delete list entry, if old - list must be ordered according to time)
-		while(aktuelle_zeit > wellDoubletData.parameter_list.begin()->time)
-				wellDoubletData.parameter_list.erase(wellDoubletData.parameter_list.begin());
-				// time must increase throughout the parameter goup
-		wellDoubletData_t::parameter_group_t parameter_group = *wellDoubletData.parameter_list.begin();
-											// the current one
-
-		if(m_pcs)
+	while(aktuelle_zeit > wellDoubletData.parameter_list.begin()->time)
+			wellDoubletData.parameter_list.erase(wellDoubletData.parameter_list.begin());
+			// time must increase throughout the parameter goup
+	wellDoubletData_t::parameter_group_t parameter_group = *wellDoubletData.parameter_list.begin();
+										// the current one
+	if(m_pcs)
+	{
+		if(m_pcs->getProcessType() == FiniteElement::LIQUID_FLOW)
 		{
-			if(m_pcs->getProcessType() == FiniteElement::LIQUID_FLOW)
+			CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
+			if(m_pcs_heat)
 			{
-				CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
-				if(m_pcs_heat)
-				{
-					if(m_pcs->iter_outer_cpl == 0)
-					{// first coupling iteration (between LIQUID_FLOW and HEAT_TRANSPORT)
-						CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
+				if(m_pcs->iter_outer_cpl == 0)
+				{// first coupling iteration (between LIQUID_FLOW and HEAT_TRANSPORT)
+					CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
 
-							double Q_w_min = 1.e-5;
-							switch(parameter_group.indicator)
-							{
-								case 'A':
-								case 'C':
-									// for storage!!!!!
-									return value * min( parameter_group.threshold_value, max(Q_w_min, parameter_group.powerrate / (
-											m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) *
-												4185000 // mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1)
-												-
-											m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1) *
-											4185000 // mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2)
-									)));
-								case 'B':
-									return value * parameter_group.target_value;
-								default:
-									throw std::runtime_error("WellDoubletControl - Identifier not supported");
-							}
-
-							//return parameter_group.powerrate / (4185000 * (m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) -
-							//	m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1)));
-					} // end if(m_pcs->iter_outer_cpl == 0)
-
+					double Q_w_min = 1.e-4;  // must be consitent with value in WellDoubletControl
 					switch(parameter_group.indicator)
 					{
 						case 'A':
 						case 'C':
-							return value * m_pcs_heat->wellDoubletControl->get_result().Q_w;
+							// pressures from LIQUID_FLOW
+
+							variables_well1[0] = m_pcs->GetNodeValue(
+									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+							variables_well2[0] = m_pcs->GetNodeValue(
+									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+							// temperatures from HEAT_TRANSPORT
+							variables_well1[1] = m_pcs_heat->GetNodeValue(
+									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+							variables_well2[1] = m_pcs_heat->GetNodeValue(
+									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+							// only for storage!!!!!
+							return value * min( parameter_group.threshold_value, max(Q_w_min, parameter_group.powerrate / (
+									m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) *
+										mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1)
+										-
+									m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1) *
+									 mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2)
+							)));
 						case 'B':
 							return value * parameter_group.target_value;
 						default:
 							throw std::runtime_error("WellDoubletControl - Identifier not supported");
 					}
-				}
-				else
-					throw std::runtime_error("No process HEAT_TRANSPORT");
-			}  // end LIQUID_FLOW
-			else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
-			{
-				int ndx1 = 1;  // implicit - take new values
 
-				// get primary variables for fluid heat capacity at warm and cold well
-				double variables_well1[3], variables_well2[3];
-				CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
-				if(m_pcs_liquid)
-				{  // pressures
-					variables_well1[0] = m_pcs_liquid->GetNodeValue(
-							wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-					variables_well2[0] = m_pcs_liquid->GetNodeValue(
-							wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
-				}
-				// temperatures
-				variables_well1[1] = m_pcs->GetNodeValue(
-						wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-				variables_well2[1] = m_pcs->GetNodeValue(
-						wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+					//return parameter_group.powerrate / (4185000 * (m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) -
+					//	m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1)));
+				} // end if(m_pcs->iter_outer_cpl == 0)
 
-				double target  = parameter_group.target_value;
-
-				//std::cout << "T-30, 459: " << m_pcs->GetNodeValue(459, ndx1) << std::endl;
-				//std::cout << "T-31, 460: " << m_pcs->GetNodeValue(460, ndx1) << std::endl;
-				//std::cout << "T-32, 472: " << m_pcs->GetNodeValue(472, ndx1) << std::endl;
-				//std::cout << "T-33, 473: " << m_pcs->GetNodeValue(473, ndx1) << std::endl;
-				//std::cout << "T-34, 474: " << m_pcs->GetNodeValue(474, ndx1) << std::endl;
-				//std::cout << "T-35, 475: " << m_pcs->GetNodeValue(475, ndx1) << std::endl;
-
-				if(m_pcs->iter_outer_cpl == 0)
+				switch(parameter_group.indicator)
 				{
-					if(sign == 1)
-					{   // before FCT correction
-						if(m_pcs->iter_outer_cpl == 0)
-								m_pcs->wellDoubletControl = WellDoubletControl::create_wellDoubletControl(
-																parameter_group.indicator);
-										// creates new instance of wellDoubletControl and deletes old one if it exists already
-
-						std::cout << "--- configure ---" << std::endl;
-						m_pcs->wellDoubletControl->configure(  // still have to release memory
-								"wellDoublet1", 0, // time step
-								aktuelle_zeit,
-								parameter_group.powerrate,
-								parameter_group.target_value,
-								parameter_group.threshold_value,
-								m_pcs->GetNodeValue(  // temperature at warm well 1
-										wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
-								m_pcs->GetNodeValue(  // temperature at cold well 2
-										wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
-								mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
-									mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
-								mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
-									mfp_vector[0]->Density(variables_well2)  // fluid head capacity at cold well 2
-						);
-					}
-					//sign *= -1;
-
+					case 'A':
+					case 'C':
+						return value * m_pcs_heat->wellDoubletControl->get_result().Q_w;
+					case 'B':
+						return value * parameter_group.target_value;
+					default:
+						throw std::runtime_error("WellDoubletControl - Identifier not supported");
 				}
-				else
-				{
-					if(sign == 1)
-					{  // before FCT correction
-						std::cout << "--- evaluate ---" << std::endl;
-						if(m_pcs->wellDoubletControl->evaluate_simulation_result(
-								m_pcs->GetNodeValue(  // temperature at warm well 1
-										wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
-								m_pcs->GetNodeValue(  // temperature at warm well 2
-										wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
-								mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
-									mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
-								mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
-									mfp_vector[0]->Density(variables_well2))  // fluid head capacity at cold well 2
-										 == WellDoubletControl::converged)
-						{
-							//std::cout << "converged" << std::endl;
-						}
-						else
-						{
-							//std::cout << "not converged" << std::endl;
-						}
-					}
-					//sign *= -1;
-
-
-				}
-				//std::cout << "Q_H: " << m_pcs->wellDoubletControl->get_result().Q_H << std::endl;
-				return value * m_pcs->wellDoubletControl->get_result().Q_H;
-			}  // end HEAT_TRANSPORT
+			}
 			else
-				throw std::runtime_error("WellDoubletControl - PCS not supported");
-		}  // end m_pcs->getProcessType()
+				throw std::runtime_error("No process HEAT_TRANSPORT");
+		}  // end LIQUID_FLOW
+		else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+		{
+			// get primary variables for fluid heat capacity at warm and cold well
+
+			CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+			if(m_pcs_liquid)
+			{  // pressures
+				variables_well1[0] = m_pcs_liquid->GetNodeValue(
+						wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+				variables_well2[0] = m_pcs_liquid->GetNodeValue(
+						wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+			}
+			else
+				throw std::runtime_error("No process LIQUID_FLOW");
+			// temperatures
+			variables_well1[1] = m_pcs->GetNodeValue(
+					wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+			variables_well2[1] = m_pcs->GetNodeValue(
+					wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+
+			double target  = parameter_group.target_value;
+
+			if(m_pcs->iter_outer_cpl == 0)
+			{
+				if(sign == 1)
+				{   // before FCT correction
+					if(m_pcs->iter_outer_cpl == 0)
+							m_pcs->wellDoubletControl = WellDoubletControl::create_wellDoubletControl(
+															parameter_group.indicator);
+									// creates new instance of wellDoubletControl and deletes old one if it exists already
+
+					std::cout << "--- configure ---" << std::endl;
+					m_pcs->wellDoubletControl->configure(  // still have to release memory
+							parameter_group.powerrate,
+							parameter_group.target_value,
+							parameter_group.threshold_value,
+							m_pcs->GetNodeValue(  // temperature at warm well 1
+									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
+							m_pcs->GetNodeValue(  // temperature at cold well 2
+									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
+							mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
+								mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
+							mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
+								mfp_vector[0]->Density(variables_well2)  // fluid head capacity at cold well 2
+					);
+				}
+				if(m_pcs->m_num->fct_method != 0)
+					sign *= -1;
+
+			}
+			else
+			{
+				if(sign == 1)
+				{
+					std::cout << "--- evaluate ---" << std::endl;
+					m_pcs->wellDoubletControl->evaluate_simulation_result(
+							m_pcs->GetNodeValue(  // temperature at warm well 1
+									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
+							m_pcs->GetNodeValue(  // temperature at warm well 2
+									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
+							mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
+								mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
+							mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
+								mfp_vector[0]->Density(variables_well2));
+				}
+				if(m_pcs->m_num->fct_method != 0)
+					sign *= -1;
+
+
+			}
+			//std::cout << "Q_H: " << m_pcs->wellDoubletControl->get_result().Q_H << std::endl;
+			return value * m_pcs->wellDoubletControl->get_result().Q_H;
+		}  // end HEAT_TRANSPORT
 		else
-			throw std::runtime_error("WellDoubletControl - PCS not found");
+			throw std::runtime_error("WellDoubletControl - PCS not supported");
+	}  // end m_pcs->getProcessType()
+	else
+		throw std::runtime_error("WellDoubletControl - PCS not found");
 }
-
-
-
-
-
 
 
