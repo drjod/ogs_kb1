@@ -527,7 +527,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  if (!(temp.constrainedDirection == ConstrainedType::SMALLER || temp.constrainedDirection == ConstrainedType::GREATER))
 		  {
 			  std::cout << "No valid constrainedDirection for " << FiniteElement::convertProcessTypeToString(temp.constrainedProcessType)
-				  << " (" << tempst << ")" << std::endl;
+				  << " (" << tempst << ")" << "\n";
 			  _isConstrainedST = false;
 		  }
 
@@ -667,9 +667,13 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 				tmp3,  // target value
 				tmp4  // threshold value
 			  );
-
 		  }
 
+		  CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
+		  if(m_pcs)
+			  m_pcs->wellDoubletControlled = true;
+		  else
+			  throw std::runtime_error("No PCS for WellDoubletControl");
 		  in.clear();
 		  continue;
 	 }
@@ -2378,7 +2382,7 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
    }
 
    //for (i = 0; i < msh->ele_vector.size(); i++)
-	 //  std::cout << "----- " << msh->ele_vector[l]->selected << std::endl;
+	 //  std::cout << "----- " << msh->ele_vector[l]->selected << "\n";
    //search elements & face integration
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
       const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
@@ -3661,14 +3665,14 @@ const int ShiftInNodeVector)
       //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
       nod_val->setProcessDistributionType (st->getProcessDistributionType());
       nod_val->node_area = 1.0;
-      std::cout << "      - Critical depth" << std::endl;
+      std::cout << "      - Critical depth" << "\n";
    }
 
    if (st->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
    {
       nod_val->setProcessDistributionType (st->getProcessDistributionType());
       nod_val->node_area = 1.0;
-	  std::cout << "      - Normal depth" << std::endl;
+	  std::cout << "      - Normal depth" << "\n";
    }
 
    //	if (st->dis_type_name.compare("PHILIP") == 0) { // JOD
@@ -3687,7 +3691,7 @@ const int ShiftInNodeVector)
    {
       nod_val->setProcessDistributionType (st->getProcessDistributionType());
       nod_val->node_area = 1.0;
-	  std::cout << "      - Green-Ampt" << std::endl;
+	  std::cout << "      - Green-Ampt" << "\n";
    }
 
    if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT)
@@ -3780,6 +3784,15 @@ const int ShiftInNodeVector)
 
 		  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
 		  pcs_liquid->st_node.push_back(st);
+
+		  CRFProcess* m_pcs  = PCSGet(FiniteElement::HEAT_TRANSPORT);  // provisional
+		  if(m_pcs)
+		  {
+			  m_pcs->well1_measurement_meshnode = st->wellDoubletData.msh_node_number_well1_measurementPoint;
+			  m_pcs->well2_measurement_meshnode = st->wellDoubletData.msh_node_number_well2_measurementPoint;
+		  }
+		  else
+			  throw std::runtime_error("No PCS for WellDoubletControl");
    }
 
    pcs->st_node_value.push_back(nod_val);         //WW
@@ -4583,7 +4596,7 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
    // m_pcs = PCSGet(pcs_type_name);
    if (m_sfc == NULL)
    {
-	   std::cerr << "Surface unknown" << std::endl;
+	   std::cerr << "Surface unknown" << "\n";
 	   return;
    }
 
@@ -4697,7 +4710,7 @@ void CSourceTermGroup::DistributeVolumeFlux(CSourceTerm* st, std::vector<long> c
 	}
 	else
 	{
-		std::cout << "Using the geometric object " << st->geo_name << " does not find any nearby nodes. No ST applied there!" << std::endl;
+		std::cout << "Using the geometric object " << st->geo_name << " does not find any nearby nodes. No ST applied there!" << "\n";
 	}
 
 }
@@ -5780,12 +5793,12 @@ double CSourceTerm::CheckThreshold(const double &value, const CNodeValue* cnodev
         		std::cout << "lower ";
         	else if(threshold.type == Threshold::upper)
         		std::cout << "upper ";
-        	std::cout << "threshold temperature of " << threshold.value << std::endl;
-        	std::cout << " \tTemperature at reference node " << node_number << " : " << running_value << std::endl;
+        	std::cout << "threshold temperature of " << threshold.value << "\n";
+        	std::cout << " \tTemperature at reference node " << node_number << " : " << running_value << "\n";
         }
         if (threshold.verbosity > 0)
         {
-        	std::cout << "\tSource term at node " << cnodev->msh_node_number << " : " << result << std::endl;
+        	std::cout << "\tSource term at node " << cnodev->msh_node_number << " : " << result << "\n";
         }
         return result;
 
@@ -5867,21 +5880,21 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
 
         if(storageRate.verbosity > 0)
         {
-        	std::cout << "\tlux from storage rate at node " << cnodev->msh_node_number << std::endl;
+        	std::cout << "\tlux from storage rate at node " << cnodev->msh_node_number << "\n";
         	std::cout << " \t\tSource term value: " << result << " (at time "
-        			<< aktuelle_zeit  << ")"<<  std::endl;
+        			<< aktuelle_zeit  << ")"<<  "\n";
         }
         if(storageRate.verbosity > 1)
         {
-        	std::cout << "\t\t\tWarm well / pipe   - node " << storageRate.inlet_msh_node_numbers[0] << std::endl;
-        	std::cout << "\t\t\t\tdensity\t: " << densityInlet << std::endl;
-        	std::cout << "\t\t\t\tspecific capacity\t: " << specCapacityInlet << std::endl;
-        	std::cout << "\t\t\t\ttemperature\t: " << primValsInlet[1] << std::endl;
-        	std::cout << "\t\t\tCold well / pipe   - node " << storageRate.outlet_msh_node_numbers[0] << std::endl;
-        	std::cout << "\t\t\t\tdensity\t: " << densityOutlet << std::endl;
-        	std::cout << "\t\t\t\tspecific capacity\t: " << specCapacityOutlet << std::endl;
-        	std::cout << "\t\t\t\ttemperature\t: " << primValsOutlet[1] << std::endl;
-        	std::cout << "\t\t\tThermal flux (input) : " << factor * result << std::endl;
+        	std::cout << "\t\t\tWarm well / pipe   - node " << storageRate.inlet_msh_node_numbers[0] << "\n";
+        	std::cout << "\t\t\t\tdensity\t: " << densityInlet << "\n";
+        	std::cout << "\t\t\t\tspecific capacity\t: " << specCapacityInlet << "\n";
+        	std::cout << "\t\t\t\ttemperature\t: " << primValsInlet[1] << "\n";
+        	std::cout << "\t\t\tCold well / pipe   - node " << storageRate.outlet_msh_node_numbers[0] << "\n";
+        	std::cout << "\t\t\t\tdensity\t: " << densityOutlet << "\n";
+        	std::cout << "\t\t\t\tspecific capacity\t: " << specCapacityOutlet << "\n";
+        	std::cout << "\t\t\t\ttemperature\t: " << primValsOutlet[1] << "\n";
+        	std::cout << "\t\t\tThermal flux (input) : " << factor * result << "\n";
         }
 
         return value * result;
@@ -5902,7 +5915,9 @@ only heat capacity and density of fluid is considered (mfp_vector[0])
 double CSourceTerm::apply_wellDoubletControl(const double &value,
 				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
-	static int sign = 1; // for FCT scheme - takes than same valus for correction
+	static int sign = 1; // in LIQUID_FLOW to create WDC only once per times step
+	//	(run through this code twice since there are two source sink terms)
+	//	in HEAT_TRANSPORT for FCT scheme - takes than same valus for correction
 	int ndx1 = 1;  // implicit - take new values for capacity calculations
 	double variables_well1[3], variables_well2[3];
 	double pressure_well1, pressure_well2, temperature_well1, temperature_well2;
@@ -5920,136 +5935,84 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
 			if(m_pcs_heat)
 			{
-				if(m_pcs->iter_outer_cpl == 0)
+				if(m_pcs->iter_outer_cpl == 0 && sign == 1)
 				{// first coupling iteration (between LIQUID_FLOW and HEAT_TRANSPORT)
-					CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
-
-					double Q_w_min = 1.e-4;  // must be consitent with value in WellDoubletControl
-					switch(parameter_group.indicator)
-					{
-						case 'A':
-						case 'C':
-							// pressures from LIQUID_FLOW
-
-							variables_well1[0] = m_pcs->GetNodeValue(
-									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-							variables_well2[0] = m_pcs->GetNodeValue(
-									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
-							// temperatures from HEAT_TRANSPORT
-							variables_well1[1] = m_pcs_heat->GetNodeValue(
-									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-							variables_well2[1] = m_pcs_heat->GetNodeValue(
-									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
-							// only for storage!!!!!
-							return value * min( parameter_group.threshold_value, max(Q_w_min, parameter_group.powerrate / (
-									m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) *
-										mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1)
-										-
-									m_pcs_heat->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1) *
-									 mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2)
-							)));
-						case 'B':
-							return value * parameter_group.target_value;
-						default:
-							throw std::runtime_error("WellDoubletControl - Identifier not supported");
-					}
-
-					//return parameter_group.powerrate / (4185000 * (m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well1_measurementPoint, 1) -
-					//	m_pcs->GetNodeValue(wellDoubletData.msh_node_number_well2_measurementPoint, 1)));
-				} // end if(m_pcs->iter_outer_cpl == 0)
-
-				switch(parameter_group.indicator)
-				{
-					case 'A':
-					case 'C':
-						return value * m_pcs_heat->wellDoubletControl->get_result().Q_w;
-					case 'B':
-						return value * parameter_group.target_value;
-					default:
-						throw std::runtime_error("WellDoubletControl - Identifier not supported");
-				}
-			}
-			else
-				throw std::runtime_error("No process HEAT_TRANSPORT");
-		}  // end LIQUID_FLOW
-		else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
-		{
-			// get primary variables for fluid heat capacity at warm and cold well
-
-			CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
-			if(m_pcs_liquid)
-			{  // pressures
-				variables_well1[0] = m_pcs_liquid->GetNodeValue(
-						wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-				variables_well2[0] = m_pcs_liquid->GetNodeValue(
-						wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
-			}
-			else
-				throw std::runtime_error("No process LIQUID_FLOW");
-			// temperatures
-			variables_well1[1] = m_pcs->GetNodeValue(
-					wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-			variables_well2[1] = m_pcs->GetNodeValue(
-					wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
-
-			double target  = parameter_group.target_value;
-
-			if(m_pcs->iter_outer_cpl == 0)
-			{
-				if(sign == 1)
-				{   // before FCT correction
-					if(m_pcs->iter_outer_cpl == 0)
-							m_pcs->wellDoubletControl = WellDoubletControl::create_wellDoubletControl(
+					m_pcs_heat->wellDoubletControl = WellDoubletControl::create_wellDoubletControl(
 															parameter_group.indicator);
 									// creates new instance of wellDoubletControl and deletes old one if it exists already
+					variables_well1[0] = m_pcs->GetNodeValue(
+								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+					variables_well2[0] = m_pcs->GetNodeValue(
+								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+					// temperatures from HEAT_TRANSPORT
+					variables_well1[1] = m_pcs_heat->GetNodeValue(
+								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+					variables_well2[1] = m_pcs_heat->GetNodeValue(
+								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
 
-					std::cout << "--- configure ---" << std::endl;
-					m_pcs->wellDoubletControl->configure(  // still have to release memory
+					m_pcs_heat->wellDoubletControl->configure(  // still have to release memory
 							parameter_group.powerrate,
 							parameter_group.target_value,
 							parameter_group.threshold_value,
-							m_pcs->GetNodeValue(  // temperature at warm well 1
+							m_pcs_heat->GetNodeValue(  // temperature at warm well 1
 									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
-							m_pcs->GetNodeValue(  // temperature at cold well 2
+									m_pcs_heat->GetNodeValue(  // temperature at cold well 2
 									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
 							mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
 								mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
 							mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
 								mfp_vector[0]->Density(variables_well2)  // fluid head capacity at cold well 2
 					);
+
+				}  // end if(m_pcs->iter_outer_cpl == 0)
+				sign *= -1;
+				return value * m_pcs_heat->wellDoubletControl->get_result().Q_w;
+			}  // end if(m_pcs_heat)
+		}  // end LIQUID_FLOW
+		else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+		{
+			if(m_pcs->iter_outer_cpl > 0 && sign == 1)
+			{	 // evaluate WDC
+				// 1. get primary variables for fluid heat capacity at warm and cold well
+				CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+				if(m_pcs_liquid)
+				{  // pressures
+					variables_well1[0] = m_pcs_liquid->GetNodeValue(
+							wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+					variables_well2[0] = m_pcs_liquid->GetNodeValue(
+							wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
 				}
-				if(m_pcs->m_num->fct_method != 0)
-					sign *= -1;
+				else
+					throw std::runtime_error("No process LIQUID_FLOW");
+				// temperatures
+				variables_well1[1] = m_pcs->GetNodeValue(
+						wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
+				variables_well2[1] = m_pcs->GetNodeValue(
+						wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
 
-			}
-			else
-			{
-				if(sign == 1)
-				{
-					std::cout << "--- evaluate ---" << std::endl;
-					m_pcs->wellDoubletControl->evaluate_simulation_result(
-							m_pcs->GetNodeValue(  // temperature at warm well 1
-									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
-							m_pcs->GetNodeValue(  // temperature at warm well 2
-									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
-							mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
-								mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
-							mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
-								mfp_vector[0]->Density(variables_well2));
-				}
-				if(m_pcs->m_num->fct_method != 0)
-					sign *= -1;
+				double target  = parameter_group.target_value;
+				// 2. call WDC
+				m_pcs->wellDoubletControl->evaluate_simulation_result(
+						m_pcs->GetNodeValue(  // temperature at warm well 1
+								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
+						m_pcs->GetNodeValue(  // temperature at warm well 2
+								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
+						mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
+							mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
+						mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
+							mfp_vector[0]->Density(variables_well2));
+			}  // end if(m_pcs->iter_outer_cpl > 0 && sign == 1 ))
+			if(m_pcs->m_num->fct_method > 0)
+				sign *= -1;  // do not adapt WDC values (e.g. powerrate) for FCT-correction step
 
-
-			}
-			//std::cout << "Q_H: " << m_pcs->wellDoubletControl->get_result().Q_H << std::endl;
+			//std::cout << "Q_H: " << m_pcs->wellDoubletControl->get_result().Q_H << "\n";
 			return value * m_pcs->wellDoubletControl->get_result().Q_H;
 		}  // end HEAT_TRANSPORT
 		else
 			throw std::runtime_error("WellDoubletControl - PCS not supported");
 	}  // end m_pcs->getProcessType()
 	else
-		throw std::runtime_error("WellDoubletControl - PCS not found");
+		throw std::runtime_error("WellDoubletControl - No PCS");
 }
 
 

@@ -166,6 +166,8 @@ typedef struct
 } bc_JFNK;
 #endif
 
+
+
 //MB moved inside the Process object
 //extern vector<double*>nod_val_vector; //OK
 //extern vector<string>nod_val_name_vector; //OK
@@ -343,7 +345,9 @@ public:
 #endif
 public:
 	WellDoubletControl* wellDoubletControl; // JOD 2018-6-27
-
+	bool wellDoubletControlled;  // JOD 2018-07-05
+	long well1_measurement_meshnode;
+	long well2_measurement_meshnode;
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -810,7 +814,6 @@ public:
 	int iter_inner_cpl;							// JT2012
 	int pcs_num_dof_errors;						// JT2012
 	int iter_out_cpl_tot;						// KB1115 : counts sum of iterations of simulation for Eclipse coupling
-	bool wellDoubletControl_converged;
 	double pcs_relative_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store relative error for each DOF
 	double pcs_absolute_error[DOF_NUMBER_MAX];	// JT2012: for NLS, we store error for each DOF
 	double pcs_unknowns_norm;

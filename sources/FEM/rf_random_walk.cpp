@@ -2847,7 +2847,7 @@ void RandomWalk::AdvanceToNextTimeStep(double dt,double ctime)
 		}
 	}
    stop = clock();
-   std::cout << " took " << (stop-start)/(double)(CLOCKS_PER_SEC) << " seconds" << std::endl;
+   std::cout << " took " << (stop-start)/(double)(CLOCKS_PER_SEC) << " seconds" << "\n";
 }
 
 /**************************************************************************

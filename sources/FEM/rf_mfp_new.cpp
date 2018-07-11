@@ -287,7 +287,7 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 			{         // JOD 2014-11-10
 				in >> density_curve_number;
 				density_pcs_name_vector.push_back("TEMPERATURE1"); 
-				std::cout << "   Density depends on TEMPERATURE1 - Curve " << density_curve_number << std::endl;
+				std::cout << "   Density depends on TEMPERATURE1 - Curve " << density_curve_number << "\n";
 			}
 			if(density_model == 1) // rho = const
 				in >> rho_0;
@@ -710,7 +710,7 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				in >> viscosity_curve_number; // JOD 2014-11-10
 //				in >> _my_fct_name;
 				viscosity_pcs_name_vector.push_back("TEMPERATURE1"); // JOD 2016-1-11
-				std::cout << "   Viscosity depends on TEMPERATURE1 - Curve " << viscosity_curve_number << std::endl;
+				std::cout << "   Viscosity depends on TEMPERATURE1 - Curve " << viscosity_curve_number << "\n";
 			}
 			if(viscosity_model == 1) // my = const
 				in >> my_0;
@@ -1424,7 +1424,7 @@ double CFluidProperties::Density(double* values)
 					                                                          Con_CO2_vector, // Co2 concentration on element (updated each time step)
 					                                                          Fem_Ele_Std->GetMeshElement()->GetIndex() ); 
 				else
-					std::cout << "Error in CFluidProperties::Density() - No reaction model" << std::endl;
+					std::cout << "Error in CFluidProperties::Density() - No reaction model" << "\n";
 			}
 			//------------------------------------------------------------------------------------
 			density += Delta_density; 
@@ -3412,9 +3412,9 @@ double CFluidProperties::DensityTemperatureDependence(long number,int comp,doubl
 double CFluidProperties::LiquidViscosity_CMCD(double Press,double TempK,double C)
 {
 
-	/*std::cout << "Press: " << Press << std::endl;
-	std::cout << "TempK: " << TempK << std::endl;
-	std::cout << "C: " << C << std::endl;
+	/*std::cout << "Press: " << Press << "\n";
+	std::cout << "TempK: " << TempK << "\n";
+	std::cout << "C: " << C << "\n";
 */
 	C = C;
 	/*CMcD variables for 20 ALR*/
@@ -4229,7 +4229,7 @@ double MFPGetNodeValue(long node,const string &mfp_name, int phase_number)
 			else if( (*vec_var_names)[i] == "CONCENTRATION1")
 				arguments[2] = pcs->GetNodeValue(node,var_idx);
 			else
-				std::cout << "The variable " << (*vec_var_names)[i] << " is not supported in MFPGetNodeValue." << std::endl;
+				std::cout << "The variable " << (*vec_var_names)[i] << " is not supported in MFPGetNodeValue." << "\n";
 		} else {
 			arguments[i] = 0.0;
 		}

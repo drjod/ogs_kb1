@@ -5256,7 +5256,7 @@ void CFiniteElementStd::CalcAdvection()
 				nodal_vel[2][i] = pcs_fluid_momentum->GetNodeValue(connected_nodes[i], pcs_fluid_momentum->_idxVz);
 				break;
 			default:
-				std::cout << "  Invalid coordinate_system: " << coordinate_system << ". Exiting now." << std::endl;
+				std::cout << "  Invalid coordinate_system: " << coordinate_system << ". Exiting now." << "\n";
 				exit(0);
 				break;
 			}

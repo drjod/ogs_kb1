@@ -91,7 +91,7 @@ void CFiniteElementStd::CalcMassTES()
 	}
 
 	// std::cout << __FUNCTION__ << ":" << __LINE__ << ":\n"
-	//           << (*Mass2) << std::endl;
+	//           << (*Mass2) << "\n";
 }
 
 
@@ -446,7 +446,7 @@ void CFiniteElementStd::CalcAdvectionTES()
 	}
 
 	// std::cout << __FUNCTION__ << ":" << __LINE__ << ":\n"
-	//           << (*Advection) << std::endl;
+	//           << (*Advection) << "\n";
 }
 
 
@@ -561,7 +561,7 @@ void CFiniteElementStd::CalcContentTES()
 	}
 
 	// std::cout << __FUNCTION__ << ":" << __LINE__ << ":\n"
-	//           << (*Content) << std::endl;
+	//           << (*Content) << "\n";
 }
 
 

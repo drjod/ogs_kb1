@@ -525,7 +525,7 @@ bool CECLIPSEData::SetFilenamesAndPaths(CRFProcess* m_pcs, long Timestep)
 		if (m_pcs->ecl_time_adjust > 0)
 			this->timestep_adjust_initial = m_pcs->ecl_time_adjust;
 		if (timestep_adjust_initial > 0)
-			std::cout << " Attention: Eclipse simulation is a restart-based simulation" << std::endl;
+			std::cout << " Attention: Eclipse simulation is a restart-based simulation" << "\n";
 
 		if (m_pcs->simulator_path.find("eclrun") != std::string::npos)
 			this->UseEclrun = true;
@@ -695,7 +695,7 @@ void CECLIPSEData::ReadEclipseGrid(std::string Filename)
         for (long i = 0; i < TextFile->NumberOfRows - 1; i++)
         {
    //         //wtp debug
-			//std::cout << i << std::endl;
+			//std::cout << i << "\n";
 
             tempstring = TextFile->Data[i].substr(2, 8);
 
@@ -3294,7 +3294,7 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 					// if the process is found, store the index
 					this->vec_OGS_process_index_comps_water.push_back(std::make_pair(vec_components_ECL_OGS_pcs_names[l][1], k));
 					////wtp_debug_3003
-					//std::cout << " OGS process index comps water: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][1] << std::endl;
+					//std::cout << " OGS process index comps water: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][1] << "\n";
 				}
 			}
 		}
@@ -3313,7 +3313,7 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 					// if the process is found, store the index
 					this->vec_OGS_process_index_comps_gas.push_back(std::make_pair(vec_components_ECL_OGS_pcs_names[l][2], k));
 					////wtp_debug_3003
-					//std::cout << " OGS process index comps gas: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][2] << std::endl;
+					//std::cout << " OGS process index comps gas: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][2] << "\n";
 				}
 			}
 		}
@@ -3332,7 +3332,7 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 					// if the process is found, store the index
 					this->vec_OGS_process_index_comps_oil.push_back(std::make_pair(vec_components_ECL_OGS_pcs_names[l][3], k));
 					////wtp_debug_3003
-					//std::cout << " OGS process index comps oil: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][3] << std::endl;
+					//std::cout << " OGS process index comps oil: k: " << k << " pcs idx: " << vec_components_ECL_OGS_pcs_names[l][3] << "\n";
 				}
 			}
 		}
@@ -3352,12 +3352,12 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 			{
 				MolarWeight_Comp = cp_vec[j]->molar_weight;    // save the parameters and break the loop to save time
 				////wtp_debug_3003
-				//std::cout << " Molar weight of component: " << MolarWeight_Comp << std::endl;
+				//std::cout << " Molar weight of component: " << MolarWeight_Comp << "\n";
 				break;
 			}
 		}
 		////wtp_debug_3003
-		//std::cout << " Element# \t FVF_Water \t comp_water \t ConcWater \t ConcGas " << std::endl;
+		//std::cout << " Element# \t FVF_Water \t comp_water \t ConcWater \t ConcGas " << "\n";
 		for (long i = 0; i < this->elements; i++)
 		{
 			// dummy variable structures
@@ -3367,7 +3367,7 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 			double FVF_Water = this->Data[i][variable_index_FVF_Water];
 
 			////WTP DEBUG /////
-			//std::cout << "hard coded FVF_water to 1 in ConvertEclipseToUniformUnits for E100!!!!" << std::endl;
+			//std::cout << "hard coded FVF_water to 1 in ConvertEclipseToUniformUnits for E100!!!!" << "\n";
 			//FVF_Water = 1.0;
 			////WTP DEBUG /////
 
@@ -3377,7 +3377,7 @@ void CECLIPSEData::ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Time
 			double ConcGas = this->Data[i][variable_index_ReservoirDensity_Gas] / MolarWeight_Comp; // WTP: Maybe also calculate the reservoir density from the surface density and the FVF?
 			
 			////wtp_debug_3003
-			//std::cout << " " << i << " " << FVF_Water << " " << comp_water << " " << ConcWater << " " << ConcGas << std::endl;
+			//std::cout << " " << i << " " << FVF_Water << " " << comp_water << " " << ConcWater << " " << ConcGas << "\n";
 
 			if (Timestep > 1 || (m_pcs->iter_outer_cpl > 0))
 			{
@@ -4382,7 +4382,7 @@ bool CECLIPSEData::CreateFaces(string Projectname)
         //Generate More information about faces used for interface
         for (long i = 0; i < this->FlowFaceNum; i++)
         {
-            // std::cout << " i : " << i << std::endl;
+            // std::cout << " i : " << i << "\n";
             // Loop over 'I-'/'J-'/'K-' face which are not on the boundary
             //if (facecategory == 2 || facecategory == 4 || facecategory == 6)
             //if (this->eclgrid[Blockindex]->NeighbourElement[facecategory - 2] > -1)
@@ -7181,7 +7181,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 					}
 				}
 				this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true);
-				//std::cout << "path to F-File: " << pathECLFFile << std::endl;
+				//std::cout << "path to F-File: " << pathECLFFile << "\n";
 				number_loops += 1;
 			} while ((CheckIfFileExists(pathECLFFile) == false) && (number_loops <= maximum_loops));
 
@@ -7312,7 +7312,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
 					this->pathECLFFile = this->pathECLProject + ".F" + AddZero(this->timestep_adjust_iteration_tot + timestep_adjust_initial, 4, true);
 				else
 					this->pathECLFFile = this->pathECLProject + ".F" + AddZero(Timestep + timestep_adjust_initial, 4, true);
-				//std::cout << "path to F-File: " << pathECLFFile << std::endl;
+				//std::cout << "path to F-File: " << pathECLFFile << "\n";
 				number_loops += 1;
 			} while ((CheckIfFileExists(pathECLFFile) == false) && (number_loops <= maximum_loops));
 
@@ -7416,7 +7416,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 	{
 		systemcommand = "ren " + projectname + extension + "TEMPORARYRESULTS.F*";
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary result files .F*! ");
 		systemcommand = "ren " + projectname + ".FGRID " + "TEMPORARYRESULTS.F*";
@@ -7427,12 +7427,12 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 	{
 		systemcommand = "cp " + projectname + extension + folder + "TEMPORARYRESULTS" + extension;
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary result files .F*! ");
 		systemcommand = "cp " + projectname + ".FGRID " + folder + "TEMPORARYRESULTS.FGRID";
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary grid file! ");
 	}
@@ -7447,7 +7447,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 		DisplayMsgLn(" WARNING: Could not delete result files .F*! ");
 
@@ -7460,7 +7460,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not delete result files .A*! ");
 
@@ -7474,7 +7474,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not delete result files .P*! ");
 	
@@ -7487,7 +7487,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not delete result files .R*! ");
 
@@ -7500,7 +7500,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not delete result files .M*! ");
 
@@ -7513,7 +7513,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not delete result files .DB*! ");
 
@@ -7527,7 +7527,7 @@ bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectna
 		else
 			systemcommand = "cp " + folder + "TEMPORARYRESULTS" + extension + projectname + "_SAVE" + extension;
 		////// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not copy the temporary result files .F*! ");
 	}
@@ -7594,7 +7594,7 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 		systemcommand = "cp " + folder + "TEMP.INC " + projectname + "_SAVE" + extension;
 	}
 	////// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 		DisplayMsgLn(" WARNING: Could not copy the temporary result files .F*! ");
 
@@ -7602,7 +7602,7 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 	{
 		systemcommand = "ren " + projectname + extension + "TEMPORARYRESULTS.F*";
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary result files .F*! ");
 		systemcommand = "ren " + projectname + ".FGRID " + "TEMPORARYRESULTS.F*";
@@ -7613,12 +7613,12 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 	{
 		systemcommand = "cp " + projectname + extension + folder + "TEMPORARYRESULTS" + extension;
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary result files .F*! ");
 		systemcommand = "cp " + projectname + ".FGRID " + folder + "TEMPORARYRESULTS.FGRID";
 		//// wtp debug
-		//std::cout << systemcommand << std::endl;
+		//std::cout << systemcommand << "\n";
 		if (system(systemcommand.c_str()))
 			DisplayMsgLn(" WARNING: Could not rename the temporary grid file! ");
 	}
@@ -7633,7 +7633,7 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 			systemcommand += " > /dev/null";
 	}
 	//// wtp debug
-	//std::cout << systemcommand << std::endl;
+	//std::cout << systemcommand << "\n";
 	if (system(systemcommand.c_str()))
 		DisplayMsgLn(" WARNING: Could not delete result files .F*! ");
 	return true;
@@ -8530,7 +8530,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 					double deltaMLSC = (deltaMolesWater + deltaMolesGas + deltaMolesOil) / (RPORV * 1000);
 					double NewMLSC = this->Data[i][vec_variable_indicies_Comp_MolarDensity[current_run]] + deltaMLSC;
 					//if (NewMLSC < 0.0)
-					//	std::cout << " WARNING: New MLSC Value is negative!" << std::endl;
+					//	std::cout << " WARNING: New MLSC Value is negative!" << "\n";
 					vec_dummy_mlsc.push_back(NewMLSC);
 				} // END of if-condition: if(this->E100 != true)
 			} // END of if-condition: if(vec_components_ECL_OGS[j][0] != -1)
@@ -9463,13 +9463,13 @@ void CECLIPSEData::GeneralBookkeeping(void)
     //Read boundary conditions
 	//this->ReadPositionBoundaryCondition(pathECLProject + ".DATA");
 	//Create Faces
-	//std::cout << " creating faces " << std::endl;
+	//std::cout << " creating faces " << "\n";
 	this->CreateFaces(pathECLProject);
 	//Determine neighbouring elements (only once)
-	//std::cout << " determine Neighbours " << std::endl;
+	//std::cout << " determine Neighbours " << "\n";
 	this->DetermineNeighbourElements(pathECLProject);
 	// Connect Faces to each block
-	//std::cout << " connect faces to elements " << std::endl;
+	//std::cout << " connect faces to elements " << "\n";
 	this->ConnectFacesToElements();
 	// check for radial model and one column
 	int iindex = 0;
@@ -9579,7 +9579,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
     }
     if (Timestep > 1 || (m_pcs->iter_outer_cpl > 0))
     {
-		// WTP DEBUG std::cout << " PATH ECL FILE: " << pathECLFFile << std::endl;
+		// WTP DEBUG std::cout << " PATH ECL FILE: " << pathECLFFile << "\n";
         if (eclFFile->Read_Text(pathECLFFile) == true)
         {
             std::cout << " ERROR: Could not read the textfile: " << pathECLFFile << "! \n";
@@ -9747,7 +9747,7 @@ void CECLIPSEData::WriteOutput_2DSection(long Timestep) {
 
     //Write general ouput file
     textfile << endl;
-    textfile << std::endl;
+    textfile << "\n";
     textfile.close();
 };
 

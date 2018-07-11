@@ -4111,7 +4111,7 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 		//if (k == 0) vec_string.push_back("Element; HQnode; Disp_X; Disp_Y; Disp_Z");
 		//temp.str("");
 		//temp.clear();
-		//temp << MeshElement->patch_index << " " << k << " " << disp[k] << " " << disp[k + nnodesHQ] << " " << disp[k + 2 * nnodesHQ] << std::endl;
+		//temp << MeshElement->patch_index << " " << k << " " << disp[k] << " " << disp[k + nnodesHQ] << " " << disp[k + 2 * nnodesHQ] << "\n";
 		//tempstring = temp.str();
 		//vec_string.push_back(tempstring);
 
@@ -4120,7 +4120,7 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse()
 		//	datei_ecl.open(FilePath + "\\displacement.txt", std::ios::out);
 		//	for (int j = 0; j < vec_string.size(); j++)
 		//	{
-		//		datei_ecl << vec_string[j] << std::endl;
+		//		datei_ecl << vec_string[j] << "\n";
 		//	}
 		//	datei_ecl.close();
 		//}

@@ -493,7 +493,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 				in >> _pressure_as_head_density;
 			else if (_pressure_as_head_model < 0 || _pressure_as_head_model > 1)
 			{
-				std::cout << "Unsupported PRESSURE_AS_HEAD model " << _pressure_as_head_model << std::endl;
+				std::cout << "Unsupported PRESSURE_AS_HEAD model " << _pressure_as_head_model << "\n";
 				_pressure_as_head_model = -1;
 			}
 			in.clear();
@@ -518,7 +518,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 				if ( !(temp.constrainedDirection == ConstrainedType::POSITIVE || temp.constrainedDirection == ConstrainedType::NEGATIVE))
 				{
 					std::cout << "No valid constrainedDirection for " << convertConstrainedVariableToString(temp.constrainedVariable)
-						<< "(" << tempst2 << ")" << std::endl;
+						<< "(" << tempst2 << ")" << "\n";
 					_isConstrainedBC = false;
 				}
 
@@ -527,7 +527,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 					temp._isConstrainedVelStable = true;
 
 				if (getGeoType() != GEOLIB::SURFACE)
-					std::cout << "\n Warning! Make sure, that a velocity constrained BC is a SURFACE!" << std::endl;
+					std::cout << "\n Warning! Make sure, that a velocity constrained BC is a SURFACE!" << "\n";
 			}
 			else
 			{
@@ -548,7 +548,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 				if ( !(temp.constrainedDirection == ConstrainedType::SMALLER || temp.constrainedDirection == ConstrainedType::GREATER))
 				{
 					std::cout << "No valid constrainedDirection for " << FiniteElement::convertProcessTypeToString(temp.constrainedProcessType)
-						<< " (" << tempst << ")" << std::endl;
+						<< " (" << tempst << ")" << "\n";
 					_isConstrainedBC = false;
 				}
 
@@ -1476,7 +1476,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 									if (triangle_id != -1)
 										m_node_value->SetNormalVector(sfc->getTriangleNormal(triangle_id));
 									else
-										std::cout << "Could not find current BC node " << m_node_value->geo_node_number << " on given SURFACE " << m_surface->name << std::endl;
+										std::cout << "Could not find current BC node " << m_node_value->geo_node_number << " on given SURFACE " << m_surface->name << "\n";
 								}
 							}
 						}

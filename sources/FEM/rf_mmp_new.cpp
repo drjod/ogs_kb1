@@ -697,16 +697,16 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				break;
             case 3: // EE formulation for Forchheimer
                 in >> forchheimer_cf;
-                std::cout << "->Forchheimer nonlinear flow for EE" << std::endl;
+                std::cout << "->Forchheimer nonlinear flow for EE" << "\n";
                 break;
             case 4: // GW formulation for Forchheimer
                 in >> forchheimer_a1 >> forchheimer_a2;
-                std::cout << "->Forchheimer nonlinear flow with given a1, a2" << std::endl;
+                std::cout << "->Forchheimer nonlinear flow with given a1, a2" << "\n";
                 break;
             case 5: // GW formulation for Forchheimer if a1=1/k0
               in >> forchheimer_a2;
               forchheimer_a1 = .0;
-              std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << std::endl;
+              std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << "\n";
               break;
             case 6: // EE formulation 2 for Forchheimer
                 in >> forchheimer_De;
@@ -1947,14 +1947,14 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			 if (geo_dimension == 1){
 				 in >> ElementLengthMultiplyer_vector[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
-				 std::cout << ElementLengthMultiplyer_vector[0]  << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0]  << "\n";
 			 }
 			 else if (geo_dimension == 2)
 			 {
 				 in >> ElementLengthMultiplyer_vector[0];
 				 in >> ElementLengthMultiplyer_vector[1];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << "\n";
 			 }
 			 else if (geo_dimension == 3)
 			 {
@@ -1962,7 +1962,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				 in >> ElementLengthMultiplyer_vector[1];
 				 in >> ElementLengthMultiplyer_vector[2];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << "\n";
 			 }
 			 else
 				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension";
@@ -3279,7 +3279,7 @@ double* CMediumProperties::DispersionTensorMCF(int ip, int PCSIndex, int CIndex,
 		//cout << " alpha_L = " << alpha_l << " < l_char/Pe; setting alpha_L = " << l_char/lgpn << " for element " << index << endl;
 		if((set > 0) & (aktueller_zeitschritt == 1) & (CIndex < 2) & (ip < 1))
 			std::cout << "element " << index << " " << l_char << " " << alpha_l <<
-			             " " << alpha_t <<  std::endl;
+			             " " << alpha_t <<  "\n";
 	}
 	//----------------------------------------------------------------------
 
@@ -7167,7 +7167,7 @@ double CMediumProperties::NonlinearFlowFunction(long index, int gp, double /*the
            double rhog = assem->FluidProp->Density(dens_arg); // which model?
            if (flowlinearity_model==6) {
                if (ParticleDiameter()==.0) {
-                   std::cout << "***Error: dp = .0" << std::endl;
+                   std::cout << "***Error: dp = .0" << "\n";
                    exit(0);
                }
                forchheimer_cf = 0.55*(1.-5.5*ParticleDiameter()/forchheimer_De);
@@ -7214,7 +7214,7 @@ double CMediumProperties::NonlinearFlowFunction(long index, int gp, double /*the
    }
    else
    {
-       std::cout << "***ERROR: not supported flow linearity model " << flowlinearity_model << std::endl;
+       std::cout << "***ERROR: not supported flow linearity model " << flowlinearity_model << "\n";
    }
 
 	/*OK411
@@ -7793,7 +7793,7 @@ double CMediumProperties::StorageFunction(long index,double* gp,double theta)
 		// MW I have no idea, why I need 1/(g^2*rho) here; it should only be 1/(g*rho)
 		// maybe, the mass term in richards flow has been normalized on g ???
 		else
-			std::cout << "Wrong PERMEABILITY_SATURATION_MODEL for STORAGE model 10." << std::endl;
+			std::cout << "Wrong PERMEABILITY_SATURATION_MODEL for STORAGE model 10." << "\n";
 		break;
 	default:
 		storage = 0.0;            //OK DisplayMsgLn("The requested storativity model is unknown!!!");

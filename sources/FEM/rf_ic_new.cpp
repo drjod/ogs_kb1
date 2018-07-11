@@ -984,7 +984,7 @@ void CInitialCondition::SetDomain(int nidx)
 						GetCurveValue(CurveIndex, 0, node_depth, &valid));
 
 				if(valid == 0)
-					std:cerr << "WARNING: Error when reading curve value - value will be apart of given range" << std::endl;
+					std:cerr << "WARNING: Error when reading curve value - value will be apart of given range" << "\n";
 			}
 
 		}

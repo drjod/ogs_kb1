@@ -2783,7 +2783,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
 	if (_nod_value_vector.size() == 0)
 	{
-		std::cout << "Warning - No nodes for surface " << geo_name << std::endl;
+		std::cout << "Warning - No nodes for surface " << geo_name << "\n";
 		return;
 	}
 
@@ -2822,7 +2822,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 	tec_file.precision(12);
 	if (!tec_file.good())
 	{
-		std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
+		std::cout << "Warning - Could not open file for writing surface data " << geo_name << "\n";
 		return;
 	}
 	tec_file.seekg(0L, ios::beg);
@@ -2974,7 +2974,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 	}  // end m_sfc
 	else
 		tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
-		         << " not found" << std::endl;
+		         << " not found" << "\n";
 
 	tec_file.close();                     // kg44 close file
 }
@@ -2993,7 +2993,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
 		if (_nod_value_vector.size() == 0)
 		{
-			std::cout << "Warning - No nodes for surface " << geo_name << std::endl;
+			std::cout << "Warning - No nodes for surface " << geo_name << "\n";
 			return;
 		}
 
@@ -3001,7 +3001,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		m_pcs = PCSGet(getProcessType());
 		if(m_pcs == NULL)
 		{
-			std::cout << "Warning - PCS not known for surface-averaged output" << std::endl;
+			std::cout << "Warning - PCS not known for surface-averaged output" << "\n";
 			return;
 		}
 
@@ -3030,7 +3030,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		tec_file.precision(12);
 		if (!tec_file.good())
 		{
-			std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
+			std::cout << "Warning - Could not open file for writing surface data " << geo_name << "\n";
 			return;
 		}
 		tec_file.seekg(0L, ios::beg);
@@ -3045,7 +3045,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 	    tec_file << "Time "; // << "\n";
 	    for(int n = 0; n < _nod_value_vector.size(); n++)
 	    	 tec_file << _nod_value_vector[n] << " ";
-		tec_file << std::endl;
+		tec_file << "\n";
 		//--------------------------------------------------------------------
 		// Write data
 		std::vector<long> nodes_vector;
@@ -3080,7 +3080,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 			tec_file << " " << average_value;
 		}
 
-		tec_file << std::endl;
+		tec_file << "\n";
 		/*if (m_sfc)
 		{
 			m_msh->GetNODOnSFC(m_sfc, nodes_vector);
@@ -3202,7 +3202,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		}  // end m_sfc
 		else
 			tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
-			         << " not found" << std::endl;
+			         << " not found" << "\n";
 */
 		tec_file.close();                     // kg44 close file
 
@@ -5636,12 +5636,10 @@ Programing:
 
 void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 {
-
-	std::cout << "Well-----------------";
 	m_pcs = PCSGet(getProcessType());
 	if(m_pcs == NULL)
 	{
-		std::cout << "Warning - PCS not known for WellDoubletControl output" << std::endl;
+		std::cout << "Warning - PCS not known for WellDoubletControl output" << "\n";
 		return;
 	}
 
@@ -5660,7 +5658,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		tec_file.precision(12);
 		if (!tec_file.good())
 		{
-			std::cout << "Warning - Could not open file for writing surface data " << geo_name << std::endl;
+			std::cout << "Warning - Could not open file for writing surface data " << geo_name << "\n";
 			return;
 		}
 		tec_file.seekg(0L, ios::beg);
@@ -5674,7 +5672,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		if (aktueller_zeitschritt == 0)
 			tec_file << "Time step; Simulation time t; Scheme [A, B, C]; " <<
             "Smiley as power rate adaption identifier; Power rate Q_H; " <<
-            "Flow rate Q_w; T_1 at warm well 1; T_2 at cold well" << std::endl;
+            "Flow rate Q_w; T_1 at warm well 1; T_2 at cold well" << "\n";
 
 		if(m_pcs->wellDoubletControl != NULL)
 		{
@@ -5688,9 +5686,9 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 				<< "\t" << smiley
 				<< "\t" << m_pcs->wellDoubletControl->get_result().Q_H
 				<< "\t" << result.Q_w
-				<< "\t" << result.T1
-				<< "\t" << result.T2
-				<< std::endl;
+				<< "\t" << m_pcs->GetNodeValue(m_pcs->well1_measurement_meshnode, 1)
+				<< "\t" << m_pcs->GetNodeValue(m_pcs->well2_measurement_meshnode, 1)
+				<< "\n";
 		}
 	    tec_file.close();
 }

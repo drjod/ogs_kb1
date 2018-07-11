@@ -239,7 +239,6 @@ CRFProcess::CRFProcess(void) :
 	iter_inner_cpl = 0;
 	iter_outer_cpl = 0;
 	iter_out_cpl_tot = 0; // JOD 2015-2-19  for Eclipse with mechanics
-	wellDoubletControl_converged = false;  // JOD 2018-06-15
 	TempArry = NULL;
 	//SB:GS4  pcs_component_number=0; //SB: counter for transport components
 	pcs_component_number = pcs_no_components - 1;
@@ -404,6 +403,8 @@ CRFProcess::CRFProcess(void) :
 	eqs_x = NULL;
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
+
+	wellDoubletControlled = false;
 }
 
 
@@ -5322,7 +5323,7 @@ double CRFProcess::Execute()
 	}
 	catch(std::runtime_error& e)
 	{
-		std::cout << "ERROR - " << e.what() << std::endl;
+		std::cout << "ERROR - " << e.what() << "\n";
 		accepted = false;	// JOD 2017-11-15  reduce time step or quit
 	}
 
@@ -5500,11 +5501,14 @@ double CRFProcess::Execute()
 	}                                     // END PICARD
 #else
 	// JT: Coupling error was wrong. Now ok.
-	if(iter_nlin > 0){	// Just getting NL error
+	if(iter_nlin > 0)
+	{	// Just getting NL error
 		pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);     //OK4105//WW4117//JT
 	}
-	else{				// Getting NL and CPL error
+	else
+	{				// Getting NL and CPL error
 		pcs_error = CalcIterationNODError(m_num->getCouplingErrorMethod(),true,true);		//JT2012
+		std::cout << "iterror: " << pcs_error << "\n";
 		if(m_num->getNonLinearErrorMethod() != m_num->getCouplingErrorMethod())				//JT: If CPL error method is different, must call separately
 			pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);   //JT2012 // get the NLS error. CPL was obtained before.
 	}
@@ -6406,12 +6410,12 @@ void CRFProcess::CalIntegrationPointValue()
        const size_t v_itr_max(this->m_num->local_picard1_max_iterations);
        double pre_v[3] = {};
        double new_v[3] = {};
-       //std::cout << "  Start local Picard iteration: tolerance = " << this->m_num->local_picard1_tolerance << std::endl;
+       //std::cout << "  Start local Picard iteration: tolerance = " << this->m_num->local_picard1_tolerance << "\n";
        size_t i_itr = 0;
        double vel_error = .0;
        for (i_itr=0; i_itr<v_itr_max; ++i_itr)
        {
-           //std::cout << "  non-linear iteration: " << i_itr << "/" << v_itr_max << std::endl;
+           //std::cout << "  non-linear iteration: " << i_itr << "/" << v_itr_max << "\n";
            vel_error = .0;
            for (size_t i = 0; i < mesh_ele_vector_size; i++)
            {
@@ -6433,11 +6437,11 @@ void CRFProcess::CalIntegrationPointValue()
                    vel_error = max(vel_error, fabs(new_v[2]-pre_v[2]));
                }
            }
-           //std::cout << "  error (max. norm): " << vel_error << std::endl;
+           //std::cout << "  error (max. norm): " << vel_error << "\n";
            bool isConverged = (vel_error < this->m_num->local_picard1_tolerance);
            if (isConverged) break;
        }
-       std::cout << "  Local Picard iteration: itr. count = " << i_itr << "/" << v_itr_max << ", error(max. norm)=" << vel_error << std::endl;
+       std::cout << "  Local Picard iteration: itr. count = " << i_itr << "/" << v_itr_max << ", error(max. norm)=" << vel_error << "\n";
    }
 
     //if (getProcessType() == FiniteElement::TNEQ || getProcessType() == FiniteElement::TEQ) {
@@ -7305,7 +7309,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 							local_density = m_bc->getPressureAsHeadDensity();
 							break;
 						default:
-							std::cout << "Warning! No PressureAsHeadDensity specified. Calculating density (i.e. PressureAsHeadModel 0)!" << std::endl;
+							std::cout << "Warning! No PressureAsHeadDensity specified. Calculating density (i.e. PressureAsHeadModel 0)!" << "\n";
 							local_density = MFPGetNodeValue(m_bc_node->msh_node_number, "DENSITY", 0);
 							break;
 						}
@@ -8097,7 +8101,7 @@ bool CRFProcess::checkConstrainedBC(CBoundaryCondition const & bc, CBoundaryCond
 				std::cout << "No constrained applied at node " << bc_node.msh_node_number
 						<< " as magnitude of velocity " << magn_vel_v
 						<< " is not > than 0 "
-						<< std::endl;
+						<< "\n";
 				#endif
 				continue;
 			}
@@ -8687,7 +8691,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  }
 			  else
 			  {   // only if not switched off
-				  if (m_st->isConnected())  // JOD 2/2015
+				  if(m_st->isConnected())  // JOD 2/2015
 					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
 				  //--------------------------------------------------------------------
 				  if(m_st->storageRate.apply == true)
@@ -8749,8 +8753,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		}
 		//----------------------------------------------------------------------------------------
 		value *= time_fac * fac;
-		std::cout << value << " " << time_fac << " " << fac << " " << cnodev->msh_node_number << "\n";
-
 
 			//------------------------------------------------------------------
 			// EQS->RHS
@@ -11569,10 +11571,10 @@ Programming:
 			free(values);
 		}
 		else
-			std::cout << "ERROR in CalcSecondaryVariablesDensity() - Do not get process indices" << std::endl;
+			std::cout << "ERROR in CalcSecondaryVariablesDensity() - Do not get process indices" << "\n";
 	}
 	else
-		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << std::endl;
+		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << "\n";
   }
 void CRFProcess::CalcSecondaryVariablesViscosity()
 {
@@ -11624,7 +11626,7 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 
 	}
 	else
-		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << std::endl;
+		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << "\n";
 }
 /**************************************************************************
    FEMLib-Method:

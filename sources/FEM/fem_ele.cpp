@@ -1533,9 +1533,9 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
 		JTCoeff_val *= m_mfp->SpecificHeatCapacity() * m_mfp->Density() * (scalar_flux / ((kr * k) / m_mfp->Viscosity()) +  m_mfp->Density() * g * flux[2]);
 		JTCoeff_val *= n * GasSat;
 		
-		//std::cout << "Ele: " << ele_index << " GP: " << gp << " flux[0]: " << flux[0] << " flux[1]: " << flux[1] << " flux[2]: " << flux[2] << " skalar_flux: " << scalar_flux << std::endl;
-		//std::cout << " C: " << m_mfp->SpecificHeatCapacity() << " dens: " << m_mfp->Density() << " Visc: " << m_mfp->Viscosity() << " k: " << k << " kr: " << kr <<  " n: " << n << std::endl;
-		//std::cout << std::endl;
+		//std::cout << "Ele: " << ele_index << " GP: " << gp << " flux[0]: " << flux[0] << " flux[1]: " << flux[1] << " flux[2]: " << flux[2] << " skalar_flux: " << scalar_flux << "\n";
+		//std::cout << " C: " << m_mfp->SpecificHeatCapacity() << " dens: " << m_mfp->Density() << " Visc: " << m_mfp->Viscosity() << " k: " << k << " kr: " << kr <<  " n: " << n << "\n";
+		//std::cout << "\n";
 
         for (i = 0; i < nNodes; i++)
 		    dbuff_flux[i] += JTCoeff_val * sf[i] * fkt;
