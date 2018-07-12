@@ -11,6 +11,7 @@
 //#include <fstream>
 //#include <iostream>
 #include <cfloat>
+#include <stdexcept>
 
 // FEM-Makros
 //#include "mathlib.h"

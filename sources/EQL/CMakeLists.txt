@@ -15,6 +15,6 @@ include_directories (
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MSH
 	${CMAKE_SOURCE_DIR}/FEM
-${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+# ${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 
 )

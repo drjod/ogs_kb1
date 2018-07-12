@@ -34,9 +34,6 @@ if (WIN32)
 #		message (FATAL_ERROR "Aborting: On Windows only the Visual Studio compiler is supported!")
 	endif ()
 
-else()
-        # message(STATUS "Set flag for C++11")  # JOD 2018-06-13 for WellDoubletControl
-        # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif ()
 
 ### For GNU C/CXX. WW
@@ -73,6 +70,11 @@ endif() # CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_GNUCC
 
 if(BLUE_G)
 	add_definitions(-O3 -qstrict -qarch=qp -qtune=qp)
+endif()
+
+if(${CMAKE_C_COMPILER} MATCHES "icc.*$")
+        message(STATUS "Set flag for C++11")  # JOD 2018-06-13 for WellDoubletControl
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
 if(OGS_COVERAGE)

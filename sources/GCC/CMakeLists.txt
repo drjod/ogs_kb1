@@ -41,7 +41,7 @@ set ( SOURCES
 # Create the library
 add_library( GCC STATIC ${HEADERS} ${SOURCES} )
 include_directories( ${CMAKE_SOURCE_DIR}/GCC 
-${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+# ${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 
 )
 

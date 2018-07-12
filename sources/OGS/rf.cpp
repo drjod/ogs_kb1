@@ -144,7 +144,7 @@ int main ( int argc, char* argv[] )
 		if( anArg == "--model-root" || anArg == "-m" )
 		{
 			if (i+1 >= argc) {
-				std::cerr << "Error: Parameter " << anArg << " needs an additional argument" << std::endl;
+				std::cerr << "Error: Parameter " << anArg << " needs an additional argument\n";
 				std::exit(EXIT_FAILURE);
 			}
 			modelRoot = std::string( argv[++i] );
@@ -153,7 +153,7 @@ int main ( int argc, char* argv[] )
 		if (anArg == "--output-directory")
 		{
 			if (i+1 >= argc) {
-				std::cerr << "Error: Parameter " << anArg << " needs an additional argument" << std::endl;
+				std::cerr << "Error: Parameter " << anArg << " needs an additional argument\n";
 				std::exit(EXIT_FAILURE);
 			}
 			std::string path = argv[++i];

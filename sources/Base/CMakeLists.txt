@@ -38,7 +38,7 @@ set_target_properties(Base PROPERTIES LINKER_LANGUAGE CXX)
 
 include_directories(
 	${CMAKE_SOURCE_DIR}/Base
-${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+# ${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 
 )
 
