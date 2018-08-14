@@ -649,9 +649,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
 	  {
-		  int numberOfParameter;
+		  int numberOfParameter, tmp1;
 		  double tmp0, tmp2, tmp3, tmp4;
-		  char tmp1;
 		  OGS_WellDoubletControl new_ogs_WellDoubletControl;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
@@ -664,7 +663,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  in.clear();
 			  new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
 				tmp0,  // time
-				tmp1,  // indicator [A, B, C]
+				tmp1,  // scheme indicator [0, 1, 2]
 				tmp2,  // powerrate
 				tmp3,  // target value
 				tmp4  // threshold value

@@ -5675,20 +5675,21 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		#endif
 		//--------------------------------------------------------------------
 		if (aktueller_zeitschritt == 0)
-			tec_file << "Time step; Simulation time t; Scheme [A, B, C]; " <<
-				"Smiley as power rate adaption identifier; Power rate Q_H; " <<
-				"Flow rate Q_w; T_1 at warm well 1; T_2 at cold well; T at heat exchanger" << "\n";
+		{
+			tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
+			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\"";
+			tec_file << "\"Power rate Q_H\" \"Flow rate Q_w\"";
+			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\"\n";
+		}
 		else
 		{
 			// write results
 			WellDoubletControl::result_t result = m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result();
-			std::string smiley;
-			smiley = result.flag_powerrateAdapted? ":-(" : ":-)";
 
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
 				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_schemeIdentifier()
-				<< '\t' << smiley
+				<< '\t' << result.flag_powerrateAdapted
 				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result().Q_H
 				<< '\t' << result.Q_w
 				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well1_aquifer_meshnode, 1)

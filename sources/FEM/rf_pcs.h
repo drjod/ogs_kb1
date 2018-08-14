@@ -174,11 +174,11 @@ struct OGS_WellDoubletControl
 		struct parameter_group_t
 		{
 			double time;
-			char indicator;
+			int indicator;
 			double powerrate;
 			double target_value;
 			double threshold_value;
-			parameter_group_t(const double& _time, const char& _indicator,
+			parameter_group_t(const double& _time, const int& _indicator,
 					const double& _powerrate, const double& _target_value, const double& _threshold_value) :
 				time(_time), indicator(_indicator), powerrate(_powerrate),
 				target_value(_target_value), threshold_value(_threshold_value) {}
