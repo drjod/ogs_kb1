@@ -607,9 +607,6 @@ double CFunction::GetValue(double point, bool* valid, int method)
 	long j;
 	double value = 1.0;
 	//----------------------------------------------------------------------
-	for(auto elem: variable_data_vector)
-		std::cout << *elem << " ";
-	std::cout << "\n";
 	//
 	value = variable_data_vector[0][1];
 	if(point < variable_data_vector[0][0])

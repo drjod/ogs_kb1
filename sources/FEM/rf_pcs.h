@@ -27,6 +27,7 @@
 
 #include "Eigen/Eigen"
 #include "wellDoubletControl.h"
+#include <vector>
 
 //#include "rf_st_new.h"//CMCD 02_06
 // C++ STL
@@ -166,7 +167,39 @@ typedef struct
 } bc_JFNK;
 #endif
 
+struct OGS_WellDoubletControl
+{
+	struct wellDoubletData_t
+	{
+		struct parameter_group_t
+		{
+			double time;
+			char indicator;
+			double powerrate;
+			double target_value;
+			double threshold_value;
+			parameter_group_t(const double& _time, const char& _indicator,
+					const double& _powerrate, const double& _target_value, const double& _threshold_value) :
+				time(_time), indicator(_indicator), powerrate(_powerrate),
+				target_value(_target_value), threshold_value(_threshold_value) {}
+			// constructor for replace_back in read function - do not reorder without considering this
+		};
+		std::list<parameter_group_t> parameter_list;
 
+		//long msh_node_number_well1_aquiferPoint;
+		//long msh_node_number_well2_aquiferPoint;
+		//long msh_node_number_well1_liquidBCPoint;
+		//long msh_node_number_well2_liquidBCPoint;
+	};
+
+	WellDoubletControl* wellDoubletControl; // JOD 2018-6-27
+	long well1_aquifer_meshnode;
+	long well2_aquifer_meshnode;
+	long well_heatExchanger_meshnode;
+	bool have_to_instantiate_WDC; // each new time step
+	OGS_WellDoubletControl() : have_to_instantiate_WDC(true) {}
+	wellDoubletData_t wellDoubletData;
+};
 
 //MB moved inside the Process object
 //extern vector<double*>nod_val_vector; //OK
@@ -344,10 +377,8 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
-	WellDoubletControl* wellDoubletControl; // JOD 2018-6-27
-	bool wellDoubletControlled;  // JOD 2018-07-05
-	long well1_measurement_meshnode;
-	long well2_measurement_meshnode;
+	std::vector<OGS_WellDoubletControl> ogs_WellDoubletControlVector;  // JOD 2018-08-08
+
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -522,6 +553,7 @@ public:
 	bool auto_water_vapor;
 	bool JTC_fct_file_flag;
 	bool ECLunits_reservoir_conditions;
+	bool in_fct;  // for WDC - JOD 2018-08-09
 
 	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014

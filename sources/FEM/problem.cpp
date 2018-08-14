@@ -1558,37 +1558,49 @@ bool Problem::CouplingLoop()
     }
     // Coupling convergence criteria
     //max_outer_error=0.;
-    bool wdc_converged = false;
-    if(a_pcs->wellDoubletControlled)
+
+    bool wdc_converged = true;
+    if(a_pcs->ogs_WellDoubletControlVector.size() != 0)
     {
 
-    	std::cout << "T1: " << a_pcs->GetNodeValue(a_pcs->well1_measurement_meshnode, 1) << "\n";
-    	if(a_pcs->wellDoubletControl->converged(a_pcs->GetNodeValue(a_pcs->well1_measurement_meshnode, 1),
-    			a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
+    	for(auto ogs_wdc: a_pcs->ogs_WellDoubletControlVector)
     	{
-						wdc_converged = true;
-						std::cout << "wdc converged\n";
+    		if(!ogs_wdc.wellDoubletControl->converged(
+    			a_pcs->GetNodeValue(ogs_wdc.well_heatExchanger_meshnode, 1),
+    			a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
+    		{
+				wdc_converged = false;
+				break;
+    		}
+    	}
+
+    	if(wdc_converged)
+    	{
+    		std::cout << "\tWDC converged\n";
+    		for(int i=0; i<a_pcs->ogs_WellDoubletControlVector.size(); ++i)
+    			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
+    			    << a_pcs->GetNodeValue(a_pcs->ogs_WellDoubletControlVector[i].well_heatExchanger_meshnode, 1) << '\n';
     	}
     }
 
-    std::cout << outer_index << " "<< cpl_overall_max_iterations << std::endl;
-
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
   	if ((converged && outer_index + 1 >= cpl_overall_min_iterations)
-  	|| (a_pcs->wellDoubletControlled && wdc_converged && outer_index + 1 >= cpl_overall_min_iterations
+  	|| (wdc_converged && outer_index + 1 >= cpl_overall_min_iterations
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
   	) // JT: error is relative to the tolerance.
   	{
+  		for(auto& ogs_wdc: a_pcs->ogs_WellDoubletControlVector)
+  			ogs_wdc.have_to_instantiate_WDC = true;
         auto now = std::time(nullptr);
         //stream.imbue(std::locale)
         std::ofstream stream("logging.txt", std::ios::app);
-        stream << std::put_time(std::localtime(&now), "%c") <<
-        		": simulation time: " << aktuelle_zeit <<
-        		"\titerations: "  << outer_index + 1 << "\tT1: " <<
-				a_pcs->GetNodeValue(a_pcs->well1_measurement_meshnode, 1) << "\n";
+        //stream << std::put_time(std::localtime(&now), "%c");
+        //stream << ": simulation time: " << aktuelle_zeit <<
+        //		"\titerations: "  << outer_index + 1 << "\tT1: " <<
+		//		a_pcs->GetNodeValue(a_pcs->ogs_WellDoubletControlVector[0].well1_aquifer_meshnode, 1) << '\n';
 			break;
   	}
-	
+
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
     {
@@ -3292,7 +3304,7 @@ inline double Problem::HeatTransport()
 	CRFProcess* m_pcs = total_processes[8];
     if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StartTime(); // SB time
-
+    std::cout.flush();
 	if(!m_pcs->selected)
 		return error;             //12.12.2008 WW
    //CB This is a cheat to map a 2D horizontal heat pump distribution on a vertical model

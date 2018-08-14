@@ -5635,24 +5635,29 @@ Programing:
 **************************************************************************/
 
 void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
-{
+{	// a_pcs???
+	std::cout << "Data output: WDC\n";
 	m_pcs = PCSGet(getProcessType());
 	if(m_pcs == NULL)
 	{
 		std::cout << "Warning - PCS not known for WellDoubletControl output" << "\n";
 		return;
 	}
+	if(m_pcs->ogs_WellDoubletControlVector.size() == 0)
+		std::cout << "Warning - No WDC instance in output\n";
 
+	for(long long unsigned i=0; i<m_pcs->ogs_WellDoubletControlVector.size(); ++i)
+	{  			// long long unsigned for std::to_string
+		// file name
 		std::string tec_file_name = file_base_name + "_"
-	     + std::string(convertProcessTypeToString(getProcessType()))
-	    		 + "_WellDoublet" + TEC_FILE_EXTENSION;
-
-	   std::fstream tec_file;
-	   if (aktueller_zeitschritt == 0)
-	     tec_file.open(tec_file_name.data(), ios::out);
-	   else
-	     tec_file.open(tec_file_name.data(), ios::app);
-
+		 + std::string(convertProcessTypeToString(getProcessType()))
+				 + "_WellDoublet_" + std::to_string(i) + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file;
+		if (aktueller_zeitschritt == 0)
+			tec_file.open(tec_file_name.data(), ios::out);
+		else
+			tec_file.open(tec_file_name.data(), ios::out | ios::app);
 
 		tec_file.setf(ios::scientific, ios::floatfield);
 		tec_file.precision(12);
@@ -5662,34 +5667,37 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 			return;
 		}
 		tec_file.seekg(0L, ios::beg);
-	#ifdef SUPERCOMPUTER
-		// kg44 buffer the output
-		char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
-		tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
-		//
-	#endif
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
 		//--------------------------------------------------------------------
 		if (aktueller_zeitschritt == 0)
 			tec_file << "Time step; Simulation time t; Scheme [A, B, C]; " <<
-            "Smiley as power rate adaption identifier; Power rate Q_H; " <<
-            "Flow rate Q_w; T_1 at warm well 1; T_2 at cold well" << "\n";
-
-		if(m_pcs->wellDoubletControl != NULL)
+				"Smiley as power rate adaption identifier; Power rate Q_H; " <<
+				"Flow rate Q_w; T_1 at warm well 1; T_2 at cold well; T at heat exchanger" << "\n";
+		else
 		{
-			WellDoubletControl::result_t result = m_pcs->wellDoubletControl->get_result();
+			// write results
+			WellDoubletControl::result_t result = m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result();
 			std::string smiley;
 			smiley = result.flag_powerrateAdapted? ":-(" : ":-)";
 
 			tec_file << aktueller_zeitschritt
-				<< "\t" << time_current
-	    		<< "\t" << m_pcs->wellDoubletControl->get_schemeIdentifier()
-				<< "\t" << smiley
-				<< "\t" << m_pcs->wellDoubletControl->get_result().Q_H
-				<< "\t" << result.Q_w
-				<< "\t" << m_pcs->GetNodeValue(m_pcs->well1_measurement_meshnode, 1)
-				<< "\t" << m_pcs->GetNodeValue(m_pcs->well2_measurement_meshnode, 1)
-				<< "\n";
+				<< '\t' << time_current
+				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_schemeIdentifier()
+				<< '\t' << smiley
+				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result().Q_H
+				<< '\t' << result.Q_w
+				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well1_aquifer_meshnode, 1)
+				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well2_aquifer_meshnode, 1)
+				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well_heatExchanger_meshnode, 1)
+				<< '\n';
 		}
-	    tec_file.close();
+		tec_file.close();
+
+	}
 }
 

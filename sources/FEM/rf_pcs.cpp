@@ -403,8 +403,7 @@ CRFProcess::CRFProcess(void) :
 	eqs_x = NULL;
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
-
-	wellDoubletControlled = false;
+	in_fct = false;
 }
 
 
@@ -5346,6 +5345,7 @@ double CRFProcess::Execute()
 #endif
         cout << "    Relative PCS error: " << pcs_error << "\n";
         cout << "    Start FCT calculation" << "\n";
+        in_fct = true;
 #if defined(USE_MPI) || defined(USE_PETSC)
 		}
 #endif
@@ -5437,6 +5437,7 @@ double CRFProcess::Execute()
 		ExecuteLinearSolver();
 #endif
 #endif //USE_PETSC
+		in_fct = false;
 	}
 	//----------------------------------------------------------------------
 	// END OF FLUX CORRECTED TRANSPORT
@@ -5508,7 +5509,6 @@ double CRFProcess::Execute()
 	else
 	{				// Getting NL and CPL error
 		pcs_error = CalcIterationNODError(m_num->getCouplingErrorMethod(),true,true);		//JT2012
-		std::cout << "iterror: " << pcs_error << "\n";
 		if(m_num->getNonLinearErrorMethod() != m_num->getCouplingErrorMethod())				//JT: If CPL error method is different, must call separately
 			pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);   //JT2012 // get the NLS error. CPL was obtained before.
 	}
@@ -8700,8 +8700,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  if(m_st->threshold.type != Threshold::no)
 					  value = m_st->CheckThreshold(value, cnodev);
 				  //----------------------------------------------------------------------------------------
-				  if(m_st->wellDoubletData.status == CSourceTerm::wellDoubletData_t::active)
-				  	  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
+				  if(m_st->ogs_WellDoubletControl != nullptr)
+					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
 			  }
 		}
 

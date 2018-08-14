@@ -107,10 +107,12 @@ CSourceTerm::CSourceTerm() :
 	geoInfo_threshold = new GeoInfo();
 	geoInfo_storageRateInlet = new GeoInfo();
 	geoInfo_storageRateOutlet = new GeoInfo();
-	geoInfo_wellDoublet_well1_measurementPoint = new GeoInfo();
-	geoInfo_wellDoublet_well2_measurementPoint = new GeoInfo();
+
+	geoInfo_wellDoublet_well1_aquiferPoint = new GeoInfo();
+	geoInfo_wellDoublet_well2_aquiferPoint = new GeoInfo();
 	geoInfo_wellDoublet_well1_liquidBCPoint = new GeoInfo();
 	geoInfo_wellDoublet_well2_liquidBCPoint = new GeoInfo();
+	ogs_WellDoubletControl = nullptr; // JOD 2018-08-09
 
    CurveIndex = -1;
    //KR critical_depth = false;
@@ -191,8 +193,8 @@ CSourceTerm::~CSourceTerm()
 	delete geoInfo_threshold;
 	delete geoInfo_storageRateInlet;
 	delete geoInfo_storageRateOutlet;
-	delete geoInfo_wellDoublet_well1_measurementPoint;
-	delete geoInfo_wellDoublet_well2_measurementPoint;
+	delete geoInfo_wellDoublet_well1_aquiferPoint;
+	delete geoInfo_wellDoublet_well2_aquiferPoint;
 	delete geoInfo_wellDoublet_well1_liquidBCPoint;
 	delete geoInfo_wellDoublet_well2_liquidBCPoint;
 
@@ -632,16 +634,15 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_GEOMETRY") != std::string::npos) // JOD 2018-06-13
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_measurementPoint, *st_file,
-	    		  	  wellDoubletData.well1_geometry_name_measurementPoint, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquiferPoint, *st_file,
+	    		  	  well1_geometry_name_aquiferPoint, geo_obj, unique_name);
 	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBCPoint, *st_file,
-	    		  	  wellDoubletData.well1_geometry_name_liquidBCPoint, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_measurementPoint, *st_file,
-	    		  	  wellDoubletData.well2_geometry_name_measurementPoint, geo_obj, unique_name);
+	    		  	  well1_geometry_name_liquidBCPoint, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquiferPoint, *st_file,
+	    		  	  well2_geometry_name_aquiferPoint, geo_obj, unique_name);
 	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_liquidBCPoint, *st_file,
-	    		  	  wellDoubletData.well2_geometry_name_liquidBCPoint, geo_obj, unique_name);
+	    		  	  well2_geometry_name_liquidBCPoint, geo_obj, unique_name);
 
-		  wellDoubletData.status = wellDoubletData_t::active;
 		  in.clear();
 		  continue;
 	  }
@@ -651,6 +652,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  int numberOfParameter;
 		  double tmp0, tmp2, tmp3, tmp4;
 		  char tmp1;
+		  OGS_WellDoubletControl new_ogs_WellDoubletControl;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> numberOfParameter;
@@ -660,7 +662,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  in.str(readNonBlankLineFromInputStream(*st_file));
 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
 			  in.clear();
-			  wellDoubletData.parameter_list.emplace_back(
+			  new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
 				tmp0,  // time
 				tmp1,  // indicator [A, B, C]
 				tmp2,  // powerrate
@@ -671,11 +673,16 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		  CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
 		  if(m_pcs)
-			  m_pcs->wellDoubletControlled = true;
+		  {
+			  m_pcs->ogs_WellDoubletControlVector.push_back(new_ogs_WellDoubletControl);
+			  ogs_WellDoubletControl = &(m_pcs->ogs_WellDoubletControlVector.back());
+		  }
 		  else
 			  throw std::runtime_error("No PCS for WellDoubletControl");
+
 		  in.clear();
 		  continue;
+
 	 }
 	 //....................................................................
     /**/
@@ -3746,53 +3753,41 @@ const int ShiftInNodeVector)
 		   st->pushBackConstrainedSTNode(i,false);
    }
 
-   if(st->wellDoubletData.status == CSourceTerm::wellDoubletData_t::active)
+
+   if(st->ogs_WellDoubletControl != nullptr)
    {  	  // point for measurements
-		  st->wellDoubletData.msh_node_number_well1_measurementPoint = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_measurementPoint->getGeoObj()));
-		  st->wellDoubletData.msh_node_number_well2_measurementPoint = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_measurementPoint->getGeoObj()));
-		  // polyline for measurements
-		  /*m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-				  st->geoInfo_wellDoublet_well1_measurementPoint->getGeoObj()),
-				  st->wellDoubletData.msh_node_number_well1_measurementPoints, true);
-		  m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-				  st->geoInfo_wellDoublet_well2_measurementPoint->getGeoObj()),
-				  st->wellDoubletData.msh_node_number_well2_measurementPoints, true);
-		  */
-		  // liquid flow BCs
-		  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-		  // warm well 1 - copy from lines above
-		  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-		  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-				  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
-		  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
-		  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-		  nod_val_liquid_well1->node_value = st->geo_node_value;
-		  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+	  st->ogs_WellDoubletControl->well1_aquifer_meshnode = m_msh->GetNODOnPNT(
+		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj()));
+	  st->ogs_WellDoubletControl->well2_aquifer_meshnode = m_msh->GetNODOnPNT(
+		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj()));
+	  // liquid flow BCs
+	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+	  // warm well 1 - copy from lines above
+	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+			  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
+	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+	  nod_val_liquid_well1->node_value = st->geo_node_value;
+	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
 
-		  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-		  pcs_liquid->st_node.push_back(st);
-		  // cold well 2 - copy from lines above except node_value is negative
-		  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-		  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-				  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
-		  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
-		  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-		  nod_val_liquid_well2->node_value = st->geo_node_value * -1;  // !!!!!
-		  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+	  pcs_liquid->st_node.push_back(st);
+	  // cold well 2 - copy from lines above except node_value is negative
+	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+			  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
+	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
+	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
 
-		  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-		  pcs_liquid->st_node.push_back(st);
+	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+	  pcs_liquid->st_node.push_back(st);
 
-		  CRFProcess* m_pcs  = PCSGet(FiniteElement::HEAT_TRANSPORT);  // provisional
-		  if(m_pcs)
-		  {
-			  m_pcs->well1_measurement_meshnode = st->wellDoubletData.msh_node_number_well1_measurementPoint;
-			  m_pcs->well2_measurement_meshnode = st->wellDoubletData.msh_node_number_well2_measurementPoint;
-		  }
-		  else
-			  throw std::runtime_error("No PCS for WellDoubletControl");
+	  //st->ogs_WellDoubletControl->well1_aquifer_meshnode = st->wellDoubletData.msh_node_number_well1_aquiferPoint;
+	  //st->ogs_WellDoubletControl->well2_aquifer_meshnode = st->wellDoubletData.msh_node_number_well2_aquiferPoint;
+	  st->ogs_WellDoubletControl->well_heatExchanger_meshnode = nod_val->msh_node_number;
    }
 
    pcs->st_node_value.push_back(nod_val);         //WW
@@ -4077,6 +4072,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 				   m_st->storageRate.outlet_totalArea += m_st->storageRate.outlet_msh_node_areas[i];
 		   }
 	   }
+
 
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
@@ -5911,23 +5907,38 @@ specific heat capacity and density can be pressure and temperature dependent
 only heat capacity and density of fluid is considered (mfp_vector[0])
 
 **************************************************************************/
-
 double CSourceTerm::apply_wellDoubletControl(const double &value,
 				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
-	static int sign = 1; // in LIQUID_FLOW to create WDC only once per times step
-	//	(run through this code twice since there are two source sink terms)
-	//	in HEAT_TRANSPORT for FCT scheme - takes than same valus for correction
 	int ndx1 = 1;  // implicit - take new values for capacity calculations
 	double variables_well1[3], variables_well2[3];
-	double pressure_well1, pressure_well2, temperature_well1, temperature_well2;
+	//double pressure_well1, pressure_well2, temperature_well1, temperature_well2;
 
 		// get current parameter list (delete list entry, if old - list must be ordered according to time)
-	while(aktuelle_zeit > wellDoubletData.parameter_list.begin()->time)
-			wellDoubletData.parameter_list.erase(wellDoubletData.parameter_list.begin());
+	while(aktuelle_zeit > ogs_WellDoubletControl->wellDoubletData.parameter_list.begin()->time)
+		ogs_WellDoubletControl->wellDoubletData.parameter_list.erase(
+				ogs_WellDoubletControl->wellDoubletData.parameter_list.begin());
 			// time must increase throughout the parameter goup
-	wellDoubletData_t::parameter_group_t parameter_group = *wellDoubletData.parameter_list.begin();
-										// the current one
+	OGS_WellDoubletControl::wellDoubletData_t::parameter_group_t parameter_group =
+			*ogs_WellDoubletControl->wellDoubletData.parameter_list.begin();
+
+	long well1_measurementPoint, well2_measurementPoint;  // one point is always location of heat exchanger
+	if(parameter_group.powerrate > 0) // storing  Q_H = Q_w c rho (T - T_2)
+	{
+		//well1_measurementPoint = wellDoubletData.msh_node_number_well1_aquiferPoint;
+		//well2_measurementPoint = wellDoubletData.msh_node_number_well2_aquiferPoint;
+		well1_measurementPoint = cnodev->msh_node_number;  // location of heat exchanger
+		well2_measurementPoint = ogs_WellDoubletControl->well2_aquifer_meshnode;
+	}
+	else
+	{	// extracting  Q_H = Q_w c rho (T - T_1)
+		//well1_measurementPoint = wellDoubletData.msh_node_number_well1_aquiferPoint;
+		//well2_measurementPoint = wellDoubletData.msh_node_number_well2_aquiferPoint;
+		well1_measurementPoint = ogs_WellDoubletControl->well1_aquifer_meshnode;
+		well2_measurementPoint = cnodev->msh_node_number;  // location of heat exchanger
+	}
+
+	// the current one
 	if(m_pcs)
 	{
 		if(m_pcs->getProcessType() == FiniteElement::LIQUID_FLOW)
@@ -5935,84 +5946,76 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
 			if(m_pcs_heat)
 			{
-				if(m_pcs->iter_outer_cpl == 0 && sign == 1)
+				if(ogs_WellDoubletControl->have_to_instantiate_WDC)
 				{// first coupling iteration (between LIQUID_FLOW and HEAT_TRANSPORT)
-					m_pcs_heat->wellDoubletControl = WellDoubletControl::create_wellDoubletControl(
-															parameter_group.indicator);
-									// creates new instance of wellDoubletControl and deletes old one if it exists already
-					variables_well1[0] = m_pcs->GetNodeValue(
-								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-					variables_well2[0] = m_pcs->GetNodeValue(
-								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+					ogs_WellDoubletControl->wellDoubletControl =
+							WellDoubletControl::create_wellDoubletControl(parameter_group.indicator);
+							// creates new instance of wellDoubletControl and deletes old one if it exists already
+					variables_well1[0] = m_pcs->GetNodeValue(well1_measurementPoint, ndx1);
+					variables_well2[0] = m_pcs->GetNodeValue(well2_measurementPoint, ndx1);
 					// temperatures from HEAT_TRANSPORT
-					variables_well1[1] = m_pcs_heat->GetNodeValue(
-								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-					variables_well2[1] = m_pcs_heat->GetNodeValue(
-								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+					variables_well1[1] = m_pcs_heat->GetNodeValue(well1_measurementPoint, ndx1);
+					variables_well2[1] = m_pcs_heat->GetNodeValue(well2_measurementPoint, ndx1);
 
-					m_pcs_heat->wellDoubletControl->configure(  // still have to release memory
+					std::cout << "\t\t\tWDC\n";
+					ogs_WellDoubletControl->wellDoubletControl->configure(
+							// still have to release memory
 							parameter_group.powerrate,
 							parameter_group.target_value,
 							parameter_group.threshold_value,
 							m_pcs_heat->GetNodeValue(  // temperature at warm well 1
-									wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
+									well1_measurementPoint, ndx1),
 									m_pcs_heat->GetNodeValue(  // temperature at cold well 2
-									wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
+											well2_measurementPoint, ndx1),
 							mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
 								mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
 							mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
 								mfp_vector[0]->Density(variables_well2)  // fluid head capacity at cold well 2
 					);
-
-				}  // end if(m_pcs->iter_outer_cpl == 0)
-				sign *= -1;
-				return value * m_pcs_heat->wellDoubletControl->get_result().Q_w;
+					ogs_WellDoubletControl->have_to_instantiate_WDC = false;
+				}  // end if(ogs_WellDoubletControl->have_to_intstantiate_WDC)
+				return value * ogs_WellDoubletControl->wellDoubletControl->get_result().Q_w;
 			}  // end if(m_pcs_heat)
 		}  // end LIQUID_FLOW
 		else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
 		{
-			if(m_pcs->iter_outer_cpl > 0 && sign == 1)
+			if(m_pcs->iter_outer_cpl > 0 && !m_pcs->in_fct)
 			{	 // evaluate WDC
 				// 1. get primary variables for fluid heat capacity at warm and cold well
 				CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
 				if(m_pcs_liquid)
 				{  // pressures
-					variables_well1[0] = m_pcs_liquid->GetNodeValue(
-							wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-					variables_well2[0] = m_pcs_liquid->GetNodeValue(
-							wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+					variables_well1[0] = m_pcs_liquid->GetNodeValue(well1_measurementPoint, ndx1);
+					variables_well2[0] = m_pcs_liquid->GetNodeValue(well2_measurementPoint, ndx1);
 				}
 				else
 					throw std::runtime_error("No process LIQUID_FLOW");
 				// temperatures
-				variables_well1[1] = m_pcs->GetNodeValue(
-						wellDoubletData.msh_node_number_well1_measurementPoint, ndx1);
-				variables_well2[1] = m_pcs->GetNodeValue(
-						wellDoubletData.msh_node_number_well2_measurementPoint, ndx1);
+				variables_well1[1] = m_pcs->GetNodeValue(well1_measurementPoint, ndx1);
+				variables_well2[1] = m_pcs->GetNodeValue(well2_measurementPoint, ndx1);
 
-				double target  = parameter_group.target_value;
+				//double target  = parameter_group.target_value;
 				// 2. call WDC
-				m_pcs->wellDoubletControl->evaluate_simulation_result(
+				std::cout << "\t\t\tWDC\n";
+				ogs_WellDoubletControl->wellDoubletControl->evaluate_simulation_result(
 						m_pcs->GetNodeValue(  // temperature at warm well 1
-								wellDoubletData.msh_node_number_well1_measurementPoint, ndx1),
+								well1_measurementPoint, ndx1),
 						m_pcs->GetNodeValue(  // temperature at warm well 2
-								wellDoubletData.msh_node_number_well2_measurementPoint, ndx1),
+								well2_measurementPoint, ndx1),
 						mfp_vector[0]->SpecificHeatCapacity(variables_well1) *
 							mfp_vector[0]->Density(variables_well1),  // fluid head capacity at warm well 1
 						mfp_vector[0]->SpecificHeatCapacity(variables_well2) *
 							mfp_vector[0]->Density(variables_well2));
-			}  // end if(m_pcs->iter_outer_cpl > 0 && sign == 1 ))
-			if(m_pcs->m_num->fct_method > 0)
-				sign *= -1;  // do not adapt WDC values (e.g. powerrate) for FCT-correction step
+			}  // end if(m_pcs->iter_outer_cpl > 0 && !m_pcs->in_fct)
 
-			//std::cout << "Q_H: " << m_pcs->wellDoubletControl->get_result().Q_H << "\n";
-			return value * m_pcs->wellDoubletControl->get_result().Q_H;
+			return value * ogs_WellDoubletControl->wellDoubletControl->get_result().Q_H;
 		}  // end HEAT_TRANSPORT
 		else
 			throw std::runtime_error("WellDoubletControl - PCS not supported");
 	}  // end m_pcs->getProcessType()
 	else
 		throw std::runtime_error("WellDoubletControl - No PCS");
+
 }
 
 

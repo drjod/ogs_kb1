@@ -85,43 +85,22 @@ typedef struct
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
-	struct wellDoubletData_t
-	{
-		struct parameter_group_t
-		{
-			double time;
-			char indicator;
-			double powerrate;
-			double target_value;
-			double threshold_value;
-			parameter_group_t(const double& _time, const char& _indicator,
-					const double& _powerrate, const double& _target_value, const double& _threshold_value) :
-				time(_time), indicator(_indicator), powerrate(_powerrate),
-				target_value(_target_value), threshold_value(_threshold_value) {}
-			// constructor for replace_back in read function - do not reorder without considering this
-		};
-		std::list<parameter_group_t> parameter_list;
-		std::string well1_geometry_name_measurementPoint;
-		std::string well2_geometry_name_measurementPoint;
-		std::string well1_geometry_name_liquidBCPoint;
-		std::string well2_geometry_name_liquidBCPoint;
-		long msh_node_number_well1_measurementPoint;
-		long msh_node_number_well2_measurementPoint;
-		//long msh_node_number_well1_liquidBCPoint;
-		//long msh_node_number_well2_liquidBCPoint;
-		enum {inactive, active} status;
-		wellDoubletData_t() : status(inactive) {}
-	};
-
 	GeoInfo* geoInfo_connected;
 	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
 	GeoInfo* geoInfo_storageRateInlet;  // JOD 2018-02-22
 	GeoInfo* geoInfo_storageRateOutlet;
-	GeoInfo* geoInfo_wellDoublet_well1_measurementPoint;  // warm well -  JOD 2018-6-13
-	GeoInfo* geoInfo_wellDoublet_well2_measurementPoint;  // cold well
+	GeoInfo* geoInfo_wellDoublet_well1_aquiferPoint;  // warm well -  JOD 2018-6-13
+	GeoInfo* geoInfo_wellDoublet_well2_aquiferPoint;  // cold well
 	GeoInfo* geoInfo_wellDoublet_well1_liquidBCPoint;  // warm well
 	GeoInfo* geoInfo_wellDoublet_well2_liquidBCPoint;  // cold well
 
+	std::string well1_geometry_name_aquiferPoint;  // JOD 2018-08-09
+	std::string well2_geometry_name_aquiferPoint;
+	std::string well1_geometry_name_liquidBCPoint;
+	std::string well2_geometry_name_liquidBCPoint;
+
+
+	OGS_WellDoubletControl* ogs_WellDoubletControl;  // pointer to vector entry in pcs
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -384,7 +363,6 @@ private:                                          // TF, KR
 
 	Threshold threshold; // JOD 2018-1-31
 	StorageRate storageRate;
-	wellDoubletData_t wellDoubletData;
 };
 
 class CSourceTermGroup

@@ -459,6 +459,7 @@ bool CFEMesh::Read(std::ifstream* fem_file)
 					        = newElem->GetDimension();
 				ele_vector.push_back(newElem);
 			}
+
 		}
 		else if (line_string.find("$LAYER") != std::string::npos)
 			*fem_file >> _n_msh_layer >> std::ws;
