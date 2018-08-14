@@ -5677,8 +5677,8 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
-			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\"";
-			tec_file << "\"Power rate Q_H\" \"Flow rate Q_w\"";
+			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
+			tec_file << "\"Power rate Q_H\" \"Flow rate Q_w\" ";
 			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\"\n";
 		}
 		else
