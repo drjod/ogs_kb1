@@ -1384,7 +1384,7 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\",\"Rho\"";
 	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		//WW
-		if (_ele_value_vector[i].find("VELOCITY") == string::npos || _ele_value_vector[i].find("DENSITY") == string::npos)
+		if (_ele_value_vector[i].find("VELOCITY") == string::npos || _ele_value_vector[i].find("DENSITY1") == string::npos)
 			tec_file << "," << _ele_value_vector[i];
 
 	tec_file << "\n";
