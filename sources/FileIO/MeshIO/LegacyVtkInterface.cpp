@@ -1080,11 +1080,23 @@ void LegacyVtkInterface::WriteVTKDataArrays(fstream &vtk_file) const
 		//
 		for (size_t k = 0; k < _cellArrayNames.size(); k++)
 		{
+
+
 			// JTARON 2010, "VELOCITY" should only write as vector, scalars handled elswhere
 			if (_cellArrayNames[k].compare("VELOCITY") == 0)
 			{
-				vtk_file << "VECTORS velocity double " << "\n";
+				vtk_file << "VECTORS velocity double\n";
 				this->WriteELEVelocity(vtk_file); //WW/OK
+			}
+
+			if (_cellArrayNames[k].compare("DENSITY1") == 0)
+			{
+				vtk_file << "SCALARS density double 1\n";
+				vtk_file << "LOOKUP_TABLE default\n";
+				for(long i = 0; i < (long)_mesh->ele_vector.size(); i++)
+				{
+					vtk_file << ele_gp_value[i]->density << '\n';
+				}
 			}
 			// PRINT CHANGING (OR CONSTANT) PERMEABILITY TENSOR?   // JTARON 2010
 			else if (_cellArrayNames[k].compare("PERMEABILITY") == 0)

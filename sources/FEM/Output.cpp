@@ -1381,10 +1381,10 @@ void COutput::ELEWriteDOMDataTEC()
 void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 {
 	// Write Header I: variables
-	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\"";
+	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\",\"Rho\"";
 	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		//WW
-		if (_ele_value_vector[i].find("VELOCITY") == string::npos)
+		if (_ele_value_vector[i].find("VELOCITY") == string::npos || _ele_value_vector[i].find("DENSITY") == string::npos)
 			tec_file << "," << _ele_value_vector[i];
 
 	tec_file << "\n";
@@ -1438,20 +1438,26 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 	vector <bool> skip; // CB
 	size_t no_ele_values = _ele_value_vector.size();
 	bool out_element_vel = false;
-	
+	bool out_element_density = false; // JOD 2018-8-15
+
 	for (size_t j = 0; j < no_ele_values; j++) //WW
 	{
-		if (_ele_value_vector[j].find("VELOCITY") != string::npos)
+		if(_ele_value_vector[j].find("DENSITY") != string::npos)
+		{
+			out_element_density = true;
+			skip.push_back(false);
+		}
+		else if(_ele_value_vector[j].find("VELOCITY") != string::npos)
 		{
 			out_element_vel = true;
 			// break;  // CB: allow output of velocity AND other ele values
 			skip.push_back(false);
 		}
-      else
-      {
-        m_pcs_2 = GetPCS_ELE(_ele_value_vector[j]);
-        skip.push_back(true);
-      }
+		else
+		{
+			m_pcs_2 = GetPCS_ELE(_ele_value_vector[j]);
+			skip.push_back(true);
+		}
    }
 	vector<int> ele_value_index_vector(no_ele_values);
 	GetELEValuesIndexVector(ele_value_index_vector);
@@ -1493,6 +1499,11 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 				tec_file << gp_ele->Velocity(1, 0) << " ";
 				tec_file << gp_ele->Velocity(2, 0) << " ";
 			}
+		}  // end out_element_vel
+
+		if(out_element_density)
+		{
+			tec_file << gp_ele->density << " ";
 		}
 		
 		for (size_t j = 0; j < ele_value_index_vector.size(); j++)

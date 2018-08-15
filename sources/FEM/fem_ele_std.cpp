@@ -5806,6 +5806,8 @@ void CFiniteElementStd::Assemble_Gravity()
 		else
 		{
 			rho = FluidProp->Density();
+			if(gp == 0)  // JOD 1018-8-15 for element output
+				ele_gp_value[Index]->density = rho;
 		}
 		if(gravity_constant < MKleinsteZahl) // HEAD version
 			rho = 1.0;
@@ -10112,6 +10114,7 @@ ElementValue::ElementValue(CRFProcess* m_pcs, CElem* ele) : pcs(m_pcs)
 	//WW Velocity.resize(m_pcs->m_msh->GetCoordinateFlag()/10, NGPoints);
 	Velocity.resize(3, NGPoints);
 	Velocity = 0.0;
+	density = 0.;
 	// 15.3.2007 Multi-phase flow WW
 	if(pcs->type == 1212 || pcs->type == 1313 || m_pcs->type == 42)
 	{

@@ -450,6 +450,7 @@ public:
 	void GetEleVelocity(double* vec);
 	Matrix Velocity;
 	Matrix Velocity_g; // WTP
+	double density;  // JOD 2018-8-15 - for output of density from the (last) LIQUID_FLOW iteration
 
 	// HS Thermal Storage parameters---------------
 	// Array of parameters on each Gauss point

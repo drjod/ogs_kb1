@@ -141,6 +141,7 @@ CSourceTerm::CSourceTerm() :
 
    this->threshold_geometry = false;
    this->storageRate_geometry = false;
+   this->ignore_axisymmetry = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -684,6 +685,12 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 	 }
 	 //....................................................................
+      if (line_string.find("$IGNORE_AXISYMMETRY") != std::string::npos)
+      {
+         in.clear();
+         ignore_axisymmetry = true;
+         continue;
+      }
     /**/
    }                                              // end !new_keyword
    return position;
@@ -1782,7 +1789,7 @@ std::vector<double>&node_value_vector) const
             Jac = 0.5 * edge->getLength()*area_projection;
             v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
             v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (Const && (!msh->isAxisymmetry()))
+            if (Const && (!msh->isAxisymmetry() || ignore_axisymmetry))
             {
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
               if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
@@ -1835,7 +1842,7 @@ std::vector<double>&node_value_vector) const
             Jac = 0.5 * edge->getLength()*area_projection;
             v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
             v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (!msh->isAxisymmetry())
+            if (!msh->isAxisymmetry()  && !ignore_axisymmetry)
             {
                if (Const)
                {
@@ -1882,7 +1889,7 @@ std::vector<double>&node_value_vector) const
                      eta = MXPGaussPkt(3, l);
                      ShapeFunctionLine(Shfct, &eta);
                      //Axisymmetical problem
-                     if (msh->isAxisymmetry())
+                     if (msh->isAxisymmetry() && !ignore_axisymmetry)
                      {
                         radius = 0.0;
                         for (ii = 0; ii < 2; ii++)
@@ -4072,6 +4079,56 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   }
 	   }
 
+	   /*if(st->ogs_WellDoubletControl != nullptr)
+	      {  	  // point for measurements
+	   	  st->ogs_WellDoubletControl->well1_aquifer_meshnode = m_msh->GetNODOnPNT(
+	   		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj()));
+	   	  st->ogs_WellDoubletControl->well2_aquifer_meshnode = m_msh->GetNODOnPNT(
+	   		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj()));
+	   	  // liquid flow BCs
+	   	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+	   	  // warm well 1 - copy from lines above
+	   	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+
+	   	  //
+	      GEOLIB::Surface const& sfc(
+			*(dynamic_cast<GEOLIB::Surface const*>(st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj()))
+
+
+	   	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+	   			  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+
+	   	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
+	   	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+	   	  nod_val_liquid_well1->node_value = st->geo_node_value;
+	   	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+
+	   	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+	   	  pcs_liquid->st_node.push_back(st);
+
+	   	  // cold well 2 - copy from lines above except node_value is negative
+
+	      GEOLIB::Surface const& sfc(
+			*(dynamic_cast<GEOLIB::Surface const*>(m_st->getGeoObj()))
+
+	   	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+	   	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+	   			  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+
+
+	   	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
+	   	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+	   	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
+	   	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+
+	   	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+	   	  pcs_liquid->st_node.push_back(st);
+
+	   	  //st->ogs_WellDoubletControl->well1_aquifer_meshnode = st->wellDoubletData.msh_node_number_well1_aquiferPoint;
+	   	  //st->ogs_WellDoubletControl->well2_aquifer_meshnode = st->wellDoubletData.msh_node_number_well2_aquiferPoint;
+	   	  st->ogs_WellDoubletControl->well_heatExchanger_meshnode = nod_val->msh_node_number;
+	      }
+*/
 
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
