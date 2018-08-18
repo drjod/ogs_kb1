@@ -562,7 +562,6 @@ private:
 #endif
 	bool useQuadratic;
 	bool _axisymmetry;
-	bool _2D_with_line_elements;
 	bool top_surface_checked;                 // 07.06.2010.  WW
 
 	// Coordinate indicator
@@ -613,6 +612,7 @@ private:
 				 std::vector<long> &node_id_vector) const;
 public:
 	void constructMeshGrid();
+	bool _2D_with_line_elements;  // JOD
 private:
 	GEOLIB::Grid<MeshLib::CNode> *_mesh_grid;
 };

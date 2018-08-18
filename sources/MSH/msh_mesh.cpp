@@ -895,7 +895,7 @@ void CFEMesh::ConstructGrid()
 	else if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] < tolerance)
 	{
 		std::cout << "x & y direction";
-		if (_msh_n_lines > 0 && !_2D_with_line_elements)
+		if (_msh_n_lines > 0) // && !_2D_with_line_elements)  // ?????
 		{
 			std::cout << " - 1D in 2D";
 			coordinate_system = 32;
@@ -906,7 +906,7 @@ void CFEMesh::ConstructGrid()
 	else if (xyz_dim[0] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[1] < tolerance)
 	{
 		std::cout << "x & z direction";
-		if (_msh_n_lines > 0 && !_2D_with_line_elements)
+		if (_msh_n_lines > 0) // && !_2D_with_line_elements)  // ?????
 		{
 			std::cout << " - 1D in 2D";
 			coordinate_system = 32;

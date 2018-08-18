@@ -541,11 +541,11 @@ double CElement::computeJacobian(const int order)
 		//if(MeshElement->area>0)
 		DetJac *= MeshElement->area;
 		//WW          DetJac*=MeshElement->GetFluxArea();//CMCD
-		/*if(axisymmetry)// && !flag_2D_mesh_with_line_elements)!!!!!
+		if(axisymmetry && !flag_2D_mesh_with_line_elements)  // JOD
 		{
 			CalculateRadius();
 			DetJac *= Radius; //2.0*pai*Radius;
-		}*/
+		}
 		break;
 	//................................................................
 	case 2:
