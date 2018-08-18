@@ -61,7 +61,7 @@ using MeshLib::CElem;
 class CElement
 {
 public:
-	CElement (int CoordFlag, const int order = 1);
+	CElement (int CoordFlag, const int order = 1);//, bool _2D_mesh_with_line_elements=false);
 	virtual ~CElement ();
 	//
 	void ConfigElement(CElem* MElement, const int nquadrature_points, bool FaceIntegration = false);
@@ -157,6 +157,7 @@ protected:
 	// 32:  X, Y, Z component
 	int coordinate_system;
 	bool axisymmetry;
+	bool flag_2D_mesh_with_line_elements;  // JOD 2018-8-17
 	// Order of shape functions
 	// Displacement, 2. Others, 1. Default, 1
 	int Order;

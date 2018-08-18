@@ -31,7 +31,7 @@ namespace FiniteElement
    01/2006 WW Axisymmetry
    Last modified:
 **************************************************************************/
-CElement::CElement(int CoordFlag, const int order)
+CElement::CElement(int CoordFlag, const int order)//, bool _2D_mesh_with_line_elements)
 	: MeshElement(NULL), Order(order), ele_dim(1), nGaussPoints(1), nGauss(1),
 	  ShapeFunction(NULL), ShapeFunctionHQ(NULL),
 	  GradShapeFunction(NULL), GradShapeFunctionHQ(NULL),
@@ -41,8 +41,9 @@ CElement::CElement(int CoordFlag, const int order)
 	int i;
 	//
 	nGauss = 3;
+	//flag_2D_mesh_with_line_elements = _2D_mesh_with_line_elements;
 	//
-	if(CoordFlag < 0)                     // Axisymmetry
+	if(CoordFlag < 0)  // Axisymmetry
 	{
 		CoordFlag *= -1;
 		axisymmetry = true;
@@ -540,11 +541,11 @@ double CElement::computeJacobian(const int order)
 		//if(MeshElement->area>0)
 		DetJac *= MeshElement->area;
 		//WW          DetJac*=MeshElement->GetFluxArea();//CMCD
-		if(axisymmetry)
+		/*if(axisymmetry)// && !flag_2D_mesh_with_line_elements)!!!!!
 		{
 			CalculateRadius();
 			DetJac *= Radius; //2.0*pai*Radius;
-		}
+		}*/
 		break;
 	//................................................................
 	case 2:
@@ -555,7 +556,6 @@ double CElement::computeJacobian(const int order)
 			Jacobian[2] += X[i] * dN[j];
 			Jacobian[3] += Y[i] * dN[j];
 		}
-
 		DetJac =  Jacobian[0] * Jacobian[3] - Jacobian[1] * Jacobian[2];
 		if (fabs(DetJac) < MKleinsteZahl)
 		{

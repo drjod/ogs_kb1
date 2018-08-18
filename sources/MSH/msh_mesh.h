@@ -562,6 +562,7 @@ private:
 #endif
 	bool useQuadratic;
 	bool _axisymmetry;
+	bool _2D_with_line_elements;
 	bool top_surface_checked;                 // 07.06.2010.  WW
 
 	// Coordinate indicator

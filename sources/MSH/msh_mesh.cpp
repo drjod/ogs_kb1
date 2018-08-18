@@ -122,7 +122,7 @@ CFEMesh::CFEMesh(GEOLIB::GEOObjects* geo_obj, std::string* geo_name) :
 	x0(0.0), y0(0.0), csize(0.0), ndata_v(0.0), _mesh_grid(NULL)
 {
 	coordinate_system = 1;
-
+	_2D_with_line_elements = false;
 	max_ele_dim = 0; //NW
 	pcs_name = "NotSpecified"; //WW
 	PT = NULL; // WW+TK
@@ -406,7 +406,15 @@ bool CFEMesh::Read(std::ifstream* fem_file)
 		else if (line_string.find("$GEO_TYPE") != std::string::npos)
 			*fem_file >> geo_type_name >> geo_name >> std::ws;
 		else if (line_string.find("$AXISYMMETRY") != std::string::npos)
+		{
+			std::cout << "\tSet mesh axisymmetric\n";
 			_axisymmetry = true;
+		}
+		else if (line_string.find("$2D_WITH_LINE_ELEMENTS") != std::string::npos)
+		{
+			std::cout << "\tSet 2D mesh with line elements\n";
+			_2D_with_line_elements = true;
+		}
 		else if (line_string.find("$CONNECTED_NODES") != std::string::npos) // JOD 2015-11-20 NNNC
 		{
 			size_t no_nodes, node, connected_node;
@@ -887,7 +895,7 @@ void CFEMesh::ConstructGrid()
 	else if (xyz_dim[0] > 0.0 && xyz_dim[1] > 0.0 && xyz_dim[2] < tolerance)
 	{
 		std::cout << "x & y direction";
-		if (_msh_n_lines > 0) 
+		if (_msh_n_lines > 0 && !_2D_with_line_elements)
 		{
 			std::cout << " - 1D in 2D";
 			coordinate_system = 32;
@@ -898,7 +906,7 @@ void CFEMesh::ConstructGrid()
 	else if (xyz_dim[0] > 0.0 && xyz_dim[2] > 0.0 && xyz_dim[1] < tolerance)
 	{
 		std::cout << "x & z direction";
-		if (_msh_n_lines > 0)
+		if (_msh_n_lines > 0 && !_2D_with_line_elements)
 		{
 			std::cout << " - 1D in 2D";
 			coordinate_system = 32;

@@ -79,6 +79,7 @@ COutput::COutput() :
 	vtk = NULL; //NW
 	tecplot_zone_share = false; // 10.2012. WW
 	tecplot_datapack_block = 0; // 10.2014 BW
+	_ignore_axisymmetry = false;
 	VARIABLESHARING = false;	//BG
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
 	int_disp = 0;
@@ -500,6 +501,12 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		if (line_string.find("$TECPLOT_ZONE_SHARE") != string::npos)
 		{
 			tecplot_zone_share = true; 
+			continue;
+		}
+		if (line_string.find("$IGNORE_AXISYMMETRY") != string::npos)  // JOD 2018-08-17  for content output
+		{
+			_ignore_axisymmetry = true;
+			std::cout << "\tIgnore axisymmetry in content output " << mmp_index << '\n';
 			continue;
 		}
 		// For tecplot block datapack format 10.2014 BW
@@ -4996,22 +5003,21 @@ Programing:
 
 void COutput::WriteContent(double time_current, int time_step_number)
 {
-
-	double factor;
 	CFEMesh* m_msh = NULL;
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	CRFProcess* m_pcs = NULL;
+	double factor = 1.;
 	if (_nod_value_vector.size() > 0)
 		m_pcs = PCSGet(_nod_value_vector[0], true);
 	else
 		m_pcs = PCSGet(getProcessType());
 	bool output = false;
 
-	if (m_pcs->m_msh->isAxisymmetry())
-		factor = 6.283185307; // 2 Pi 
-	else
-		factor = 1;
 	//--------------------------------------------------------------------
+	if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+		factor = 6.283185307; // 2 Pi
+	else
+		factor = 1.;
 	// File handling
 	string tec_file_name;
 	

@@ -1081,7 +1081,7 @@ void CRFProcess::Create()
 			if (m_msh->isAxisymmetry())
 				Axisymm = -1;  // Axisymmetry is true
 			fem = new CFiniteElementStd(this, Axisymm
-			                            * m_msh->GetCoordinateFlag());
+			                            * m_msh->GetCoordinateFlag());//, 1, m_msh->_2D_with_line_elements);  // order = 1
 		}
 	}
 
@@ -17221,7 +17221,7 @@ Programming:
 double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
 {
 
-	double nodesVal[8], z_coord[8], content = 0, geoArea;
+	double nodesVal[8], x_coord[8], z_coord[8], content = 0, geoArea;
 	CNode* e_node;
 	CElem* elem;
 	size_t i, j, nn;
@@ -17230,12 +17230,10 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true) + 1;   // only one component in  MASS TRANSPORT !!!!
 	else
 		nidx1 = 1;
-
 	for (i = 0; i < m_msh->ele_vector.size(); i++)
 	{
 		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index == -1)
 		{ // -1 : take all
-
 			elem = m_msh->ele_vector[i];
 			if (!elem->GetMark())
 				continue;

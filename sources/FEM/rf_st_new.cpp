@@ -650,14 +650,14 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
 	  {
-		  int numberOfParameter, tmp1;
+		  int numberOfParameterSets, tmp1;
 		  double tmp0, tmp2, tmp3, tmp4;
 		  OGS_WellDoubletControl new_ogs_WellDoubletControl;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> numberOfParameter;
+		  in >> numberOfParameterSets;
 		  in.clear();
-		  while(numberOfParameter--)
+		  while(numberOfParameterSets--)
 		  {
 			  in.str(readNonBlankLineFromInputStream(*st_file));
 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
@@ -4054,6 +4054,8 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 			   m_st->storageRate.inlet_msh_node_numbers.insert(m_st->storageRate.inlet_msh_node_numbers.begin(),
 			         sfc_node_ids.begin(), sfc_node_ids.end());
 
+			      sfc_nod_vector.insert(sfc_nod_vector.begin(),
+			         sfc_node_ids.begin(), sfc_node_ids.end());
 			   SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->storageRate.inlet_geometry_name),
 					   m_st->storageRate.inlet_msh_node_numbers, m_st->storageRate.inlet_msh_node_areas);
 
@@ -4079,56 +4081,71 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   }
 	   }
 
-	   /*if(st->ogs_WellDoubletControl != nullptr)
-	      {  	  // point for measurements
-	   	  st->ogs_WellDoubletControl->well1_aquifer_meshnode = m_msh->GetNODOnPNT(
-	   		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj()));
-	   	  st->ogs_WellDoubletControl->well2_aquifer_meshnode = m_msh->GetNODOnPNT(
-	   		   static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj()));
-	   	  // liquid flow BCs
-	   	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-	   	  // warm well 1 - copy from lines above
-	   	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-
-	   	  //
-	      GEOLIB::Surface const& sfc(
-			*(dynamic_cast<GEOLIB::Surface const*>(st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj()))
+	   if(m_st->ogs_WellDoubletControl != nullptr)
+	   {
+		   // points for measurements
+		   m_st->ogs_WellDoubletControl->well1_aquifer_meshnode = m_msh->GetNODOnPNT(
+	   		   static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj()));
+		   m_st->ogs_WellDoubletControl->well2_aquifer_meshnode = m_msh->GetNODOnPNT(
+	   		   static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj()));
 
 
-	   	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-	   			  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+		   // liquid flow BCs
+		   CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+		   std::vector<std::size_t> sfc_node_ids_well1_liquidBC, sfc_node_ids_well2_liquidBC;
+		   std::vector<long> sfc_node_ids_well1_liquidBC_longVector, sfc_node_ids_well2_liquidBC_longVector;
+		   std::vector<double> sfc_node_values_well1_liquidBC, sfc_node_values_well2_liquidBC;
+		   // warm well 1
+		   GEOLIB::Surface const& sfc_well1_liquidBC(
+			*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj()))
+		   );
+		   SetSurfaceNodeVector(&sfc_well1_liquidBC, sfc_node_ids_well1_liquidBC);
+		   sfc_node_ids_well1_liquidBC_longVector.insert(sfc_node_ids_well1_liquidBC_longVector.begin(),
+				 sfc_node_ids_well1_liquidBC.begin(), sfc_node_ids_well1_liquidBC.end());
+		   SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->well1_geometry_name_liquidBCPoint),
+				 sfc_node_ids_well1_liquidBC_longVector, sfc_node_values_well1_liquidBC);
 
-	   	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
-	   	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-	   	  nod_val_liquid_well1->node_value = st->geo_node_value;
-	   	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+		  for(int i = 0; i < sfc_node_ids_well1_liquidBC.size(); ++i)
+		  {
+			  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+			  nod_val_liquid_well1->CurveIndex = m_st->CurveIndex;
+			  nod_val_liquid_well1->msh_node_number = sfc_node_ids_well1_liquidBC[i];
+			  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+			  nod_val_liquid_well1->node_value = m_st->geo_node_value * sfc_node_values_well1_liquidBC[i];
+			  nod_val_liquid_well1->tim_type_name = m_st->tim_type_name;
 
-	   	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-	   	  pcs_liquid->st_node.push_back(st);
+			  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+			  pcs_liquid->st_node.push_back(m_st);
+		  }
 
 	   	  // cold well 2 - copy from lines above except node_value is negative
+		  GEOLIB::Surface const& sfc_well2_liquidBC(
+			*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj()))
+		  );
+		  SetSurfaceNodeVector(&sfc_well2_liquidBC, sfc_node_ids_well2_liquidBC);
+		  sfc_node_ids_well2_liquidBC_longVector.insert(sfc_node_ids_well2_liquidBC_longVector.begin(),
+				   sfc_node_ids_well2_liquidBC.begin(), sfc_node_ids_well2_liquidBC.end());
+		  SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->well2_geometry_name_liquidBCPoint),
+				  sfc_node_ids_well2_liquidBC_longVector, sfc_node_values_well2_liquidBC);
 
-	      GEOLIB::Surface const& sfc(
-			*(dynamic_cast<GEOLIB::Surface const*>(m_st->getGeoObj()))
+		  for(int i = 0; i < sfc_node_ids_well2_liquidBC.size(); ++i)
+		  {
+			  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+			  nod_val_liquid_well2->CurveIndex = m_st->CurveIndex;
+			  nod_val_liquid_well2->msh_node_number = sfc_node_ids_well2_liquidBC[i];
+			  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+			  nod_val_liquid_well2->node_value = -m_st->geo_node_value * sfc_node_values_well1_liquidBC[i];
+			  nod_val_liquid_well2->tim_type_name = m_st->tim_type_name;
 
-	   	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-	   	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-	   			  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+			  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+			  pcs_liquid->st_node.push_back(m_st);
+		  }
 
+	   	  //m_st->ogs_WellDoubletControl->well1_aquifer_meshnode = m_st->wellDoubletData.msh_node_number_well1_aquiferPoint;
+	   	  //m_st->ogs_WellDoubletControl->well2_aquifer_meshnode = m_st->wellDoubletData.msh_node_number_well2_aquiferPoint;
+	   	  m_st->ogs_WellDoubletControl->well_heatExchanger_meshnode = sfc_nod_vector[0];  // takes just one of many !!!!
+	  }
 
-	   	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
-	   	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-	   	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
-	   	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
-
-	   	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-	   	  pcs_liquid->st_node.push_back(st);
-
-	   	  //st->ogs_WellDoubletControl->well1_aquifer_meshnode = st->wellDoubletData.msh_node_number_well1_aquiferPoint;
-	   	  //st->ogs_WellDoubletControl->well2_aquifer_meshnode = st->wellDoubletData.msh_node_number_well2_aquiferPoint;
-	   	  st->ogs_WellDoubletControl->well_heatExchanger_meshnode = nod_val->msh_node_number;
-	      }
-*/
 
       //		m_st->SetDISType();
       SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
@@ -5983,7 +6000,7 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 	{
 		//well1_measurementPoint = wellDoubletData.msh_node_number_well1_aquiferPoint;
 		//well2_measurementPoint = wellDoubletData.msh_node_number_well2_aquiferPoint;
-		well1_measurementPoint = cnodev->msh_node_number;  // location of heat exchanger
+		well1_measurementPoint = ogs_WellDoubletControl->well_heatExchanger_meshnode; //cnodev->msh_node_number;  // location of heat exchanger
 		well2_measurementPoint = ogs_WellDoubletControl->well2_aquifer_meshnode;
 	}
 	else
@@ -5991,7 +6008,7 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 		//well1_measurementPoint = wellDoubletData.msh_node_number_well1_aquiferPoint;
 		//well2_measurementPoint = wellDoubletData.msh_node_number_well2_aquiferPoint;
 		well1_measurementPoint = ogs_WellDoubletControl->well1_aquifer_meshnode;
-		well2_measurementPoint = cnodev->msh_node_number;  // location of heat exchanger
+		well2_measurementPoint = ogs_WellDoubletControl->well_heatExchanger_meshnode; //cnodev->msh_node_number;  // location of heat exchanger
 	}
 
 	// the current one

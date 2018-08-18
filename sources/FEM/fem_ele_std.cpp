@@ -77,8 +77,8 @@ namespace FiniteElement
    Programmaenderungen:
    01/2005   WW    Erste Version
 **************************************************************************/
-CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order)
-	: CElement(C_Sys_Flad, order), phase(0), comp(0), SolidProp(NULL),
+CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order)//, bool _2D_mesh_with_line_elements)
+	: CElement(C_Sys_Flad)/*, order, _2D_mesh_with_line_elements)*/, phase(0), comp(0), SolidProp(NULL),
 	  FluidProp(NULL), MediaProp(NULL),
 	  pcs(Pcs), dm_pcs(NULL), HEAD_Flag(false)
 {
@@ -4526,7 +4526,7 @@ void CFiniteElementStd::CalcLumpedMass()
 	// Initialize
 	(*Mass) = 0.0;
 	// Volume
-	if(axisymmetry)
+	if(axisymmetry)// && !(flag_2D_mesh_with_line_elements && ele_dim == 1))
 	{                                     // This calculation should be done in CompleteMesh.
 		// However, in order not to destroy the concise of the code,
 		// it is put here. Anyway it is computational cheap. WW
@@ -11980,10 +11980,9 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 	Config();
 	setOrder(Order);
 	det = MeshElement->GetVolume();
-
+	//std::cout << "det: " << det << '\n';
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
-
 		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
 		ComputeShapefct(Order);
 
@@ -11996,14 +11995,20 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 			else                                        // do nothing
 				NodeVal_shifted[i] = NodeVal[i];
 		}
-		
+
+
 		Gauss_val = 0.0;
 		for (i = 0; i < nNodes; i++)	   // Interpolation of value to Gauss point
+		{
 			Gauss_val += NodeVal_shifted[i] * shapefct[i];
-		
+		}
 		// Integration
 		content += fkt * Gauss_val * CalCoefMass() * MediaProp->ElementVolumeMultiplyer;
-		
+		//std::cout << "fkt: " << fkt << '\n';
+		//std::cout << "Gauss_val: " << Gauss_val<< '\n';
+		//std::cout << "MAss coef: " << CalCoefMass() << '\n';
+		//std::cout << "Multiplier: " << MediaProp->ElementVolumeMultiplyer << '\n';
+
 	}
 	
 	return content;

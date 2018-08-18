@@ -276,6 +276,7 @@ private:
 
 	/// Tecplot share zone
 	bool tecplot_zone_share; // 10.2012. WW
+	bool _ignore_axisymmetry;  // JOD 2018-08-17
 	// Tecplot Block Data Pack Format //10.2014 BW
 	int tecplot_datapack_block;
   std::vector < std::vector <long> > eledefvec;  // CB for surface output
