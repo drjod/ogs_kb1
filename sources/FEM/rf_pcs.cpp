@@ -17241,14 +17241,14 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
-			geoArea = elem->GetFluxArea();
+			//geoArea = elem->GetFluxArea();
 			nn = elem->GetNodesNumber(m_msh->getOrder());
 			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
-			content += fem->CalculateContent(nodesVal, z_coord) * geoArea;
+			content += fem->CalculateContent(nodesVal, z_coord);// * geoArea;
 		}
 	}
 

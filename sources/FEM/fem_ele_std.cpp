@@ -92,8 +92,8 @@ CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, con
 	//WW
 	if (pcs->m_num->nls_method_name.compare("NEWTON_RAPHSON") == 0)
 		newton_raphson = true;
-	//if (pcs->m_msh->_2D_with_line_elements)  // JOD
-	//	flag_2D_mesh_with_line_elements = true;
+	if (pcs->m_msh->_2D_with_line_elements)  // JOD
+		flag_2D_mesh_with_line_elements = true;
 	Mass = NULL;
 	Mass2 = NULL;
 	Laplace = NULL;

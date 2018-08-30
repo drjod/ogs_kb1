@@ -576,7 +576,7 @@ double CElement::computeJacobian(const int order)
 		if(axisymmetry)
 		{
 			CalculateRadius();
-			DetJac *= Radius; //2.0*pai*Radius;
+			DetJac *= Radius * 2 * 3.14159; //2.0*pai*Radius;
 		}
 		break;
 	//................................................................

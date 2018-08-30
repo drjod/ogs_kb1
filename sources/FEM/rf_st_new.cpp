@@ -6047,7 +6047,9 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 					);
 					ogs_WellDoubletControl->have_to_instantiate_WDC = false;
 				}  // end if(ogs_WellDoubletControl->have_to_intstantiate_WDC)
+				double res = ogs_WellDoubletControl->wellDoubletControl->get_result().Q_w;
 				return value * ogs_WellDoubletControl->wellDoubletControl->get_result().Q_w;
+
 			}  // end if(m_pcs_heat)
 		}  // end LIQUID_FLOW
 		else if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)

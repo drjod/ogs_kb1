@@ -5014,10 +5014,10 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	bool output = false;
 
 	//--------------------------------------------------------------------
-	if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+	/*if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
 		factor = 6.283185307; // 2 Pi
 	else
-		factor = 1.;
+		factor = 1.;*/
 	// File handling
 	string tec_file_name;
 	
