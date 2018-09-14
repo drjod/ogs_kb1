@@ -282,7 +282,7 @@ private:
 	//
 	void Config();
 	//
-	double CalCoefMass();
+	double CalCoefMass(bool flag_calcContent=false);
 	// 25.2.2007 WW
 	double CalCoefMass2(int dof_index);
 	double CalCoefMasstneq(int dof_index);
@@ -406,7 +406,7 @@ private:
 	friend class SolidProp::CSolidProperties;
 	friend class ::CFluidProperties;
 	// Friend functions. WW
-	friend double ::MFPCalcFluidsHeatCapacity(CFiniteElementStd * assem);
+	friend double ::MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd * assem);
 
 	// Auxillarary vectors for node values
 	// Vector of local node values, e.g. pressure, temperature.

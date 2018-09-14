@@ -1538,7 +1538,7 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass()
+double CFiniteElementStd::CalCoefMass(bool flag_calcContent)
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -1721,7 +1721,7 @@ double CFiniteElementStd::CalCoefMass()
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta,this);
+		val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		val /= time_unit_factor;
 		break;
 	//....................................................................
@@ -2134,6 +2134,14 @@ double CFiniteElementStd::CalCoefContent()
 	case EPT_COMPONENTAL_FLOW:                               // Componental flow
 		break;
 	case EPT_HEAT_TRANSPORT:                               // heat transport
+		val =  -1.e-3 * 1000*1000*interpolate(NodalVal0);;// / 10;// / 5;///10;//5;//4.185;
+		//heat_capacity_fluids = assem->FluidProp->Density() *
+		//                       assem->FluidProp->SpecificHeatCapacity();
+		//double TG2 = 10000000000;//assem->interpolate(assem->NodalVal1);
+		//std::cout << "TG: " << TG << '\n';
+		//heat_capacity_fluids = (assem->FluidProp->Density() - TG2 * 1000 * 1.e-4 ) *
+		//                       assem->FluidProp->SpecificHeatCapacity();
+
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
 	{
@@ -3720,6 +3728,7 @@ void CFiniteElementStd::CalcMass()
 			ComputeGradShapefct(1);  // Linear interpolation function
 
 		// Material
+		//std::cout << "gp: " << gp << '\n';
 		mat_fac = CalCoefMass();
 		// if(Index < 0) cout << "mat_fac in CalCoeffMass: " << mat_fac << "\n";
 		// GEO factor
@@ -4851,7 +4860,7 @@ void CFiniteElementStd::CalcContent()
 #else
 		for (i = 0; i < nnodes; i++)
 			for (j = 0; j < nnodes; j++)
-				(*Content)(i,j) += fkt * shapefct[i] * shapefct[j];
+				(*Content)(i,j) = fkt * shapefct[i] * shapefct[j];
 #endif
 	}
 }
@@ -5361,8 +5370,19 @@ void CFiniteElementStd::CalcAdvection()
 		for (i = 0; i < nnodes; i++)
 		  for (j = 0; j < nnodes; j++)
 		  for (size_t k = 0; k < dim; k++)
-			  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
-			  * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+		  {
+			  if(pcs->is_conservative)  // JOD-2018-9-14
+			  {
+				  (*Advection)(i, j) += -fkt * shapefct[k*nnodes + j] * vel[k]
+						* dshapefct[i] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+			  }
+			  else
+			  {
+				  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
+				  	   * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+			  }
+		  }
+
 #endif
 		if (pcs->m_num->ele_supg_method > 0) //NW
 		{
@@ -12005,7 +12025,7 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 			Gauss_val += NodeVal_shifted[i] * shapefct[i];
 		}
 		// Integration
-		content += fkt * Gauss_val * CalCoefMass() * MediaProp->ElementVolumeMultiplyer;
+		content += fkt * Gauss_val * CalCoefMass(true) * MediaProp->ElementVolumeMultiplyer;
 		//std::cout << "fkt: " << fkt << '\n';
 		//std::cout << "Gauss_val: " << Gauss_val<< '\n';
 		//std::cout << "MAss coef: " << CalCoefMass() << '\n';

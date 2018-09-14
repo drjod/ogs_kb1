@@ -280,9 +280,10 @@ public:
 
 	  double specific_heat_source;
 
+	  double primary_variable[10];          //WW
 private:
 	// State variables
-	double primary_variable[10];          //WW
+	//double primary_variable[10];          //WW
 	double primary_variable_t0[10];       //CMCD
 	double primary_variable_t1[10];       //CMCD
 	bool cal_gravity;                     //YD/WW
@@ -313,7 +314,7 @@ extern void MFPWrite(std::string);
 #define MFP_FILE_EXTENSION ".mfp"
 //WW extern double MFPCalcVapourPressure(double);
 //WW
-extern double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem = NULL);
+extern double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem = NULL);
 extern double MFPCalcFluidsHeatConductivity(long index,
                                             double* gp,
                                             double theta,

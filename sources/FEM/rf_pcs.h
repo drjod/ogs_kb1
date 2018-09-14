@@ -832,6 +832,8 @@ public:
 #endif
 #endif
 
+    bool is_conservative;  // JOD 2018-09-14
+
 	CTimeDiscretization* GetTimeStepping() const {return Tim; }
 	double timebuffer;                    //YD
 	//

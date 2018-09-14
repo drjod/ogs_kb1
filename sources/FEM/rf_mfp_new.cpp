@@ -1436,7 +1436,7 @@ double CFluidProperties::Density(double* values)
 			"\n";
 		break;
 	} // end switch
-
+//std::cout << density << " ";
 	return density;
 }
 
@@ -2757,7 +2757,7 @@ double CFluidProperties::PhaseChange()
    Programing:
    02/2007 WW MFP implementation based on MATCalcFluidHeatCapacity (OK)
 **************************************************************************/
-double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem)
+double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem)
 {
 	double heat_capacity_fluids = 0.0;
 	double PG = 0.0, Sw = 0.0,TG,rhow,rho_gw,p_gw,dens_aug[3],rho_g;
@@ -2797,8 +2797,26 @@ double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem)
 
 		else
 		{
-			heat_capacity_fluids = assem->FluidProp->Density() *
-			                       assem->FluidProp->SpecificHeatCapacity();
+			if(assem->pcs->is_conservative)  // JOD 2018-9-14
+			{
+				if(flag_calcContent)
+					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
+				else
+				{
+					const double delta_prim = 1.e-6;
+					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
+					double T = (assem->interpolate(assem->NodalVal0) + assem->interpolate(assem->NodalVal1)) / 2 + delta_prim;
+					double * const T_ptr = &T;
+
+					double heat_capacity_fluids_plus = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density(T_ptr);
+					T -= 2*delta_prim;
+					double heat_capacity_fluids_minus = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density(T_ptr);
+					T += delta_prim;
+					heat_capacity_fluids = ( (T+delta_prim) * heat_capacity_fluids_plus - (T-delta_prim) * heat_capacity_fluids_minus) / (2*delta_prim);
+				}
+			}
+			else
+				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
 
 			if(m_pcs->type != 1) // neither liquid nor ground water flow
 			{

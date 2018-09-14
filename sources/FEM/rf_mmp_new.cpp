@@ -2562,7 +2562,7 @@ double CMediumProperties::PermeabilitySaturationFunction(const double wetting_sa
    10/2005 YD/OK: general concept for heat capacity
    10/2010 TF changed access to process type
 **************************************************************************/
-double CMediumProperties::HeatCapacity(long number, double theta,
+double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calcContent,
                                        CFiniteElementStd* assem)
 {
 	SolidProp::CSolidProperties* m_msp = NULL;
@@ -2601,7 +2601,7 @@ double CMediumProperties::HeatCapacity(long number, double theta,
 		if (FLOW)
 		{
 			porosity = assem->MediaProp->Porosity(number, theta);
-			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(assem);
+			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
 		}
 		else
 		{

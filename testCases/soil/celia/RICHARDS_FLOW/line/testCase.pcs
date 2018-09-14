@@ -1,8 +1,0 @@
-GeoSys-PCS: Processes ------------------------------------------------
-#PROCESS
- $PCS_TYPE
-  RICHARDS_FLOW
- $NUM_TYPE
-   NEW   
-
-#STOP

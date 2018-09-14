@@ -404,6 +404,7 @@ CRFProcess::CRFProcess(void) :
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
 	in_fct = false;
+	is_conservative = false;
 }
 
 
@@ -2431,6 +2432,11 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
            napl_dissolution = true;
            continue;
         }
+		if(line_string.find("$CONSERVATIVE") == 0)
+		{
+			is_conservative = true;
+			continue;
+		}
 	}
 	//----------------------------------------------------------------------
 	return position;
