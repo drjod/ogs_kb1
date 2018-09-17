@@ -2794,7 +2794,6 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 			m_mfp = mfp_vector[1];
 			heat_capacity_fluids += (1.0 - Sw) * rho_g * m_mfp->SpecificHeatCapacity();
 		}
-
 		else
 		{
 			if(assem->pcs->is_conservative)  // JOD 2018-9-14
@@ -2803,7 +2802,12 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
 				else
 				{
-					const double delta_prim = 1.e-6;
+					if(assem->FluidProp->density_pcs_name_vector.size() != 1 || assem->FluidProp->density_pcs_name_vector[0] != "TEMPERATURE1")
+					{
+						throw std::runtime_error("Error in density calculation - only rho(T) supported");
+					}
+
+					const double delta_prim = 1.e-10;
 					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
 					double T = (assem->interpolate(assem->NodalVal0) + assem->interpolate(assem->NodalVal1)) / 2 + delta_prim;
 					double * const T_ptr = &T;
