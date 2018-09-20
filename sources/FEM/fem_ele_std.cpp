@@ -2134,14 +2134,6 @@ double CFiniteElementStd::CalCoefContent()
 	case EPT_COMPONENTAL_FLOW:                               // Componental flow
 		break;
 	case EPT_HEAT_TRANSPORT:                               // heat transport
-		val =  -1.e-3 * 1000*1000*interpolate(NodalVal0);;// / 10;// / 5;///10;//5;//4.185;
-		//heat_capacity_fluids = assem->FluidProp->Density() *
-		//                       assem->FluidProp->SpecificHeatCapacity();
-		//double TG2 = 10000000000;//assem->interpolate(assem->NodalVal1);
-		//std::cout << "TG: " << TG << '\n';
-		//heat_capacity_fluids = (assem->FluidProp->Density() - TG2 * 1000 * 1.e-4 ) *
-		//                       assem->FluidProp->SpecificHeatCapacity();
-
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
 	{
@@ -3571,7 +3563,12 @@ double CFiniteElementStd::CalCoefAdvection()
 			val = FluidProp->SpecificHeatCapacity(dens_arg) * FluidProp->Density(dens_arg);
 		}
 		else
-			val = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
+		{
+			if(FluidProp->get_flag_volumetric_heat_capacity())
+				val = FluidProp->get_volumetric_heat_capacity();
+			else
+				val = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
+		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
 		val = 1.0 * time_unit_factor; //*MediaProp->Porosity(Index,pcs->m_num->ls_theta); // Porosity;

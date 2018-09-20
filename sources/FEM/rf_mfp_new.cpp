@@ -107,6 +107,8 @@ CFluidProperties::CFluidProperties() :
 	beta_T = 0.0;
 	cmpN = 0;
 
+	flag_volumetric_heat_capacity = false;
+
 #ifdef MFP_TEST //WW
 	scatter_data = NULL;
 #endif
@@ -859,6 +861,27 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("CONCENTRATION1");
 			}
+
+			in.clear();
+			continue;
+		}
+		//....................................................................
+				// subkeyword found
+		if(line_string.find("$VOLUMETRIC_HEAT_CAPACITY") != string::npos)
+		{
+			flag_volumetric_heat_capacity = true;
+			in.str(GetLineFromFile1(mfp_file));
+			in >> heat_capacity_model;
+
+			if(heat_capacity_model == 1) // c = const
+			{
+				in >> volumetric_heat_capacity;
+				//specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
+				//specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
+			}
+			else
+				throw std::runtime_error("Volumetric heat capacity - only model 1 (const) supported");
+
 
 			in.clear();
 			continue;
@@ -2797,7 +2820,7 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 		else
 		{
 			if(assem->pcs->is_conservative)  // JOD 2018-9-14
-			{
+			{  // !!!density depends on not more than temperature
 				if(flag_calcContent)
 					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
 				else
@@ -2819,6 +2842,8 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 					heat_capacity_fluids = ( (T+delta_prim) * heat_capacity_fluids_plus - (T-delta_prim) * heat_capacity_fluids_minus) / (2*delta_prim);
 				}
 			}
+			else if(assem->FluidProp->get_flag_volumetric_heat_capacity())
+				heat_capacity_fluids = assem->FluidProp->get_volumetric_heat_capacity();
 			else
 				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
 

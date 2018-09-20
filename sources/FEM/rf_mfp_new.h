@@ -129,6 +129,8 @@ private:
 	std::string eos_name, mu_JT;
 	// Thermal properties
 	double specific_heat_capacity;
+	double volumetric_heat_capacity;  // JOD 2018-9-20 - used in HEAT_TRANSPORT (to neglect density variations and improve heat balance in non-conservative formulation)
+	bool flag_volumetric_heat_capacity;
 	double beta_T;
 	double heat_conductivity;
 	double temperature_buffer;            //YD, shifted to public JOD
@@ -153,6 +155,8 @@ public:
 	std::string name;
 	std::string cmpNm1, cmpNm2, cmpNm3, cmpNm4; // component name 
 	int cmpN; //components number
+	const bool& get_flag_volumetric_heat_capacity() { return flag_volumetric_heat_capacity; }
+	const double& get_volumetric_heat_capacity() { return volumetric_heat_capacity; }
 private:
 	std::string fluid_name;               //NB4801
 	// compressibility

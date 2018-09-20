@@ -2865,7 +2865,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	static double heat_dispersion_tensor[9];
 	double* heat_conductivity_porous_medium;
 	double vg, D[9];
-	double heat_capacity_fluids = 0.0;
+	double volumetric_heat_capacity_fluids = 0.0;  // JOD 2018-9-20
 	double fluid_density;
 	double alpha_t, alpha_l;
 	long index = Fem_Ele_Std->GetMeshElement()->GetIndex();
@@ -2878,8 +2878,10 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	//MX, add index
 	heat_conductivity_porous_medium = HeatConductivityTensor(index);
 	m_mfp = Fem_Ele_Std->FluidProp;
-		fluid_density = m_mfp->Density();
-	heat_capacity_fluids = m_mfp->getSpecificHeatCapacity();
+	if(m_mfp->get_flag_volumetric_heat_capacity())
+		volumetric_heat_capacity_fluids = m_mfp->get_volumetric_heat_capacity();
+	else
+		volumetric_heat_capacity_fluids = m_mfp->getSpecificHeatCapacity() * m_mfp->Density();
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
@@ -2905,8 +2907,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 		{
 		case 1:                   // line elements
 			heat_dispersion_tensor[0] =   heat_conductivity_porous_medium[0] +
-			                            alpha_l * heat_capacity_fluids *
-			                            fluid_density * vg;
+			                            alpha_l * volumetric_heat_capacity_fluids * vg;
 			break;
 		case 2:
 			D[0] =
@@ -2919,8 +2920,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 			         vg) + (alpha_l - alpha_t) * (velocity[1] * velocity[1]) / vg;
 			for (i = 0; i < 4; i++)
 				heat_dispersion_tensor[i] =   heat_conductivity_porous_medium[i] +
-				                            (D[i] * heat_capacity_fluids *
-				                             fluid_density);
+				                            (D[i] * volumetric_heat_capacity_fluids);
 			break;
 		case 3:
 			D[0] =
@@ -2940,8 +2940,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 			         vg) + (alpha_l - alpha_t) * (velocity[2] * velocity[2]) / vg;
 			for (i = 0; i < 9; i++)
 				heat_dispersion_tensor[i] =   heat_conductivity_porous_medium[i] +
-				                            (D[i] * heat_capacity_fluids *
-				                             fluid_density);
+				                            (D[i] * volumetric_heat_capacity_fluids);
 			break;
 		}
 	}
