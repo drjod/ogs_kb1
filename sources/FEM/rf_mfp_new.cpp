@@ -2807,9 +2807,9 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 						throw std::runtime_error("Error in density calculation - only rho(T) supported");
 					}
 
-					const double delta_prim = 1.e-10;
+					const double delta_prim = 1.e-3;
 					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
-					double T = (assem->interpolate(assem->NodalVal0) + assem->interpolate(assem->NodalVal1)) / 2 + delta_prim;
+					double T = (assem->interpolate(assem->NodalVal0) + assem->interpolate(assem->NodalVal1)) / 2 + delta_prim;  // Crank-Nicholson
 					double * const T_ptr = &T;
 
 					double heat_capacity_fluids_plus = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density(T_ptr);

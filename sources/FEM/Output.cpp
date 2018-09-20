@@ -1388,11 +1388,29 @@ void COutput::ELEWriteDOMDataTEC()
 void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 {
 	// Write Header I: variables
-	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\",\"Rho\"";
+	/*tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\",\"Rho\"";
 	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		//WW
 		if (_ele_value_vector[i].find("VELOCITY") == string::npos || _ele_value_vector[i].find("DENSITY1") == string::npos)
 			tec_file << "," << _ele_value_vector[i];
+	*/
+	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\"";
+	for (size_t i = 0; i < _ele_value_vector.size(); i++)
+	{
+		//WW
+		if (_ele_value_vector[i].find("VELOCITY") != string::npos)
+		{
+			tec_file << ",\"VELOCITY1_X\",\"VELOCITY1_Y\",\"VELOCITY1_Z\"";
+			break;
+		}
+	}
+
+	for (size_t i = 0; i < _ele_value_vector.size(); i++)
+		if (_ele_value_vector[i].find("DENSITY1") != string::npos)
+		{
+			tec_file << ",\"DENSITY1\"";
+			break;
+		}
 
 	tec_file << "\n";
 	// Write Header II: zone
