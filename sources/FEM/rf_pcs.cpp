@@ -125,6 +125,7 @@ REACT_BRNS* m_vec_BRNS;
 // Fluid Props
 #include "Fluid.h"
 
+
 using namespace std;
 using namespace MeshLib;
 using namespace Math_Group;
@@ -403,7 +404,6 @@ CRFProcess::CRFProcess(void) :
 	eqs_x = NULL;
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
-	in_fct = false;
 	is_conservative = false;
 }
 
@@ -5351,7 +5351,6 @@ double CRFProcess::Execute()
 #endif
         cout << "    Relative PCS error: " << pcs_error << "\n";
         cout << "    Start FCT calculation" << "\n";
-        in_fct = true;
 #if defined(USE_MPI) || defined(USE_PETSC)
 		}
 #endif
@@ -5443,7 +5442,6 @@ double CRFProcess::Execute()
 		ExecuteLinearSolver();
 #endif
 #endif //USE_PETSC
-		in_fct = false;
 	}
 	//----------------------------------------------------------------------
 	// END OF FLUX CORRECTED TRANSPORT
@@ -8706,7 +8704,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  if(m_st->threshold.type != Threshold::no)
 					  value = m_st->CheckThreshold(value, cnodev);
 				  //----------------------------------------------------------------------------------------
-				  if(m_st->ogs_WellDoubletControl != nullptr)
+				  if(m_st->ogs_WDC != nullptr)
 					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
 			  }
 		}
@@ -9779,7 +9777,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
    03/2005 OK Implementation
    last modified:
 **************************************************************************/
-	double CRFProcess::GetNodeValue(size_t n,int nidx)
+	double CRFProcess::GetNodeValue(size_t n,int nidx) const
 	{
 		double value;
 #ifdef gDEBUG

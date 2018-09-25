@@ -26,8 +26,11 @@
 #include "StepperBulischStoer.h"   // HS, 10.2011
 
 #include "Eigen/Eigen"
-#include "wellDoubletControl.h"
+
 #include <vector>
+
+#include "OGS_WDC.h"
+
 
 //#include "rf_st_new.h"//CMCD 02_06
 // C++ STL
@@ -70,6 +73,8 @@ public:
 	double val;
 };
 */
+
+
 
 class CSourceTermGroup;
 class CSourceTerm;
@@ -167,39 +172,7 @@ typedef struct
 } bc_JFNK;
 #endif
 
-struct OGS_WellDoubletControl
-{
-	struct wellDoubletData_t
-	{
-		struct parameter_group_t
-		{
-			double time;
-			int indicator;
-			double powerrate;
-			double target_value;
-			double threshold_value;
-			parameter_group_t(const double& _time, const int& _indicator,
-					const double& _powerrate, const double& _target_value, const double& _threshold_value) :
-				time(_time), indicator(_indicator), powerrate(_powerrate),
-				target_value(_target_value), threshold_value(_threshold_value) {}
-			// constructor for replace_back in read function - do not reorder without considering this
-		};
-		std::list<parameter_group_t> parameter_list;
 
-		//long msh_node_number_well1_aquiferPoint;
-		//long msh_node_number_well2_aquiferPoint;
-		//long msh_node_number_well1_liquidBCPoint;
-		//long msh_node_number_well2_liquidBCPoint;
-	};
-
-	WellDoubletControl* wellDoubletControl; // JOD 2018-6-27
-	long well1_aquifer_meshnode;
-	long well2_aquifer_meshnode;
-	long well_heatExchanger_meshnode;
-	bool have_to_instantiate_WDC; // each new time step
-	OGS_WellDoubletControl() : have_to_instantiate_WDC(true) {}
-	wellDoubletData_t wellDoubletData;
-};
 
 //MB moved inside the Process object
 //extern vector<double*>nod_val_vector; //OK
@@ -377,7 +350,7 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
-	std::vector<OGS_WellDoubletControl> ogs_WellDoubletControlVector;  // JOD 2018-08-08
+	std::vector<OGS_WDC> ogs_WDC_vector;  // JOD 2018-08-08
 
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
@@ -553,7 +526,7 @@ public:
 	bool auto_water_vapor;
 	bool JTC_fct_file_flag;
 	bool ECLunits_reservoir_conditions;
-	bool in_fct;  // for WDC - JOD 2018-08-09
+	bool inFemFCTmode() const { return femFCTmode; }
 
 	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014
@@ -658,7 +631,7 @@ public:
 	                                      //OK
 	std::vector<std::string> nod_val_name_vector;
 	void SetNodeValue(long,int,double);   //OK
-	double GetNodeValue(size_t,int);        //OK
+	double GetNodeValue(size_t,int) const;        //OK
          double *getNodeValue_per_Variable(const int entry_id) const //WW
 	{
             return nod_val_vector[entry_id];
@@ -1194,4 +1167,6 @@ extern REACT_BRNS* m_vec_BRNS;
 #endif
 
 extern bool hasAnyProcessDeactivatedSubdomains;   //NW
+
+
 #endif

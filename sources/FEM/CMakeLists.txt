@@ -49,6 +49,7 @@ set( HEADERS
 	Stiff_Bulirsch-Stoer.h
 	tools.h
 	vtk.h
+	OGS_WDC.h
 )
 
 set( SOURCES
@@ -102,6 +103,7 @@ set( SOURCES
 	Stiff_Bulirsch-Stoer.cpp
 	tools.cpp
 	vtk.cpp
+	OGS_WDC.cpp
 )
 
 if(OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)

@@ -5678,10 +5678,10 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		std::cout << "Warning - PCS not known for WellDoubletControl output" << "\n";
 		return;
 	}
-	if(m_pcs->ogs_WellDoubletControlVector.size() == 0)
+	if(m_pcs->ogs_WDC_vector.size() == 0)
 		std::cout << "Warning - No WDC instance in output\n";
 
-	for(long long unsigned i=0; i<m_pcs->ogs_WellDoubletControlVector.size(); ++i)
+	for(long long unsigned i=0; i<m_pcs->ogs_WDC_vector.size(); ++i)
 	{  			// long long unsigned for std::to_string
 		// file name
 		std::string tec_file_name = file_base_name + "_"
@@ -5719,18 +5719,20 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		else
 		{
 			// write results
-			WellDoubletControl::result_t result = m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result();
+			const WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->get_result();
+			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes();
 
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_schemeIdentifier()
+				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->get_schemeIdentifier()
 				<< '\t' << result.flag_powerrateAdapted
-				<< '\t' << m_pcs->ogs_WellDoubletControlVector[i].wellDoubletControl->get_result().Q_H
+				<< '\t' << result.Q_H
 				<< '\t' << result.Q_w
-				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well1_aquifer_meshnode, 1)
-				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well2_aquifer_meshnode, 1)
-				<< '\t' << m_pcs->GetNodeValue(m_pcs->ogs_WellDoubletControlVector[i].well_heatExchanger_meshnode, 1)
+				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
+				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
+				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.heatExchanger, 1)
 				<< '\n';
+
 		}
 		tec_file.close();
 

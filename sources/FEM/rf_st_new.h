@@ -100,7 +100,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	std::string well2_geometry_name_liquidBCPoint;
 
 
-	OGS_WellDoubletControl* ogs_WellDoubletControl;  // pointer to vector entry in pcs
+	OGS_WDC* ogs_WDC;  // pointer to vector entry in pcs
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -235,7 +235,7 @@ public:
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
 	double apply_wellDoubletControl(const double &value, const CNodeValue* cnodev,
-			const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
+			const double& aktuelle_zeit, const CRFProcess* m_pcs);  // JOD 2018-06-14
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
 	int geo_node_number;
