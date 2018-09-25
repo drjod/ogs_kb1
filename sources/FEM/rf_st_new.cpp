@@ -5986,25 +5986,31 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 
 	const int ndx1 = 1;  // implicit - take new values for capacity calculations
 
-	OGS_WDC::measurement_mesh_nodes_t measurement_mesh_nodes  = ogs_WDC->update_measurement_mesh_nodes(aktuelle_zeit);
+	OGS_WDC::measurement_mesh_nodes_t measurement_mesh_nodes  =
+			ogs_WDC->update_measurement_mesh_nodes(aktuelle_zeit);
 
-	const CRFProcess* const m_pcs_liquid = (m_pcs->getProcessType() ==FiniteElement::LIQUID_FLOW)? m_pcs : PCSGet("LIQUID_FLOW");
-	const CRFProcess* const m_pcs_heat = (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
+	const CRFProcess* const m_pcs_liquid = (m_pcs->getProcessType() ==
+			FiniteElement::LIQUID_FLOW)? m_pcs : PCSGet("LIQUID_FLOW");
+	const CRFProcess* const m_pcs_heat = (m_pcs->getProcessType() ==
+			FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
 
 	// !!! Density() can change values
-	double variables_well1[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well1, ndx1), m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1) };  // pressure, temperature, ...
-	double variables_well2[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well2, ndx1), m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well2, ndx1) };
+	double variables_well1[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well1, ndx1),
+		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1) };  // pressure, temperature, ...
+	double variables_well2[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well2, ndx1),
+		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well2, ndx1) };
 
 	double volumetric_heat_capacity_well1 = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
-			mfp_vector[0]->get_volumetric_heat_capacity() : mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1);
+			mfp_vector[0]->get_volumetric_heat_capacity() :
+			mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1);
 	double volumetric_heat_capacity_well2 = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
-			mfp_vector[0]->get_volumetric_heat_capacity() : mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2);
+			mfp_vector[0]->get_volumetric_heat_capacity() :
+			mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2);
 
 	return value * ogs_WDC->get_result(m_pcs,
-			m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1),  // temperature at warm well 1
+			{ m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1),  // temperature at warm well 1
 			m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well2, ndx1),  // temperature at cold well 2
-			volumetric_heat_capacity_well1, volumetric_heat_capacity_well2);;
-
+			volumetric_heat_capacity_well1, volumetric_heat_capacity_well2 });;
 }
 
 
