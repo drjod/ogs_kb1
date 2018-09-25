@@ -5972,6 +5972,7 @@ FEMLib-Method:
 Task:
 Programing:
 06/2018 JOD implementation
+// passes temperatures and volumetic heat capacities to WDC and returns WDC result
 
 specific heat capacity and density can be pressure and temperature dependent
 only heat capacity and density of fluid is considered (mfp_vector[0])
