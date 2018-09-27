@@ -10,14 +10,10 @@ OGS_WDC::measurement_mesh_nodes_t OGS_WDC::update_measurement_mesh_nodes(const d
 		parameter_list.erase(parameter_list.begin());
 
 	return OGS_WDC::measurement_mesh_nodes_t {
-			// warm well1
-			(parameter_list.begin()->powerrate > 0) ?
-						get_doublet_mesh_nodes().heatExchanger : // storing
-						get_doublet_mesh_nodes().well1_aquifer, // extracting
-			// cold well 2
+			get_doublet_mesh_nodes().heatExchanger,
 			(parameter_list.begin()->powerrate > 0) ?
 						get_doublet_mesh_nodes().well2_aquifer : // storing
-						get_doublet_mesh_nodes().heatExchanger // extracting
+						get_doublet_mesh_nodes().well1_aquifer // extracting
 			};
 }
 
@@ -27,7 +23,7 @@ OGS_WDC::measurement_mesh_nodes_t OGS_WDC::update_measurement_mesh_nodes(const d
 // Requirements:
 // 1. measurement mesh nodes must be up to date by calling OGS_WDC::update_measurement_mesh_nodes()
 // 2. when flow and transport have converged OGS_WDC::discard() must be called
-void OGS_WDC::update_WellDoubletControl(const WellDoubletControl::balancing_properties_t& balancing_properties)
+void OGS_WDC::create_new_WDC(const WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
 	std::cout << "\t\t\tWDC\n";
@@ -48,8 +44,8 @@ void OGS_WDC::evaluate_simulation_result(const WellDoubletControl::balancing_pro
 }
 
 // interface function between WDC and CSourceTerm::apply_wellDoubletControl()
-// processes WDC calls
-double OGS_WDC::get_result(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties)
+// processes WDC calls and returns source term value (flow rate in case of flow and power rate in case of heat)
+double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	switch(m_pcs->getProcessType())
 	{
@@ -57,7 +53,7 @@ double OGS_WDC::get_result(const CRFProcess* m_pcs, const WellDoubletControl::ba
 			// result is flow rate
 			if(!is_initialized)
 			{
-				update_WellDoubletControl(balancing_properties);
+				create_new_WDC(balancing_properties);
 			}
 			return wellDoubletControl->get_result().Q_w;
 

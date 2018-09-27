@@ -8,11 +8,15 @@
    Modification:
             12.2008 WW Incorporate the changes from previous versions.
    ========================================================================*/
+
+#include "fancyTimer.h"
+
 #include "problem.h"
 
 #if defined (USE_MPI)
 #include <mpi.h>
 #endif
+
 
 
 
@@ -1094,6 +1098,8 @@ void Problem::Euler_TimeDiscretize()
 	// ------------------------------------------
 	// PERFORM TRANSIENT SIMULATION
 	// ------------------------------------------
+	std::fstream fout("timer.txt", std::ofstream::out | std::ios::app);
+	FancyTimer<std::fstream> timer("Coupling loop: ", fout);
 	double previous_rejected_dt = .0;
 	while(end_time > current_time)
 	{

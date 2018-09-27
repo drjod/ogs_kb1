@@ -49,7 +49,6 @@ set( HEADERS
 	Stiff_Bulirsch-Stoer.h
 	tools.h
 	vtk.h
-	OGS_WDC.h
 )
 
 set( SOURCES
@@ -103,7 +102,6 @@ set( SOURCES
 	Stiff_Bulirsch-Stoer.cpp
 	tools.cpp
 	vtk.cpp
-	OGS_WDC.cpp
 )
 
 if(OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)
@@ -141,6 +139,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+	${CMAKE_SOURCE_DIR}/TOOLS
 	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 )
 
@@ -169,6 +168,7 @@ target_link_libraries(FEM
 	GCC
 	GEO
 	MSH
+	TOOLS
 )
 
 if(OGS_FEM_PQC)

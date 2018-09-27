@@ -14,8 +14,8 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
-${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
-
+	${CMAKE_SOURCE_DIR}/TOOLS
+	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
 )
 
 if (LIS)
@@ -47,6 +47,7 @@ target_link_libraries( ogs
 	GEO
 	MathLib
 	MSH
+	TOOLS
 	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl/libwellDoubletControl.a
 )
 

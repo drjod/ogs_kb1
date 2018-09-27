@@ -5724,7 +5724,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->get_schemeIdentifier()
+				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->scheme_identifier()
 				<< '\t' << result.flag_powerrateAdapted
 				<< '\t' << result.Q_H
 				<< '\t' << result.Q_w

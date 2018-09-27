@@ -5995,22 +5995,23 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
 
 	// !!! Density() can change values
-	double variables_well1[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well1, ndx1),
-		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1) };  // pressure, temperature, ...
-	double variables_well2[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.well2, ndx1),
-		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well2, ndx1) };
+	double variables_heatExchanger[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1),
+		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1) };  // pressure, temperature, ...
+	double variables_upwindAquifer[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1),
+		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1) };
 
-	double volumetric_heat_capacity_well1 = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
+	double volumetric_heat_capacity_heatExchanger = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
-			mfp_vector[0]->SpecificHeatCapacity(variables_well1) * mfp_vector[0]->Density(variables_well1);
-	double volumetric_heat_capacity_well2 = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
+			mfp_vector[0]->SpecificHeatCapacity(variables_heatExchanger) * mfp_vector[0]->Density(variables_heatExchanger);
+	double volumetric_heat_capacity_upwindAquifer = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
-			mfp_vector[0]->SpecificHeatCapacity(variables_well2) * mfp_vector[0]->Density(variables_well2);
+			mfp_vector[0]->SpecificHeatCapacity(variables_upwindAquifer) * mfp_vector[0]->Density(variables_upwindAquifer);
 
-	return value * ogs_WDC->get_result(m_pcs,
-			{ m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well1, ndx1),  // temperature at warm well 1
-			m_pcs_heat->GetNodeValue(measurement_mesh_nodes.well2, ndx1),  // temperature at cold well 2
-			volumetric_heat_capacity_well1, volumetric_heat_capacity_well2 });;
+	return value * ogs_WDC->call_WDC(m_pcs,
+			{ m_pcs_heat->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1),  // temperature at heat exchanger
+			m_pcs_heat->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1),  // temperature in upwind aquifer
+			volumetric_heat_capacity_heatExchanger,
+			volumetric_heat_capacity_upwindAquifer });;
 }
 
 

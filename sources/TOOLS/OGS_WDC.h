@@ -48,8 +48,8 @@ public:
 
 	struct measurement_mesh_nodes_t  // just to wrap return values for update_measurement_mesh_nodes()
 	{	// depends on operation type: storing, extracting
-		long well1;
-		long well2;
+		long heatExchanger;
+		long upwindAquifer;
 	};
 
 private:
@@ -59,7 +59,7 @@ private:
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 
-	void update_WellDoubletControl(const WellDoubletControl::balancing_properties_t& balancing_properties);
+	void create_new_WDC(const WellDoubletControl::balancing_properties_t& balancing_properties);
 	void evaluate_simulation_result(const WellDoubletControl::balancing_properties_t& balancing_properties);
 public:
 	OGS_WDC() : is_initialized(false) {}
@@ -72,7 +72,7 @@ public:
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
 	measurement_mesh_nodes_t update_measurement_mesh_nodes(const double& current_time); // for time step
-	double get_result(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties);
+	double call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties);
 };
 
 
