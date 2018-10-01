@@ -15,6 +15,7 @@ class OGS_WDC;
 #include "rf_pcs.h"
 
 #include <list>
+#include <vector>
 #include <utility>
 #include <iostream>
 #include <stdexcept>
@@ -43,36 +44,35 @@ public:
 	{	// geometric locations
 		long well1_aquifer;
 		long well2_aquifer;
-		long heatExchanger;
+		std::vector<size_t> heatExchanger;
 	};
-
-	struct measurement_mesh_nodes_t  // just to wrap return values for update_measurement_mesh_nodes()
-	{	// depends on operation type: storing, extracting
-		long heatExchanger;
-		long upwindAquifer;
-	};
-
 private:
 	std::shared_ptr<WellDoubletControl> wellDoubletControl;
 	std::list<parameter_group_t> parameter_list;
 
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
 	doublet_mesh_nodes_t doublet_mesh_nodes;
+	size_t nodes_counter;
+	double heatExchangerArea;
 
 	void create_new_WDC(const WellDoubletControl::balancing_properties_t& balancing_properties);
 	void evaluate_simulation_result(const WellDoubletControl::balancing_properties_t& balancing_properties);
 public:
-	OGS_WDC() : is_initialized(false) {}
+	OGS_WDC() : is_initialized(false), nodes_counter(0), heatExchangerArea(1.) {}
 	std::shared_ptr<WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
-	const doublet_mesh_nodes_t& get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void discard() { is_initialized = false; }  // must be called, when iteration loop between LIQUID and HEAT has converged
 																			//(than new WDC will be created in next time step)
 	template<typename... Args>
 	void add_parameterGroup(Args&&...args) { parameter_list.emplace_back(std::forward<Args>(args)...); }
+	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
-	measurement_mesh_nodes_t update_measurement_mesh_nodes(const double& current_time); // for time step
+	long get_upwind_aquifer_mesh_node(const double& current_time); // for time step
 	double call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties);
+
+	double get_extremum(const CRFProcess* m_pcs, const int& ndx, const std::vector<size_t> nodes) const;
+
+	void set_heatExchangerArea(double _heatExchangerArea) { heatExchangerArea = _heatExchangerArea; }
 };
 
 

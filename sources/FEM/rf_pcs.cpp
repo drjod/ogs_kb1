@@ -9792,6 +9792,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		return value;
 	}
 
+
 /**************************************************************************
    FEMLib-Method:
    Task:

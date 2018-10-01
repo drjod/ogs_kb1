@@ -364,6 +364,7 @@ private:                                          // TF, KR
 	Threshold threshold; // JOD 2018-1-31
 	StorageRate storageRate;
 	bool ignore_axisymmetry; // JOD 2018-08-15
+	bool assign_to_element_edge;  // JOD 2018-9-28
 };
 
 class CSourceTermGroup

@@ -13,6 +13,7 @@
 //#include <fstream>
 #include <cfloat>
 #include <iostream>
+#include <numeric>
 #include <set>
 
 #include "display.h"
@@ -130,6 +131,7 @@ CSourceTerm::CSourceTerm() :
    everyoneWithEveryone = false;  //  JOD 2015-11-18
    threshold.type = Threshold::no;
    storageRate.apply = false;
+   assign_to_element_edge = false;
 
    this->connected_geometry = false;
    this->connected_geometry_verbose_level = 0;
@@ -688,6 +690,13 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		  continue;
 	 }
+		 //....................................................................
+	      if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
+	      {
+	         in.clear();
+	         assign_to_element_edge = true;
+	         continue;
+	      }
 	 //....................................................................
       if (line_string.find("$IGNORE_AXISYMMETRY") != std::string::npos)
       {
@@ -3768,7 +3777,7 @@ const int ShiftInNodeVector)
 	 st->ogs_WDC->set_doublet_mesh_nodes({
 		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj())),  // well1
 			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj())),  // well2
-				  nod_val->msh_node_number  // heatExchanger
+				  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)}  // heatExchanger
 				  });
 
 	  // liquid flow BCs
@@ -3919,6 +3928,44 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 					st->pushBackConstrainedSTNode(i, false);
 			}
 		}
+
+		/////
+		if(st->ogs_WDC != nullptr)
+		{  	  // point for measurements
+			st->ogs_WDC->set_doublet_mesh_nodes({
+					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj())),  // well1
+					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj())),  // well2
+					  std::vector<size_t>(ply_nod_vector.begin(), ply_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
+					  });
+			 st->ogs_WDC->set_heatExchangerArea(std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.));
+			 // liquid flow BCs
+			 CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+			 // warm well 1 - copy from lines above
+			 CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+			 nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+					  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+			 nod_val_liquid_well1->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well1->node_value = st->geo_node_value;
+			 nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+			 pcs_liquid->st_node.push_back(st);
+			 // cold well 2 - copy from lines above except node_value is negative
+			 CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+			 nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+				  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+			 nod_val_liquid_well2->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
+			 nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+			 pcs_liquid->st_node.push_back(st);
+	   }
+
+
+
 
 		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ShiftInNodeVector);
 	} // end polyline
@@ -4082,7 +4129,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   }
 	   }
 
-	   if(m_st->ogs_WDC != nullptr)
+	   /*if(m_st->ogs_WDC != nullptr)
 	   {
 		   // points for measurements and heat exchanger
 		   m_st->ogs_WDC->set_doublet_mesh_nodes({
@@ -4141,7 +4188,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 			  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
 			  pcs_liquid->st_node.push_back(m_st);
 		  }
-	  }
+	  }*/
 
 
       //		m_st->SetDISType();
@@ -4567,7 +4614,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 			|| distype == FiniteElement::GREEN_AMPT
 			|| distype==FiniteElement::RECHARGE)	//MW
 	{
-		if (m_msh->GetMaxElementDim() == 1) // 1D  //WW MB
+		if (m_msh->GetMaxElementDim() == 1 || st->assign_to_element_edge) // 1D  //WW MB
 			st->DomainIntegration(m_msh, ply_nod_vector,
 					ply_nod_val_vector);
 		else st->EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector);
@@ -5986,8 +6033,7 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 
 	const int ndx1 = 1;  // implicit - take new values for capacity calculations
 
-	OGS_WDC::measurement_mesh_nodes_t measurement_mesh_nodes  =
-			ogs_WDC->update_measurement_mesh_nodes(aktuelle_zeit);
+	long upwind_aquifer_mesh_node  = ogs_WDC->get_upwind_aquifer_mesh_node(aktuelle_zeit);
 
 	const CRFProcess* const m_pcs_liquid = (m_pcs->getProcessType() ==
 			FiniteElement::LIQUID_FLOW)? m_pcs : PCSGet("LIQUID_FLOW");
@@ -5995,10 +6041,10 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
 
 	// !!! Density() can change values
-	double variables_heatExchanger[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1),
-		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1) };  // pressure, temperature, ...
-	double variables_upwindAquifer[3] { m_pcs_liquid->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1),
-		m_pcs_heat->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1) };
+	double variables_heatExchanger[3] { ogs_WDC->get_extremum(m_pcs_liquid, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),
+		ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger) };  // pressure, temperature, ...
+	double variables_upwindAquifer[3] { m_pcs_liquid->GetNodeValue(upwind_aquifer_mesh_node, ndx1),
+		m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1) };
 
 	double volumetric_heat_capacity_heatExchanger = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
@@ -6008,10 +6054,10 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			mfp_vector[0]->SpecificHeatCapacity(variables_upwindAquifer) * mfp_vector[0]->Density(variables_upwindAquifer);
 
 	return value * ogs_WDC->call_WDC(m_pcs,
-			{ m_pcs_heat->GetNodeValue(measurement_mesh_nodes.heatExchanger, ndx1),  // temperature at heat exchanger
-			m_pcs_heat->GetNodeValue(measurement_mesh_nodes.upwindAquifer, ndx1),  // temperature in upwind aquifer
+			{ ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),  // extremum temperature at heat exchanger
+			m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1),  // temperature in upwind aquifer
 			volumetric_heat_capacity_heatExchanger,
-			volumetric_heat_capacity_upwindAquifer });;
+			volumetric_heat_capacity_upwindAquifer });
 }
 
 

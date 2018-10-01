@@ -637,6 +637,18 @@ public:
             return nod_val_vector[entry_id];
 	}
 	int GetNodeValueIndex(const std::string&, bool reverse_order = false); //OK
+
+	double GetMaxNodeValue(const std::vector<size_t> nodes, const int& ndx) const  // JOD 2018-9-28
+	{
+		return GetNodeValue(*std::max_element(nodes.begin(), nodes.end(),
+				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
+	}
+
+	double GetMinNodeValue(const std::vector<size_t> nodes, const int& ndx) const
+	{
+		return GetNodeValue(*std::min_element(nodes.begin(), nodes.end(),
+				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
+	}
 	//-----------------------------
 
 	std::vector<std::string> const& getElementValueNameVector () { return ele_val_name_vector; }

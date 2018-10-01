@@ -5724,13 +5724,13 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->scheme_identifier()
+				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->scheme_ID()
 				<< '\t' << result.flag_powerrateAdapted
 				<< '\t' << result.Q_H
 				<< '\t' << result.Q_w
 				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
 				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
-				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.heatExchanger, 1)
+				<< '\t' << m_pcs->ogs_WDC_vector[i].get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 				<< '\n';
 
 		}
