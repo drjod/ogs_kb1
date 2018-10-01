@@ -23,6 +23,7 @@ class CNodeValue;
 class CGLPolyline;
 class CGLLine;
 class Surface;
+class Polyline;
 
 namespace process                                 //WW
 {
@@ -143,6 +144,8 @@ public:
 	                                     std::vector<long> & sfc_nod_vector_cond);
 	void SetSurfaceNodeVectorConnected(std::vector<long> & sfc_nod_vector,
 		std::vector<long> & sfc_nod_vector_cond);                       // JOD 2/2015
+	void SetPolylineNodeVectorConnected(std::vector<long> & sfc_nod_vector,
+		std::vector<long> & sfc_nod_vector_cond);                       // JOD 10/2018
 	// used only once in sourcetermgroup
 	void InterpolatePolylineNodeValueVector(CGLPolyline* m_ply,
 	                                        std::vector<double> & Distribed,

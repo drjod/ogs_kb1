@@ -550,6 +550,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // SB 02/2015    JOD 2015-11-18
 	  {
+		  //ReadGeoType(st_file, geo_obj, unique_name);
+
 	      FileIO::GeoIO::readGeoInfo(geoInfo_connected, *st_file, connected_geometry_name, geo_obj, unique_name);
 	      //in.str(readNonBlankLineFromInputStream(*st_file));
 		  //in >> connected_geometry_type >> connected_geometry_name;
@@ -3919,6 +3921,9 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		st->st_node_ids.resize(ply_nod_vector.size());
 		st->st_node_ids = ply_nod_vector;
 
+		if (st->isConnected())   // JOD 10/2018
+			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
+
 		if (st->isConstrainedST())
 		{
 			for (std::size_t i(0); i < st->st_node_ids.size(); i++)
@@ -3963,9 +3968,6 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
 			 pcs_liquid->st_node.push_back(st);
 	   }
-
-
-
 
 		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ShiftInNodeVector);
 	} // end polyline
@@ -5785,22 +5787,48 @@ MSHLib-Method:
 Task:
 Programing:
 02/2015 JOD
-last modification:
+last modification: 10 / 2018 use GeoObj
 **************************************************************************/
 void CSourceTerm::SetSurfaceNodeVectorConnected(std::vector<long>&sfc_nod_vector,
 	std::vector<long>&sfc_nod_vector_cond)
 {
-
+	std::vector<std::size_t> sfc_node_cond_ids;
 	CFEMesh* m_msh(FEMGet(convertProcessTypeToString(getProcessType())));
-	Surface* m_sfc_connected = NULL;
 
-	m_sfc_connected = GEOGetSFCByName(connected_geometry_name);
+	GEOLIB::Surface const& sfc_connected(
+			*(dynamic_cast<GEOLIB::Surface const*>(geoInfo_connected->getGeoObj()))
+	      );
 
-	const bool for_source = true;
-	m_msh->GetNODOnSFC(m_sfc_connected, sfc_nod_vector_cond, for_source);
+	m_msh->GetNODOnSFC(&sfc_connected, sfc_node_cond_ids, true);
+	sfc_nod_vector_cond.insert(sfc_nod_vector_cond.begin(),
+	    		  sfc_node_cond_ids.begin(), sfc_node_cond_ids.end());
 
-	// !!!!! now something to guarantee match of nodes vectors
+	// !!!!! now something to guarantee match of nodes
 
+}
+
+/**************************************************************************
+MSHLib-Method:
+Task:
+Programing:  same as CSourceTerm::SetSurfaceNodeVectorConnected()
+10/2018 JOD
+last modification:
+**************************************************************************/
+void CSourceTerm::SetPolylineNodeVectorConnected(std::vector<long>&ply_nod_vector,
+	std::vector<long>&ply_nod_vector_cond)
+{
+	std::vector<std::size_t> ply_node_cond_ids;
+	CFEMesh* m_msh(FEMGet(convertProcessTypeToString(getProcessType())));
+
+	GEOLIB::Polyline const& ply_connected(
+				*(dynamic_cast<GEOLIB::Polyline const*>(geoInfo_connected->getGeoObj()))
+		      );
+
+	m_msh->GetNODOnPLY(&ply_connected, ply_node_cond_ids, true);
+	ply_nod_vector_cond.insert(ply_nod_vector_cond.begin(),
+		    		  ply_node_cond_ids.begin(), ply_node_cond_ids.end());
+
+	// !!!!! now something to guarantee match of nodes
 }
 
 /**************************************************************************
