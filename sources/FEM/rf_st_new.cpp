@@ -654,18 +654,21 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
 	  {
-		  int numberOfParameterSets, tmp1;
-		  double tmp0, tmp2, tmp3, tmp4;
-		  OGS_WDC ogs_WDC_inst;
+		  int numberOfParameterSets;
+		  double accuracy_temperature = 0.01, accuracy_powerrate = 10., accuracy_flowrate = 1.e-5;  // default values
+
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> numberOfParameterSets;
+		  in >> numberOfParameterSets >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
+		  OGS_WDC ogs_WDC_inst(accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
 		  in.clear();
-		  while(numberOfParameterSets--)
+		  while(numberOfParameterSets--)  // no check if number is right
 		  {
+			  double tmp0, tmp2, tmp3, tmp4;
+		  	  int tmp1;
+
 			  in.str(readNonBlankLineFromInputStream(*st_file));
 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
 			  in.clear();
-
 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
 			  ogs_WDC_inst.add_parameterGroup(
 				tmp0,  // time
@@ -676,8 +679,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  );
 		  }
 
-		  CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
-		  if(m_pcs)
+		  if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
 		  {
 			  m_pcs->ogs_WDC_vector.push_back(ogs_WDC_inst);
 			  ogs_WDC = &(m_pcs->ogs_WDC_vector.back());
@@ -687,7 +689,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		  in.clear();
 
-		  std::ofstream stream("logging.txt"); // to delete old file - later number of iterations are appended
+		  std::ofstream stream("logging.txt"); // to delete old file - later, number of iterations are appended
 		  stream << "simulationTime\titerations\tT_HE\n";
 
 		  continue;

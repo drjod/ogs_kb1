@@ -47,19 +47,22 @@ public:
 		std::vector<size_t> heatExchanger;
 	};
 private:
-	std::shared_ptr<WellDoubletControl> wellDoubletControl;
+	std::shared_ptr<wdc::WellDoubletControl> wellDoubletControl;
 	std::list<parameter_group_t> parameter_list;
 
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 	size_t nodes_counter;
 	double heatExchangerArea;
+	double accuracy_temperature, accuracy_powerrate, accuracy_flowrate;
 
-	void create_new_WDC(const WellDoubletControl::balancing_properties_t& balancing_properties);
-	void evaluate_simulation_result(const WellDoubletControl::balancing_properties_t& balancing_properties);
+	void create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
+	void evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 public:
-	OGS_WDC() : is_initialized(false), nodes_counter(0), heatExchangerArea(1.) {}
-	std::shared_ptr<WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
+	OGS_WDC(const double& _accuracy_temperature, const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
+		is_initialized(false), nodes_counter(0), heatExchangerArea(1.),
+		accuracy_temperature(_accuracy_temperature), accuracy_powerrate(_accuracy_powerrate), accuracy_flowrate(_accuracy_flowrate) {}
+	std::shared_ptr<wdc::WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
 	void discard() { is_initialized = false; }  // must be called, when iteration loop between LIQUID and HEAT has converged
 																			//(than new WDC will be created in next time step)
 	template<typename... Args>
@@ -68,7 +71,7 @@ public:
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
 	long get_upwind_aquifer_mesh_node(const double& current_time); // for time step
-	double call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties);
+	double call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 
 	double get_extremum(const CRFProcess* m_pcs, const int& ndx, const std::vector<size_t> nodes) const;
 

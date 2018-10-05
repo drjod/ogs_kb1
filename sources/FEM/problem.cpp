@@ -1571,10 +1571,10 @@ bool Problem::CouplingLoop()
 
     	for(const auto ogs_wdc: a_pcs->ogs_WDC_vector)
     	{
-    		if(!ogs_wdc.get_WellDoubletControl()->converged(
-    			ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
+    		if(!ogs_wdc.get_WellDoubletControl()->converged())
+    			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
     			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
-    			a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
+    			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
     		{
 				wdc_converged = false;
 				break;

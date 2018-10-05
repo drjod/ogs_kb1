@@ -21,11 +21,12 @@ long OGS_WDC::get_upwind_aquifer_mesh_node(const double& current_time)
 // Requirements:
 // 1. measurement mesh nodes must be up to date by calling OGS_WDC::update_measurement_mesh_nodes()
 // 2. when flow and transport have converged OGS_WDC::discard() must be called
-void OGS_WDC::create_new_WDC(const WellDoubletControl::balancing_properties_t& balancing_properties)
+void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
 	std::cout << "\t\t\tWDC\n";
-	wellDoubletControl.reset(WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator));
+	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
+			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
 	wellDoubletControl->configure(parameter_list.begin()->powerrate,
 						parameter_list.begin()->target_value, parameter_list.begin()->threshold_value,
 						balancing_properties);
@@ -35,7 +36,7 @@ void OGS_WDC::create_new_WDC(const WellDoubletControl::balancing_properties_t& b
 // called with heat transport (but not in FCT correction)
 // heat power rate is available after that
 // also flow rates are updated if required
-void OGS_WDC::evaluate_simulation_result(const WellDoubletControl::balancing_properties_t& balancing_properties)
+void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	std::cout << "\t\t\tWDC\n";
 	wellDoubletControl->evaluate_simulation_result(balancing_properties);
@@ -43,7 +44,7 @@ void OGS_WDC::evaluate_simulation_result(const WellDoubletControl::balancing_pro
 
 // interface function between WDC and CSourceTerm::apply_wellDoubletControl()
 // processes WDC calls and returns source term value (flow rate in case of flow and power rate in case of heat)
-double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::balancing_properties_t& balancing_properties)
+double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	double result;
 	switch(m_pcs->getProcessType())
@@ -54,7 +55,7 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const WellDoubletControl::bala
 			{
 				create_new_WDC(balancing_properties);
 			}
-			result = wellDoubletControl->get_result().Q_w;
+			result = wellDoubletControl->get_result().Q_W;
 			break;
 		case FiniteElement::HEAT_TRANSPORT:
 			// result is power rate (flow rate might be updated)
