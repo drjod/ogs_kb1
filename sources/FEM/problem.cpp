@@ -1592,10 +1592,10 @@ bool Problem::CouplingLoop()
     }
 
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
-  	if ((converged && outer_index + 1 >= cpl_overall_min_iterations)
-  	|| (wdc_converged && outer_index + 1 >= cpl_overall_min_iterations
+  	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
+  	&& wdc_converged)
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
-  	) // JT: error is relative to the tolerance.
+  	 // JT: error is relative to the tolerance.
   	{
         //auto now = std::time(nullptr);
         //stream.imbue(std::locale)

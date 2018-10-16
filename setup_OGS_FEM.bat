@@ -8,6 +8,5 @@ mkdir Build_OGS_FEM
 
 cd Build_OGS_FEM
 cmake ../sources -DOGS_FEM=ON %CMAKE_GENERATOR%
-cmake ..
 
 PAUSE

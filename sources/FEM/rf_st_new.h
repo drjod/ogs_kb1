@@ -102,6 +102,8 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 
 
 	OGS_WDC* ogs_WDC;  // pointer to vector entry in pcs
+	int wdc_connector_materialGroup;
+	double wdc_connector_normaldirectionVector[3];
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);

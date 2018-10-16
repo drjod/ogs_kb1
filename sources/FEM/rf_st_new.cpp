@@ -123,7 +123,7 @@ CSourceTerm::CSourceTerm() :
    analytical = false;                            //CMCD
    pressureBoundaryCondition = false;
    //  display_mode = false; //OK
-   this->TimeInterpolation = 0;                   //BG
+   TimeInterpolation = 0;                   //BG
    time_contr_curve = -1;                //SB
    time_contr_function = "";
    _isConstrainedST = false;
@@ -133,17 +133,19 @@ CSourceTerm::CSourceTerm() :
    storageRate.apply = false;
    assign_to_element_edge = false;
 
-   this->connected_geometry = false;
-   this->connected_geometry_verbose_level = 0;
-   this->connected_geometry_exchange_term = 0.0;
-   this->connected_geometry_mode = -1;
-   this->connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
-   this->connected_geometry_ref_element_number = -1;
-   this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
+   connected_geometry = false;
+   connected_geometry_verbose_level = 0;
+   connected_geometry_exchange_term = 0.0;
+   connected_geometry_mode = -1;
+   connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
+   connected_geometry_ref_element_number = -1;
+   connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
 
-   this->threshold_geometry = false;
-   this->storageRate_geometry = false;
-   this->ignore_axisymmetry = false;
+   threshold_geometry = false;
+   storageRate_geometry = false;
+   ignore_axisymmetry = false;
+
+   wdc_connector_materialGroup = -1;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -693,14 +695,25 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  stream << "simulationTime\titerations\tT_HE\n";
 
 		  continue;
-	 }
-		 //....................................................................
-	      if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
-	      {
-	         in.clear();
-	         assign_to_element_edge = true;
-	         continue;
-	      }
+	  }
+	  //....................................................................
+	  if (line_string.find("$WELL_DOUBLET_CONNECTOR") != std::string::npos) // JOD 2018-10-25
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> wdc_connector_materialGroup;
+		  in >> wdc_connector_normaldirectionVector[0] >> wdc_connector_normaldirectionVector[1]
+					>> wdc_connector_normaldirectionVector[2];
+		  in.clear();
+		  continue;
+	  }
+
+	  //....................................................................
+	  if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
+	  {
+		 in.clear();
+		 assign_to_element_edge = true;
+		 continue;
+	  }
 	 //....................................................................
       if (line_string.find("$IGNORE_AXISYMMETRY") != std::string::npos)
       {
@@ -6078,16 +6091,27 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 
 	double volumetric_heat_capacity_heatExchanger = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
-			mfp_vector[0]->SpecificHeatCapacity(variables_heatExchanger) * mfp_vector[0]->Density(variables_heatExchanger);
+			mfp_vector[0]->SpecificHeatCapacity(&variables_heatExchanger[1]) * mfp_vector[0]->Density(&variables_heatExchanger[1]);
 	double volumetric_heat_capacity_upwindAquifer = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
-			mfp_vector[0]->SpecificHeatCapacity(variables_upwindAquifer) * mfp_vector[0]->Density(variables_upwindAquifer);
+			mfp_vector[0]->SpecificHeatCapacity(&variables_upwindAquifer[1]) * mfp_vector[0]->Density(&variables_upwindAquifer[1]);
 
-	return value * ogs_WDC->call_WDC(m_pcs,
+	const double result = value * ogs_WDC->call_WDC(m_pcs,
 			{ ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),  // extremum temperature at heat exchanger
 			m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1),  // temperature in upwind aquifer
 			volumetric_heat_capacity_heatExchanger,
 			volumetric_heat_capacity_upwindAquifer });
+	if(m_pcs->getProcessType() ==
+			FiniteElement::LIQUID_FLOW && wdc_connector_materialGroup != -1 &&
+			value > 0 // to do it only once for well doublet (two wells)
+	)
+	{
+		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.type = 1;  // with this flag flow velocity is taken from material property
+		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.x = wdc_connector_normaldirectionVector[0] * result;
+		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.y = wdc_connector_normaldirectionVector[1] * result;
+		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.z = wdc_connector_normaldirectionVector[2] * result;
+	}
+	return result;
 }
 
 

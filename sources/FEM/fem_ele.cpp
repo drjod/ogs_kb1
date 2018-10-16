@@ -12,6 +12,7 @@
 
 #include "femlib.h"
 #include "mathlib.h"
+#include <algorithm>
 //#include "matrix_class.h"
 // MSHLib
 //#include "msh_elem.h"
@@ -573,10 +574,12 @@ double CElement::computeJacobian(const int order)
 		//if(MeshElement->area>0)
 		DetJac *= MeshElement->area;
 		//WW          DetJac*=MeshElement->GetFluxArea();//CMCD
-		if(axisymmetry)
+		if(axisymmetry &&
+				std::find_if(X, X+nodes_number, // JOD 2018-10-16
+						[&](int i) { return X[i]<-1.e-10; }) == X+nodes_number) //no node has coordinate x<0.
 		{
 			CalculateRadius();
-			DetJac *= Radius * 2 * 3.14159; //2.0*pai*Radius;
+			DetJac *= Radius * 6.2831853072; //2.0*pai*Radius;
 		}
 		break;
 	//................................................................
