@@ -25,7 +25,8 @@
 struct FluidVelocity  // JOD 2018-5-4
 {
 	FluidVelocity() : type(0) {}
-	int type;  // 0: not used
+	int type;  // 0: not used, 1: constant, 2: time curve
+	int curve_nr;
 	double x, y, z;
 };
 

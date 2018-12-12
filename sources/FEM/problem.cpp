@@ -1569,8 +1569,10 @@ bool Problem::CouplingLoop()
     if(a_pcs->ogs_WDC_vector.size() != 0)
     {
 
-    	for(const auto ogs_wdc: a_pcs->ogs_WDC_vector)
+    	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
     	{
+    		ogs_wdc.set_unevaluated();
+
     		if(!ogs_wdc.get_WellDoubletControl()->converged())
     			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
     			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),

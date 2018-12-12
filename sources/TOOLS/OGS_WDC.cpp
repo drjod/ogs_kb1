@@ -9,6 +9,9 @@ long OGS_WDC::get_upwind_aquifer_mesh_node(const double& current_time)
 	while(current_time > parameter_list.begin()->time)
 		parameter_list.erase(parameter_list.begin());
 
+	if(parameter_list.empty())
+		throw std::runtime_error("ERROR in WDC - No Parameter");
+
 	if(parameter_list.begin()->powerrate > 0)
 		return get_doublet_mesh_nodes().well2_aquifer;  // storing
 	else
@@ -51,19 +54,33 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl:
 	{
 		case FiniteElement::LIQUID_FLOW:
 			// result is flow rate
-			if(!is_initialized && nodes_counter == 0)
+			if(!is_initialized)// && nodes_counter == 0)
 			{
 				create_new_WDC(balancing_properties);
+				is_evaluated = true;
 			}
+			else if(!is_evaluated)
+			{
+				evaluate_simulation_result(balancing_properties);
+				is_evaluated = true;
+			}
+
 			result = wellDoubletControl->get_result().Q_W;
+
+			// std::cout << "T_HE:\t" << balancing_properties.T_HE << std::endl;
+			// std::cout << "T_UA:\t" << balancing_properties.T_UA << std::endl;
+			// std::cout << "Q_w: " << wellDoubletControl->get_result().Q_W << std::endl;
 			break;
 		case FiniteElement::HEAT_TRANSPORT:
 			// result is power rate (flow rate might be updated)
-			if(m_pcs->iter_outer_cpl > 0 && !m_pcs->inFemFCTmode() && nodes_counter == 0)
+			/*if(m_pcs->iter_outer_cpl > 0 && !m_pcs->inFemFCTmode() && nodes_counter == 0)
 			{
 				evaluate_simulation_result(balancing_properties);
-			}
+			}*/
 			result = wellDoubletControl->get_result().Q_H / heatExchangerArea;
+			// std::cout << "T_HE:\t" << balancing_properties.T_HE << std::endl;
+			// std::cout << "T_UA:\t" << balancing_properties.T_UA << std::endl;
+			// std::cout << "Q_H / A:\t" << wellDoubletControl->get_result().Q_H / heatExchangerArea << std::endl;
 			break;
 		default:
 			throw std::runtime_error("WellDoubletControl - PCS not supported");
@@ -75,6 +92,44 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl:
 }
 
 
+/*
+double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
+{
+	double result;
+	switch(m_pcs->getProcessType())
+	{
+		case FiniteElement::LIQUID_FLOW:
+			// result is flow rate
+			if(!is_initialized && nodes_counter == 0)
+			{
+				create_new_WDC(balancing_properties);
+			}
+			result = wellDoubletControl->get_result().Q_W;
+
+			std::cout << "T_HE:\t" << balancing_properties.T_HE << std::endl;
+			std::cout << "T_UA:\t" << balancing_properties.T_UA << std::endl;
+			std::cout << "Q_w: " << wellDoubletControl->get_result().Q_W << std::endl;
+			break;
+		case FiniteElement::HEAT_TRANSPORT:
+			// result is power rate (flow rate might be updated)
+			if(m_pcs->iter_outer_cpl > 0 && !m_pcs->inFemFCTmode() && nodes_counter == 0)
+			{
+				evaluate_simulation_result(balancing_properties);
+			}
+			result = wellDoubletControl->get_result().Q_H / heatExchangerArea;
+			std::cout << "T_HE:\t" << balancing_properties.T_HE << std::endl;
+			std::cout << "T_UA:\t" << balancing_properties.T_UA << std::endl;
+			std::cout << "Q_H / A:\t" << wellDoubletControl->get_result().Q_H / heatExchangerArea << std::endl;
+			break;
+		default:
+			throw std::runtime_error("WellDoubletControl - PCS not supported");
+	}
+	nodes_counter++;
+	if(nodes_counter == doublet_mesh_nodes.heatExchanger.size())
+		nodes_counter = 0;
+	return result;
+}
+*/
 // for ST on polyline
 double OGS_WDC::get_extremum(const CRFProcess* m_pcs, const int& ndx, const std::vector<size_t> nodes) const
 {

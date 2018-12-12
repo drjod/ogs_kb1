@@ -1987,9 +1987,10 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  if(line_string.find("$FLUID_VELOCITY") != std::string::npos)  // JOD 2018-5-4
 	  {
 		  in.str(GetLineFromFile1(mmp_file));
-		  in >> fluidVelocity.type;
+		  in >> fluidVelocity.curve_nr;
 		  in >> fluidVelocity.x >> fluidVelocity.y >> fluidVelocity.z;
 		  in.clear();
+		  fluidVelocity.type = 1;
 		  continue;
 	  }
 	  //------------------------------------------------------------------------

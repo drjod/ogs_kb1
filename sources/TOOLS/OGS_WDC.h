@@ -51,6 +51,7 @@ private:
 	std::list<parameter_group_t> parameter_list;
 
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
+	bool is_evaluated;  // to do wdc evaluation only once each iteration beginning with second iteration
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 	size_t nodes_counter;
 	double heatExchangerArea;
@@ -60,11 +61,11 @@ private:
 	void evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 public:
 	OGS_WDC(const double& _accuracy_temperature, const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
-		is_initialized(false), nodes_counter(0), heatExchangerArea(1.),
+		is_initialized(false), is_evaluated(true), nodes_counter(0), heatExchangerArea(1.),
 		accuracy_temperature(_accuracy_temperature), accuracy_powerrate(_accuracy_powerrate), accuracy_flowrate(_accuracy_flowrate) {}
 	std::shared_ptr<wdc::WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
-	void discard() { is_initialized = false; }  // must be called, when iteration loop between LIQUID and HEAT has converged
-																			//(than new WDC will be created in next time step)
+	void discard() { is_initialized = false; }  // must be called, when iteration loop between LIQUID and HEAT has converged(than new WDC will be created in next time step)
+	void set_unevaluated() { is_evaluated = false; }  // call this at end of each iteration - than wdc will be evaluated once in next time step
 	template<typename... Args>
 	void add_parameterGroup(Args&&...args) { parameter_list.emplace_back(std::forward<Args>(args)...); }
 	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }

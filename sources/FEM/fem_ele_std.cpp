@@ -645,7 +645,6 @@ void CFiniteElementStd::SetMemory()
 	AuxMatrix->LimitSize(Size, Size);
 	AuxMatrix1->LimitSize(Size, Size);
 	if (this->pcs->m_num->fct_method > 0) //NW
-
 		FCT_MassL->LimitSize(Size);
 }
 
@@ -5293,8 +5292,6 @@ void CFiniteElementStd::CalcAdvection()
 		//Velocity
         if(MediaProp->fluidVelocity.type != 0)
         {
-
-
         	vel[0] = mat_factor * MediaProp->fluidVelocity.x;
         	vel[1] = mat_factor * MediaProp->fluidVelocity.y;
         	vel[2] = mat_factor * MediaProp->fluidVelocity.z;

@@ -50,7 +50,7 @@ std::string readPoints(std::istream &in, std::vector<Point*>* pnt_vec,
 {
 	std::string line;
 	size_t cnt(0);
-
+	int pnt_nr = 0;
 	getline(in, line);
 	// geometric key words start with the hash #
 	// while not found a new key word do ...
@@ -61,6 +61,9 @@ std::string readPoints(std::istream &in, std::vector<Point*>* pnt_vec,
 		size_t id;
 		double x, y, z;
 		inss >> id >> x >> y >> z;
+		if(id != pnt_nr)
+			std::runtime_error("Error is ReadPoints - Id must start from zero and increase by one each point");
+		pnt_nr++;
 		if (!inss.fail ())
 		{
 			if (cnt == 0)

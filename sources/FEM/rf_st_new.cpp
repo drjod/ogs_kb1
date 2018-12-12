@@ -109,10 +109,10 @@ CSourceTerm::CSourceTerm() :
 	geoInfo_storageRateInlet = new GeoInfo();
 	geoInfo_storageRateOutlet = new GeoInfo();
 
-	geoInfo_wellDoublet_well1_aquiferPoint = new GeoInfo();
-	geoInfo_wellDoublet_well2_aquiferPoint = new GeoInfo();
-	geoInfo_wellDoublet_well1_liquidBCPoint = new GeoInfo();
-	geoInfo_wellDoublet_well2_liquidBCPoint = new GeoInfo();
+	geoInfo_wellDoublet_well1_aquifer = new GeoInfo();
+	geoInfo_wellDoublet_well2_aquifer = new GeoInfo();
+	geoInfo_wellDoublet_well1_liquidBC = new GeoInfo();
+	geoInfo_wellDoublet_well2_liquidBC = new GeoInfo();
 	ogs_WDC = nullptr; // JOD 2018-08-09
 
    CurveIndex = -1;
@@ -198,10 +198,10 @@ CSourceTerm::~CSourceTerm()
 	delete geoInfo_threshold;
 	delete geoInfo_storageRateInlet;
 	delete geoInfo_storageRateOutlet;
-	delete geoInfo_wellDoublet_well1_aquiferPoint;
-	delete geoInfo_wellDoublet_well2_aquiferPoint;
-	delete geoInfo_wellDoublet_well1_liquidBCPoint;
-	delete geoInfo_wellDoublet_well2_liquidBCPoint;
+	delete geoInfo_wellDoublet_well1_aquifer;
+	delete geoInfo_wellDoublet_well2_aquifer;
+	delete geoInfo_wellDoublet_well1_liquidBC;
+	delete geoInfo_wellDoublet_well2_liquidBC;
 
 	delete _distances;
 	for (size_t i=0; i<this->_weather_stations.size(); i++) // KR / NB clear climate data information
@@ -641,14 +641,14 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_GEOMETRY") != std::string::npos) // JOD 2018-06-13
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquiferPoint, *st_file,
-	    		  	  well1_geometry_name_aquiferPoint, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBCPoint, *st_file,
-	    		  	  well1_geometry_name_liquidBCPoint, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquiferPoint, *st_file,
-	    		  	  well2_geometry_name_aquiferPoint, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_liquidBCPoint, *st_file,
-	    		  	  well2_geometry_name_liquidBCPoint, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquifer, *st_file,
+	    		  	  well1_geometry_name_aquifer, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBC, *st_file,
+	    		  	  well1_geometry_name_liquidBC, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquifer, *st_file,
+	    		  	  well2_geometry_name_aquifer, geo_obj, unique_name);
+	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_liquidBC, *st_file,
+	    		  	  well2_geometry_name_liquidBC, geo_obj, unique_name);
 
 		  in.clear();
 		  continue;
@@ -3792,17 +3792,70 @@ const int ShiftInNodeVector)
    if(st->ogs_WDC != nullptr)
    {  	  // point for measurements
 	 st->ogs_WDC->set_doublet_mesh_nodes({
-		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj())),  // well1
-			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj())),  // well2
+		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
+			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
 				  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)}  // heatExchanger
 				  });
 
 	  // liquid flow BCs
 	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-	  // warm well 1 - copy from lines above
+
+	  std::vector<long> liquidBC_mesh_nodes;
+		 // warm well 1
+		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+		 {
+			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+								  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+		 }
+		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+		 {
+			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+		 }
+
+		 for(const auto& node: liquidBC_mesh_nodes)
+		 {
+			 CNodeValue *nod_val_liquid_well (new CNodeValue());
+			 nod_val_liquid_well->msh_node_number = node;
+			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well->node_value = st->geo_node_value;
+			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+			 pcs_liquid->st_node.push_back(st);
+		 }
+
+		 //////// cold well 2 - copy from lines above except that node_value is negative
+		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+		 {
+			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+		 }
+		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+		 {
+			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+		 }
+
+		 for(const auto& node: liquidBC_mesh_nodes)
+		 {
+			 CNodeValue *nod_val_liquid_well (new CNodeValue());
+			 nod_val_liquid_well->msh_node_number = node;
+			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well->node_value = -st->geo_node_value;  // !!!!!
+			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+			 pcs_liquid->st_node.push_back(st);
+		 }
+
+	  /*
+	  // warm well 1
 	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
 	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+			  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector;
 	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
 	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
 	  nod_val_liquid_well1->node_value = st->geo_node_value;
@@ -3813,7 +3866,7 @@ const int ShiftInNodeVector)
 	  // cold well 2 - copy from lines above except node_value is negative
 	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
 	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
+			  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector;
 	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
 	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
 	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
@@ -3821,6 +3874,7 @@ const int ShiftInNodeVector)
 
 	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
 	  pcs_liquid->st_node.push_back(st);
+	  */
    }
 
    pcs->st_node_value.push_back(nod_val);         //WW
@@ -3953,35 +4007,63 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if(st->ogs_WDC != nullptr)
 		{  	  // point for measurements
 			st->ogs_WDC->set_doublet_mesh_nodes({
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj())),  // well1
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj())),  // well2
+					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
+					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
 					  std::vector<size_t>(ply_nod_vector.begin(), ply_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
 					  });
 			 st->ogs_WDC->set_heatExchangerArea(std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.));
 			 // liquid flow BCs
 			 CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-			 // warm well 1 - copy from lines above
-			 CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-			 nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-					  st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
-			 nod_val_liquid_well1->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well1->node_value = st->geo_node_value;
-			 nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+			 std::vector<long> liquidBC_mesh_nodes;
+			 // warm well 1
+			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+			 {
+				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+									  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 }
+			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+			 {
+				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+						 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+			 }
 
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-			 pcs_liquid->st_node.push_back(st);
-			 // cold well 2 - copy from lines above except node_value is negative
-			 CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-			 nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-				  st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj())) + ShiftInNodeVector;
-			 nod_val_liquid_well2->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
-			 nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+			 for(const auto& node: liquidBC_mesh_nodes)
+			 {
+				 CNodeValue *nod_val_liquid_well (new CNodeValue());
+				 nod_val_liquid_well->msh_node_number = node;
+				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+				 nod_val_liquid_well->node_value = st->geo_node_value;
+				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-			 pcs_liquid->st_node.push_back(st);
+				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+				 pcs_liquid->st_node.push_back(st);
+			 }
+
+			 //////// cold well 2 - copy from lines above except that node_value is negative
+			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+			 {
+				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+									  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 }
+			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+			 {
+				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+						 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+			 }
+
+			 for(const auto& node: liquidBC_mesh_nodes)
+			 {
+				 CNodeValue *nod_val_liquid_well (new CNodeValue());
+				 nod_val_liquid_well->msh_node_number = node;
+				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+				 nod_val_liquid_well->node_value = -st->geo_node_value;  // !!!!!
+				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+				 pcs_liquid->st_node.push_back(st);
+			 }
 	   }
 
 		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ShiftInNodeVector);
@@ -6084,6 +6166,9 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
 
 	// !!! Density() can change values
+	// extremum: maximum for injection & minimum for extraction
+	// this may make sense only for temperature
+	// reconsider and adapt this if capacity depends on pressure
 	double variables_heatExchanger[3] { ogs_WDC->get_extremum(m_pcs_liquid, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),
 		ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger) };  // pressure, temperature, ...
 	double variables_upwindAquifer[3] { m_pcs_liquid->GetNodeValue(upwind_aquifer_mesh_node, ndx1),
