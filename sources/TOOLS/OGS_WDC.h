@@ -55,13 +55,16 @@ private:
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 	size_t nodes_counter;
 	double heatExchangerArea;
+	double well_shutdown_temperature_range;
 	double accuracy_temperature, accuracy_powerrate, accuracy_flowrate;
 
 	void create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 	void evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 public:
-	OGS_WDC(const double& _accuracy_temperature, const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
+	OGS_WDC(const double& _well_shutdown_temperature_range, const double& _accuracy_temperature,
+			const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
 		is_initialized(false), is_evaluated(true), nodes_counter(0), heatExchangerArea(1.),
+		well_shutdown_temperature_range(_well_shutdown_temperature_range),
 		accuracy_temperature(_accuracy_temperature), accuracy_powerrate(_accuracy_powerrate), accuracy_flowrate(_accuracy_flowrate) {}
 	std::shared_ptr<wdc::WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
 	void discard() { is_initialized = false; }  // must be called, when iteration loop between LIQUID and HEAT has converged(than new WDC will be created in next time step)

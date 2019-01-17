@@ -29,6 +29,7 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
 	std::cout << "\t\t\tWDC\n";
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
+			well_shutdown_temperature_range,
 			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
 	wellDoubletControl->configure(parameter_list.begin()->powerrate,
 						parameter_list.begin()->target_value, parameter_list.begin()->threshold_value,

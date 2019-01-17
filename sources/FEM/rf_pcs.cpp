@@ -405,6 +405,7 @@ CRFProcess::CRFProcess(void) :
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
 	is_conservative = false;
+	is_folded = false;
 }
 
 
@@ -2435,6 +2436,15 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 		if(line_string.find("$CONSERVATIVE") == 0)
 		{
 			is_conservative = true;
+			continue;
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("$FOLDED") != string::npos)
+		{
+			*pcs_file >> folded_zCoord;
+			pcs_file->ignore(MAX_ZEILE, '\n');
+			is_folded = true;
 			continue;
 		}
 	}

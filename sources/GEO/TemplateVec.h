@@ -77,7 +77,9 @@ public:
 	bool getElementIDByName (const std::string& name, size_t &id) const
 	{
 		std::map<std::string,size_t>::const_iterator it (_name_id_map->find (name));
-
+		for(auto i: *_name_id_map)
+			std::cout << i.first << " " << i.second << std::endl;
+		std::cout << std::endl;
 		if (it != _name_id_map->end())
 		{
 			id = it->second;

@@ -818,6 +818,8 @@ public:
 #endif
 
     bool is_conservative;  // JOD 2018-09-14
+    bool is_folded; // JOD 2018-12-17
+    double folded_zCoord;
 
 	CTimeDiscretization* GetTimeStepping() const {return Tim; }
 	double timebuffer;                    //YD

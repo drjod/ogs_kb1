@@ -881,9 +881,17 @@ void CInitialCondition::SetDomain(int nidx)
 					node_depth = m_msh->nod_vector[i]->getData()[1];
 				if (onZ == 2) //3D
 					node_depth = m_msh->nod_vector[i]->getData()[2];
+				if(this->getProcess()->is_folded && node_depth > this->getProcess()->folded_zCoord)
+				{
+					node_val = gradient_ref_depth_gradient * (gradient_ref_depth
+					                                          + node_depth - this->getProcess()->folded_zCoord) +
+					           gradient_ref_depth_value;
+				}
+				else
 				node_val = gradient_ref_depth_gradient * (gradient_ref_depth
 				                                          - node_depth) +
 				           gradient_ref_depth_value;
+
 				this->getProcess()->SetNodeValue(
 				        m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
 			}

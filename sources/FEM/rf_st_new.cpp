@@ -658,10 +658,10 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 		  int numberOfParameterSets;
 		  double accuracy_temperature = 0.01, accuracy_powerrate = 10., accuracy_flowrate = 1.e-5;  // default values
-
+		  double well_shutdown_temperature_range = 10.;
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> numberOfParameterSets >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
-		  OGS_WDC ogs_WDC_inst(accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
+		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
+		  OGS_WDC ogs_WDC_inst(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
 		  in.clear();
 		  while(numberOfParameterSets--)  // no check if number is right
 		  {
@@ -1855,7 +1855,7 @@ std::vector<double>&node_value_vector) const
                         radius = 0.0;
                         for (ii = 0; ii < 3; ii++)
                            radius += Shfct[ii] * e_nodes[ii]->getData()[0];
-                        Weight *= radius;         //2.0*pai*radius;
+                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
                      }
                      NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
                         + eta * (v2 - v1)) * Shfct[k] * Weight;
@@ -1924,7 +1924,7 @@ std::vector<double>&node_value_vector) const
                         radius = 0.0;
                         for (ii = 0; ii < 2; ii++)
                            radius += Shfct[ii] * e_nodes[ii]->getData()[0];
-                        Weight *= radius;         //2.0*pai*radius;
+                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
                      }
                      NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
                         + eta * (v2 - v1)) * Shfct[k] * Weight;
@@ -3801,50 +3801,65 @@ const int ShiftInNodeVector)
 	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
 
 	  std::vector<long> liquidBC_mesh_nodes;
+	  std::vector<double> liquidBC_mesh_node_values;
+	  double total_value;
+
 		 // warm well 1
 		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
 		 {
 			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
 								  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 		 }
 		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
 		 {
 			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
 
-		 for(const auto& node: liquidBC_mesh_nodes)
+		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
 		 {
 			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = node;
+			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
 			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
 			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = st->geo_node_value;
+			 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
 			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
 			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
 			 pcs_liquid->st_node.push_back(st);
 		 }
 
+		 liquidBC_mesh_node_values.clear();
 		 //////// cold well 2 - copy from lines above except that node_value is negative
 		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
 		 {
 			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
 								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 		 }
 		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
 		 {
 			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
 
-		 for(const auto& node: liquidBC_mesh_nodes)
+		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
 		 {
 			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = node;
+			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
 			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
 			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = -st->geo_node_value;  // !!!!!
+			 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
 			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
 			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
@@ -4015,50 +4030,66 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			 // liquid flow BCs
 			 CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
 			 std::vector<long> liquidBC_mesh_nodes;
+			 std::vector<double> liquidBC_mesh_node_values;
+			 double total_value;
+
 			 // warm well 1
 			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
 			 {
 				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
 									  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 }
 			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
 			 {
 				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 						 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+
+				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 			 }
 
-			 for(const auto& node: liquidBC_mesh_nodes)
+			 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
 			 {
 				 CNodeValue *nod_val_liquid_well (new CNodeValue());
-				 nod_val_liquid_well->msh_node_number = node;
+				 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
 				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
 				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-				 nod_val_liquid_well->node_value = st->geo_node_value;
+				 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];;
 				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
 				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
 				 pcs_liquid->st_node.push_back(st);
 			 }
 
+			 liquidBC_mesh_nodes.clear();
 			 //////// cold well 2 - copy from lines above except that node_value is negative
 			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
 			 {
 				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
 									  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 }
 			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
 			 {
 				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 						 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+
+				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 			 }
 
-			 for(const auto& node: liquidBC_mesh_nodes)
+			 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
 			 {
 				 CNodeValue *nod_val_liquid_well (new CNodeValue());
-				 nod_val_liquid_well->msh_node_number = node;
+				 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
 				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
 				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-				 nod_val_liquid_well->node_value = -st->geo_node_value;  // !!!!!
+				 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];;  // !!!!!
 				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
 				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
@@ -6186,6 +6217,8 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1),  // temperature in upwind aquifer
 			volumetric_heat_capacity_heatExchanger,
 			volumetric_heat_capacity_upwindAquifer });
+
+	/*
 	if(m_pcs->getProcessType() ==
 			FiniteElement::LIQUID_FLOW && wdc_connector_materialGroup != -1 &&
 			value > 0 // to do it only once for well doublet (two wells)
@@ -6195,7 +6228,7 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.x = wdc_connector_normaldirectionVector[0] * result;
 		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.y = wdc_connector_normaldirectionVector[1] * result;
 		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.z = wdc_connector_normaldirectionVector[2] * result;
-	}
+	}*/
 	return result;
 }
 

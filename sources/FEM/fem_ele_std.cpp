@@ -5837,6 +5837,10 @@ void CFiniteElementStd::Assemble_Gravity()
 				rho *= 0.0;
 		}
 		fkt *= rho;               //*rich_f;
+
+		if(pcs->is_folded && MeshElement->gravity_center[2] > pcs->folded_zCoord) // JOD 1018-12-18
+			fkt = -fkt;
+
 		//
 		for(ii = 0; ii < dof_n; ii++)
 		{
@@ -6497,7 +6501,12 @@ void CFiniteElementStd::Cal_Velocity()
 					coef = gravity_constant*FluidProp->Density(eos_arg);
 				}
 				else
-					coef = gravity_constant*FluidProp->Density();
+				{
+					if(pcs->is_folded && MeshElement->gravity_center[2] > pcs->folded_zCoord) // JOD 1018-12-18
+						coef = -gravity_constant * FluidProp->Density();
+					else
+						coef = gravity_constant * FluidProp->Density();
+				}
 				if (dim == 3 && ele_dim == 2)
 				{
 					vel[dim - 1] += coef; //NW local permeability tensor is already transformed to global one in CalCoefLaplace()
