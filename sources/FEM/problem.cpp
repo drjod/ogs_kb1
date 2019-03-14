@@ -1571,15 +1571,14 @@ bool Problem::CouplingLoop()
 
     	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
     	{
-    		ogs_wdc.set_unevaluated();
+    		ogs_wdc->set_unevaluated();
 
-    		if(!ogs_wdc.get_WellDoubletControl()->converged())
+    		if(!ogs_wdc->get_WellDoubletControl()->converged())
     			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
     			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
     			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
     		{
-				wdc_converged = false;
-				break;
+				wdc_converged = false;  // do not break since all wdc must be set unevaluated
     		}
     	}
 
@@ -1588,7 +1587,7 @@ bool Problem::CouplingLoop()
     		std::cout << "\tWDC converged\n";
     		for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
     			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
-				<< a_pcs->ogs_WDC_vector[i].get_extremum(a_pcs, 1, a_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes().heatExchanger) << '\n';
+				<< a_pcs->ogs_WDC_vector[i]->get_extremum(a_pcs, 1, a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger) << '\n';
     			  //  << a_pcs->GetNodeValue(a_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes().heatExchanger[0], 1) << '\n';
     	}
     }
@@ -1606,9 +1605,9 @@ bool Problem::CouplingLoop()
         stream << aktuelle_zeit << '\t' << outer_index + 1;
         for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
         {
-        	stream << '\t' << ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger);
+        	stream << '\t' << ogs_wdc->get_extremum(a_pcs, 1, ogs_wdc->get_doublet_mesh_nodes().heatExchanger);
         	//stream << '\t' << a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1);
-        	ogs_wdc.discard();  // !!! to recreate WDC in next time step
+        	ogs_wdc->discard();  // !!! to recreate WDC in next time step
         }
         stream << '\n';
 		break;

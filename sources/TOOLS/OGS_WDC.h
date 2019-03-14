@@ -63,7 +63,9 @@ private:
 public:
 	OGS_WDC(const double& _well_shutdown_temperature_range, const double& _accuracy_temperature,
 			const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
-		is_initialized(false), is_evaluated(true), nodes_counter(0), heatExchangerArea(1.),
+		is_initialized(false), is_evaluated(true),
+		doublet_mesh_nodes({-1, -1, std::vector<size_t>()}),
+		nodes_counter(0), heatExchangerArea(1.),
 		well_shutdown_temperature_range(_well_shutdown_temperature_range),
 		accuracy_temperature(_accuracy_temperature), accuracy_powerrate(_accuracy_powerrate), accuracy_flowrate(_accuracy_flowrate) {}
 	std::shared_ptr<wdc::WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }

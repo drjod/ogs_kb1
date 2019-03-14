@@ -5719,18 +5719,18 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		else
 		{
 			// write results
-			const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->get_result();
-			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes();
+			const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
+			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
 
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WDC_vector[i].get_WellDoubletControl()->scheme_ID()
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
 				<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
 				<< '\t' << result.Q_H
 				<< '\t' << result.Q_W
 				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
 				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
-				<< '\t' << m_pcs->ogs_WDC_vector[i].get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 				<< '\n';
 
 		}

@@ -896,8 +896,9 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 //			if(heat_conductivity_model == 0) // my = fct(x)
 //				in >> heat_conductivity_fct_name;
 			if(heat_conductivity_model == 1) // my = const
-
+			{
 				in >> heat_conductivity;
+			}
 			if(heat_conductivity_model == 2) // my = f(p,T,C)
 			{
 				in >> C_0;

@@ -2492,6 +2492,12 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 		// DECOVALEX THM1 or Curce 12.09. WW
 		else if(SolidProp->GetConductModel()%3 == 0 || SolidProp->GetConductModel() == 4)
 		{
+			TG = interpolate(NodalVal1);
+			for(size_t i = 0; i < dim * dim; i++)
+				mat[i] = 0.0;
+			for(size_t i = 0; i < dim; i++)
+				mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
+			/*
 			// WW
 			PG = interpolate(NodalValC1);
 			if(cpl_pcs->type != 1212)
@@ -2501,7 +2507,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				mat[i] = 0.0;
 			mat_fac = SolidProp->Heat_Conductivity(Sw);
 			for(size_t i = 0; i < dim; i++)
-				mat[i * dim + i] = mat_fac;
+				mat[i * dim + i] = mat_fac;*/
 		}
 		//WW        else if(SolidProp->GetCapacityModel()==1 && MediaProp->heat_diffusion_model == 273){
 		else if(SolidProp->GetConductModel() == 1)

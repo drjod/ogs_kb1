@@ -562,6 +562,9 @@ CRFProcess::~CRFProcess(void)
         eqs_new = NULL;
 #endif
 
+    for(i = 0; i < (long)ogs_WDC_vector.size(); i++)
+    	delete ogs_WDC_vector[i];
+
 
 }
 
@@ -8513,8 +8516,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		for (i = begin; i < end; i++)
 		{
 
-      time_fac = 1.0;
-      val = 1.0;
+			time_fac = 1.0;
+			val = 1.0;
 
 			gindex = i;
 #if !defined(USE_PETSC) // && !defined(other parallel libs)//03.3012. WW

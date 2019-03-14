@@ -244,7 +244,8 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			switch(Conductivity_mode)
 			{
 			case 0:       //  = f(T) //21.12.2009 WW
-				in_sd >> Size;
+				in_sd >> heat_conductivity_fct_number;
+				/*in_sd >> Size;
 				in_sd.clear();
 				data_Conductivity = new Matrix(Size, 2);
 				for(i = 0; i < Size; i++)
@@ -256,7 +257,7 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					in_sd.clear();
 				}
 				//WW
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+				conductivity_pcs_name_vector.push_back("TEMPERATURE1");*/
 				break;
 			case 1:       //  = const
 				data_Conductivity = new Matrix(1);
@@ -1378,7 +1379,9 @@ double CSolidProperties::Heat_Conductivity(double refence)
 	switch(Conductivity_mode)
 	{
 	case 0:
-		val = CalulateValue(data_Conductivity, refence);
+		int gueltig;
+		val = GetCurveValue(heat_conductivity_fct_number, 0, refence, &gueltig);
+		//val = CalulateValue(data_Conductivity, refence);
 		break;
 	case 1:
 		val = (*data_Conductivity)(0);

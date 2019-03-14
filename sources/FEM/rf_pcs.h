@@ -350,7 +350,7 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
-	std::vector<OGS_WDC> ogs_WDC_vector;  // JOD 2018-08-08
+	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
 
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
