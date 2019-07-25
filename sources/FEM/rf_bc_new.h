@@ -148,6 +148,8 @@ public:
 	std::size_t getNumberOfConstrainedBCs() const { return _constrainedBC.size(); }
 	bool isSeepageBC() const { return _isSeepageBC; }
 
+	bool is_conditionally_active;  // JOD 2019-04-04
+	int condition_type;  // 0: lower threshold, 1: upper threshold
 private:
 
 	std::vector<std::string> _PointsFCTNames;
@@ -221,6 +223,8 @@ private:
 	bool _isConstrainedBC;
 	std::vector<Constrained> _constrainedBC;
 	bool _isSeepageBC;
+
+
 
 };
 

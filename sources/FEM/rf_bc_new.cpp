@@ -154,6 +154,7 @@ CBoundaryCondition::CBoundaryCondition() :
 	_pressure_as_head_density = 0;
 	_isConstrainedBC = false;
 	_isSeepageBC = false;
+	is_conditionally_active = false;
 }
 
 // KR: Conversion from GUI-BC-object to CBoundaryCondition
@@ -563,6 +564,17 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			in.clear();
 		}
 		//....................................................................
+		// JOD 2019-04-04 for nigthly regeneration of a BTES
+		if (line_string.find("CONDITIONALLY_ACTIVE") != std::string::npos)
+		{
+			in.str(readNonBlankLineFromInputStream(*bc_file));
+			in >> condition_type;  // 0: lower threshold, 1: upper threshold
+			is_conditionally_active = true;
+			std::cout << "BC is conditionally active\n";
+			in.clear();
+		}
+		//....................................................................
+
 	}
 	return position;
 }

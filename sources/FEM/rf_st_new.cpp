@@ -4368,74 +4368,12 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 				 }
 		   }
 
-	   /*if(m_st->ogs_WDC != nullptr)
-	   {
-		   // points for measurements and heat exchanger
-		   m_st->ogs_WDC->set_doublet_mesh_nodes({
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well1_aquiferPoint->getGeoObj())),  // well1
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well2_aquiferPoint->getGeoObj())),  // well2
-					  sfc_nod_vector[0]  // heatExchanger - takes just one of many nodes !!!!
-		   	});
-
-		   // liquid flow BCs
-		   CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-		   std::vector<std::size_t> sfc_node_ids_well1_liquidBC, sfc_node_ids_well2_liquidBC;
-		   std::vector<long> sfc_node_ids_well1_liquidBC_longVector, sfc_node_ids_well2_liquidBC_longVector;
-		   std::vector<double> sfc_node_values_well1_liquidBC, sfc_node_values_well2_liquidBC;
-		   // warm well 1
-		   GEOLIB::Surface const& sfc_well1_liquidBC(
-			*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_wellDoublet_well1_liquidBCPoint->getGeoObj()))
-		   );
-		   SetSurfaceNodeVector(&sfc_well1_liquidBC, sfc_node_ids_well1_liquidBC);
-		   sfc_node_ids_well1_liquidBC_longVector.insert(sfc_node_ids_well1_liquidBC_longVector.begin(),
-				 sfc_node_ids_well1_liquidBC.begin(), sfc_node_ids_well1_liquidBC.end());
-		   SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->well1_geometry_name_liquidBCPoint),
-				 sfc_node_ids_well1_liquidBC_longVector, sfc_node_values_well1_liquidBC);
-
-		  for(int i = 0; i < sfc_node_ids_well1_liquidBC.size(); ++i)
-		  {
-			  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-			  nod_val_liquid_well1->CurveIndex = m_st->CurveIndex;
-			  nod_val_liquid_well1->msh_node_number = sfc_node_ids_well1_liquidBC[i];
-			  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-			  nod_val_liquid_well1->node_value = m_st->geo_node_value * sfc_node_values_well1_liquidBC[i];
-			  nod_val_liquid_well1->tim_type_name = m_st->tim_type_name;
-
-			  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-			  pcs_liquid->st_node.push_back(m_st);
-		  }
-
-	   	  // cold well 2 - copy from lines above except node_value is negative
-		  GEOLIB::Surface const& sfc_well2_liquidBC(
-			*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_wellDoublet_well2_liquidBCPoint->getGeoObj()))
-		  );
-		  SetSurfaceNodeVector(&sfc_well2_liquidBC, sfc_node_ids_well2_liquidBC);
-		  sfc_node_ids_well2_liquidBC_longVector.insert(sfc_node_ids_well2_liquidBC_longVector.begin(),
-				   sfc_node_ids_well2_liquidBC.begin(), sfc_node_ids_well2_liquidBC.end());
-		  SetSurfaceNodeValueVector(m_st, GEOGetSFCByName(m_st->well2_geometry_name_liquidBCPoint),
-				  sfc_node_ids_well2_liquidBC_longVector, sfc_node_values_well2_liquidBC);
-
-		  for(int i = 0; i < sfc_node_ids_well2_liquidBC.size(); ++i)
-		  {
-			  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-			  nod_val_liquid_well2->CurveIndex = m_st->CurveIndex;
-			  nod_val_liquid_well2->msh_node_number = sfc_node_ids_well2_liquidBC[i];
-			  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-			  nod_val_liquid_well2->node_value = -m_st->geo_node_value * sfc_node_values_well1_liquidBC[i];
-			  nod_val_liquid_well2->tim_type_name = m_st->tim_type_name;
-
-			  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-			  pcs_liquid->st_node.push_back(m_st);
-		  }
-	  }*/
 
 
-
-/*
 	  ///////////////////////////////
 	  if (m_st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
 	  {
-		  double total_val_cond = 0;
+		 double total_val_cond = 0;
 		  std::vector<long>::iterator pos;
 		  std::vector<double> sfc_nod_val_vector_cond_original;
 
@@ -4453,9 +4391,8 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		  {
 			  for (int j = 1; j < nod_vector_cond_size; j++)
 			  {
-				  pos = sfc_nod_vector.begin() + i * nod_vector_size + j;
-				  sfc_nod_vector.insert(pos, sfc_nod_vector[i * nod_vector_size + j - 1]);
-
+				  pos = sfc_nod_vector.begin() + i * nod_vector_cond_size + j;
+				  sfc_nod_vector.insert(pos, sfc_nod_vector[i * nod_vector_cond_size + j - 1]);
 			  }
 		  }
 
@@ -4476,12 +4413,15 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		  {
 			  for (int j = 0; j < nod_vector_cond_size; j++)
 			  {
-				  sfc_nod_val_vector[i*nod_vector_size + j] = sfc_nod_val_vector_original[i] * sfc_nod_val_vector_cond_original[j] / total_val_cond;
+				  sfc_nod_val_vector[i*nod_vector_cond_size + j] = sfc_nod_val_vector_original[i] * sfc_nod_val_vector_cond_original[j] / (total_val_cond);
 			  }
 		  }
 	  }
 	  ///////////////////////////////
-*/
+	  //total = 0.;
+	  // for(int i=0; i< sfc_nod_val_vector.size(); i++)
+		//   total += sfc_nod_val_vector[i];
+
 	  if (m_st->distribute_volume_flux)   // 5.3.07 JOD
 		  DistributeVolumeFlux(m_st, sfc_nod_vector, sfc_nod_val_vector);
 

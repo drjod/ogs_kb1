@@ -581,7 +581,9 @@ void CRFProcess::AllocateMemGPoint()
 	//		return;
 	const size_t mesh_ele_vector_size (m_msh->ele_vector.size());
 	for (size_t i = 0; i < mesh_ele_vector_size; i++)
+	{
 		ele_gp_value.push_back(new ElementValue(this, m_msh->ele_vector[i]));
+	}
 }
 
 
@@ -7231,6 +7233,26 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 			else
 				bc_msh_node = m_bc_node->geo_node_number;
 #endif// END: if defined(USE_PETSC) // || defined(other parallel libs
+			// JOD 2019-04-04 threshold
+			if(m_bc->is_conditionally_active)
+			{
+				double nodeValue = GetNodeValue(bc_msh_node, 1); // implicit
+				if(m_bc->condition_type == 0)  // lower threshold
+				{
+					if(nodeValue > bc_value)
+						continue;
+				}
+				else if(m_bc->condition_type == 1)  // upper threshold
+				{
+					if(nodeValue < bc_value)
+						continue;
+				}
+				else
+				{
+					cout << "Warning in Incorporate BC - Condition type unkonwn\n";
+				}
+
+			}
 			//------------------------------------------------------------WW
 			if(m_msh)     //OK
 				//	    if(!m_msh->nod_vector[bc_msh_node]->GetMark()) //WW

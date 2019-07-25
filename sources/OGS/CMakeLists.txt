@@ -16,6 +16,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/MSH
 	${CMAKE_SOURCE_DIR}/TOOLS
 	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+	${CMAKE_SOURCE_DIR}/../Libs/Contraflow
 )
 
 if (LIS)
@@ -49,6 +50,7 @@ target_link_libraries( ogs
 	MSH
 	TOOLS
 	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl/libwellDoubletControl.a
+	${CMAKE_SOURCE_DIR}/../Libs/Contraflow/libcontraflow.a
 )
 
 if (OGS_FEM_GEMS OR OGS_FEM_PETSC_GEMS)

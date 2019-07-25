@@ -2493,10 +2493,15 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 		else if(SolidProp->GetConductModel()%3 == 0 || SolidProp->GetConductModel() == 4)
 		{
 			TG = interpolate(NodalVal1);
+			tensor = MediaProp->HeatDispersionTensorNew(ip);
+			for(size_t i = 0; i < dim * dim; i++)
+				mat[i] = tensor[i];
+			/*
 			for(size_t i = 0; i < dim * dim; i++)
 				mat[i] = 0.0;
 			for(size_t i = 0; i < dim; i++)
 				mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
+				*/
 			/*
 			// WW
 			PG = interpolate(NodalValC1);
