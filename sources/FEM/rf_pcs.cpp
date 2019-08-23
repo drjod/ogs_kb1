@@ -565,7 +565,8 @@ CRFProcess::~CRFProcess(void)
     for(i = 0; i < (long)ogs_WDC_vector.size(); i++)
     	delete ogs_WDC_vector[i];
 
-
+    for(i = 0; i < (long)ogs_contraflow_vector.size(); i++)
+    	delete ogs_contraflow_vector[i];
 }
 
 
@@ -8741,6 +8742,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->ogs_WDC != nullptr)
 					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
+
+				  if(m_st->ogs_contraflow != nullptr)
+					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
 			  }
 		}
 

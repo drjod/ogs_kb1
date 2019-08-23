@@ -1,9 +1,11 @@
 set( HEADERS
 	OGS_WDC.h
+	OGS_contraflow.h
 	fancyTimer.h
 )
 
 set( SOURCES
+	OGS_contraflow.cpp
 	OGS_WDC.cpp
 )
 

@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "OGS_WDC.h"
+#include "OGS_contraflow.h"
 
 
 //#include "rf_st_new.h"//CMCD 02_06
@@ -351,7 +352,7 @@ public:
 #endif
 public:
 	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
-
+	std::vector<OGS_contraflow*> ogs_contraflow_vector;  // JOD 2019-31-07
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,

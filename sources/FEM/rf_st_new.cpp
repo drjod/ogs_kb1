@@ -115,6 +115,7 @@ CSourceTerm::CSourceTerm() :
 	geoInfo_wellDoublet_well1_liquidBC = new GeoInfo();
 	geoInfo_wellDoublet_well2_liquidBC = new GeoInfo();
 	ogs_WDC = nullptr; // JOD 2018-08-09
+	ogs_contraflow = nullptr;
 
    CurveIndex = -1;
    //KR critical_depth = false;
@@ -666,7 +667,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
 
-		  OGS_WDC* ogs_WDC_inst = new OGS_WDC(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
+		  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
 		  in.clear();
 		  while(numberOfParameterSets--)  // no check if number is right
 		  {
@@ -677,7 +678,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
 			  in.clear();
 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
-			  ogs_WDC_inst->add_parameterGroup(
+			  ogs_WDC->add_parameterGroup
+			  (
 				tmp0,  // time
 				tmp1,  // scheme indicator [0, 1, 2]
 				tmp2,  // powerrate
@@ -688,8 +690,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		  if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
 		  {
-			  m_pcs->ogs_WDC_vector.push_back(ogs_WDC_inst);
-			  ogs_WDC = m_pcs->ogs_WDC_vector.back();
+			  m_pcs->ogs_WDC_vector.push_back(ogs_WDC);
 		  }
 		  else
 			  throw std::runtime_error("No PCS for WellDoubletControl");
@@ -711,7 +712,102 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.clear();
 		  continue;
 	  }
+	  //....................................................................
+	 	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
+	 	  {
+	 		  std::cout << "CONTRAFLOW_PIPES\n";
+	 		 int tmp0;
+	 		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
 
+	 		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
+	 		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
+	 		 in.clear();
+
+			 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
+		 	 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
+		 	 in.clear();
+
+	 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator
+	 				 {	// pipe
+	 		 				tmp1,  // d_0_i
+	 		 				tmp2,  // d_0_o
+	 		 				tmp3,  // d_1_i
+	 		 				tmp4,  // d_1_o
+	 		 				tmp5,  // w
+	 		 				tmp6,  // lambda_0
+	 		 				tmp7  // lambda_1
+	 				 },
+					 {	// fluid
+							 tmp8,  // lambda
+							 tmp9,	// mu
+							 tmp10,	// c
+							 tmp11	// rho
+					 }
+
+	 		 );
+
+	 		 int numberOfSegments;
+	 		 in.str(readNonBlankLineFromInputStream(*st_file));
+	 		 in >> numberOfSegments;
+	 		 in.clear();
+
+	 		 while(numberOfSegments--)  // no check if number is right
+	 		 {
+	 			  in.str(readNonBlankLineFromInputStream(*st_file));
+	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+	 			  in.clear();
+	 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
+	 			  ogs_contraflow->add_segment_data_group
+	 			  ({
+	 				tmp0,  // N
+	 				tmp1,  // L
+	 				tmp2,  // D
+	 				tmp3  // lambda_g
+	 			  });
+	 		 }
+	 		ogs_contraflow->initialize();
+
+
+			 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
+			 {
+				 m_pcs->ogs_contraflow_vector.push_back(ogs_contraflow);
+			 }
+			 else
+				 throw std::runtime_error("No PCS for WellDoubletControl");
+
+	 		 std::cout << "Set contraflow source term\n";
+
+	 		 continue;
+	 	  }
+	 	  //....................................................................
+	 	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
+	 	  {
+	 		 std::cout << "CONTRAFLOW_INPUT\n";
+	 		  int numberOfInputSets;
+
+	 		  in.str(readNonBlankLineFromInputStream(*st_file));
+	 		  in >> numberOfInputSets;
+
+	 		  in.clear();
+	 		  while(numberOfInputSets--)  // no check if number is right
+	 		  {
+	 			  int tmp1;
+	 			  double tmp0, tmp2, tmp3;
+
+	 			  in.str(readNonBlankLineFromInputStream(*st_file));
+	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+	 			  in.clear();
+
+	 			  ogs_contraflow->add_input_group
+	 			  (
+	 				tmp0,  // time
+					tmp1,	// mode 0: provide feed in temperature T_in, 1: provide temperature difference dT
+	 				tmp2,  // Q
+	 				tmp3  // T_in / dT
+	 			  );
+	 		  }
+	 		  continue;
+	 	  }
 	  //....................................................................
 	  if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
 	  {
@@ -3897,6 +3993,34 @@ const int ShiftInNodeVector)
 	  */
    }
 
+   if(st->ogs_contraflow != nullptr)  // JOD 2019-31-07
+   {
+	   st->ogs_contraflow->add_node(nod_val->msh_node_number);
+
+	   GEOLIB::Point pnt(
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[2]);
+
+	   std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
+	   double z = pnt.getData()[2];
+	   for(int i=0; i < segment_data_vec.size(); ++i)
+	   {
+		   const int N = segment_data_vec[i].N;
+		   const double dz = segment_data_vec[i].L / N;
+
+		   for(int j=0; j<N; ++j)
+		   {
+			   z -= dz;
+			   pnt = GEOLIB::Point(
+					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+					   z);
+			   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
+		   }
+	   }
+   }
+
    pcs->st_node_value.push_back(nod_val);         //WW
    pcs->st_node.push_back(st);                 //WW
 
@@ -6279,5 +6403,74 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 	}*/
 	return result;
 }
+
+// JOD 2019-7-30
+double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs)
+{
+	std::vector<long> nodes_vec = ogs_contraflow->get_nodes_vec();
+	stru3::DVec T_s = stru3::DVec(nodes_vec.size());
+	for(int i=0; i < nodes_vec.size(); ++i)
+	{
+		T_s[i] = m_pcs->GetNodeValue(nodes_vec[i], 1);
+	}
+
+	// std::cout << "\napply contraflow\n";
+	contra::Result result = ogs_contraflow->call_contraflow(aktuelle_zeit, T_s);
+	std::vector<contra::SegmentData> segment_data_vec = ogs_contraflow->get_segment_data_vec();
+
+	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << nodes_vec[i] << " ";
+	// std::cout << std::endl;
+	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << result.T_out[i] << " ";
+	// std::cout << std::endl;
+	// std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
+	// std::cout << "value: " << " " << value << "\n";
+	int j = 0, k = 0;
+	double L_ele = 0.;
+	int N = segment_data_vec[0].N;
+
+	for(int i=0; i < nodes_vec.size(); ++i)
+	{
+
+		if(k == 1)
+		{
+			L_ele = segment_data_vec[j].L/(N);
+		}
+		if(k == N)
+		{
+			L_ele /=2;
+			k = 0;
+			++j;
+			if(j < segment_data_vec.size())
+				N = segment_data_vec[j].N;
+		}
+
+		if(k == 0 && j < segment_data_vec.size())
+		{
+			L_ele += segment_data_vec[j].L/(2*N);
+		}
+
+#ifdef NEW_EQS
+#ifdef LIS
+		   CSparseMatrix* A = NULL;
+		   A = m_pcs->eqs_new->get_A();
+	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta);
+#endif
+#else
+	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta));
+#endif
+		// not implemented for PETSc
+	   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[0].R_0_Delta) + result.T_out[i] / result.resistances_vec[0].R_1_Delta);
+
+	   double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[0].R_0_Delta) + (result.T_out[i] / result.resistances_vec[0].R_1_Delta)
+		- ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta)) * T_s[i]);
+
+
+	   ++k;
+	}
+
+
+	return 0.;
+}
+
 
 

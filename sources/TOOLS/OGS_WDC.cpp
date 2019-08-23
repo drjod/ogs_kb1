@@ -6,11 +6,11 @@
 long OGS_WDC::get_upwind_aquifer_mesh_node(const double& current_time)
 {
 	// delete parameter list entry if old such that current entry is at begin of list (list entries have to be ordered in time)
-	while(current_time > parameter_list.begin()->time)
+	while(parameter_list.size()>0 && current_time > parameter_list.begin()->time)
 		parameter_list.erase(parameter_list.begin());
 
 	if(parameter_list.empty())
-		throw std::runtime_error("ERROR in WDC - No Parameter");
+		throw std::runtime_error("ERROR in WDC - Parameter list empty");
 
 	if(parameter_list.begin()->powerrate > 0)
 		return get_doublet_mesh_nodes().well2_aquifer;  // storing
