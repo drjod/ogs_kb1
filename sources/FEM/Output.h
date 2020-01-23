@@ -237,7 +237,8 @@ private:
 	std::vector<double> time_vector;
 	double _time;
 
-	int mmp_index; // JOD 2/2015
+	int mmp_index; // JOD 2/2015  : -2 volume calculation (flag)
+	double domainIntegration_lowerThreshold, domainIntegration_upperThreshold;  // JOD 2020-1-15
 	/**
 	 * the position in the global vector out_vector, used only in NODWritePLYDataTEC
 	 */

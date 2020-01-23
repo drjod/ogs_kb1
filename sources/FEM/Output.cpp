@@ -390,7 +390,14 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		{
 			in_str >> dat_type_name;
 			if (dat_type_name == "CONTENT") // JOD 2/2015
+			{
 				in_str >> mmp_index;
+			}
+			if (dat_type_name == "VOLUME") // JOD 2020-1-16
+			{
+						mmp_index = -2;  // flag for volume calculation
+						in_str >> domainIntegration_lowerThreshold >> domainIntegration_upperThreshold; // JOD 2020-1-15
+			}
 			in_str.ignore(MAX_ZEILE, '\n');
 			continue;
 		}
@@ -5046,8 +5053,18 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) ;
 	if (_nod_value_vector.size() > 0)
 		tec_file_name += "_" + _nod_value_vector[0];
-	tec_file_name += "_CONTENT";
-	if (mmp_index != -1) 
+
+	if (mmp_index == -2)
+	{
+		stringstream ss; ss << "_VOLUME_" << domainIntegration_lowerThreshold << "_" << domainIntegration_upperThreshold;
+		tec_file_name += ss.str();
+	}
+	else
+	{
+		tec_file_name += "_CONTENT";
+	}
+
+	if (mmp_index >= 0)
 	{
 		stringstream ss; ss << mmp_index;
 		tec_file_name += ss.str();
@@ -5083,7 +5100,11 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 		if (output == true)
 		{
-			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index, _nod_value_vector) << "\n";
+			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
+					domainIntegration_lowerThreshold,
+					domainIntegration_upperThreshold,
+					_nod_value_vector)
+							<< "\n";
 			cout << "Data output: " << convertProcessTypeToString(getProcessType());
 			if (_nod_value_vector.size() == 1)
 				cout << " " << _nod_value_vector[0]; 
@@ -5764,12 +5785,12 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 	if(m_pcs->ogs_contraflow_vector.size() == 0)
 		std::cout << "Warning - No Contraflow instance in output\n";
 
-	for(long long unsigned i=0; i<m_pcs->ogs_contraflow_vector.size(); ++i)
+	for(long long unsigned ii=0; ii<m_pcs->ogs_contraflow_vector.size(); ++ii)
 	{  			// long long unsigned for std::to_string
 		// file name polyname
 		std::string tec_file_name = file_base_name + "_"
-		 + std::string(convertProcessTypeToString(getProcessType()))
-				 + "_Contraflow_ply_" + std::to_string(i) + TEC_FILE_EXTENSION;
+				 + std::string(convertProcessTypeToString(getProcessType()))
+				 + "_Contraflow_ply_" + std::to_string(ii) + TEC_FILE_EXTENSION;
 		// open file
 		std::fstream tec_file;
 		if (aktueller_zeitschritt == 0)
@@ -5795,7 +5816,7 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 		// file name total flux
 		std::string tec_file_name_tf = file_base_name + "_"
 				 + std::string(convertProcessTypeToString(getProcessType()))
-						 + "_Contraflow_" + std::to_string(i) + TEC_FILE_EXTENSION;
+						 + "_Contraflow_" + std::to_string(ii) + TEC_FILE_EXTENSION;
 		// open file
 		std::fstream tec_file_tf;
 		if (aktueller_zeitschritt == 0)
@@ -5821,26 +5842,29 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 		//--------------------------------------------------------------------
 		if (aktueller_zeitschritt == 0)
 		{
-			tec_file << "TITLE = \"Contraflow instance " <<  i << "\"\n";
+			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
 			tec_file << "VARIABLES = \"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
 
-			tec_file_tf << "; Time flux_1 flux_2 \n";
+			tec_file_tf << "; T_in T_out Time flux_1 flux_2 \n";
 		}
 		else
 		{
 
+			if(m_pcs->ogs_contraflow_vector[ii]->get_input_list().front().Q > 10e-10)
+			{
+
 			tec_file << "ZONE T=\"TIME=" << time_current << "\"\n";
 
 			// write results
-			std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[i]->get_nodes_vec();
+			std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
 			stru3::DVec T_s = stru3::DVec(nodes_vec.size());
 			for(int j=0; j < nodes_vec.size(); ++j)
 			{
 				T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
 			}
 
-			const contra::Result& result = m_pcs->ogs_contraflow_vector[i]->get_Contraflow()->get_result();
-			std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[i]->get_segment_data_vec();
+			const contra::Result& result = m_pcs->ogs_contraflow_vector[ii]->get_Contraflow()->get_result();
+			std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[ii]->get_segment_data_vec();
 
 			double total_flux1 = 0., total_flux2 = 0;
 			double z = 0;
@@ -5890,7 +5914,8 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 
 				total_flux1 += flux1;
 				total_flux2 += flux2;
-				tec_file << z << "\t" << T_s[i] << "\t" << result.T_in[i] << "\t" << result.T_out[i] << "\t" << flux1 << "\t" << flux2
+				tec_file << z << "\t" << T_s[i] << "\t" << result.T_in[i] << "\t" << result.T_out[i]
+										<< "\t" << flux1 << "\t" << flux2
 						//<< "\t" << R_0_Delta << "\t" << R_1_Delta
 						<< '\n';
 
@@ -5913,15 +5938,20 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 					<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 					<< '\n';
 				 */
+			} // end nodes_vec
+
+			tec_file_tf << time_current << "\t" << result.T_in[0] << "\t" << result.T_out[0]
+							<< "\t" << total_flux1 << "\t" << total_flux2 << "\n";
+
+			} // end Q > 1.e-10
+			else
+			{
+				tec_file_tf << time_current << "\t0\t0\t0\t0\n";
 			}
-
-			tec_file_tf << time_current << "\t" << total_flux1 << "\t" << total_flux2 << "\n";
-
-
-		}
+		} // end aktueller_zeitschritt != 0
 		tec_file.close();
 		tec_file_tf.close();
 
-	}
+	}  // end ogs_contraflow_vector
 }
 

@@ -109,7 +109,7 @@ public:
 	void CalcStorage();
 	// 9. Content matrix
 	void CalcContent();
-	double CalculateContent(double *, double *);       // for budgets JOD 2/2015
+	double CalculateContent(double *, double *, const int&, const double&, const double&);       // for budgets JOD 2/2015
 	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
 	void CalcContentTNEQ(); //NW
 	void CalcContentTES(); //NW

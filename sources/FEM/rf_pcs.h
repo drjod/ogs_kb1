@@ -621,7 +621,7 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
-	double AccumulateContent(int, std::vector<std::string>); // JOD 2/2015
+	double AccumulateContent(const int&, const double&, const double&, std::vector<std::string>); // JOD 2/2015
 	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
 
 	// MSH

@@ -12008,7 +12008,8 @@ Programming:
 7/2015 JOD  take hydrostatic pressure into account
 **************************************************************************/
 
-double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
+double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord,
+		const int& mmp_index, const double& threshold_lower, const double& threshold_upper)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
@@ -12031,6 +12032,14 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 			}
 			else                                        // do nothing
 				NodeVal_shifted[i] = NodeVal[i];
+
+			if(mmp_index == -2)
+			{
+				if(NodeVal_shifted[i] > threshold_lower && NodeVal_shifted[i] < threshold_upper)
+					NodeVal_shifted[i] = 1.;
+				else
+					NodeVal_shifted[i] = 0.;
+			}
 		}
 
 
@@ -12040,7 +12049,11 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 			Gauss_val += NodeVal_shifted[i] * shapefct[i];
 		}
 		// Integration
-		content += fkt * Gauss_val * CalCoefMass(true) * MediaProp->ElementVolumeMultiplyer;
+		double content_increment = fkt * Gauss_val  * MediaProp->ElementVolumeMultiplyer;
+		if(mmp_index != -2)
+			content_increment *= CalCoefMass(true);
+
+		content += content_increment;
 		//std::cout << "fkt: " << fkt << '\n';
 		//std::cout << "Gauss_val: " << Gauss_val<< '\n';
 		//std::cout << "MAss coef: " << CalCoefMass() << '\n';

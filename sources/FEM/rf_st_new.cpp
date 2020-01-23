@@ -109,7 +109,7 @@ CSourceTerm::CSourceTerm() :
 	geoInfo_storageRateInlet = new GeoInfo();
 	geoInfo_storageRateOutlet = new GeoInfo();
 
-	geoInfo_wellDoublet_HE = new GeoInfo();
+	//geoInfo_wellDoublet_HE = new GeoInfo();
 	geoInfo_wellDoublet_well1_aquifer = new GeoInfo();
 	geoInfo_wellDoublet_well2_aquifer = new GeoInfo();
 	geoInfo_wellDoublet_well1_liquidBC = new GeoInfo();
@@ -200,7 +200,7 @@ CSourceTerm::~CSourceTerm()
 	delete geoInfo_threshold;
 	delete geoInfo_storageRateInlet;
 	delete geoInfo_storageRateOutlet;
-	delete geoInfo_wellDoublet_HE;
+	//delete geoInfo_wellDoublet_HE;
 	delete geoInfo_wellDoublet_well1_aquifer;
 	delete geoInfo_wellDoublet_well2_aquifer;
 	delete geoInfo_wellDoublet_well1_liquidBC;
@@ -644,8 +644,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_GEOMETRY") != std::string::npos) // JOD 2018-06-13
 	  {
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_HE, *st_file,
-	    		  	  well1_geometry_name_HE, geo_obj, unique_name);
+	      //FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_HE, *st_file,
+	    	//	  	  well1_geometry_name_HE, geo_obj, unique_name);
 	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquifer, *st_file,
 	    		  	  well1_geometry_name_aquifer, geo_obj, unique_name);
 	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBC, *st_file,
@@ -727,7 +727,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		 	 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
 		 	 in.clear();
 
-	 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator
+	 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
 	 				 {	// pipe
 	 		 				tmp1,  // d_0_i
 	 		 				tmp2,  // d_0_o
@@ -3938,13 +3938,13 @@ const int ShiftInNodeVector)
 
 		 liquidBC_mesh_node_values.clear();
 		 //////// cold well 2 - copy from lines above except that node_value is negative
-		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+		 if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POINT)
 		 {
 			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
 								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 		 }
-		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+		 else if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POLYLINE)
 		 {
 			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
@@ -4403,14 +4403,14 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
 		if(m_st->ogs_WDC != nullptr)
 			{  	  // point for measurements
-				std::vector<size_t> nodes_HE;
-				nodes_HE.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_HE->getGeoObj())));
+				//std::vector<size_t> nodes_HE;
+				//nodes_HE.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_HE->getGeoObj())));
 
 				 m_st->ogs_WDC->set_doublet_mesh_nodes({
 						  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
 						  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
-						  nodes_HE
-						  //std::vector<size_t>(sfc_nod_vector.begin(), sfc_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
+						  //nodes_HE
+						  std::vector<size_t>(sfc_nod_vector.begin(), sfc_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
 						  });
 				 m_st->ogs_WDC->set_heatExchangerArea(std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.));
 				 //m_st->ogs_WDC->set_heatExchangerArea(1.);
@@ -6408,8 +6408,8 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs)
 {
 	std::vector<long> nodes_vec = ogs_contraflow->get_nodes_vec();
-	stru3::DVec T_s = stru3::DVec(nodes_vec.size());
-	for(int i=0; i < nodes_vec.size(); ++i)
+	stru3::DVec T_s(nodes_vec.size());
+	for(std::size_t i=0; i < nodes_vec.size(); ++i)
 	{
 		T_s[i] = m_pcs->GetNodeValue(nodes_vec[i], 1);
 	}
@@ -6424,46 +6424,50 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 	// std::cout << std::endl;
 	// std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
 	// std::cout << "value: " << " " << value << "\n";
-	int j = 0, k = 0;
+	int j = 0;  // segment index
+	int k = 0;  // node in segment index
 	double L_ele = 0.;
 	int N = segment_data_vec[0].N;
 
-	for(int i=0; i < nodes_vec.size(); ++i)
+	for(std::size_t i=0; i < nodes_vec.size(); ++i)
 	{
-
 		if(k == 1)
 		{
-			L_ele = segment_data_vec[j].L/(N);
+			L_ele = segment_data_vec[j].L/N;
 		}
-		if(k == N)
+		else if(k == N)
 		{
-			L_ele /=2;
 			k = 0;
-			++j;
-			if(j < segment_data_vec.size())
-				N = segment_data_vec[j].N;
+			if(j < int(segment_data_vec.size()-1))
+			{
+				L_ele /=2;  // inside BHE
+				++j;
+			}
+			else
+				L_ele = 0.;  // end of BHE
 		}
 
-		if(k == 0 && j < segment_data_vec.size())
+		if(k == 0)
 		{
+			N = segment_data_vec[j].N;
 			L_ele += segment_data_vec[j].L/(2*N);
+
 		}
 
 #ifdef NEW_EQS
 #ifdef LIS
 		   CSparseMatrix* A = NULL;
 		   A = m_pcs->eqs_new->get_A();
-	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta);
+	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
 #endif
 #else
-	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta));
+	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
 #endif
 		// not implemented for PETSc
-	   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[0].R_0_Delta) + result.T_out[i] / result.resistances_vec[0].R_1_Delta);
+	   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[j].R_0_Delta) + result.T_out[i] / result.resistances_vec[j].R_1_Delta);
 
-	   double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[0].R_0_Delta) + (result.T_out[i] / result.resistances_vec[0].R_1_Delta)
-		- ( (1. / result.resistances_vec[0].R_0_Delta) + 1. / result.resistances_vec[0].R_1_Delta)) * T_s[i]);
-
+	   //double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[j].R_0_Delta) + (result.T_out[i] / result.resistances_vec[j].R_1_Delta)
+	//	- ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta)) * T_s[i]);
 
 	   ++k;
 	}

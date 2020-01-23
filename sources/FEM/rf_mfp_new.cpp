@@ -2820,7 +2820,7 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 		}
 		else
 		{
-			if(assem->pcs->is_conservative)  // JOD 2018-9-14
+			if(0)//assem->pcs->is_conservative)  // JOD 2018-9-14
 			{  // !!!density depends on not more than temperature
 				if(flag_calcContent)
 					heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();

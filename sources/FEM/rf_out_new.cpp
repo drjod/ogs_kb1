@@ -286,6 +286,8 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 			m_out->WriteTotalFlux(time_current, time_step_number); // 6/2012 JOD, MW 
 		else if (m_out->dat_type_name.compare("CONTENT") == 0)
 			m_out->WriteContent(time_current, time_step_number); //JOD 2/2015
+		else if (m_out->dat_type_name.compare("VOLUME") == 0)
+			m_out->WriteContent(time_current, time_step_number); //JOD 2020-1-16
 		else if (m_out->dat_type_name.compare("COMBINE_POINTS") == 0) 
 			m_out->NODWritePointsCombined(time_current, time_step_number);	// 6/2012 for calibration JOD
 		else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)

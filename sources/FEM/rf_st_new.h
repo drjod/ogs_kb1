@@ -91,13 +91,13 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	GeoInfo* geoInfo_threshold;  // JOD 2018-02-20
 	GeoInfo* geoInfo_storageRateInlet;  // JOD 2018-02-22
 	GeoInfo* geoInfo_storageRateOutlet;
-	GeoInfo* geoInfo_wellDoublet_HE;  // heat exchanger JOD 2018-2-13
+	//GeoInfo* geoInfo_wellDoublet_HE;  // heat exchanger JOD 2018-2-13
 	GeoInfo* geoInfo_wellDoublet_well1_aquifer;  // warm well -  JOD 2018-6-13
 	GeoInfo* geoInfo_wellDoublet_well2_aquifer;  // cold well
 	GeoInfo* geoInfo_wellDoublet_well1_liquidBC;  // warm well
 	GeoInfo* geoInfo_wellDoublet_well2_liquidBC;  // cold well
 
-	std::string well1_geometry_name_HE; // heat exchanger JOD 2018-2-13
+	//std::string well1_geometry_name_HE; // heat exchanger JOD 2018-2-13
 	std::string well1_geometry_name_aquifer;  // JOD 2018-08-09
 	std::string well2_geometry_name_aquifer;
 	std::string well1_geometry_name_liquidBC;

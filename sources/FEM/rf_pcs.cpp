@@ -17262,7 +17262,8 @@ Programming:
 7/2015 JOD consider geoArea
 **************************************************************************/
 
-double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
+double CRFProcess::AccumulateContent(const int& mmp_index, const double& threshold_lower, const double& threshold_upper,
+		std::vector<std::string> _nod_value_vector) //const
 {
 
 	double nodesVal[8], x_coord[8], z_coord[8], content = 0, geoArea;
@@ -17276,7 +17277,7 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 		nidx1 = 1;
 	for (i = 0; i < m_msh->ele_vector.size(); i++)
 	{
-		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index == -1)
+		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
 		{ // -1 : take all
 			elem = m_msh->ele_vector[i];
 			if (!elem->GetMark())
@@ -17290,9 +17291,10 @@ double CRFProcess::AccumulateContent(int mmp_index, std::vector<std::string> _no
 			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
-			content += fem->CalculateContent(nodesVal, z_coord);// * geoArea;
+			content += fem->CalculateContent(nodesVal, z_coord, mmp_index, threshold_lower, threshold_upper);// * geoArea;
 		}
 	}
 

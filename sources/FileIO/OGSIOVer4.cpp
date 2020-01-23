@@ -7,6 +7,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 
 #include "Configure.h"
 
