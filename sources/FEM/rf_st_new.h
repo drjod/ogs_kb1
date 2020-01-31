@@ -280,6 +280,7 @@ public:
 	  std::vector<long> connected_nodes_idx;
 	  int connected_geometry_verbose_level;
 	  double connected_geometry_exchange_term;  // leakance
+	  double connected_geometry_offset;   // not used
 	  int connected_geometry_mode;
 	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
 	  double connected_geometry_minimum_velocity_abs;    //                      

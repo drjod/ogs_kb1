@@ -138,6 +138,7 @@ CSourceTerm::CSourceTerm() :
    connected_geometry = false;
    connected_geometry_verbose_level = 0;
    connected_geometry_exchange_term = 0.0;
+   connected_geometry_offset = 0.;
    connected_geometry_mode = -1;
    connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
    connected_geometry_ref_element_number = -1;
@@ -590,7 +591,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  if (line_string.find("$CONNECT_PARAMETER") != std::string::npos) //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> connected_geometry_exchange_term >> connected_geometry_verbose_level;
+		  in >> connected_geometry_exchange_term >> connected_geometry_verbose_level; // >> connected_geometry_offset;
 		  this->connected_geometry = true;
 		  in.clear();
 		  continue;
@@ -4110,7 +4111,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 		if (st->isCoupled())
 			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
-		
+
 	    if(st->hasThreshold()) // JOD 2018-02-20
 	    {  // only point supported
 		  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
@@ -4147,6 +4148,51 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			}
 		}
 
+
+		if (st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
+			  {
+				 double total_val_cond = 0;
+				  std::vector<long>::iterator pos;
+				  std::vector<double> ply_nod_val_vector_cond_original;
+
+
+				  SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector_cond_original);
+
+				  for (int i = 0; i < (int)ply_nod_val_vector_cond_original.size(); i++)
+					  total_val_cond += ply_nod_val_vector_cond_original[i];
+
+				  int nod_vector_size = (int)ply_nod_vector.size();
+				  int nod_vector_cond_size = (int)ply_nod_vector_cond.size();
+
+				  for (int i = 0; i < nod_vector_size; i++)  // extend nod_vector
+				  {
+					  for (int j = 1; j < nod_vector_cond_size; j++)
+					  {
+						  pos = ply_nod_vector.begin() + i * nod_vector_cond_size + j;
+						  ply_nod_vector.insert(pos, ply_nod_vector[i * nod_vector_cond_size + j - 1]);
+					  }
+				  }
+
+				  for (int i = 1; i < nod_vector_size; i++)  // extend nod_vector_cond
+				  {
+					  for (int j = 0; j < nod_vector_cond_size; j++)
+					  {
+						  ply_nod_vector_cond.push_back(ply_nod_vector_cond[j]);
+					  }
+				  }
+
+				  // extend nod_val_vector
+				  std::vector<double> ply_nod_val_vector_original(ply_nod_val_vector);
+				  ply_nod_val_vector.resize(nod_vector_size * nod_vector_cond_size);
+
+				  for (int i = 0; i < nod_vector_size; i++)
+				  {
+					  for (int j = 0; j < nod_vector_cond_size; j++)
+					  {
+						  ply_nod_val_vector[i*nod_vector_cond_size + j] = ply_nod_val_vector_original[i] * ply_nod_val_vector_cond_original[j] / (total_val_cond);
+					  }
+				  }
+			  }
 		/////
 		if(st->ogs_WDC != nullptr)
 		{  	  // point for measurements
@@ -6156,7 +6202,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	// now we have all data
 	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st);
 
-	value = 0;  // !!! implicit source term only right now
+	value = 0; // factor * m_st->connected_geometry_offset;
 
 }
 

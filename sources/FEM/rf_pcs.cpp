@@ -7234,8 +7234,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 			else
 				bc_msh_node = m_bc_node->geo_node_number;
 #endif// END: if defined(USE_PETSC) // || defined(other parallel libs
-			// JOD 2019-04-04 threshold
-			if(m_bc->is_conditionally_active)
+			if(m_bc->is_conditionally_active) // JOD 2019-04-04 threshold
 			{
 				double nodeValue = GetNodeValue(bc_msh_node, 1); // implicit
 				if(m_bc->condition_type == 0)  // lower threshold
@@ -7360,6 +7359,18 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						bc_value = fac * gravity_constant * local_density * ( time_fac * m_bc_node->node_value - local_node_elevation );
 					}
 				}
+
+				if(m_bc->isConnected())	// JOD 2020-01-27
+				{  // !!! DIS_TYPE CONSTANT becomes offset
+					double nodeValue = 0.;
+					for(int i=0; i< m_bc_node->msh_vector_conditional.size(); ++i)
+					{
+						nodeValue += GetNodeValue(m_bc_node->msh_vector_conditional[i], 1); // implicit
+					}
+					nodeValue /= m_bc_node->msh_vector_conditional.size();
+					bc_value = time_fac * fac * (nodeValue + m_bc_node->node_value);
+				}
+
 				//----------------------------------------------------------------
 				// MSH
 				/// 16.08.2010. WW

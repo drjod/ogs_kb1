@@ -30,6 +30,8 @@
 // GEOLIB
 #include "GEOObjects.h"
 
+#include "FEMEnums.h"
+
 // MSHLib
 //#include "mshlib.h"
 // FEMLib
@@ -155,6 +157,9 @@ CBoundaryCondition::CBoundaryCondition() :
 	_isConstrainedBC = false;
 	_isSeepageBC = false;
 	is_conditionally_active = false;
+
+	connected_geometry = false;  // JOD 2020-01-27
+	geoInfo_connected = new GeoInfo();
 }
 
 // KR: Conversion from GUI-BC-object to CBoundaryCondition
@@ -203,6 +208,8 @@ CBoundaryCondition::~CBoundaryCondition()
 	if(dis_linear_f)
 		delete dis_linear_f;
 	dis_linear_f = NULL;
+
+	delete geoInfo_connected;
 }
 
 const std::string& CBoundaryCondition::getGeoName () const
@@ -574,7 +581,14 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			in.clear();
 		}
 		//....................................................................
-
+		  if (line_string.find("$CONNECTED_GEOMETRY") != std::string::npos) // JOD 2010-01-27 !!! geo_node_value becomes offset
+		  {
+		      FileIO::GeoIO::readGeoInfo(geoInfo_connected, *bc_file, connected_geometry_name, geo_obj, unique_fname);
+			  this->connected_geometry = true;
+			  in.clear();
+			  //continue;
+		  }
+		  //....................................................................
 	}
 	return position;
 }
@@ -744,6 +758,22 @@ void CBoundaryCondition::WriteTecplot(std::fstream* tec_file) const
 		*tec_file \
 		<< no_points + i + 1 << " " << no_points + i + 1 + 1 << " " << i + 1 + 1 <<
 		"\n";
+}
+
+
+void CBoundaryCondition::SetPolylineNodeVectorConnected(std::vector<long>&ply_nod_vector_cond)
+{
+	std::vector<std::size_t> ply_node_cond_ids;
+	CFEMesh* m_msh(FEMGet(convertProcessTypeToString(getProcessType())));
+
+	GEOLIB::Polyline const& ply_connected(
+				*(dynamic_cast<GEOLIB::Polyline const*>(geoInfo_connected->getGeoObj()))
+		      );
+
+	m_msh->GetNODOnPLY(&ply_connected, ply_node_cond_ids, true);
+	ply_nod_vector_cond.insert(ply_nod_vector_cond.begin(),
+		    		  ply_node_cond_ids.begin(), ply_node_cond_ids.end());
+
 }
 
 /**************************************************************************
@@ -1171,11 +1201,17 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 			{
 				//CC
 				m_polyline = GEOGetPLYByName(bc->geo_name);
+				std::vector<long> nodes_vector_cond;
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*> (bc->getGeoObj()));
 
 				if (m_polyline)
 				{
+					if(bc->isConnected())   // JOD 2020-01-27
+					{
+						bc->SetPolylineNodeVectorConnected(nodes_vector_cond);
+					}
+
 					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT)
 					{
 						// 08/2010 TF
@@ -1199,14 +1235,15 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 							m_node_value->geo_node_number = nodes_vector[i];
 							//dis_prop[0];
 							m_node_value->node_value = bc->geo_node_value;
-              m_node_value->fct_name = bc->fct_name;  // CB added here
+							m_node_value->fct_name = bc->fct_name;  // CB added here
 							m_node_value->CurveIndex = bc->getCurveIndex();
 							//YD/WW
 							m_node_value->pcs_pv_name = _pcs_pv_name;
 							// SB copy values 09.2012
 							m_node_value->bc_node_copy_geom = bc->copy_geom;
 							m_node_value->bc_node_copy_geom_name = bc->copy_geom_name;
-
+							if(bc->isConnected())					// JOD 2020-01-27  // !!! node_value becomes offset
+								  m_node_value->msh_vector_conditional = nodes_vector_cond;
 							//WW
 							pcs->bc_node.push_back(bc);
 							//WW
@@ -1243,7 +1280,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 //                            m_node_value->node_value = bc->dis_linear_f->getValue(a_node->X(),a_node->Y(),a_node->Z());
 							double const* const coords (m_msh->nod_vector[m_node_value->geo_node_number]->getData());
 							m_node_value->node_value = bc->dis_linear_f->getValue(coords[0],coords[1], coords[2]);
-              m_node_value->fct_name = bc->fct_name;  // CB added here
+							m_node_value->fct_name = bc->fct_name;  // CB added here
 							m_node_value->CurveIndex = bc->getCurveIndex();
 							m_node_value->pcs_pv_name = _pcs_pv_name;
 							pcs->bc_node.push_back(bc);
@@ -1278,7 +1315,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 																			- m_msh->nod_vector[nodes_vector[k]]->getData()[2])
 															+ bc->gradient_ref_depth_value;
 							m_node_value->CurveIndex = bc->getCurveIndex();
-              m_node_value->fct_name = bc->fct_name;  // CB added here
+							m_node_value->fct_name = bc->fct_name;  // CB added here
 							m_node_value->pcs_pv_name = _pcs_pv_name;
 							m_node_value->msh_node_number_subst = msh_node_number_subst;
 							pcs->bc_node.push_back(bc);
@@ -1327,9 +1364,10 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 							//YD/WW
 							m_node_value->pcs_pv_name = _pcs_pv_name;
 							m_node_value->CurveIndex = bc->getCurveIndex();
-              m_node_value->fct_name = bc->fct_name;  // CB added here
+							m_node_value->fct_name = bc->fct_name;  // CB added here
 							//WW
 							pcs->bc_node.push_back(bc);
+
 							//WW
 							pcs->bc_node_value.push_back(m_node_value);
 							//WW group_vector.push_back(m_node_value);
@@ -1338,6 +1376,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 						node_value.clear();
 					}
 					Free(nodes);
+
 				} // if(m_ply)
 			} // if POLYLINE
 
