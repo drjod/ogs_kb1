@@ -140,7 +140,7 @@ COUPLED ; for outer coupling loop (take keyword LINEAR for solver, NONLINEAR for
 #STOP
 ```
 
-### Reload results
+#### Reload results
 
 You can store primary variable values with the DAT_TYPE PRIMARY_VARIABLES and reload them as initial conditions with the DIS_TYPE DIRECT into your next simulation 
 
@@ -193,7 +193,7 @@ $DIS_TYPE
 GRADIENT ref_depth ref_depth_value ref_depth_gradient
 ```
 
-##### Output
+#### Output
 
 ##### Fluxes
 
@@ -227,7 +227,7 @@ DELTA_TEMPERATURE1
 DELTA_CONCENTRATION1
 ```
 
-##### Mass balancing toolkit
+#### Mass balancing toolkit
 
 See [wiki page](https://github.com/drjod/ogs_kb1/wiki/Balancing-toolkit) <br>
 
@@ -249,9 +249,9 @@ $TIM_TYPE
 STEPS 1
 ```
 
-##### Cutting and plumbing
+#### Cutting and plumbing
 
-###### Copy Gauss point velocities
+##### Copy Gauss point velocities
 Copy GP velocities from one element to a number of other elements:
 ```
 #PROCESS
@@ -263,7 +263,7 @@ Copy GP velocities from one element to a number of other elements:
    2  44  46
   ```
 
-###### Non-neighbor node connections (NNNC)
+##### Non-neighbor node connections (NNNC)
 
 See [wiki page] (https://github.com/drjod/ogs_kb1/wiki/NNNC) <br>
 
@@ -287,7 +287,7 @@ $CONNECT_MODE
 ; mode ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
 ; 2 ref_element_number n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs
 ```
-###### Deactivated subdomain
+##### Deactivated subdomain
 
 ```
 #PROCESS
@@ -297,8 +297,8 @@ $CONNECT_MODE
   2  ; number of deactivated subdomains
   1 2   ; patch indices (mmp groups)
 ```
-###### Material density
-Different fluid density models dor different patch indices (mmp groups). Supported are density models 1-8 and 14, e.g.:
+##### Material density
+Different fluid density models for different patch indices (mmp groups). Supported are density models 1-8 and 14, e.g.:
 ```
 #FLUID_PROPERTIES
  $FLUID_TYPE
@@ -307,9 +307,40 @@ Different fluid density models dor different patch indices (mmp groups). Support
   0 1 1000    ; density model 1 for patch index 0
   1 8 0       ; density model 8 for patch index 1
   ```
-##### Fluid properties
+##### Material dependent fluid
+Different fluid properties for different patch indices (mmp groups).
 
-###### Density models
+Example:
+
+Generate two liquids
+
+```
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+   LIQUID_WELL
+   
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+   LIQUID_AQ  
+```
+
+and select liquids as:
+
+```
+#MEDIUM_PROPERTIES
+ $DEPENDENT_FLUID
+   WELL
+   
+#MEDIUM_PROPERTIES
+ $DEPENDENT_FLUID
+   AQ
+  ```
+
+
+  
+#### Fluid properties
+
+##### Density models
 
 0: Curve rho(x) <br>
 1: rho = const <br>
@@ -423,11 +454,11 @@ To change the number of cores, you modify the number (8) in two locations of the
 The example script sets maximum wall time as 2 hours,  3G of memory are available for the simulation (each cluster node has 64 (128)GB available in total). 
 
 
-##### Compilation
+#### Compilation
 
 You find the newest script compileInKiel.sh for RZ cluster, NEC Cluster, Lokstedt server Kiel in repository tUNIX. Instructions are in the script.  <br>
 
-##### Mesh partitioning 
+#### Mesh partitioning 
 
 Script partition.sh for domain decomposition with METIS in repository icbc/remote/easyPeasy (calls partmesh from  ufz/mesh_partition) <br>
 
