@@ -220,6 +220,15 @@ setPaths()
         
             COMPILER_VERSION="intel" 
                 ;;
+	je) # my Fujitsu
+	    ICC="/usr/bin/gcc"
+	    ICPC="/usr/bin/g++"
+
+            export PATH=/usr/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib
+
+	    COMPILER_VERSION="gnu"
+                ;;
 	am) # AMAK
 	    ICC="/usr/bin/gcc"
 	    ICPC="/usr/bin/g++"
