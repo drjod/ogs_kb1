@@ -145,11 +145,11 @@ initialize()
 
 setPaths()
 {
-    setPaths__host=$HOSTNAME
-    
+    setPaths__host=$HOSTNAME 
+
     case ${setPaths__host:0:2} in 
-        rz) # rzcluster 
-            SOFTWARE_FOLDER="/cluster/Software"
+        ca) # rzcluster 
+            SOFTWARE_FOLDER="/home/Software"
             
             # COMPILER_VERSION="intel1402"   
             # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2013_sp1.2.144"     
@@ -160,25 +160,29 @@ setPaths()
             # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
             # module load $COMPILER_VERSION   
             
-            COMPILER_VERSION="intel16"      
-            COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
-            MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux/mpi" 
+            COMPILER_VERSION="intel19.0.4"      
+            COMPOSER_ROOT="$SOFTWARE_FOLDER/intel/$COMPILER_VERSION/usr/compilers_and_libraries_2019/linux"          
+		# "$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2019.4.243/linux/mpi" 
+            MPI_ROOT="$COMPOSER_ROOT/mpi"  
 
-            ICC="$COMPOSER_ROOT/bin/intel64/icc"
-            ICPC="$COMPOSER_ROOT/bin/intel64/icpc"
+            ICPC=icpc
+		# $COMPOSER_ROOT/bin/intel64/icpc"
 
             MPIICC="$MPI_ROOT/intel64/bin/mpiicc"  
-            MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"
-                
-            module load intel16.0.0
-            module load intelmpi16.0.0
-	    module load petsc-3.7.5            
-            module load eclipse
+            MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"  
+
+	    module load cmake/3.15.4                
+            module load intel/18.0.4
+            module load intelmpi/18.0.4
+            #module load intel16.0.0
+            #module load intelmpi16.0.0
+	    #module load petsc-3.7.5            
+            #module load eclipse
             
             MKLROOT="$COMPOSER_ROOT/mkl"   
             export PATH=$PATH:$MKLROOT/lib/intel64
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
-            . $MKLROOT/bin/intel64/mklvars_intel64.sh            
+            # . $MKLROOT/bin/intel64/mklvars_intel64.sh            
                 ;;
         ne) # NEC cluster 
             SOFTWARE_FOLDER="/opt"    
@@ -381,7 +385,12 @@ build()
     if [ "$IDE" == "ECLIPSE" ]; then  # only difference is GENERATOR_OPTION -G
         cmake ../../sources -G "Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=${compilerTable[(($1 * 3))]} -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                       
     else
-        cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+
+        if [ "$build__COMPILER_C" == "" ]; then
+           cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+        else
+           cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+        fi
     fi
 }
 
@@ -459,6 +468,7 @@ main()
             main $1 "" "" # restart - than BUILD_CONFIGURATION, Build_flag and configuration always selected by user
         fi   # else BUILD_CONFIGURATION was preselected - exit now
     fi
+
 } 
 
 if [ "$configurationSELECTED" != "x" ]; then
