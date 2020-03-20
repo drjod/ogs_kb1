@@ -247,7 +247,9 @@ public:
 	double saturation_exponent[MAX_FLUID_PHASES];
 	double perm_saturation_value[MAX_FLUID_PHASES];
 	//
-	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file;
+	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file,BW: X Direction; taken by JOD 2020-3-20
+	std::string permeability_Y_file;        //SB //OK/MB string permeability_dis_type_file,BW: Y Direction
+	std::string permeability_Z_file;        //SB //OK/MB string permeability_dis_type_file,BW: Z Direction;
 	std::string tortuosity_file;          // PCH
 	bool entry_pressure_conversion;		//JT
 	int capillary_pressure_model;

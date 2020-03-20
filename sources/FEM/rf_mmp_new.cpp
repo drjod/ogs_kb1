@@ -1784,7 +1784,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		indexChWin = indexChLinux = 0;
 		std::string funfname;
 		//subkeyword found
-		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos)
+		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos) // JOD 2020-3-20 from BW
 		{
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_file;
@@ -1808,6 +1808,76 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			//--------------------------------------
 			//WW
 			std::ifstream mmp_file(funfname.data(),std::ios::in);
+			if (!mmp_file.good())
+				std::cout <<
+				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
+				"\n";
+			mmp_file.close();
+			permeability_model = 2;
+			in.clear();
+			continue;
+		}
+
+		if (line_string.find("$PERMEABILITY_YDISTRIBUTION") != std::string::npos)	// JOD 2020-3-20 from BW, Y direction
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> permeability_Y_file;
+			string file_name = permeability_Y_file;
+			
+			//-------WW
+			indexChWin = FileName.find_last_of('\\');
+			indexChLinux = FileName.find_last_of('/');
+			if (indexChWin == string::npos && indexChLinux == std::string::npos)
+				funfname = file_name;
+			else if (indexChWin != string::npos)
+			{
+				funfname = FileName.substr(0, indexChWin);
+				funfname = funfname + "\\" + file_name;
+			}
+			else if (indexChLinux != string::npos)
+			{
+				funfname = FileName.substr(0, indexChLinux);
+				funfname = funfname + "/" + file_name;
+			}
+			permeability_Y_file = funfname;
+			//--------------------------------------
+			//WW
+			std::ifstream mmp_file(funfname.data(), std::ios::in);
+			if (!mmp_file.good())
+				std::cout <<
+				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
+				"\n";
+			mmp_file.close();
+			permeability_model = 2;
+			in.clear();
+			continue;
+		}
+		if (line_string.find("$PERMEABILITY_ZDISTRIBUTION") != std::string::npos)	 //BW Z direction
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> permeability_Z_file;
+			string file_name = permeability_Z_file;
+			
+
+			//-------WW
+			indexChWin = FileName.find_last_of('\\');
+			indexChLinux = FileName.find_last_of('/');
+			if (indexChWin == string::npos && indexChLinux == std::string::npos)
+				funfname = file_name;
+			else if (indexChWin != string::npos)
+			{
+				funfname = FileName.substr(0, indexChWin);
+				funfname = funfname + "\\" + file_name;
+			}
+			else if (indexChLinux != string::npos)
+			{
+				funfname = FileName.substr(0, indexChLinux);
+				funfname = funfname + "/" + file_name;
+			}
+			permeability_Z_file = funfname;
+			//--------------------------------------
+			//WW
+			std::ifstream mmp_file(funfname.data(), std::ios::in);
 			if (!mmp_file.good())
 				std::cout <<
 				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
@@ -4683,6 +4753,33 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				idx_k = m_pcs_tmp->GetElementValueIndex("PERMEABILITY_ZZ");
 				tensor[8] = m_pcs_tmp->GetElementValue(index, idx_k + 1);
 			}
+			else if (permeability_model == 2)   // JOD 2020-3-20 from BW: For X,Y,Z directions permeability
+			{                         // here get the initial permeability values from material perperty class;
+				// get the index:-------------------------------------------------------------------
+				for (perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
+					perm_index++){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY") == 0){
+						tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
+						tensor[1] = 0.0;
+						tensor[2] = 0.0;
+					}
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y") == 0){
+						tensor[3] = 0.0;
+						tensor[4] = _mesh->ele_vector[index]->mat_vector(perm_index);
+						tensor[5] = 0.0;
+					}
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z") == 0)	 {
+						tensor[6] = 0.0;
+						tensor[7] = 0.0;
+						tensor[8] = _mesh->ele_vector[index]->mat_vector(perm_index);
+					}
+				}
+				// end of getting the index---------------------------------------------------------
+				//CMCD
+				//01.09.2011 WW.  int edx = m_pcs->GetElementValueIndex("PERMEABILITY");
+				//CMCD
+				//01.09.2011 WW.   m_pcs->SetElementValue(index,edx,tensor[0]);
+			}
 			else
 			{
 				tensor[0] = permeability_tensor[0];
@@ -5402,7 +5499,17 @@ void GetHeterogeneousFields()
 			//WW file_path_base_ext = file_path + m_mmp->permeability_file;
 			//WW
 			m_mmp->SetDistributedELEProperties(m_mmp->permeability_file);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
+		}
+
+		//Set Permeability for Y and Z JOD 2020-3-20 from BW
+		if (m_mmp->permeability_Y_file.size() > 0)
+		{
+			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Y_file);
+		}
+		if (m_mmp->permeability_Z_file.size() > 0)
+		{
+			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Z_file);
 		}
 		//....................................................................
 		// For Porosity
@@ -5415,7 +5522,7 @@ void GetHeterogeneousFields()
 			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
 			// CB Removed bugs in this function
 			m_mmp->SetDistributedELEProperties(m_mmp->porosity_file);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//....................................................................
 		// GEOMETRY_AREA
@@ -5423,7 +5530,7 @@ void GetHeterogeneousFields()
 		{
 			file_path_base_ext = file_path + m_mmp->geo_area_file;
 			m_mmp->SetDistributedELEProperties(file_path_base_ext);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
 		//....................................................................
@@ -5541,8 +5648,29 @@ void CMediumProperties::SetDistributedELEProperties(string file_name)
 		{
 			element_area = false;
 			mmp_property_file >> mmp_property_name;
-			cout << mmp_property_name << "\n";
-			_mesh->mat_names_vector.push_back(mmp_property_name);
+			// cout << mmp_property_name << "\n";
+			// _mesh->mat_names_vector.push_back(mmp_property_name);
+			// JOD 2020-3-20 from BW - the same name entry does not save
+			bool existedname = false;
+			if (_mesh->mat_names_vector.size() == 0)
+			{
+				cout << " SetDistributedELEProperties: ";
+				cout << mmp_property_name << "\n";
+				_mesh->mat_names_vector.push_back(mmp_property_name);
+			}
+			else
+			{
+				for (unsigned int idx = 0; idx < _mesh->mat_names_vector.size(); idx++)
+					if (_mesh->mat_names_vector[idx].compare(mmp_property_name) == 0)
+						existedname = true;
+
+				if (existedname == false)
+				{
+					cout << " SetDistributedELEProperties: ";
+					cout << mmp_property_name << "\n";
+					_mesh->mat_names_vector.push_back(mmp_property_name);
+				}
+			}
 			if (mmp_property_name == "GEOMETRY_AREA")
 				element_area = true;
 			continue;
@@ -5620,41 +5748,47 @@ void CMediumProperties::SetDistributedELEProperties(string file_name)
 					}
 				}
 				break;
-			case 'E':     // Element data
+			case 'E':     // Element data modified by JOD 2020-3-20 according to BW
 				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
 				{
 					m_ele_geo = _mesh->ele_vector[i];
+
+					int group = m_ele_geo->GetPatchIndex();
 					mmp_property_file >> ddummy >> mmp_property_value;
-					mat_vector_size = m_ele_geo->mat_vector.Size();
-					if (mat_vector_size > 0)
-					{
-						for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-							temp_store.push_back(m_ele_geo->mat_vector(
-							                             c_vals));
-						m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-						for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-							m_ele_geo->mat_vector(c_vals) =
-							        temp_store[c_vals];
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmp_property_value;
-						temp_store.clear();
+					if (group == this->number){				//BW: Only Write for this Material Group					
+						mat_vector_size = m_ele_geo->mat_vector.Size();
+						if (mat_vector_size > 0)
+						{
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								temp_store.push_back(m_ele_geo->mat_vector(
+								c_vals));
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								m_ele_geo->mat_vector(c_vals) =
+								temp_store[c_vals];
+							m_ele_geo->mat_vector(mat_vector_size) =
+								mmp_property_value;
+							temp_store.clear();
+						}
+						else
+						{
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							m_ele_geo->mat_vector(mat_vector_size) =
+								mmp_property_value;
+						}
+						if (element_area)
+							_mesh->ele_vector[i]->SetFluxArea(
+							mmp_property_value);
+						if (line_string.empty())
+						{
+							cout <<
+								"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
+								<< "\n";
+							return;
+						}
 					}
 					else
-					{
-						m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmp_property_value;
-					}
-					if (element_area)
-						_mesh->ele_vector[i]->SetFluxArea(
-						        mmp_property_value);
-					if(line_string.empty())
-					{
-						cout <<
-						"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
-						     << "\n";
-						return;
-					}
+						continue;
 				}
 				break;
 			default:
