@@ -1,5 +1,6 @@
 ::: The Visual Studio project file will be created in
-::: /Build/OGS-FEM-5.sln
+::: /Build/OGS-FEM_SP
+
 set USE_VC_EXPRESS=FALSE
 
 ::: Create build directory :::
