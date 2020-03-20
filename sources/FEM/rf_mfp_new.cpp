@@ -41,7 +41,6 @@ using namespace std;
 #include "physical_constants.h"
 
 
-
 /* Umrechnungen SI - Amerikanisches System */
 //WW #include "steam67.h"
 #define PSI2PA 6895.
@@ -435,6 +434,10 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				density_pcs_name_vector.push_back("CONCENTRATION1");
 			}
 			//      mfp_file->ignore(MAX_ZEILE,'\n');
+			if (density_model == 27) // JOD 2020-3-20 from BW 31.08.2017 add a desnity model with non-linear denpendency with temperature following Kell (1975)
+			{
+				density_pcs_name_vector.push_back("TEMPERATURE1");
+			}
 			in.clear();
 			continue;
 		}
@@ -847,6 +850,19 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				enthalpy_pcs_name_vector.push_back("TEMPERATURE1");
 			}
 
+			if (heat_capacity_model == 10) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
+			{
+				in >> const_specific_heat_capacity;
+				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
+				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
+			}
+
+			if (heat_capacity_model == 27) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
+			{
+				in >> const_specific_heat_capacity;
+				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
+				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
+			}
 			//AKS
 			if(density_model == 15)// components constant density
 			{
@@ -1454,6 +1470,23 @@ double CFluidProperties::Density(double* values)
 			//------------------------------------------------------------------------------------
 			density += Delta_density; 
 		}
+		break;
+	case 27: // JOD 2020-3-20  - density has a non-linear denpendency on temperature BW 31.08.2017
+		// temperature need to be in the unit of [°C] not [K]
+		density = (999.83952
+			+ 16.945176*(primVal[0] - 273.15)
+			- 7.9870401e-3*pow((primVal[0] - 273.15), 2.0)
+			- 46.170461e-6*pow((primVal[0] - 273.15), 3.0)
+			+ 105.56302e-9*pow((primVal[0] - 273.15), 4.0)
+			- 280.54253e-12*pow((primVal[0] - 273.15), 5.0))
+			/ (1 + 16.879850e-3*(primVal[0] - 273.15));
+		/*if (density > 1000.0 || density < 960.0)
+		{
+
+			std::cout << "At Element: " << Fem_Ele_Std->GetMeshElement()->GetIndex() << "Temperature: " << primVal[0] << " Density: " << density <<
+				"\n";
+			exit(0);
+		}*/
 		break;
 	default:
 		std::cout << "Error in CFluidProperties::Density - no valid model" <<
@@ -2618,7 +2651,7 @@ double CFluidProperties::PhaseDiffusion_Yaws_1976(double T)
    last modification: NB Jan 09 4.9.05
 **************************************************************************/
 //NB
-double CFluidProperties::SpecificHeatCapacity(double* variables)
+double CFluidProperties::SpecificHeatCapacity(double* variables,bool flag_content)
 {
             CRFProcess* m_pcs;
     m_pcs = PCSGet("MULTI_COMPONENTIAL_FLOW");
@@ -2658,7 +2691,13 @@ double CFluidProperties::SpecificHeatCapacity(double* variables)
 	case 9:
 		specific_heat_capacity = isobaric_heat_capacity(Density(primary_variable), primary_variable[1], fluid_id);
 		break;
-    case 11: //mole fraction weighted average of molar isochoric specific heat capacities converted into isobaric mixture specific heat capacity (ideal conversion)
+	case 10: // Linear dependency
+		if (flag_content == false)
+			specific_heat_capacity = const_specific_heat_capacity * (1 + drho_dT * rho_0 *temperature / Density(&primary_variable[1]));
+		else
+			specific_heat_capacity = const_specific_heat_capacity;
+		break;
+    	case 11: //mole fraction weighted average of molar isochoric specific heat capacities converted into isobaric mixture specific heat capacity (ideal conversion)
 		{
 		    //reactive component	
 			x[0] = cp_vec[0]->molar_mass*variables[2]/(cp_vec[0]->molar_mass*variables[2] + cp_vec[1]->molar_mass*(1.0-variables[2])); //mass in mole fraction
@@ -2671,9 +2710,9 @@ double CFluidProperties::SpecificHeatCapacity(double* variables)
 			specific_heat_capacity = Cp_c[0]*cp_vec[1]->molar_mass*x[0] + Cp_c[1]*cp_vec[0]->molar_mass*x[1]; //mixture isochoric molar heat capacities
 			specific_heat_capacity += (GAS_CONSTANT/1000.0); //isochoric in isobaric
 			specific_heat_capacity /= (cp_vec[0]->molar_mass*x[1] + cp_vec[1]->molar_mass*x[0]); //molar in specific of mixture value
-         break;
 		}
-	  case 12: //mass fraction weighted average of isobaric specific heat capacities using a linearised model
+         	break;
+	case 12: //mass fraction weighted average of isobaric specific heat capacities using a linearised model
 			//reactive component	
 			x[0] = variables[2]; //mass fraction
 			Cp_c[0] = linear_heat_capacity(variables[1],cp_vec[1]->fluid_id);
@@ -2681,7 +2720,7 @@ double CFluidProperties::SpecificHeatCapacity(double* variables)
 			x[1] = 1.0 - x[0];
 			Cp_c[1] = linear_heat_capacity(variables[1],cp_vec[0]->fluid_id);
 			specific_heat_capacity = Cp_c[0]*x[0] + Cp_c[1]*x[1]; //mixture isobaric specific heat capacities
-         break;
+        	break;
 	case 15: // mixture cp= sum_i y_i*cp:: P, T, x dependent
 		for (int CIndex = 2; CIndex < cmpN + 2; CIndex++)
 	{
@@ -2697,6 +2736,18 @@ double CFluidProperties::SpecificHeatCapacity(double* variables)
 		}
 		specific_heat_capacity =  Cp;
 
+		break;
+	case 27: // JOD 2020-3-20 - Non-Linear dependency, PTB Model BW 2020-02-11
+		if (flag_content == false)
+		{
+			double drho_dT_local;
+			drho_dT_local = -(3030730.128 * pow(temperature, 5.0) - 4770091861 * pow(temperature, 4.0) + 3132378474000 * pow(temperature, 3.0)
+				- 1005350784000000 * pow(temperature, 2.0) + 155150238900000000 * temperature - 9272148759000000000) / (pow((6751940 * temperature - 1444292411), 2.0));
+			specific_heat_capacity = const_specific_heat_capacity * (1 + drho_dT_local *temperature / Density(&primary_variable[1]));
+		}
+			
+		else
+			specific_heat_capacity = const_specific_heat_capacity;
 		break;
 	}
 	return specific_heat_capacity;
@@ -3460,11 +3511,6 @@ double CFluidProperties::DensityTemperatureDependence(long number,int comp,doubl
 **************************************************************************/
 double CFluidProperties::LiquidViscosity_CMCD(double Press,double TempK,double C)
 {
-
-	/*std::cout << "Press: " << Press << "\n";
-	std::cout << "TempK: " << TempK << "\n";
-	std::cout << "C: " << C << "\n";
-*/
 	C = C;
 	/*CMcD variables for 20 ALR*/
 	double A1,A2,A3,A4,A5,A6,A7,A8;       /*constants*/
@@ -3521,11 +3567,9 @@ double CFluidProperties::LiquidViscosity_CMCD(double Press,double TempK,double C
 	PsatBar = PsatKPa / (1000 * 100000);  /*Saturation pressure in bar*/
 
 	/*Viscosity of pure water in Pa-S*/
-
 	my_Zero = 243.18e-7 *
 	          (pow(10.,
 	               (247.8 / (TempK - 140)))) * (1 + (Pbar - PsatBar) * 1.0467e-6 * (TempK - 305));
-
 
 	/*Viscosity of saline water in Pa-S*/
 	viscosity = my_Zero *
@@ -3534,7 +3578,6 @@ double CFluidProperties::LiquidViscosity_CMCD(double Press,double TempK,double C
 	                               5)) +
 	             (sqrt(TempF) - 0.0135 *
 	          TempF) * (0.00276 * Salinity - 0.000344 * (MathLib::fastpow(sqrt(Salinity),3))));
-
 	return viscosity;
 }
 

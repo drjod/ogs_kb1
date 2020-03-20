@@ -130,6 +130,7 @@ private:
 	// Thermal properties
 	double specific_heat_capacity;
 	double volumetric_heat_capacity;  // JOD 2018-9-20 - used in HEAT_TRANSPORT (to neglect density variations and improve heat balance in non-conservative formulation)
+	double const_specific_heat_capacity; // BW 2020-2-11 - used for heat capacity calculation when counts for temperature dependency
 	bool flag_volumetric_heat_capacity;
 	double beta_T;
 	double heat_conductivity;
@@ -250,8 +251,8 @@ public:
 	double ComponentDensity(int CIndex, double* variables = NULL);//AKS
 	double Viscosity(double* variables = NULL); //OK4709
 	                                            //NB Jan09
-      double PhaseDiffusion(double *variables = NULL);
-	double SpecificHeatCapacity(double* variables = NULL);
+      	double PhaseDiffusion(double *variables = NULL);
+	double SpecificHeatCapacity(double* variables = NULL, bool flag_content = false);
 	void therm_prop(std::string caption); //NB 4.9.05
 	double PhaseChange();                 // JOD
 	double HeatConductivity(double* variables = NULL);
