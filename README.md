@@ -227,6 +227,18 @@ DELTA_TEMPERATURE1
 DELTA_CONCENTRATION1
 ```
 
+##### Averaging
+
+Implemented for surfaces, e.g. to get an average surface temperature
+```
+$NOD_VALUES
+TEMPERATURE1
+$GEO_TYPE
+ SURFACE sfc_1
+$DIS_TYPE
+ AVERAGE
+```
+
 #### Mass balancing toolkit
 
 See [wiki page](https://github.com/drjod/ogs_kb1/wiki/Balancing-toolkit) <br>
