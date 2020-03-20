@@ -1319,7 +1319,13 @@ void COutput::WriteTECHeader(fstream &tec_file,int e_type, string e_type_name)
 	tec_file << "E=" << no_elements << ", ";
 	tec_file << "F=" << "FEPOINT" << ", ";
 	tec_file << "ET=" << e_type_name;
-	tec_file << "\n";
+	// JOD 2020-3-20 from BW - data accuracy for each variable
+	tec_file << "DT=(DOUBLE,DOUBLE,DOUBLE"; // BW, for the accuracy of the coordinates
+	for (size_t k = 0; k < nName; k++) // BW, for the nodal variables, hard coded as SINGLE, i.e. 6 digits
+	{
+		tec_file << ",SINGLE";
+	}
+	tec_file << ")\n";
 	//--------------------------------------------------------------------
     // Write Header III: solution time			; BG 05/2011
     tec_file << "STRANDID=1, SOLUTIONTIME=";
@@ -2847,10 +2853,8 @@ void COutput::NODWriteSFCDataTEC(int number)
    //std::string tec_file_name = file_base_name 
 		 //                       + "_sfc_" + geo_name + "_t"
 	  //                          + number_string + TEC_FILE_EXTENSION;   
-
-	std::string tec_file_name = file_base_name
+   std::string tec_file_name = file_base_name
      + "_sfc_" + geo_name + TEC_FILE_EXTENSION;
-
    //if (!_new_file_opened)
    //  remove(tec_file_name.c_str());  //WW
 
@@ -2859,7 +2863,6 @@ void COutput::NODWriteSFCDataTEC(int number)
      tec_file.open(tec_file_name.data(), ios::out);
    else
      tec_file.open(tec_file_name.data(), ios::app);
-
 
 	tec_file.setf(ios::scientific, ios::floatfield);
 	tec_file.precision(12);
@@ -2878,7 +2881,6 @@ void COutput::NODWriteSFCDataTEC(int number)
 	//--------------------------------------------------------------------
 	// Write header
 	//project_title;
-
 	string project_title_string = "Profile at surface";
 	tec_file << " TITLE = \"" << project_title_string << "\""
 	         << "\n";
@@ -2888,14 +2890,11 @@ void COutput::NODWriteSFCDataTEC(int number)
 	tec_file << "\n";
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
     tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
-
 	//--------------------------------------------------------------------
 	// Write data
 	std::vector<long> nodes_vector;
 	Surface* m_sfc = NULL;
 	m_sfc = GEOGetSFCByName(geo_name);    //CC
-
-
 	if (m_sfc)
 	{
 		m_msh->GetNODOnSFC(m_sfc, nodes_vector);
