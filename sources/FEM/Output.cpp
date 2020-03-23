@@ -1690,7 +1690,7 @@ Programing:
 10/2014 BW Implemented for BLOCK DataPacking of TECPLOT
 Inheritated from WriteTECHeader();
 **************************************************************************/
-void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
+void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file) //BW: 23.03.2020 please update changes
 {
 	// MSH
 	//	m_msh = GetMSH();
@@ -1760,19 +1760,23 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 				<< "]=CELLCENTERED)";
 		}
 
-		if ((ele_value_vector_size == 0 && mmp_value_vector_size == 1))
+		else if ((ele_value_vector_size == 0 && mmp_value_vector_size == 1))
 		{
 			tec_file << "VARLOCATION=" << "(["
 				<< nName + mfp_value_vector_size + nPconName + 4
 				<< "]=CELLCENTERED)";
 		}
 
+		else
 		tec_file << "VARLOCATION=" << "(["
 			<< nName + mfp_value_vector_size + nPconName + 4
 			<< "-"
 			<< nName + mfp_value_vector_size + nPconName + ele_value_vector_size + mmp_value_vector_size + 3
 			<< "]=CELLCENTERED)";
 	}
+	
+	//data accuracy for each variable
+	tec_file << "DT=(DOUBLE,DOUBLE,DOUBLE)"; // BW, for the accuracy of the coordinates
 
 	tec_file << "\n";
 	//--------------------------------------------------------------------
@@ -1800,7 +1804,7 @@ OK ??? too many specifics
 10/2014 BW Write Block Datapacking Format of TECPLOT with Nodal/Ele Data
 together, inheritated from WriteTECNodeData()
 **************************************************************************/
-void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
+void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please update changes
 {
 	const size_t nName(_nod_value_vector.size());
 	double val_n = 0.;                    //WW
@@ -1927,7 +1931,10 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
 								tec_file << '\n';
 						}
 						else {
-							val_n = m_pcs->GetNodeValue(n_id, NodeIndex[k]); //WW
+							if (_nod_value_vector[k].find("DELTA") == 0) // BW 24/11/2015 
+								val_n = m_pcs->GetNodeValue(n_id, 1) - m_pcs->GetNodeValue(n_id, NodeIndex[k]);
+							else
+								val_n = m_pcs->GetNodeValue(n_id, NodeIndex[k]); //WW
 							tec_file << val_n << " ";
 							//if ((m_pcs->type == 1212 || m_pcs->type == 42)
 							//	&& _nod_value_vector[k].find("SATURATION") != string::npos) //WW
@@ -5207,7 +5214,7 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 			NodeVal_adv[k] = m_pcs->GetNodeValue(e_node->GetIndex(), ndx1) * flux_normal * factor;				// advection
 
 			if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
-				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
+				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity(NULL,true) * mfp_vector[0]->Density(); //BW: 23.03.2020 please double check
 			// diffusion
 			flux[0] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_X1"));  // Fick / Fourrier
 			flux[1] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Y1"));
