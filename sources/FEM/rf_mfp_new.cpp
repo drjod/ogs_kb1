@@ -2306,10 +2306,17 @@ double CFluidProperties::Viscosity(double* values)
 			                                    "TEMPERATURE1") + 1);
 		}
 		//ToDo pcs_name
- 		if(!T_Process) 
-			primVal[0] = T_0 + viscosity_T_shift;
-		else primVal[0] += viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
-		viscosity = LiquidViscosity_Yaws_1976(primVal[0]);
+ 		if(!T_Process)  //BW: 23.03.2020 please update changes
+			primVal[1] = T_0 + viscosity_T_shift;
+		else primVal[1] += viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
+		viscosity = LiquidViscosity_Yaws_1976(primVal[1]);
+		//if ((primVal[1] < 0) || (viscosity == 0.0) || (viscosity<0.000281) || (viscosity>0.002))
+		//{
+		//	cout << "Error in CFluidProperties::Viscosity: Did not get curve value" << "\n";
+		//	std::cout << "At Element: " << Fem_Ele_Std->GetMeshElement()->GetIndex() << "Temperature: " << primVal[1] << " Viscosity: " << viscosity <<
+		//		"\n";
+		//	exit(0);
+		//}
 		break;
 	}
 	case 4:                               // my^g(T), Marsily (1986)
@@ -2897,7 +2904,7 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 			else if(assem->FluidProp->get_flag_volumetric_heat_capacity())
 				heat_capacity_fluids = assem->FluidProp->get_volumetric_heat_capacity();
 			else
-				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
+				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity(NULL, flag_calcContent) * assem->FluidProp->Density(); //BW: 23.03.2020, please update changes
 
 			if(m_pcs->type != 1) // neither liquid nor ground water flow
 			{

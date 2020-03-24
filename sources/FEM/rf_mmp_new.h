@@ -131,7 +131,7 @@ private:
 	void CalStressPermeabilityFactor4(double* kfac, double);
 	//CMCD 9/2004 GeoSys 4
 	double StorageFunction(long number,double* gp,double theta);
-	double HeatCapacity(long number,double theta, bool flag_calcContent, CFiniteElementStd* assem = NULL);
+	double HeatCapacity(long number,double theta, bool flag_calcContent=false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 Please update changes
 	double* HeatConductivityTensor(int number); //MX
 	double* HeatDispersionTensorNew(int ip); //CMCD
 	double* MassDispersionTensorNew(int ip, int phase); //CMCD, SB, BG

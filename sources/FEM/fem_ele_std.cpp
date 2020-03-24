@@ -1537,7 +1537,7 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass(bool flag_calcContent)
+double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 please update changes
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
