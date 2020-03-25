@@ -2927,25 +2927,23 @@ void GetGreenAmptNODValue(double &value, CSourceTerm* m_st, long msh_node)
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
 void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
 {
-   //	if (st->COUPLING_SWITCH == true ||
-   //		st->getProcessType() == GROUNDWATER_FLOW ||
-   //		st->getProcessType() == RICHARDS_FLOW ||
-   //		st->getProcessType() == OVERLAND_FLOW)
-   //		GetCouplingNODValuePicard(value, st, cnodev);
-   //	else
-   //		cout << "Error in GetCouplingNODValue";
-
-   if (st->isCoupled() &&
-      (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
+	if((st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
+		      st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	 && st->pcs_type_name_cond == "LIQUID_FLOW")
+	{
+		GetCouplingNODValueConvectiveForm(value, st, cnodev);
+	}
+	else if (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
       st->getProcessType() == FiniteElement::RICHARDS_FLOW ||
       st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW ||
       st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
-      st->getProcessType() == FiniteElement::HEAT_TRANSPORT) )
+      st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	{
       GetCouplingNODValuePicard(value, st, cnodev);
-   else if (st->isCoupled() &&
-      st->getProcessType() == FiniteElement::OVERLAND_FLOW)
+	}
+	else if (st->getProcessType() == FiniteElement::OVERLAND_FLOW)
 	  GetCouplingNODValueNewton(value, st, cnodev);
-   else
+	else
       std::cout << "Error in GetCouplingNODValue";
 }
 #endif
@@ -3077,6 +3075,34 @@ CNodeValue* cnodev)
    if (m_st->no_surface_water_pressure)           // neglect hydrostatic surface liquid pressure
      value = 0; 
 
+}
+#endif
+
+
+/**************************************************************************
+ FEMLib-Method:
+ Task: Source term for convective form of ADE
+ Programing:
+ 03/2020 JOD Implementation
+ **************************************************************************/
+#if !defined(USE_PETSC)
+
+void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
+{
+	 value *=  mfp_vector[0]->Density() *  mfp_vector[0]->SpecificHeatCapacity();
+
+#ifdef NEW_EQS
+#ifdef LIS
+   // JOD 2018-5-17
+   CSparseMatrix* A = NULL;
+   A = m_pcs_this->eqs_new->get_A();
+   (*A)(cnodev->msh_node_number, cnodev->msh_node_number) -= value;
+#endif
+#else
+   MXInc(cnodev->msh_node_number, cnodev->msh_node_number, -value);
+#endif
+
+     value = 0;  // no right nad side term
 }
 #endif
 
