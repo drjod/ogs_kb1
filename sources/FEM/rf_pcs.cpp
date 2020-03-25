@@ -8700,18 +8700,27 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 							cnodev->node_value = +q_face / 2;
 						}
 					}
+				}  // end system dependent
+
+
+				// time dependencies - moved to here by JOD 2020-03-25
+				curve = cnodev->CurveIndex;
+				if (curve > 0)
+				{
+					//Reading Time interpolation method; BG
+					if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
+						if (interp_method != m_st->TimeInterpolation)
+							interp_method = m_st->TimeInterpolation;
+
+					time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
+					//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
+					if (!valid)
+					{
+						cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
+						cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
+						time_fac = 1.0;
+					}
 				}
-				//-------------------------------------------------------------------
-				GetNODValue(value, cnodev, m_st);
-			}             // st_node.size()>0&&(long)st_node.size()>i
-      else {
-        std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
-      }
-
-		//----------------------------------------------------------------------------------------
-
-		if (m_st != NULL)  // some Kiel-stuff - switching source term on and off, and NNNC
-		{
 
 			  //----------------------------------------------------------------------------------------
 			  //SB: check if st is active, when Time_Controlled_Aktive for this ST is define
@@ -8740,7 +8749,38 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  time_fac = 0.0;
 				  value = 0;
 			  }
-			  else
+
+				// Time dependencies - FCT    //YD
+				if (m_st)     //WW
+				{
+					//WW/YD //OK
+					if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
+					{
+						if (m_st->getFunctionName().length() > 0)
+						{
+							m_fct = FCTGet(pcs_number);
+							if (m_fct)
+								time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
+							else
+								cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+						}
+					}
+					else if (m_st->getFunctionName().length() > 0)
+					{
+						m_fct = FCTGet(m_st->getFunctionName());
+						if (m_fct){
+							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
+							//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
+						}
+						else
+								cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+					}
+				}
+				//----------------------------------------------------------------------------------------
+				value *= time_fac * fac;
+
+
+			  if(value != 0)
 			  {   // only if not switched off
 				  if(m_st->isConnected())  // JOD 2/2015
 					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
@@ -8757,56 +8797,21 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  if(m_st->ogs_contraflow != nullptr)
 					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
 			  }
-		}
 
-		//--------------------------------------------------------------------
-		// Please do not move the this section
-		curve = cnodev->CurveIndex;
-		if (curve > 0)
-		{
-			//Reading Time interpolation method; BG
-			if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
-				if (interp_method != m_st->TimeInterpolation)
-					interp_method = m_st->TimeInterpolation;
 
-			time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
-			//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
-			if (!valid)
-			{
-				cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
-				cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
-				time_fac = 1.0;
-			}
-		}
 
-		// Time dependencies - FCT    //YD
-		if (m_st)     //WW
-		{
-			//WW/YD //OK
-			if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
-			{
-				if (m_st->getFunctionName().length() > 0)
-				{
-					m_fct = FCTGet(pcs_number);
-					if (m_fct)
-						time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
-					else
-						cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-				}
-			}
-			else if (m_st->getFunctionName().length() > 0)
-			{
-				m_fct = FCTGet(m_st->getFunctionName());
-				if (m_fct){
-					time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
-					//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
-				}
-				else
-						cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-			}
-		}
+
+				//-------------------------------------------------------------------
+				GetNODValue(value, cnodev, m_st);
+			}             // st_node.size()>0&&(long)st_node.size()>i
+      else {
+        std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
+      }
+
 		//----------------------------------------------------------------------------------------
-		value *= time_fac * fac;
+
+
+
 
 			//------------------------------------------------------------------
 			// EQS->RHS
