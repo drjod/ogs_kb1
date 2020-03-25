@@ -3093,8 +3093,9 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
 
 #ifdef NEW_EQS
 #ifdef LIS
-   // JOD 2018-5-17
+   // JOD 2020-3-25
    CSparseMatrix* A = NULL;
+   CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
    A = m_pcs_this->eqs_new->get_A();
    (*A)(cnodev->msh_node_number, cnodev->msh_node_number) -= value;
 #endif
@@ -3102,7 +3103,7 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, -value);
 #endif
 
-     value = 0;  // no right nad side term
+     value = 0;  // no right hand side term
 }
 #endif
 
