@@ -530,6 +530,7 @@ extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeVal
 extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 // JOD
 extern void GetCouplingNODValuePicard(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
+extern void GetCouplingNODValueConvectiveForm(double& value, CSourceTerm* m_st, CNodeValue* cnodev);  // JOD 2020-03-25
 #endif
 // JOD
 extern double CalcCouplingValue(double factor,
