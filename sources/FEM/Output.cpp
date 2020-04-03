@@ -4924,11 +4924,11 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 
 	if (time_step_number == 0)
 	{
-		tec_file << "TIME                   ";
+		tec_file << "\"TIME\"                   ";
 		if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT || m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
-			tec_file << "DIFFUSION / DISPERSION FLUX             ADVECTION FLUX";
+			tec_file << "\"DIFFUSION / DISPERSION FLUX\"             \"ADVECTION FLUX\"";
 		else
-			tec_file << "DARCY FLUX";
+			tec_file << "\"DARCY FLUX\"";
 		tec_file << "\n";
 	}
 	else 
@@ -5094,7 +5094,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	tec_file.seekg(0L, ios::beg);
 
 	if (time_step_number == 0)
-		tec_file << "TIME                   CONTENT" << "\n";
+		tec_file << "\"TIME\"                   \"CONTENT\"" << "\n";
 	else 
 	{
 		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
@@ -5849,9 +5849,9 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file << "VARIABLES = \"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
-
-			tec_file_tf << "; T_in T_out Time flux_1 flux_2 \n";
+			tec_file << "\"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
+			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
+			tec_file_tf << "\"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
 		}
 		else
 		{
