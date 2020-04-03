@@ -3789,340 +3789,6 @@ void STGroupDelete(std::string pcs_type_name, std::string pcs_pv_name)
  modification:
  05/2010
  **************************************************************************/
-void CSourceTermGroup::SetPNT(CRFProcess* pcs, CSourceTerm* st,
-const int ShiftInNodeVector)
-{
-  //05.2012. WW
-  long node_id = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj()));
-  if(node_id < 0)
-    return;
-   CNodeValue *nod_val (new CNodeValue());
-
-   // TF removed some checks - check validity of data while reading data
-
-   nod_val->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj())) + ShiftInNodeVector;
-   nod_val->CurveIndex = st->CurveIndex;
-                                                  //WW
-   nod_val->geo_node_number = nod_val->msh_node_number - ShiftInNodeVector;
-   nod_val->node_value = st->geo_node_value;
-   nod_val->tim_type_name = st->tim_type_name;
-
-   if(st->isConnected()) // JOD 2018-02-20
-   {
-	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
-			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
-   }
-
-   if(st->hasThreshold()) // JOD 2018-02-20
-   {  // only point supported
-	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
-   }
-
-
-   if(st->calculatedFromStorageRate()) // JOD 2018-02-22
-   {  // only point supported
-	  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
-	  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
-	   st->storageRate.inlet_msh_node_areas.push_back(1.);
-	   st->storageRate.outlet_msh_node_areas.push_back(1.);
-	   st->storageRate.inlet_totalArea = 1.;
-	   st->storageRate.outlet_totalArea = 1.;
-   }
-
-   if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
-   {
-      //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-      std::cout << "      - Critical depth" << "\n";
-   }
-
-   if (st->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-	  std::cout << "      - Normal depth" << "\n";
-   }
-
-   //	if (st->dis_type_name.compare("PHILIP") == 0) { // JOD
-   //		nod_val->node_distype = 10;
-   //		nod_val->node_area = 1.0;
-   //	}
-   // Added by CB
-   if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
-   {
-     long msh_ele = m_msh->nod_vector[nod_val->msh_node_number]->getConnectedElementIDs()[0];
-     if (mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
-       nod_val->node_value *= mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
-   }
-
-   if (st->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-	  std::cout << "      - Green-Ampt" << "\n";
-   }
-
-   if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      pcs->compute_domain_face_normal = true;     //WW
-      CElem* elem = NULL;
-      CNode* cnode = NULL;                        //WW
-      for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-      {
-         elem = m_msh->ele_vector[i];
-         if (!elem->GetMark())
-            continue;
-         int nn = elem->GetNodesNumber(m_msh->getOrder());
-         for (long j = 0; j < nn; j++)
-         {
-            cnode = elem->GetNode(j);             //WW
-            if (cnode->GetIndex() == (size_t)st->geo_node_number)
-               st->element_st_vector.push_back(i);
-         }
-      }
-   }
-
-   if (st->getProcessDistributionType() == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
-		st->node_value_vectorArea.resize(1);
-	    st->node_value_vectorArea[0] = 1.0;
-		//nod_val->node_value = 0.0;
-		////Get process type
-		//CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(st->getProcessType()));
-		////Get Mesh
-		//CFEMesh* mesh (m_pcs_this->m_msh);
-		//long msh_ele = mesh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()[0];
-	 //   int group = mesh->ele_vector[msh_ele]->GetPatchIndex();
-
-		//st->node_value_vectorArea[0] = mmp_vector[group]->geo_area;
-		if (m_msh->isAxisymmetry() && m_msh->GetMaxElementDim() == 1)
-			st->node_value_vectorArea[0] *= m_msh->nod_vector[nod_val->geo_node_number]->X();
-				//2pi is mulitplicated during the integration process
-   }
-
-   if (st->getProcessDistributionType()==FiniteElement::RECHARGE)	//MW
-   {
-	   nod_val->setProcessDistributionType (st->getProcessDistributionType());
-   }
-
-   st->st_node_ids.push_back(nod_val->geo_node_number);
-
-   if (st->isConstrainedST())
-   {
-	   st->_constrainedSTNodesIndices.push_back(-1);
-	   for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
-		   st->pushBackConstrainedSTNode(i,false);
-   }
-
-   if(st->ogs_WDC != nullptr)
-   {  	  // point for measurements
-	 st->ogs_WDC->set_doublet_mesh_nodes({
-		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
-			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
-				  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)}  // heatExchanger
-				  });
-
-	  // liquid flow BCs
-	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-
-	  std::vector<long> liquidBC_mesh_nodes;
-	  std::vector<double> liquidBC_mesh_node_values;
-	  double total_value;
-
-		 // warm well 1
-		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-		 {
-			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-								  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-		 }
-		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-		 {
-			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
-
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-		 }
-
-		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-		 {
-			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
-			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
-
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-			 pcs_liquid->st_node.push_back(st);
-		 }
-
-		 liquidBC_mesh_node_values.clear();
-		 //////// cold well 2 - copy from lines above except that node_value is negative
-		 if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POINT)
-		 {
-			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-		 }
-		 else if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-		 {
-			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-		 }
-
-		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-		 {
-			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
-			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
-
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-			 pcs_liquid->st_node.push_back(st);
-		 }
-
-	  /*
-	  // warm well 1
-	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector;
-	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
-	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-	  nod_val_liquid_well1->node_value = st->geo_node_value;
-	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
-
-	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-	  pcs_liquid->st_node.push_back(st);
-	  // cold well 2 - copy from lines above except node_value is negative
-	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector;
-	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
-	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
-	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
-
-	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-	  pcs_liquid->st_node.push_back(st);
-	  */
-   }
-
-   if(st->ogs_contraflow != nullptr)  // JOD 2019-31-07
-   {
-	   st->ogs_contraflow->add_node(nod_val->msh_node_number);
-
-	   GEOLIB::Point pnt(
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[2]);
-
-	   std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
-	   double z = pnt.getData()[2];
-	   for(int i=0; i < segment_data_vec.size(); ++i)
-	   {
-		   const int N = segment_data_vec[i].N;
-		   const double dz = segment_data_vec[i].L / N;
-
-		   for(int j=0; j<N; ++j)
-		   {
-			   z -= dz;
-			   pnt = GEOLIB::Point(
-					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
-					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
-					   z);
-			   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
-		   }
-	   }
-   }
-
-   pcs->st_node_value.push_back(nod_val);         //WW
-   pcs->st_node.push_back(st);                 //WW
-
-}
-
-
-/**************************************************************************
- FEMLib-Method:
- Task:
- Programing:
- 11/2007 JOD Implementation
- **************************************************************************/
-void CSourceTermGroup::SetLIN(CRFProcess* m_pcs, CSourceTerm* m_st,
-const int ShiftInNodeVector)
-{
-   (void)m_pcs;
-   (void)m_st;
-   (void)ShiftInNodeVector;
-   /*OK411
-    long number_of_nodes;
-    vector<long>lin_nod_vector;
-    vector<double>lin_nod_val_vector;
-    CGLLine* m_lin = NULL;
-    CGLPolyline* m_ply = NULL;
-    long *nodes = NULL;
-    m_lin = m_lin->GEOGetLine(m_st->geo_id);
-
-    if(m_lin){
-    double* coordinates;
-   m_ply = new CGLPolyline;
-   m_ply->point_vector.push_back(m_lin->m_point1);
-   m_ply->point_vector.push_back(m_lin->m_point2);
-   nodes = MSHGetNodesClose(&number_of_nodes, m_ply);//CC
-   lin_nod_val_vector.resize(number_of_nodes);
-   for(long i = 0; i < number_of_nodes; i++){
-   lin_nod_val_vector[i] =  m_st->geo_node_value / number_of_nodes;
-   coordinates = new double[3];
-   coordinates[0] = GetNodeX(nodes[i]);
-   coordinates[1] = GetNodeY(nodes[i]);
-   coordinates[2] = GetNodeZ(nodes[i]);
-   m_lin->nodes_coor_vector.push_back(coordinates);
-   }
-   //InterpolationAlongPolyline(m_polyline,node_value_vector);
-   for(long i=0; i < number_of_nodes; i++){
-   CNodeValue* m_nod_val = NULL;
-   m_nod_val = new CNodeValue();
-   m_nod_val->msh_node_number = -1;
-   m_nod_val->msh_node_number = nodes[i]+ShiftInNodeVector;
-   m_nod_val->geo_node_number = nodes[i];
-   m_nod_val->node_value = lin_nod_val_vector[i];
-   m_nod_val->CurveIndex = m_st->CurveIndex;
-   //WW        group_vector.push_back(m_node_value);
-   //WW        st_group_vector.push_back(m_st); //OK
-   m_pcs->st_node_value.push_back(m_nod_val);  //WW
-   m_pcs->st_node.push_back(m_st); //WW
-   }
-   lin_nod_val_vector.clear();
-   m_ply->point_vector.clear();
-   delete m_ply;
-   }
-   else
-   cout << "Warning - CSourceTermGroup::Set: LIN not found" << '\n';
-   */
-}
-
-
-/**************************************************************************
- FEMLib-Method:
- Task:
- Programing
- 07/2005 OK Implementation based on CSourceTermGroup::Set
- modified
- 07/2010 TF substituted GEOGetPLYByName
- **************************************************************************/
 void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 {
 	CGLPolyline* old_ply (GEOGetPLYByName(st->geo_name));
@@ -4304,6 +3970,340 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 }
 
 
+void CSourceTermGroup::SetPNT(CRFProcess* pcs, CSourceTerm* st,
+const int ShiftInNodeVector)
+{
+  //05.2012. WW
+  long node_id = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj()));
+  if(node_id < 0)
+    return;
+   CNodeValue *nod_val (new CNodeValue());
+
+   // TF removed some checks - check validity of data while reading data
+
+   nod_val->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj())) + ShiftInNodeVector;
+   nod_val->CurveIndex = st->CurveIndex;
+                                                  //WW
+   nod_val->geo_node_number = nod_val->msh_node_number - ShiftInNodeVector;
+   nod_val->node_value = st->geo_node_value;
+   nod_val->tim_type_name = st->tim_type_name;
+
+   if(st->isConnected()) // JOD 2018-02-20
+   {
+	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
+			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
+   }
+
+   if(st->hasThreshold()) // JOD 2018-02-20
+   {  // only point supported
+	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+   }
+
+
+   if(st->calculatedFromStorageRate()) // JOD 2018-02-22
+   {  // only point supported
+	  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
+	  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
+	   st->storageRate.inlet_msh_node_areas.push_back(1.);
+	   st->storageRate.outlet_msh_node_areas.push_back(1.);
+	   st->storageRate.inlet_totalArea = 1.;
+	   st->storageRate.outlet_totalArea = 1.;
+   }
+
+   if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
+   {
+      //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
+      nod_val->setProcessDistributionType (st->getProcessDistributionType());
+      nod_val->node_area = 1.0;
+      std::cout << "      - Critical depth" << "\n";
+   }
+
+   if (st->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
+   {
+      nod_val->setProcessDistributionType (st->getProcessDistributionType());
+      nod_val->node_area = 1.0;
+	  std::cout << "      - Normal depth" << "\n";
+   }
+
+   //	if (st->dis_type_name.compare("PHILIP") == 0) { // JOD
+   //		nod_val->node_distype = 10;
+   //		nod_val->node_area = 1.0;
+   //	}
+   // Added by CB
+   if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+   {
+     long msh_ele = m_msh->nod_vector[nod_val->msh_node_number]->getConnectedElementIDs()[0];
+     if (mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
+       nod_val->node_value *= mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
+   }
+
+   if (st->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
+   {
+      nod_val->setProcessDistributionType (st->getProcessDistributionType());
+      nod_val->node_area = 1.0;
+	  std::cout << "      - Green-Ampt" << "\n";
+   }
+
+   if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT)
+   {
+      nod_val->setProcessDistributionType (st->getProcessDistributionType());
+      pcs->compute_domain_face_normal = true;     //WW
+      CElem* elem = NULL;
+      CNode* cnode = NULL;                        //WW
+      for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+      {
+         elem = m_msh->ele_vector[i];
+         if (!elem->GetMark())
+            continue;
+         int nn = elem->GetNodesNumber(m_msh->getOrder());
+         for (long j = 0; j < nn; j++)
+         {
+            cnode = elem->GetNode(j);             //WW
+            if (cnode->GetIndex() == (size_t)st->geo_node_number)
+               st->element_st_vector.push_back(i);
+         }
+      }
+   }
+
+   if (st->getProcessDistributionType() == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
+		st->node_value_vectorArea.resize(1);
+	    st->node_value_vectorArea[0] = 1.0;
+		//nod_val->node_value = 0.0;
+		////Get process type
+		//CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(st->getProcessType()));
+		////Get Mesh
+		//CFEMesh* mesh (m_pcs_this->m_msh);
+		//long msh_ele = mesh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()[0];
+	 //   int group = mesh->ele_vector[msh_ele]->GetPatchIndex();
+
+		//st->node_value_vectorArea[0] = mmp_vector[group]->geo_area;
+		if (m_msh->isAxisymmetry() && m_msh->GetMaxElementDim() == 1)
+			st->node_value_vectorArea[0] *= m_msh->nod_vector[nod_val->geo_node_number]->X();
+				//2pi is mulitplicated during the integration process
+   }
+
+   if (st->getProcessDistributionType()==FiniteElement::RECHARGE)	//MW
+   {
+	   nod_val->setProcessDistributionType (st->getProcessDistributionType());
+   }
+
+   st->st_node_ids.push_back(nod_val->geo_node_number);
+
+   if (st->isConstrainedST())
+   {
+	   st->_constrainedSTNodesIndices.push_back(-1);
+	   for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
+		   st->pushBackConstrainedSTNode(i,false);
+   }
+
+   if(st->ogs_WDC != nullptr)
+   {  	  // point for measurements
+	 st->ogs_WDC->set_doublet_mesh_nodes({
+		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
+			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
+				  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)}  // heatExchanger
+				  });
+
+	  // liquid flow BCs
+	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+
+	  std::vector<long> liquidBC_mesh_nodes;
+	  std::vector<double> liquidBC_mesh_node_values;
+	  double total_value;
+
+		 // warm well 1
+		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+		 {
+			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+								  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+		 }
+		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+		 {
+			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
+		 }
+
+		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+		 {
+			 CNodeValue *nod_val_liquid_well (new CNodeValue());
+			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
+			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
+			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+			 pcs_liquid->st_node.push_back(st);
+		 }
+
+		 liquidBC_mesh_nodes.clear();
+		 //////// cold well 2 - copy from lines above except that node_value is negative
+		 if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POINT)
+		 {
+			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+		 }
+		 else if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+		 {
+			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
+		 }
+
+		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+		 {
+			 CNodeValue *nod_val_liquid_well (new CNodeValue());
+			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
+			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+			 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
+			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+			 pcs_liquid->st_node.push_back(st);
+		 }
+
+	  /*
+	  // warm well 1
+	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+			  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector;
+	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
+	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+	  nod_val_liquid_well1->node_value = st->geo_node_value;
+	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+
+	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+	  pcs_liquid->st_node.push_back(st);
+	  // cold well 2 - copy from lines above except node_value is negative
+	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+			  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector;
+	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
+	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
+	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+
+	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+	  pcs_liquid->st_node.push_back(st);
+	  */
+   }
+
+   if(st->ogs_contraflow != nullptr)  // JOD 2019-31-07
+   {
+	   st->ogs_contraflow->add_node(nod_val->msh_node_number);
+
+	   GEOLIB::Point pnt(
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[2]);
+
+	   std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
+	   double z = pnt.getData()[2];
+	   for(int i=0; i < segment_data_vec.size(); ++i)
+	   {
+		   const int N = segment_data_vec[i].N;
+		   const double dz = segment_data_vec[i].L / N;
+
+		   for(int j=0; j<N; ++j)
+		   {
+			   z -= dz;
+			   pnt = GEOLIB::Point(
+					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+					   z);
+			   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
+		   }
+	   }
+   }
+
+   pcs->st_node_value.push_back(nod_val);         //WW
+   pcs->st_node.push_back(st);                 //WW
+
+}
+
+
+/**************************************************************************
+ FEMLib-Method:
+ Task:
+ Programing:
+ 11/2007 JOD Implementation
+ **************************************************************************/
+void CSourceTermGroup::SetLIN(CRFProcess* m_pcs, CSourceTerm* m_st,
+const int ShiftInNodeVector)
+{
+   (void)m_pcs;
+   (void)m_st;
+   (void)ShiftInNodeVector;
+   /*OK411
+    long number_of_nodes;
+    vector<long>lin_nod_vector;
+    vector<double>lin_nod_val_vector;
+    CGLLine* m_lin = NULL;
+    CGLPolyline* m_ply = NULL;
+    long *nodes = NULL;
+    m_lin = m_lin->GEOGetLine(m_st->geo_id);
+
+    if(m_lin){
+    double* coordinates;
+   m_ply = new CGLPolyline;
+   m_ply->point_vector.push_back(m_lin->m_point1);
+   m_ply->point_vector.push_back(m_lin->m_point2);
+   nodes = MSHGetNodesClose(&number_of_nodes, m_ply);//CC
+   lin_nod_val_vector.resize(number_of_nodes);
+   for(long i = 0; i < number_of_nodes; i++){
+   lin_nod_val_vector[i] =  m_st->geo_node_value / number_of_nodes;
+   coordinates = new double[3];
+   coordinates[0] = GetNodeX(nodes[i]);
+   coordinates[1] = GetNodeY(nodes[i]);
+   coordinates[2] = GetNodeZ(nodes[i]);
+   m_lin->nodes_coor_vector.push_back(coordinates);
+   }
+   //InterpolationAlongPolyline(m_polyline,node_value_vector);
+   for(long i=0; i < number_of_nodes; i++){
+   CNodeValue* m_nod_val = NULL;
+   m_nod_val = new CNodeValue();
+   m_nod_val->msh_node_number = -1;
+   m_nod_val->msh_node_number = nodes[i]+ShiftInNodeVector;
+   m_nod_val->geo_node_number = nodes[i];
+   m_nod_val->node_value = lin_nod_val_vector[i];
+   m_nod_val->CurveIndex = m_st->CurveIndex;
+   //WW        group_vector.push_back(m_node_value);
+   //WW        st_group_vector.push_back(m_st); //OK
+   m_pcs->st_node_value.push_back(m_nod_val);  //WW
+   m_pcs->st_node.push_back(m_st); //WW
+   }
+   lin_nod_val_vector.clear();
+   m_ply->point_vector.clear();
+   delete m_ply;
+   }
+   else
+   cout << "Warning - CSourceTermGroup::Set: LIN not found" << '\n';
+   */
+}
+
+
+/**************************************************************************
+ FEMLib-Method:
+ Task:
+ Programing
+ 07/2005 OK Implementation based on CSourceTermGroup::Set
+ modified
+ 07/2010 TF substituted GEOGetPLYByName
+ **************************************************************************/
 /**************************************************************************
  FEMLib-Method:
  Task:
