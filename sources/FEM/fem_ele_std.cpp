@@ -12135,12 +12135,10 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 
 		(*A)(From, From) += factor;
 		(*A)(From, To) -= factor;
-
 #else
 
 		MXInc(From, From, factor);
 		MXInc(From, To, -factor);
-
 #endif	
 #endif
 

@@ -3042,12 +3042,10 @@ CNodeValue* cnodev)
    /////
 
 #ifdef NEW_EQS
-#ifdef LIS
    // JOD 2018-5-17
    CSparseMatrix* A = NULL;
-   A = m_pcs_this->eqs_new->get_A();
+   A = m_pcs_this->get_eqs_new()->get_A();
    (*A)(cnodev->msh_node_number, cnodev->msh_node_number) += condArea;
-#endif
 #else
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, condArea);
 #endif
@@ -3057,10 +3055,8 @@ CNodeValue* cnodev)
    {   // gas pressure term 
 
 #ifdef NEW_EQS
-#ifdef LIS
 	   // JOD 2018-5-17
 	   (*A)(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size()) -= condArea;
-#endif
 #else
 		MXInc(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size(), -condArea);
 #endif
@@ -3084,25 +3080,24 @@ CNodeValue* cnodev)
  Task: Source term for convective form of ADE
  Programing:
  03/2020 JOD Implementation
+
+ Restrictions:
+ 	 takes mfp_vector[0]
+ 	 density model gets temperature and only that
  **************************************************************************/
 #if !defined(USE_PETSC)
 void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
 {
-    long mesh_node_number;
-    double nodal_val, poro = 0.0;
-    int material_group;
-    long msh_ele;
-    size_t number_of_connected_elements;
+    const long mesh_node_number = cnodev->msh_node_number;
+    //double  poro = 0.0;
+    //int material_group;
+    //long msh_ele;
+    //size_t number_of_connected_elements;
     
     //get process
-    CRFProcess* m_pcs_this = NULL;
-    m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
- 
-    
-    mesh_node_number = cnodev->msh_node_number;
-
-
-   nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
+   CRFProcess* m_pcs_this = NULL;
+   m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
+   double nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
    //std::cout << temperature << ", ";
    //double density_test = mfp_vector[0]->Density();
    //std::cout << density_test << '\n';
@@ -3110,18 +3105,15 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
    if (mfp_vector[0]->get_flag_volumetric_heat_capacity())
        value *= mfp_vector[0]->get_volumetric_heat_capacity();
    else
-       value *=  mfp_vector[0]->Density(&nodal_val) *  mfp_vector[0]->SpecificHeatCapacity(NULL, true);
+       value *= mfp_vector[0]->Density(&nodal_val  // only first value of array set and as temperature
+    		   ) * mfp_vector[0]->SpecificHeatCapacity(NULL, true);
 
 #if defined(NEW_EQS)
-#ifdef LIS
    // JOD 2020-3-25
-   CSparseMatrix* A = NULL;
-   CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
-   A = m_pcs_this->eqs_new->get_A();
-   (*A)(cnodev->msh_node_number, cnodev->msh_node_number) -= value;
-#endif
+   CSparseMatrix* A = m_pcs_this->get_eqs_new()->get_A();
+   (*A)(mesh_node_number, mesh_node_number) -= value;
 #else
-   MXInc(cnodev->msh_node_number, cnodev->msh_node_number, -value);
+   MXInc(mesh_node_number, mesh_node_number, -value);
 #endif
 
      value = 0;  // no right hand side term
@@ -6499,7 +6491,7 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 }
 
 // JOD 2019-7-30
-double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs)
+double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs)
 {
 	std::vector<long> nodes_vec = ogs_contraflow->get_nodes_vec();
 	stru3::DVec T_s(nodes_vec.size());
@@ -6549,11 +6541,9 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 		}
 
 #ifdef NEW_EQS
-#ifdef LIS
-		   CSparseMatrix* A = NULL;
-		   A = m_pcs->eqs_new->get_A();
+		CSparseMatrix* A = NULL;
+	   A = m_pcs->get_eqs_new()->get_A();
 	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
-#endif
 #else
 	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
 #endif

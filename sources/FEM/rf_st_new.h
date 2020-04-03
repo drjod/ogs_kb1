@@ -245,7 +245,7 @@ public:
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
 	double apply_wellDoubletControl(const double &value, const CNodeValue* cnodev,
 			const double& aktuelle_zeit, const CRFProcess* m_pcs);  // JOD 2018-06-14
-	double apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
+	double apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
 	int geo_node_number;
