@@ -900,6 +900,8 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 
 
 			in.clear();
+
+			std::cout << "Warning: For this fluid: "<< name << ", the given volumetric heat capacity is used !!\n";
 			continue;
 		}
 		//....................................................................

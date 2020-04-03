@@ -3086,12 +3086,33 @@ CNodeValue* cnodev)
  03/2020 JOD Implementation
  **************************************************************************/
 #if !defined(USE_PETSC)
-
 void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
 {
-	 value *=  mfp_vector[0]->Density() *  mfp_vector[0]->SpecificHeatCapacity();
+    long mesh_node_number;
+    double nodal_val, poro = 0.0;
+    int material_group;
+    long msh_ele;
+    size_t number_of_connected_elements;
+    
+    //get process
+    CRFProcess* m_pcs_this = NULL;
+    m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
+ 
+    
+    mesh_node_number = cnodev->msh_node_number;
 
-#ifdef NEW_EQS
+
+   nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
+   //std::cout << temperature << ", ";
+   //double density_test = mfp_vector[0]->Density();
+   //std::cout << density_test << '\n';
+
+   if (mfp_vector[0]->get_flag_volumetric_heat_capacity())
+       value *= mfp_vector[0]->get_volumetric_heat_capacity();
+   else
+       value *=  mfp_vector[0]->Density(&nodal_val) *  mfp_vector[0]->SpecificHeatCapacity(NULL, true);
+
+#if defined(NEW_EQS)
 #ifdef LIS
    // JOD 2020-3-25
    CSparseMatrix* A = NULL;

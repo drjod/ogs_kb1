@@ -3577,7 +3577,7 @@ double CFiniteElementStd::CalCoefAdvection()
 			if(FluidProp->get_flag_volumetric_heat_capacity())
 				val = FluidProp->get_volumetric_heat_capacity();
 			else
-				val = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
+				val = FluidProp->SpecificHeatCapacity(NULL,false) * FluidProp->Density();
 		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200

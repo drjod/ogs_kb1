@@ -1320,7 +1320,7 @@ void COutput::WriteTECHeader(fstream &tec_file,int e_type, string e_type_name)
 	tec_file << "F=" << "FEPOINT" << ", ";
 	tec_file << "ET=" << e_type_name;
 	// JOD 2020-3-20 from BW - data accuracy for each variable
-	tec_file << "DT=(DOUBLE,DOUBLE,DOUBLE"; // BW, for the accuracy of the coordinates
+	tec_file << ", DT=(DOUBLE,DOUBLE,DOUBLE"; // BW, for the accuracy of the coordinates
 	for (size_t k = 0; k < nName; k++) // BW, for the nodal variables, hard coded as SINGLE, i.e. 6 digits
 	{
 		tec_file << ",SINGLE";
@@ -2354,7 +2354,7 @@ double COutput::NODWritePLYDataTEC(int number )
 			//if(!(_nod_value_vector[k].compare("FLUX")==0))  // removed JOD, does not work for multiple flow processes
 			//if (!b_specified_pcs) //NW
 			if (msh_type_name != "COMPARTMENT") // JOD 4.10.01
-				m_pcs = PCSGet(_nod_value_vector[k], bdummy);
+				m_pcs = PCSGet(_nod_value_vector[k], bdummy); // BW, here define which process for what secondary variable
 
 			if (!m_pcs)
 			{

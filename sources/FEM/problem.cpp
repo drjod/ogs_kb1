@@ -1771,6 +1771,9 @@ void Problem::PostCouplingLoop()
 			m_pcs->CopyTimestepNODValues();
 			m_pcs->CopyTimestepELEValues();
 		}
+
+		//Secondary variables should be calculated after update the results, BW: 25.03.2020
+		m_pcs->CalcSecondaryVariables();
 	}
 // WW
 #if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
