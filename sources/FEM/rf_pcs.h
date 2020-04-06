@@ -288,9 +288,12 @@ protected:                                        //WW
   int mysize;                               
   int myrank; 
 #elif defined(NEW_EQS)
+
 #ifdef LIS
 public:
-	Linear_EQS* eqs_new;
+	Linear_EQS* eqs_new;public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #else
 	Linear_EQS* eqs_new;
 public:
