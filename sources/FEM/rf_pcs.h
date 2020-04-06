@@ -293,6 +293,9 @@ public:
 	Linear_EQS* eqs_new;
 #else
 	Linear_EQS* eqs_new;
+public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #endif                                         // LIS endif for Fluid Momentum	// PCH
 	bool configured_in_nonlinearloop;
 #else
