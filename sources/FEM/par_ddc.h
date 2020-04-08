@@ -96,6 +96,9 @@ private:
 	SparseTable* sparse_graph_H;
 	Linear_EQS* eqs;                      //WW
 	Linear_EQS* eqsH;                     //WW
+public:
+	Linear_EQS* get_eqs() { return eqs; }  // JOD 2020-04-08
+private:
 #endif
 	friend class CRFProcess;              //WW
 	                                      //WW //:: for SXC compiler

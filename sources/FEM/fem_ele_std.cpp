@@ -12104,16 +12104,13 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 		else if (i + 1 == From)
 			idxn[1] *= -1;
 	}
-
-	eqs->addMatrixEntries(1, &idxm, 2, idxn, vals);
 #else
 #ifdef NEW_EQS
-
-	CSparseMatrix* A = NULL;
-	if (m_dom)
-		A = m_dom->eqs->A;
-	else
-		A = pcs->eqs_new->A;
+#if defined(USE_MPI)
+	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+#else
+	CSparseMatrix* A = pcs->eqs_new->A;
+#endif
 
 	(*A)(To, To) += factor;
 	(*A)(To, From) -= factor;

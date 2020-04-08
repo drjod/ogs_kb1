@@ -3109,10 +3109,14 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
     		   ) * mfp_vector[0]->SpecificHeatCapacity(NULL, true);
 
 #if defined(NEW_EQS)
+#if defined(USE_MPI)  // JOD 2020-04-08
+	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+#else // not USE_MPI
    // JOD 2020-3-25
    CSparseMatrix* A = m_pcs_this->get_eqs_new()->get_A();
-   (*A)(mesh_node_number, mesh_node_number) -= value;
-#else
+#endif
+	(*A)(mesh_node_number, mesh_node_number) -= value;
+#else  // not  NEW_EQS
    MXInc(mesh_node_number, mesh_node_number, -value);
 #endif
 
