@@ -1537,7 +1537,7 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass(bool flag_calcContent)
+double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 please update changes
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -3577,7 +3577,7 @@ double CFiniteElementStd::CalCoefAdvection()
 			if(FluidProp->get_flag_volumetric_heat_capacity())
 				val = FluidProp->get_volumetric_heat_capacity();
 			else
-				val = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
+				val = FluidProp->SpecificHeatCapacity(NULL,false) * FluidProp->Density();
 		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
@@ -12104,16 +12104,13 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 		else if (i + 1 == From)
 			idxn[1] *= -1;
 	}
-
-	eqs->addMatrixEntries(1, &idxm, 2, idxn, vals);
 #else
 #ifdef NEW_EQS
-
-	CSparseMatrix* A = NULL;
-	if (m_dom)
-		A = m_dom->eqs->A;
-	else
-		A = pcs->eqs_new->A;
+#if defined(USE_MPI)
+	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+#else
+	CSparseMatrix* A = pcs->eqs_new->A;
+#endif
 
 	(*A)(To, To) += factor;
 	(*A)(To, From) -= factor;
@@ -12135,12 +12132,10 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 
 		(*A)(From, From) += factor;
 		(*A)(From, To) -= factor;
-
 #else
 
 		MXInc(From, From, factor);
 		MXInc(From, To, -factor);
-
 #endif	
 #endif
 

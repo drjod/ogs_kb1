@@ -230,7 +230,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 #endif
 	//
 	COutput* m_out = NULL;
-	//CRFProcess* m_pcs = NULL;
+	//CRFProcess* m_pcs = NULL; 
 	//CFEMesh* m_msh = NULL;
 	bool OutputBySteps = false;
 	//double tim_value;
@@ -254,6 +254,8 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		//	m_pcs = m_out->GetPCS();  //OK
 		//if (!m_pcs)
 		//	cout << "Warning in OUTData - no PCS data" << "\n";
+
+
 		//OK4704 continue;
 		//--------------------------------------------------------------------'
 		m_out->setTime (time_current);

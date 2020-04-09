@@ -282,7 +282,7 @@ private:
 	//
 	void Config();
 	//
-	double CalCoefMass(bool flag_calcContent=false);
+	double CalCoefMass(bool flag_calcContent=false); // BW: 23.03.2020 please update changes
 	// 25.2.2007 WW
 	double CalCoefMass2(int dof_index);
 	double CalCoefMasstneq(int dof_index);

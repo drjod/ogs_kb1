@@ -999,7 +999,7 @@ void CRFProcess::Create()
 	number_of_nvals = 2 * DOF + pcs_number_of_secondary_nvals;
 	for (int i = 0; i < pcs_number_of_primary_nvals; i++)
 	{
-		// new time
+		// new time //BW: I am not sure this is right for Heat_Transport Process, because it is should the old , next is the new.
 		nod_val_name_vector.push_back(pcs_primary_function_name[i]);
 		// old time //need this MB!
 		nod_val_name_vector.push_back(pcs_primary_function_name[i]);
@@ -3329,6 +3329,16 @@ void CRFProcess::ConfigHeatTransport()
 		pcs_number_of_secondary_nvals++;
 		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "VELOCITY_Z1";
 		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "W/m^2";
+		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
+		pcs_number_of_secondary_nvals++;
+
+		//BW 25.03.2020 attempt to write the density and viscostiy after heat transport
+		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DENSITY1";
+		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "kg/m3";
+		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
+		pcs_number_of_secondary_nvals++;
+		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "VISCOSITY1";
+		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "Pa s";
 		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
 		pcs_number_of_secondary_nvals++;
 
@@ -8700,18 +8710,27 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 							cnodev->node_value = +q_face / 2;
 						}
 					}
+				}  // end system dependent
+
+
+				// time dependencies - moved to here by JOD 2020-03-25
+				curve = cnodev->CurveIndex;
+				if (curve > 0)
+				{
+					//Reading Time interpolation method; BG
+					if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
+						if (interp_method != m_st->TimeInterpolation)
+							interp_method = m_st->TimeInterpolation;
+
+					time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
+					//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
+					if (!valid)
+					{
+						cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
+						cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
+						time_fac = 1.0;
+					}
 				}
-				//-------------------------------------------------------------------
-				GetNODValue(value, cnodev, m_st);
-			}             // st_node.size()>0&&(long)st_node.size()>i
-      else {
-        std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
-      }
-
-		//----------------------------------------------------------------------------------------
-
-		if (m_st != NULL)  // some Kiel-stuff - switching source term on and off, and NNNC
-		{
 
 			  //----------------------------------------------------------------------------------------
 			  //SB: check if st is active, when Time_Controlled_Aktive for this ST is define
@@ -8740,7 +8759,38 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  time_fac = 0.0;
 				  value = 0;
 			  }
-			  else
+
+				// Time dependencies - FCT    //YD
+				if (m_st)     //WW
+				{
+					//WW/YD //OK
+					if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
+					{
+						if (m_st->getFunctionName().length() > 0)
+						{
+							m_fct = FCTGet(pcs_number);
+							if (m_fct)
+								time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
+							else
+								cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+						}
+					}
+					else if (m_st->getFunctionName().length() > 0)
+					{
+						m_fct = FCTGet(m_st->getFunctionName());
+						if (m_fct){
+							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
+							//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
+						}
+						else
+								cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+					}
+				}
+				//----------------------------------------------------------------------------------------
+				value *= time_fac * fac;
+
+
+			  if(value != 0)
 			  {   // only if not switched off
 				  if(m_st->isConnected())  // JOD 2/2015
 					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
@@ -8757,56 +8807,21 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  if(m_st->ogs_contraflow != nullptr)
 					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
 			  }
-		}
 
-		//--------------------------------------------------------------------
-		// Please do not move the this section
-		curve = cnodev->CurveIndex;
-		if (curve > 0)
-		{
-			//Reading Time interpolation method; BG
-			if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
-				if (interp_method != m_st->TimeInterpolation)
-					interp_method = m_st->TimeInterpolation;
 
-			time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
-			//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
-			if (!valid)
-			{
-				cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
-				cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
-				time_fac = 1.0;
-			}
-		}
 
-		// Time dependencies - FCT    //YD
-		if (m_st)     //WW
-		{
-			//WW/YD //OK
-			if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
-			{
-				if (m_st->getFunctionName().length() > 0)
-				{
-					m_fct = FCTGet(pcs_number);
-					if (m_fct)
-						time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
-					else
-						cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-				}
-			}
-			else if (m_st->getFunctionName().length() > 0)
-			{
-				m_fct = FCTGet(m_st->getFunctionName());
-				if (m_fct){
-					time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
-					//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
-				}
-				else
-						cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-			}
-		}
+
+				//-------------------------------------------------------------------
+				GetNODValue(value, cnodev, m_st);
+			}             // st_node.size()>0&&(long)st_node.size()>i
+      else {
+        std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
+      }
+
 		//----------------------------------------------------------------------------------------
-		value *= time_fac * fac;
+
+
+
 
 			//------------------------------------------------------------------
 			// EQS->RHS
@@ -8820,7 +8835,12 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			bc_eqs_index = msh_node + shift;
 		else
 			bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
+		
+		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
+		//std::cout << value << '\n';
 		eqs_rhs[bc_eqs_index] += value;
+		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
+		
 #endif
 
       // store transient st values for output
@@ -9391,11 +9411,16 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			CalcSecondaryVariablesTES(initial);        //HS
 			break;
 		case FiniteElement::LIQUID_FLOW:
-			if(aktueller_zeitschritt>0)
-			{
+			//if(aktueller_zeitschritt>0) // BW: 25.03.2020 why this needs to be larger than 0?? deleted, then we also have density output for 
+			                              //     the first time step
+			//{
 				CalcSecondaryVariablesDensity();
 				CalcSecondaryVariablesViscosity();  // JOD 2016-1-11
-			}
+			//}
+			break;
+		case FiniteElement::HEAT_TRANSPORT: // BW 25.03.2020 for the outputing the right density at this time step based on the current T, this is needed.
+			CalcSecondaryVariablesDensity();
+			CalcSecondaryVariablesViscosity(); 
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
 			break;
@@ -10711,10 +10736,11 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			}
 		}
 		//
-		// Calculate secondary variables
-		if(accepted){
-			CalcSecondaryVariables();
-		}
+		// Calculate secondary variables: BW, 25.03.2020 deleted from here for secondary variables, because this will give a wrong density for the newly
+		// calculated temperature, this move to the postcoupling loop.
+		//if(accepted){
+		//	CalcSecondaryVariables();
+		//}
 #if !defined(USE_PETSC) // && !defined(other parallel libs)//03.3012. WW
 		// Release temporary memory of linear solver. WW
 #ifdef NEW_EQS                                 //WW
@@ -11256,8 +11282,14 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			{
 
 				if (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT || m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT ) // JOD 2015-11-18
-				if (var_name.find("VELOCITY") != std::string::npos || var_name.find("DENSITY") != std::string::npos )                   // if variable is of VELOCITY, do not return not a transport, but a flow process
-					  continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
+				//if (var_name.find("VELOCITY") != std::string::npos || var_name.find("DENSITY") != std::string::npos ) //BW: 27.03.2020 For density, it should return transport process
+				if (var_name.find("VELOCITY") != std::string::npos ) // if variable is of VELOCITY, do not return not a transport, but a flow process
+					continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
+
+				//BW: 27.03.2020 always return DENSITY from heat transport process if it is existing
+				if (var_name.find("DENSITY") != std::string::npos)
+					if (pcs_vector.size() > 0 && m_pcs->getProcessType() != FiniteElement::HEAT_TRANSPORT)
+						break;
 
 				pcs_var_name = m_pcs->pcs_secondary_function_name[j];
 				if(pcs_var_name.compare(var_name) == 0)
@@ -11578,18 +11610,31 @@ Programming:
 	void CRFProcess::CalcSecondaryVariablesDensity()
  {
 	CFluidProperties* m_mfp = NULL;
-	CRFProcess* m_pcs = NULL;
-	vector<int> processNDXs;
-	int ndx_dens = GetNodeValueIndex("DENSITY1");
-	// get mfp instance for LIQUID --------------------------------------------
+	
+	//BW 24.03.2020: update for two fluids option -> JOD, please revise whether this is a good way for this
 	for (int i = 0; i < mfp_vector.size(); i++)
+		for (int j = 0; j < mmp_vector.size();j++)
+		{
+			if (mfp_vector[i]->name == "LIQUID"+mmp_vector[j]->dependent_fluid_name)
+			{
+				m_mfp = mfp_vector[i];
+				break;
+			}
+		}
+
+	/*	for (int i = 0; i < mfp_vector.size(); i++)
     {
-        if (mfp_vector[i]->name == "LIQUID")
+        if (mfp_vector[i]->name ==  "LIQUID")
 	    {
 		   m_mfp = mfp_vector[i];
 		   break;
 		}
-	}
+	}*/
+	CRFProcess* m_pcs = NULL;
+	vector<int> processNDXs;
+	int ndx_dens = GetNodeValueIndex("DENSITY1");
+	// get mfp instance for LIQUID --------------------------------------------
+
 
 	if (m_mfp != NULL)
 	{
