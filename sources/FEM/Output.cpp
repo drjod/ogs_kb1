@@ -5849,9 +5849,9 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file << "\"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
+			tec_file << "VARIABLES = \"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
 			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file_tf << "\"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
+			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
 		}
 		else
 		{
