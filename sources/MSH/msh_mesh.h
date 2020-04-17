@@ -612,6 +612,7 @@ private:
 				 std::vector<long> &node_id_vector) const;
 public:
 	void constructMeshGrid();
+	bool _2D_with_line_elements;  // JOD
 private:
 	GEOLIB::Grid<MeshLib::CNode> *_mesh_grid;
 };

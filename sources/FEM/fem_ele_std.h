@@ -64,7 +64,7 @@ using ::CRFProcess;
 class CFiniteElementStd : public CElement
 {
 public:
-	CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order = 1);
+	CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order = 1);//, bool _2D_mesh_with_line_elements=false);
 	~CFiniteElementStd();
 
 	// Set material data
@@ -109,8 +109,13 @@ public:
 	void CalcStorage();
 	// 9. Content matrix
 	void CalcContent();
+<<<<<<< HEAD
 	void CalculateContent(double *, double *);       // for budgets JOD 2/2015
 	void IncorporateSourceTerm(long UpwindNode, long DownwindNode, double factor, bool symmetric, bool diagonalOnly); // JOD 2/2015
+=======
+	double CalculateContent(double *, double *, const int&, const double&, const double&);       // for budgets JOD 2/2015
+	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
+>>>>>>> develop
 	void CalcContentTNEQ(); //NW
 	void CalcContentTES(); //NW
 	//
@@ -282,7 +287,11 @@ private:
 	//
 	void Config();
 	//
+<<<<<<< HEAD
 	double CalCoefMass(bool);
+=======
+	double CalCoefMass(bool flag_calcContent=false); // BW: 23.03.2020 please update changes
+>>>>>>> develop
 	// 25.2.2007 WW
 	double CalCoefMass2(int dof_index, bool);
 	double CalCoefMasstneq(int dof_index);
@@ -406,7 +415,7 @@ private:
 	friend class SolidProp::CSolidProperties;
 	friend class ::CFluidProperties;
 	// Friend functions. WW
-	friend double ::MFPCalcFluidsHeatCapacity(CFiniteElementStd * assem);
+	friend double ::MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd * assem);
 
 	// Auxillarary vectors for node values
 	// Vector of local node values, e.g. pressure, temperature.
@@ -450,6 +459,7 @@ public:
 	void GetEleVelocity(double* vec);
 	Matrix Velocity;
 	Matrix Velocity_g; // WTP
+	double density;  // JOD 2018-8-15 - for output of density from the (last) LIQUID_FLOW iteration
 
 	double getLiquidContent(void) { return content[0]; }  // JOD 2016-7-28 - getter / setter for content output
 	double getGasContent(void) { return content[1]; }

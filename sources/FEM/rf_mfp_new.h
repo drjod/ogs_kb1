@@ -129,6 +129,9 @@ private:
 	std::string eos_name, mu_JT;
 	// Thermal properties
 	double specific_heat_capacity;
+	double volumetric_heat_capacity;  // JOD 2018-9-20 - used in HEAT_TRANSPORT (to neglect density variations and improve heat balance in non-conservative formulation)
+	double const_specific_heat_capacity; // BW 2020-2-11 - used for heat capacity calculation when counts for temperature dependency
+	bool flag_volumetric_heat_capacity;
 	double beta_T;
 	double heat_conductivity;
 	double temperature_buffer;            //YD, shifted to public JOD
@@ -153,6 +156,8 @@ public:
 	std::string name;
 	std::string cmpNm1, cmpNm2, cmpNm3, cmpNm4; // component name 
 	int cmpN; //components number
+	const bool& get_flag_volumetric_heat_capacity() { return flag_volumetric_heat_capacity; }
+	const double& get_volumetric_heat_capacity() { return volumetric_heat_capacity; }
 private:
 	std::string fluid_name;               //NB4801
 	// compressibility
@@ -246,8 +251,8 @@ public:
 	double ComponentDensity(int CIndex, double* variables = NULL);//AKS
 	double Viscosity(double* variables = NULL); //OK4709
 	                                            //NB Jan09
-      double PhaseDiffusion(double *variables = NULL);
-	double SpecificHeatCapacity(double* variables = NULL);
+      	double PhaseDiffusion(double *variables = NULL);
+	double SpecificHeatCapacity(double* variables = NULL, bool flag_content = false);
 	void therm_prop(std::string caption); //NB 4.9.05
 	double PhaseChange();                 // JOD
 	double HeatConductivity(double* variables = NULL);
@@ -280,9 +285,10 @@ public:
 
 	  double specific_heat_source;
 
+	  double primary_variable[10];          //WW
 private:
 	// State variables
-	double primary_variable[10];          //WW
+	//double primary_variable[10];          //WW
 	double primary_variable_t0[10];       //CMCD
 	double primary_variable_t1[10];       //CMCD
 	bool cal_gravity;                     //YD/WW
@@ -313,7 +319,7 @@ extern void MFPWrite(std::string);
 #define MFP_FILE_EXTENSION ".mfp"
 //WW extern double MFPCalcVapourPressure(double);
 //WW
-extern double MFPCalcFluidsHeatCapacity(CFiniteElementStd* assem = NULL);
+extern double MFPCalcFluidsHeatCapacity(bool flag_calcContent = false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 please update changes
 extern double MFPCalcFluidsHeatConductivity(long index,
                                             double* gp,
                                             double theta,

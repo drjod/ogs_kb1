@@ -37,6 +37,7 @@ namespace MeshLib
 class CFEMesh;
 }
 
+
 class BoundaryCondition;
 
 class CBoundaryCondition :
@@ -44,11 +45,19 @@ class CBoundaryCondition :
 	public GeoInfo,
 	public DistributionInfo
 {
+	GeoInfo* geoInfo_connected; // JOD 2020-01-27
+	bool connected_geometry;
+	std::string connected_geometry_name;
+	void SetPolylineNodeVectorConnected(std::vector<long>& ply_nod_vector_cond);
+
 public:
+	bool isConnected() const { return connected_geometry; }
 //	CBoundaryCondition(ProcessInfo const& process_info,
 //			GeoInfo const& geo_info,
 //			DistributionInfo const& distribution_info,
 //			);
+
+
 	friend class CBoundaryConditionsGroup;
 	friend class FileIO::BoundaryConditionIO;
 	CBoundaryCondition();
@@ -147,7 +156,10 @@ public:
 	std::size_t getNumberOfConstrainedBCs() const { return _constrainedBC.size(); }
 	bool isSeepageBC() const { return _isSeepageBC; }
 
+	bool is_conditionally_active;  // JOD 2019-04-04
+	int condition_type;  // 0: lower threshold, 1: upper threshold
 private:
+
 	std::vector<std::string> _PointsFCTNames;
 	std::vector<int> _PointsHaveDistribedBC;
 	std::vector<double> _DistribedBC;
@@ -220,6 +232,8 @@ private:
 	std::vector<Constrained> _constrainedBC;
 	bool _isSeepageBC;
 
+
+
 };
 
 class CBoundaryConditionNode                      //OK raus
@@ -228,6 +242,7 @@ public:
 	long geo_node_number;
 	long msh_node_number;
 	long msh_node_number_subst;           //WW
+    std::vector<long>  msh_vector_conditional; // JOD 2020-01-27
 
 	double node_value;
 	double node_value_last_calc;

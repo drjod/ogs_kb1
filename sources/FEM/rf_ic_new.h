@@ -50,7 +50,8 @@ private:
 
 	// REMOVE CANDIDATE
 	std::string geo_name;                 // TF 05/2010
-	double geo_node_value;              //KR
+	double geo_node_value;                //KR
+	int CurveIndex; 					  // JOD 2018-2-2
 public:
 	const std::string& getGeoName () const { return geo_name; } //KR
 	double getGeoNodeValue() const { return geo_node_value; } //KR

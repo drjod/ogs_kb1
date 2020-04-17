@@ -113,9 +113,9 @@ static bool isValidTextFileFormat(const std::string &basename, const std::string
 		return true;
 	} else {
 		if (is_win32)
-			std::cout << "*** ERROR: Detect UNIX file format " << fname.data() << std::endl;
+			std::cout << "*** ERROR: Detect UNIX file format " << fname.data() << "\n";
 		else
-			std::cout << "*** ERROR: Detect Windows file format " << fname.data() << std::endl;
+			std::cout << "*** ERROR: Detect Windows file format " << fname.data() << "\n";
 		return false;
 	}
 }

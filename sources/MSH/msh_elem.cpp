@@ -1569,7 +1569,6 @@ double CElem::calcVolume () const
 	}
 	else
 		std::cerr << "Error in CElem::ComputeVolume() - MshElemType not found" << "\n";
-
 	return elemVolume;
 }
 

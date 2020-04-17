@@ -23,26 +23,10 @@
 #############################################################################################  
 #  
 # USER GUIDE: 
-#   a) Put in OGS folder (same level as sources and libs)  
-#      cd into this folder and type ./compileInKiel.sh  
-#      as an option, call script from somewhere else 
-#      ogs folder as parameter $1
+#     Put in OGS folder (same level as sources and libs)  
+#     cd into this folder and type ./compileInKiel.sh  
+#     as an option, call script from somewhere else and pass ogs folder as argument $1
 # 
-#   b) To avoid SEEK_SET ERROR when using mpi compiler, add into CMakeLists.txt:    
-#      IF(OGS_FEM_MPI OR OGS_FEM_MPI_KRC OR OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)   
-#         SET(CMAKE_CXX_FLAGS -DMPICH_IGNORE_CXX_SEEK)  
-#      ENDIF(OGS_FEM_MPI OR OGS_FEM_MPI_KRC OR OGS_FEM_PETSC OR OGS_FEM_PETSC_GEMS)  
-#  
-#   c) For OGS_FEM_MKL, set compiler flag -mkl and do not use FindMKL.cmake, 
-#      e.g. by adapting CMakeConfiguration/Find.cmake to 
-#        IF(OGS_FEM_MKL)  
-#           SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mkl")      
-#           SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mkl")
-#           # Find MKLlib 
-#           # FIND_PACKAGE( MKL REQUIRED ) 
-#           # INCLUDE_DIRECTORIES (${MKL_INCLUDE_DIR}) 
-#        ENDIF()  
-#
 
 
 #############################################################################################
@@ -85,10 +69,11 @@ initialize()
 {
     nCPUs=6      # number of CPUs for compilation (<= number of nodes on cluster login node or server)
     CALLEDFROM=$PWD         
-    if [ "$1" != "" ]; then        
-        OGS_FOLDER=$1          # path passed as parameter into script
-    else
+
+    if [ -z $1 ]; then
         OGS_FOLDER=$CALLEDFROM # call from ogs folder
+    else
+        OGS_FOLDER=$1          # path passed as parameter into script
     fi
     
     printMessage "INFO" "Up to compile ${OGS_FOLDER##*/}"
@@ -131,7 +116,7 @@ initialize()
  
     # paths to 
     ROOT_FOLDER=""    # where folder for code configurations will be placed 
-                         # for specific BUILD_CONFIGURATION 
+                         # for specific BUILD_CONFIGURATION (Debug, Release) and COMPILER_VERSION 
                          # ($OGS_FOLDER/"Build_${BUILD_CONFIGURATION}_$COMPILER_VERSION")
     BUILD_FOLDER=""   # where folder for specific BUILD_CONFIGURATION will be placed 
                          #($ROOT_FOLDER/$cConfigurationSELECTED)
@@ -160,45 +145,44 @@ initialize()
 
 setPaths()
 {
-    setPaths__host=$HOSTNAME
-    
+    setPaths__host=$HOSTNAME 
+
     case ${setPaths__host:0:2} in 
-        rz)      # rzcluster 
-            SOFTWARE_FOLDER="/cluster/Software"
+        ca) # rzcluster 
+            SOFTWARE_FOLDER="/home/Software"
             
             # COMPILER_VERSION="intel1402"   
             # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2013_sp1.2.144"     
             # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/4.1.3.048"  
  
-            COMPILER_VERSION="intel1502"      
-            COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
-            MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
-            module load $COMPILER_VERSION   
+            # COMPILER_VERSION="intel1502"      
+            # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/composer_xe_2015.2.164"          
+            # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/impi/5.0.3.048" 
+            # module load $COMPILER_VERSION   
             
-            # COMPILER_VERSION="intel16"      
-            # COMPOSER_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux"          
-            # MPI_ROOT="$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2016.0.109/linux/mpi" 
-            # module load intel16.0.0
-            
-            ICC="$COMPOSER_ROOT/bin/intel64/icc"
-            ICPC="$COMPOSER_ROOT/bin/intel64/icpc"
+            COMPILER_VERSION="intel19.0.4"      
+            COMPOSER_ROOT="$SOFTWARE_FOLDER/intel/$COMPILER_VERSION/usr/compilers_and_libraries_2019/linux"          
+		# "$SOFTWARE_FOLDER/$COMPILER_VERSION/compilers_and_libraries_2019.4.243/linux/mpi" 
+            MPI_ROOT="$COMPOSER_ROOT/mpi"  
+
+            ICPC=icpc
+		# $COMPOSER_ROOT/bin/intel64/icpc"
 
             MPIICC="$MPI_ROOT/intel64/bin/mpiicc"  
-            MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"
-                
-            #module load petsc-3.5.3-intel14
-            export PETSC_DIR=/cluster/Software/Dpetsc/petsc-3.5.3    
-            export PETSC_ARCH=linux-intel1502-opt            
-            #export PETSC_ARCH=linux-intel-opt
-            
-            module load eclipse
+            MPIICPC="$MPI_ROOT/intel64/bin/mpiicpc"  
+
+	    module load cmake/3.15.4                
+            module load intel/18.0.4
+            module load intelmpi/18.0.4
+            #module load intel16.0.0
+            #module load intelmpi16.0.0
+	    #module load petsc-3.7.5            
+            #module load eclipse
             
             MKLROOT="$COMPOSER_ROOT/mkl"   
-
             export PATH=$PATH:$MKLROOT/lib/intel64
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
-            export MKL_INCLUDE=/cluster/Software/intel16/compilers_and_libraries_2016.0.109/linux/mkl/include
-            . $MKLROOT/bin/intel64/mklvars_intel64.sh            
+            # . $MKLROOT/bin/intel64/mklvars_intel64.sh            
                 ;;
         ne) # NEC cluster 
             SOFTWARE_FOLDER="/opt"    
@@ -220,7 +204,7 @@ setPaths()
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MKLROOT/lib/intel64 
             . $MKLROOT/bin/intel64/mklvars_intel64.sh
                 ;;
-        Lo)    # GPI server 
+        Lo) # GPI server 
             SOFTWARE_FOLDER="/opt"
             COMPOSER_ROOT="$SOFTWARE_FOLDER/intel/composer_xe_2013.2.146"
             MPI_ROOT="$SOFTWARE_FOLDER/openmpi"
@@ -236,16 +220,24 @@ setPaths()
         
             COMPILER_VERSION="intel" 
                 ;;
-	am)	# AMAK
+	je) # my Fujitsu
+	    ICC="/usr/bin/gcc"
+	    ICPC="/usr/bin/g++"
 
+            export PATH=/usr/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib
+
+	    COMPILER_VERSION="gnu"
+                ;;
+	am) # AMAK
 	    ICC="/usr/bin/gcc"
 	    ICPC="/usr/bin/g++"
 	    
 	    MPIICC="/usr/bin/mpicc"
 	    MPIICPC="/usr/bin/mpicxx"
 
-		export PATH=/usr/bin:$PATH
-		export LD_LIBRARY_PATH=/usr/lib
+            export PATH=/usr/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib
 
 	    . /opt/intel/compilers_and_libraries_2017.0.098/linux/mkl/bin/mklvars.sh intel64
 
@@ -255,17 +247,17 @@ setPaths()
 	    COMPILER_VERSION="gnu"
 		;;
 
-	co)   # DOCKER CONTAINER
-                ICC="/usr/bin/gcc"
-                ICPC="/usr/bin/g++"
-                MPIICC="/usr/local/bin/mpicc"
-                MPIICPC="/usr/local/bin/mpicxx"
+	co) # DOCKER CONTAINER
+            ICC="/usr/bin/gcc"
+            ICPC="/usr/bin/g++"
+            MPIICC="/usr/local/bin/mpicc"
+            MPIICPC="/usr/local/bin/mpicxx"
 
-                export PATH=/usr/bin:/usr/local/bin:$PATH
-                export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
+            export PATH=/usr/bin:/usr/local/bin:$PATH
+            export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH
 
-                export PETSC_DIR=/home/ogs_user/petsc-3.7.6
-                export PETSC_ARCH=arch-linux2-c-debug
+            export PETSC_DIR=/home/ogs_user/petsc-3.7.6
+            export PETSC_ARCH=arch-linux2-c-debug
             COMPILER_VERSION="gnu"
                 ;;
         *)
@@ -295,7 +287,7 @@ setCompilerTable()
             "ON"                    "$ICC"                    "$ICPC"                    # OGS_FEM_MKL   
             "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_MPI  
             "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_MPI_KRC 
-            "OFF"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_PETSC                      
+            "ON"                    "$MPIICC"                "$MPIICPC"                # OGS_FEM_PETSC                      
     )    
 }  
     
@@ -362,13 +354,13 @@ selectBuild()
     fi    
         
     # flag
-        echo -e "\n--------------------------------------------------\n"
-        echo -e "\nCreate Build Files ([y]es or [n]o)?"  
-        read -n1 selectBuild__cInput  
-        if [ "$selectBuild__cInput" == "y" ]; then  
-           BUILD_flag=1  
-        elif [ "$selectBuild__cInput" == "n" ]; then  
-           BUILD_flag=0
+    echo -e "\n--------------------------------------------------\n"
+    echo -e "\nCreate Build Files ([y]es or [n]o)?"  
+    read -n1 selectBuild__cInput  
+    if [ "$selectBuild__cInput" == "y" ]; then  
+       BUILD_flag=1  
+    elif [ "$selectBuild__cInput" == "n" ]; then  
+       BUILD_flag=0
     else
         printMessage "ERROR" "Take \"y\" or \"n\" - Restart"        
         main
@@ -392,7 +384,7 @@ build()
     rm -rf $BUILD_FOLDER  # remove old build
     mkdir $BUILD_FOLDER  
     cd $BUILD_FOLDER   # step into build folder for cmake
-    
+   
     # local variables
     OPENMP=${compilerTable[(($1 * 3))]}          
     build__COMPILER_C=${compilerTable[(($1 * 3 + 1))]} 
@@ -400,9 +392,14 @@ build()
 
     printMessage "INFO" "Building files - Debugger $build__COMPILER_C $build__COMPILER_CXX"
     if [ "$IDE" == "ECLIPSE" ]; then  # only difference is GENERATOR_OPTION -G
-        cmake $OGS_FOLDER/sources -G "Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=${compilerTable[(($1 * 3))]} -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                       
+        cmake ../../sources -G "Eclipse CDT4 - Unix Makefiles" -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=${compilerTable[(($1 * 3))]} -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                       
     else
-        cmake $OGS_FOLDER/sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+
+        if [ "$build__COMPILER_C" == "" ]; then
+           cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+        else
+           cmake ../../sources -DCMAKE_BUILD_TYPE=$BUILD_CONFIGURATION -D$cConfigurationSELECTED=ON -DPARALLEL_USE_OPENMP=$OPENMP -DCMAKE_C_COMPILER=$build__COMPILER_C  -DCMAKE_CXX_COMPILER=$build__COMPILER_CXX                      
+        fi
     fi
 }
 
@@ -428,12 +425,12 @@ main()
     setCompilerTable
     
     # user input
-    if [ "$2" == "" ]; then
+    if [ -z $2 ]; then # configuration not preselected (by argument)
         selectConfiguration    
     fi
     
     if [ "$configurationSELECTED" != "x" ]; then # else exit
-        if [ "$3" == "" ]; then
+        if [ -z $3 ]; then # build flag not previously set (by argument)
             selectBuild 
         fi
         # config main loop
@@ -458,11 +455,12 @@ main()
                     fi
                     cd $BUILD_FOLDER # step into build folder for make
                 fi  
-                echo $(pwd)
+
                 # compile
                 printMessage "INFO" "Compiling"
                 make -j $nCPUs    
-            
+
+		cd ../..  # step into ROOT_FOLDER
                 # post-processing
                 if [ -e $BUILD_FOLDER/bin/ogs ]; then            
                     mv $BUILD_FOLDER/bin/ogs $BUILD_FOLDER/bin/ogs_$cConfigurationSELECTED     # rename
@@ -475,10 +473,11 @@ main()
 
         cd $CALLEDFROM      # back to initial folder
     
-        if [ "$2" == "" ]; then 
+        if [ -z $2 ]; then 
             main $1 "" "" # restart - than BUILD_CONFIGURATION, Build_flag and configuration always selected by user
         fi   # else BUILD_CONFIGURATION was preselected - exit now
     fi
+
 } 
 
 if [ "$configurationSELECTED" != "x" ]; then

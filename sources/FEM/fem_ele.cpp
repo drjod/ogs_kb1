@@ -12,6 +12,7 @@
 
 #include "femlib.h"
 #include "mathlib.h"
+#include <algorithm>
 //#include "matrix_class.h"
 // MSHLib
 //#include "msh_elem.h"
@@ -31,7 +32,7 @@ namespace FiniteElement
    01/2006 WW Axisymmetry
    Last modified:
 **************************************************************************/
-CElement::CElement(int CoordFlag, const int order)
+CElement::CElement(int CoordFlag, const int order)//, bool _2D_mesh_with_line_elements)
 	: MeshElement(NULL), Order(order), ele_dim(1), nGaussPoints(1), nGauss(1),
 	  ShapeFunction(NULL), ShapeFunctionHQ(NULL),
 	  GradShapeFunction(NULL), GradShapeFunctionHQ(NULL),
@@ -41,8 +42,9 @@ CElement::CElement(int CoordFlag, const int order)
 	int i;
 	//
 	nGauss = 3;
+	//flag_2D_mesh_with_line_elements = _2D_mesh_with_line_elements;
 	//
-	if(CoordFlag < 0)                     // Axisymmetry
+	if(CoordFlag < 0)  // Axisymmetry
 	{
 		CoordFlag *= -1;
 		axisymmetry = true;
@@ -540,7 +542,7 @@ double CElement::computeJacobian(const int order)
 		//if(MeshElement->area>0)
 		DetJac *= MeshElement->area;
 		//WW          DetJac*=MeshElement->GetFluxArea();//CMCD
-		if(axisymmetry)
+		if(axisymmetry && !flag_2D_mesh_with_line_elements)  // JOD
 		{
 			CalculateRadius();
 			DetJac *= Radius; //2.0*pai*Radius;
@@ -555,7 +557,6 @@ double CElement::computeJacobian(const int order)
 			Jacobian[2] += X[i] * dN[j];
 			Jacobian[3] += Y[i] * dN[j];
 		}
-
 		DetJac =  Jacobian[0] * Jacobian[3] - Jacobian[1] * Jacobian[2];
 		if (fabs(DetJac) < MKleinsteZahl)
 		{
@@ -573,10 +574,13 @@ double CElement::computeJacobian(const int order)
 		//if(MeshElement->area>0)
 		DetJac *= MeshElement->area;
 		//WW          DetJac*=MeshElement->GetFluxArea();//CMCD
-		if(axisymmetry)
+		if(axisymmetry
+			&&
+				std::find_if(X, X+nodes_number, // JOD 2018-10-16
+						[](double x) { return x<-1.e-10; }) == X+nodes_number) //no node has coordinate x<0.
 		{
 			CalculateRadius();
-			DetJac *= Radius; //2.0*pai*Radius;
+			DetJac *= Radius * 6.2831853072; //2.0*pai*Radius;
 		}
 		break;
 	//................................................................
@@ -1533,9 +1537,9 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
 		JTCoeff_val *= m_mfp->SpecificHeatCapacity() * m_mfp->Density() * (scalar_flux / ((kr * k) / m_mfp->Viscosity()) +  m_mfp->Density() * g * flux[2]);
 		JTCoeff_val *= n * GasSat;
 		
-		//std::cout << "Ele: " << ele_index << " GP: " << gp << " flux[0]: " << flux[0] << " flux[1]: " << flux[1] << " flux[2]: " << flux[2] << " skalar_flux: " << scalar_flux << std::endl;
-		//std::cout << " C: " << m_mfp->SpecificHeatCapacity() << " dens: " << m_mfp->Density() << " Visc: " << m_mfp->Viscosity() << " k: " << k << " kr: " << kr <<  " n: " << n << std::endl;
-		//std::cout << std::endl;
+		//std::cout << "Ele: " << ele_index << " GP: " << gp << " flux[0]: " << flux[0] << " flux[1]: " << flux[1] << " flux[2]: " << flux[2] << " skalar_flux: " << scalar_flux << "\n";
+		//std::cout << " C: " << m_mfp->SpecificHeatCapacity() << " dens: " << m_mfp->Density() << " Visc: " << m_mfp->Viscosity() << " k: " << k << " kr: " << kr <<  " n: " << n << "\n";
+		//std::cout << "\n";
 
         for (i = 0; i < nNodes; i++)
 		    dbuff_flux[i] += JTCoeff_val * sf[i] * fkt;

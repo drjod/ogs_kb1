@@ -43,6 +43,8 @@
 #include "tools.h"
 #include "FileTools.h"
 
+#include "rf_st_new.h" /// JOD 2018-4-6 to use FaceIntegration (surface-averaged output)
+
 extern size_t max_dim;                            //OK411 todo
 
 #ifdef CHEMAPP
@@ -77,6 +79,7 @@ COutput::COutput() :
 	vtk = NULL; //NW
 	tecplot_zone_share = false; // 10.2012. WW
 	tecplot_datapack_block = 0; // 10.2014 BW
+	_ignore_axisymmetry = false;
 	VARIABLESHARING = false;	//BG
 	accumulatedFlux_diffusive = 0.;
 	accumulatedFlux_diffusive_gas = 0.;
@@ -393,7 +396,14 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		{
 			in_str >> dat_type_name;
 			if (dat_type_name == "CONTENT") // JOD 2/2015
+			{
 				in_str >> mmp_index;
+			}
+			if (dat_type_name == "VOLUME") // JOD 2020-1-16
+			{
+						mmp_index = -2;  // flag for volume calculation
+						in_str >> domainIntegration_lowerThreshold >> domainIntegration_upperThreshold; // JOD 2020-1-15
+			}
 			in_str.ignore(MAX_ZEILE, '\n');
 			continue;
 		}
@@ -504,6 +514,12 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		if (line_string.find("$TECPLOT_ZONE_SHARE") != string::npos)
 		{
 			tecplot_zone_share = true; 
+			continue;
+		}
+		if (line_string.find("$IGNORE_AXISYMMETRY") != string::npos)  // JOD 2018-08-17  for content output
+		{
+			_ignore_axisymmetry = true;
+			std::cout << "\tIgnore axisymmetry in content output " << mmp_index << '\n';
 			continue;
 		}
 		// For tecplot block datapack format 10.2014 BW
@@ -1309,7 +1325,13 @@ void COutput::WriteTECHeader(fstream &tec_file,int e_type, string e_type_name)
 	tec_file << "E=" << no_elements << ", ";
 	tec_file << "F=" << "FEPOINT" << ", ";
 	tec_file << "ET=" << e_type_name;
-	tec_file << "\n";
+	// JOD 2020-3-20 from BW - data accuracy for each variable
+	tec_file << ", DT=(DOUBLE,DOUBLE,DOUBLE"; // BW, for the accuracy of the coordinates
+	for (size_t k = 0; k < nName; k++) // BW, for the nodal variables, hard coded as SINGLE, i.e. 6 digits
+	{
+		tec_file << ",SINGLE";
+	}
+	tec_file << ")\n";
 	//--------------------------------------------------------------------
     // Write Header III: solution time			; BG 05/2011
     tec_file << "STRANDID=1, SOLUTIONTIME=";
@@ -1385,11 +1407,29 @@ void COutput::ELEWriteDOMDataTEC()
 void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 {
 	// Write Header I: variables
-	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\"";
+	/*tec_file << "VARIABLES = \"X\",\"Y\",\"Z\",\"VX\",\"VY\",\"VZ\",\"Rho\"";
 	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		//WW
-		if (_ele_value_vector[i].find("VELOCITY") == string::npos)
+		if (_ele_value_vector[i].find("VELOCITY") == string::npos || _ele_value_vector[i].find("DENSITY1") == string::npos)
 			tec_file << "," << _ele_value_vector[i];
+	*/
+	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\"";
+	for (size_t i = 0; i < _ele_value_vector.size(); i++)
+	{
+		//WW
+		if (_ele_value_vector[i].find("VELOCITY") != string::npos)
+		{
+			tec_file << ",\"VELOCITY1_X\",\"VELOCITY1_Y\",\"VELOCITY1_Z\"";
+			break;
+		}
+	}
+
+	for (size_t i = 0; i < _ele_value_vector.size(); i++)
+		if (_ele_value_vector[i].find("DENSITY1") != string::npos)
+		{
+			tec_file << ",\"DENSITY1\"";
+			break;
+		}
 
 	tec_file << "\n";
 	// Write Header II: zone
@@ -1442,20 +1482,26 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 	vector <bool> skip; // CB
 	size_t no_ele_values = _ele_value_vector.size();
 	bool out_element_vel = false;
-	
+	bool out_element_density = false; // JOD 2018-8-15
+
 	for (size_t j = 0; j < no_ele_values; j++) //WW
 	{
-		if (_ele_value_vector[j].find("VELOCITY") != string::npos)
+		if(_ele_value_vector[j].find("DENSITY") != string::npos)
+		{
+			out_element_density = true;
+			skip.push_back(false);
+		}
+		else if(_ele_value_vector[j].find("VELOCITY") != string::npos)
 		{
 			out_element_vel = true;
 			// break;  // CB: allow output of velocity AND other ele values
 			skip.push_back(false);
 		}
-      else
-      {
-        m_pcs_2 = GetPCS_ELE(_ele_value_vector[j]);
-        skip.push_back(true);
-      }
+		else
+		{
+			m_pcs_2 = GetPCS_ELE(_ele_value_vector[j]);
+			skip.push_back(true);
+		}
    }
 	vector<int> ele_value_index_vector(no_ele_values);
 	GetELEValuesIndexVector(ele_value_index_vector);
@@ -1497,6 +1543,11 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 				tec_file << gp_ele->Velocity(1, 0) << " ";
 				tec_file << gp_ele->Velocity(2, 0) << " ";
 			}
+		}  // end out_element_vel
+
+		if(out_element_density)
+		{
+			tec_file << gp_ele->density << " ";
 		}
 		
 		for (size_t j = 0; j < ele_value_index_vector.size(); j++)
@@ -1645,7 +1696,7 @@ Programing:
 10/2014 BW Implemented for BLOCK DataPacking of TECPLOT
 Inheritated from WriteTECHeader();
 **************************************************************************/
-void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
+void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file) //BW: 23.03.2020 please update changes
 {
 	// MSH
 	//	m_msh = GetMSH();
@@ -1721,7 +1772,12 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 				<< nName + mfp_value_vector_size + nPconName + 4
 				<< "]=CELLCENTERED)";
 		}
+<<<<<<< HEAD
 		else {
+=======
+
+		else
+>>>>>>> develop
 		tec_file << "VARLOCATION=" << "(["
 			<< nName + mfp_value_vector_size + nPconName + 4
 			<< "-"
@@ -1729,6 +1785,9 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file)
 			<< "]=CELLCENTERED)";
 		}
 	}
+	
+	//data accuracy for each variable
+	tec_file << "DT=(DOUBLE,DOUBLE,DOUBLE)"; // BW, for the accuracy of the coordinates
 
 	tec_file << "\n";
 	//--------------------------------------------------------------------
@@ -1756,7 +1815,7 @@ OK ??? too many specifics
 10/2014 BW Write Block Datapacking Format of TECPLOT with Nodal/Ele Data
 together, inheritated from WriteTECNodeData()
 **************************************************************************/
-void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
+void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please update changes
 {
 	const size_t nName(_nod_value_vector.size());
 	double val_n = 0.;                    //WW
@@ -1883,7 +1942,10 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file)
 								tec_file << '\n';
 						}
 						else {
-							val_n = m_pcs->GetNodeValue(n_id, NodeIndex[k]); //WW
+							if (_nod_value_vector[k].find("DELTA") == 0) // BW 24/11/2015 
+								val_n = m_pcs->GetNodeValue(n_id, 1) - m_pcs->GetNodeValue(n_id, NodeIndex[k]);
+							else
+								val_n = m_pcs->GetNodeValue(n_id, NodeIndex[k]); //WW
 							tec_file << val_n << " ";
 							//if ((m_pcs->type == 1212 || m_pcs->type == 42)
 							//	&& _nod_value_vector[k].find("SATURATION") != string::npos) //WW
@@ -2303,7 +2365,7 @@ double COutput::NODWritePLYDataTEC(int number )
 			//if(!(_nod_value_vector[k].compare("FLUX")==0))  // removed JOD, does not work for multiple flow processes
 			//if (!b_specified_pcs) //NW
 			if (msh_type_name != "COMPARTMENT") // JOD 4.10.01
-				m_pcs = PCSGet(_nod_value_vector[k], bdummy);
+				m_pcs = PCSGet(_nod_value_vector[k], bdummy); // BW, here define which process for what secondary variable
 
 			if (!m_pcs)
 			{
@@ -2785,18 +2847,21 @@ void COutput::WriteRFO()
 void COutput::NODWriteSFCDataTEC(int number)
 {
 
-  /*   CB:   Extended for 2D-Element projection along a regular surface   */
-
+	/*   CB:   Extended for 2D-Element projection along a regular surface   */
 	if (_nod_value_vector.size() == 0)
+	{
+		std::cout << "Warning - No nodes for surface " << geo_name << "\n";
 		return;
+	}
 
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	m_pcs = PCSGet(getProcessType());
 
 	// File handling
-	char number_char[3];
+	char number_char[6];
 	sprintf(number_char, "%i", number);
-	string number_string = number_char;
+	string number_string(number_char);
+
 	//	string tec_file_name = pcs_type_name + "_sfc_" + geo_name + "_t"
 	//				+ number_string + TEC_FILE_EXTENSION;
    //std::string tec_file_name = convertProcessTypeToString (getProcessType()) + "_sfc_" + geo_name + "_t"
@@ -2808,7 +2873,6 @@ void COutput::NODWriteSFCDataTEC(int number)
 	  //                          + number_string + TEC_FILE_EXTENSION;   
    std::string tec_file_name = file_base_name
      + "_sfc_" + geo_name + TEC_FILE_EXTENSION;
-      
    //if (!_new_file_opened)
    //  remove(tec_file_name.c_str());  //WW
 
@@ -2821,7 +2885,10 @@ void COutput::NODWriteSFCDataTEC(int number)
 	tec_file.setf(ios::scientific, ios::floatfield);
 	tec_file.precision(12);
 	if (!tec_file.good())
+	{
+		std::cout << "Warning - Could not open file for writing surface data " << geo_name << "\n";
 		return;
+	}
 	tec_file.seekg(0L, ios::beg);
 #ifdef SUPERCOMPUTER
 	// kg44 buffer the output
@@ -2840,7 +2907,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 		tec_file << _nod_value_vector[k] << ",";
 	tec_file << "\n";
 	// , I=" << NodeListLength << ", J=1, K=1, F=POINT" << "\n";
-  tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
+    tec_file << " ZONE T=\"TIME=" << _time << "\""; // << "\n";
 	//--------------------------------------------------------------------
 	// Write data
 	std::vector<long> nodes_vector;
@@ -2849,90 +2916,92 @@ void COutput::NODWriteSFCDataTEC(int number)
 	if (m_sfc)
 	{
 		m_msh->GetNODOnSFC(m_sfc, nodes_vector);
-      //for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+		//for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+
+		// CB set up data for Element section
+		//std::vector < std::vector <long> > eledefvec;
+		std::vector <long> eledef;
+		bool* elecheck;
+		if (aktueller_zeitschritt == 0)
+		{
+
+		  MeshLib::CElem* m_ele = NULL;
+		  MeshLib::CNode* m_node = NULL;
+
+		  elecheck = new bool[m_msh->ele_vector.size()];
+		  for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+			elecheck[i] = false;
 
 
-    // CB set up data for Element section
-    //std::vector < std::vector <long> > eledefvec;
-    std::vector <long> eledef;
-    bool* elecheck;
-    if (aktueller_zeitschritt == 0){
+		  for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+		  {
+			int nd = nodes_vector[i];
+			m_node = m_msh->nod_vector[nd];
 
-      MeshLib::CElem* m_ele = NULL;
-      MeshLib::CNode* m_node = NULL;
+			//test all connected elements of a node
+			for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
+			{
+			  m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
+			  if (elecheck[m_ele->GetIndex()] == true)
+				continue;
+			  //test all faces of the element
+			  for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
+			  {
 
-      elecheck = new bool[m_msh->ele_vector.size()];
-      for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-        elecheck[i] = false;
+				int faceNodeIndex_loc[10];
+				int faceNodeIndex_glo[10];
+				int faceNodeIndex_lis[10];
+				// get # face nodes and their local indices
+				int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
+				int n = 0; // reset counter
 
+				// check if all nodes of a face are in the list of surface nodes
+				for (size_t l = 0; l < n_face_node; l++) // AB SB
+				{
+				  //get global Node index for comparison
+				  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
+				  // compare with all nodes of surface node list
+				  for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
+				  {
+					if (faceNodeIndex_glo[l] == nodes_vector[m])
+					{
+					  n++; // a match --> save the list index
+					  faceNodeIndex_lis[l] = m;
+					}
+					// check if all nodes of face match
+					if (n == n_face_node)
+					  break;  // face identified, skip rest of loop now
+				  }  // end nodes_vector
+				  // check if face in surface
+				  if (n == n_face_node)
+				  {
+					for (size_t l = 0; l < n_face_node; l++)
+					{
+					  eledef.push_back(1 + faceNodeIndex_lis[l]);
+					}
+					eledefvec.push_back(eledef);
+					eledef.clear();
+				  }  // end n == n_face_node
+				}  // end n_face_node
 
-      for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
-      {
-        int nd = nodes_vector[i];
-        m_node = m_msh->nod_vector[nd];
+			  }  // end faces
+			  elecheck[m_ele->GetIndex()] = true;
+			}  // end elements
+		  }  // end nodes_vector
 
-        //test all connected elements of a node
-        for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
-        {
-          m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
-          if (elecheck[m_ele->GetIndex()] == true)
-            continue;
-          //test all faces of the element
-          for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
-          {
+		  delete[] elecheck;
+		  // Element section finished
+		}  // end aktueller_zeitschritt == 0
 
-            int faceNodeIndex_loc[10];
-            int faceNodeIndex_glo[10];
-            int faceNodeIndex_lis[10];
-            // get # face nodes and their local indices
-            int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
-            int n = 0; // reset counter
+		// CB extend header
+		tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
+		if (eledefvec[0].size() == 3)
+		  tec_file << "TRIANGLE" << "\n";
+		if (eledefvec[0].size() == 4)
+		  tec_file << "QUADRILATERAL" << "\n";
 
-            // check if all nodes of a face are in the list of surface nodes
-            for (size_t l = 0; l < n_face_node; l++) // AB SB
-            {
-              //get global Node index for comparison
-              faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
-              // compare with all nodes of surface node list 
-              for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
-              {
-                if (faceNodeIndex_glo[l] == nodes_vector[m])
-                {
-                  n++; // a match --> save the list index
-                  faceNodeIndex_lis[l] = m;
-                }
-                // check if all nodes of face match
-                if (n == n_face_node)
-                  break;  // face identified, skip rest of loop now
-              }
-              // check if face in surface
-              if (n == n_face_node){
-                for (size_t l = 0; l < n_face_node; l++){
-                  eledef.push_back(1 + faceNodeIndex_lis[l]);
-                }
-                eledefvec.push_back(eledef);
-                eledef.clear();
-              }
-            }
-
-          }
-          elecheck[m_ele->GetIndex()] = true;
-        }
-      }
-
-      delete[] elecheck;
-      // Element section finished
-    }
-
-    // CB extend header
-    tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
-    if (eledefvec[0].size() == 3)
-      tec_file << "TRIANGLE" << "\n";
-    if (eledefvec[0].size() == 4)
-      tec_file << "QUADRILATERAL" << "\n";
-
-    // node values
-	  	for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+		// node values
+		for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
 		{
 			double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
 			tec_file << pnt_i[0] << " ";
@@ -2940,7 +3009,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 			tec_file << pnt_i[2] << " ";
 			for (size_t k = 0; k < _nod_value_vector.size(); k++)
 			{
-                m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+				m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
 				int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
 
 				if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
@@ -2949,24 +3018,24 @@ void COutput::NODWriteSFCDataTEC(int number)
 				tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
 			}
 			tec_file << "\n";
-		}
-    
+		}  // end nodes_vector
 
-    // CB print element section
-    for (size_t i = 0; i < eledefvec.size(); i++)
-    {
-      for (size_t j = 0; j < eledefvec[j].size(); j++)
-        tec_file << eledefvec[i][j] << " ";
-      tec_file << "\n";
-    }
-    //clean up
-    //eledefvec.clear();
-    eledef.clear();
-   
-	}
+		// CB print element section
+		for (size_t i = 0; i < eledefvec.size(); i++)
+		{
+		  for (size_t j = 0; j < eledefvec[j].size(); j++)
+			tec_file << eledefvec[i][j] << " ";
+		  tec_file << "\n";
+		}
+		//clean up
+		//eledefvec.clear();
+		eledef.clear();
+
+	}  // end m_sfc
 	else
-		tec_file << "Error in NODWritePLYDataTEC: polyline " << geo_name
+		tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
 		         << " not found" << "\n";
+
 	tec_file.close();                     // kg44 close file
 }
 
@@ -2975,9 +3044,233 @@ void COutput::NODWriteSFCDataTEC(int number)
    12/2005 OK Implementation
    04/2006 CMCD no mesh option & flux weighting
    last modification:
+   03/2018 JOD rewritten to use FaceIntegration
+   	   	   works only for primary variables since index is incremented
 **************************************************************************/
 void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number)
 {
+
+	/*   CB:   Extended for 2D-Element projection along a regular surface   */
+		if (_nod_value_vector.size() == 0)
+		{
+			std::cout << "Warning - No nodes for surface " << geo_name << "\n";
+			return;
+		}
+
+		m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+		m_pcs = PCSGet(getProcessType());
+		if(m_pcs == NULL)
+		{
+			std::cout << "Warning - PCS not known for surface-averaged output" << "\n";
+			return;
+		}
+
+		// File handling
+		int number=1;
+		char number_char[6];
+		sprintf(number_char, "%i", number);
+		string number_string(number_char);
+
+
+		std::string tec_file_name = file_base_name
+	     + "_sfc_" + geo_name + "_" + std::string(convertProcessTypeToString(getProcessType()))
+	    		 + "_averaged" + TEC_FILE_EXTENSION;
+
+	   //if (!_new_file_opened)
+	   //  remove(tec_file_name.c_str());  //WW
+
+	   std::fstream tec_file;
+	   if (aktueller_zeitschritt == 0)
+	     tec_file.open(tec_file_name.data(), ios::out);
+	   else
+	     tec_file.open(tec_file_name.data(), ios::app|ios::out);
+
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing surface data " << geo_name << "\n";
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+	#ifdef SUPERCOMPUTER
+		// kg44 buffer the output
+		char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+		tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+		//
+	#endif
+		//--------------------------------------------------------------------
+		// Write header
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "Time "; // << "\n";
+			for(int n = 0; n < _nod_value_vector.size(); n++)
+				tec_file << _nod_value_vector[n] << " ";
+			tec_file << "\n";
+		}
+
+		//--------------------------------------------------------------------
+		// Write data
+		std::vector<long> nodes_vector;
+		Surface* m_sfc = NULL;
+		m_sfc = GEOGetSFCByName(geo_name);    //CC
+
+		double total_area, average_value;
+		m_msh->GetNODOnSFC(m_sfc, nodes_vector);
+		std::vector<double> nodes_area_vector(nodes_vector.size(), 1.);
+
+		FaceIntegration(m_msh, nodes_vector, nodes_area_vector, m_sfc, FiniteElement::CONSTANT_NEUMANN,
+				m_pcs->m_num->ele_gauss_points);
+
+		total_area = 0.;
+		for(int i = 0; i<nodes_vector.size(); i++)
+		{
+			total_area += nodes_area_vector[i];
+		}
+
+		tec_file << _time;
+
+		for(int n = 0; n < _nod_value_vector.size(); n++)
+		{
+			average_value = 0;
+			for(int i = 0; i<nodes_vector.size(); i++)
+			{
+				average_value += m_pcs->GetNodeValue(nodes_vector[i],
+						m_pcs->GetNodeValueIndex(_nod_value_vector[n]) + 1)   // index increased by one - new value taken
+								* nodes_area_vector[i];  // only first variable
+			}
+			average_value /= total_area;
+			tec_file << " " << average_value;
+		}
+
+		tec_file << "\n";
+		/*if (m_sfc)
+		{
+			m_msh->GetNODOnSFC(m_sfc, nodes_vector);
+			//for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
+
+			// CB set up data for Element section
+			//std::vector < std::vector <long> > eledefvec;
+			std::vector <long> eledef;
+			bool* elecheck;
+			if (aktueller_zeitschritt == 0)
+			{
+
+			  MeshLib::CElem* m_ele = NULL;
+			  MeshLib::CNode* m_node = NULL;
+
+			  elecheck = new bool[m_msh->ele_vector.size()];
+			  for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+				elecheck[i] = false;
+
+
+			  for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+			  {
+				int nd = nodes_vector[i];
+				m_node = m_msh->nod_vector[nd];
+
+				//test all connected elements of a node
+				for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
+				{
+				  m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
+				  if (elecheck[m_ele->GetIndex()] == true)
+					continue;
+				  //test all faces of the element
+				  for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
+				  {
+
+					int faceNodeIndex_loc[10];
+					int faceNodeIndex_glo[10];
+					int faceNodeIndex_lis[10];
+					// get # face nodes and their local indices
+					int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
+					int n = 0; // reset counter
+
+					// check if all nodes of a face are in the list of surface nodes
+					for (size_t l = 0; l < n_face_node; l++) // AB SB
+					{
+					  //get global Node index for comparison
+					  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
+					  // compare with all nodes of surface node list
+					  for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
+					  {
+						if (faceNodeIndex_glo[l] == nodes_vector[m])
+						{
+						  n++; // a match --> save the list index
+						  faceNodeIndex_lis[l] = m;
+						}
+						// check if all nodes of face match
+						if (n == n_face_node)
+						  break;  // face identified, skip rest of loop now
+					  }  // end nodes_vector
+					  // check if face in surface
+					  if (n == n_face_node)
+					  {
+						for (size_t l = 0; l < n_face_node; l++)
+						{
+						  eledef.push_back(1 + faceNodeIndex_lis[l]);
+						}
+						eledefvec.push_back(eledef);
+						eledef.clear();
+					  }  // end n == n_face_node
+					}  // end n_face_node
+
+				  }  // end faces
+				  elecheck[m_ele->GetIndex()] = true;
+				}  // end elements
+			  }  // end nodes_vector
+
+			  delete[] elecheck;
+			  // Element section finished
+			}  // end aktueller_zeitschritt == 0
+
+			// CB extend header
+			tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
+			if (eledefvec[0].size() == 3)
+			  tec_file << "TRIANGLE" << "\n";
+			if (eledefvec[0].size() == 4)
+			  tec_file << "QUADRILATERAL" << "\n";
+
+			// node values
+			for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+			{
+				double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
+				tec_file << pnt_i[0] << " ";
+				tec_file << pnt_i[1] << " ";
+				tec_file << pnt_i[2] << " ";
+				for (size_t k = 0; k < _nod_value_vector.size(); k++)
+				{
+					m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+					int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
+
+					if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
+						tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
+					else
+					tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
+				}
+				tec_file << "\n";
+			}  // end nodes_vector
+
+			// CB print element section
+			for (size_t i = 0; i < eledefvec.size(); i++)
+			{
+			  for (size_t j = 0; j < eledefvec[j].size(); j++)
+				tec_file << eledefvec[i][j] << " ";
+			  tec_file << "\n";
+			}
+			//clean up
+			//eledefvec.clear();
+			eledef.clear();
+
+		}  // end m_sfc
+		else
+			tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
+			         << " not found" << "\n";
+*/
+		tec_file.close();                     // kg44 close file
+
+	/*
 	bool no_pcs = false;
 	double dtemp;
 	vector<long> sfc_nodes_vector;
@@ -3117,6 +3410,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		tec_file << "\n";
 	}
 	tec_file.close();                     // kg44 close file
+	*/
 }
 
 void COutput::GetNodeIndexVector(vector<int>&NodeIndex)
@@ -4628,14 +4922,20 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 
 	if (time_step_number == 0)
 	{
-		tec_file << "TIME                   ";
+		tec_file << "\"TIME\"                   ";
 		if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT || m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
+<<<<<<< HEAD
 			tec_file << "DIFFUSION / DISPERSION FLUX ACCUMULATED                 ADVECTION FLUX             ACCUMULATED\n";
 		else
 		{
 			tec_file << "DARCY LIQUID FLUX           ACCUMULATED                 ";
 			if ((m_pcs->getProcessType() == FiniteElement::PS_GLOBAL) || (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW))
 				tec_file << "DARCY GAS FLUX              ACCUMULATED";
+=======
+			tec_file << "\"DIFFUSION / DISPERSION FLUX\"             \"ADVECTION FLUX\"";
+		else
+			tec_file << "\"DARCY FLUX\"";
+>>>>>>> develop
 		tec_file << "\n";
 		}
 	}
@@ -4756,24 +5056,47 @@ Programing:
 
 void COutput::WriteContent(double time_current, int time_step_number)
 {
+<<<<<<< HEAD
 
 	string tec_file_name;
 	double content[2];  // 0: liquid, 1: gas
+=======
+	CFEMesh* m_msh = NULL;
+	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+>>>>>>> develop
 	CRFProcess* m_pcs = NULL;
+	double factor = 1.;
 	if (_nod_value_vector.size() > 0)
 		m_pcs = PCSGet(_nod_value_vector[0], true);
 	else
 		m_pcs = PCSGet(getProcessType());
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> develop
 	//--------------------------------------------------------------------
+	/*if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+		factor = 6.283185307; // 2 Pi
+	else
+		factor = 1.;*/
 	// File handling
 	
 	tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) ;
 	if (_nod_value_vector.size() > 0)
 		tec_file_name += "_" + _nod_value_vector[0];
-	tec_file_name += "_CONTENT";
-	if (mmp_index != -1) 
+
+	if (mmp_index == -2)
+	{
+		stringstream ss; ss << "_VOLUME_" << domainIntegration_lowerThreshold << "_" << domainIntegration_upperThreshold;
+		tec_file_name += ss.str();
+	}
+	else
+	{
+		tec_file_name += "_CONTENT";
+	}
+
+	if (mmp_index >= 0)
 	{
 		stringstream ss; ss << mmp_index;
 		tec_file_name += ss.str();
@@ -4796,6 +5119,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	if (!tec_file.good()) return;
 	tec_file.seekg(0L, ios::beg);
 
+<<<<<<< HEAD
 	if (time_step_number == 0) {	// header
 		tec_file << "TIME                   LIQUID CONTENT";
 		if (m_pcs->getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
@@ -4803,6 +5127,12 @@ void COutput::WriteContent(double time_current, int time_step_number)
 		tec_file << "\n";
 	}
 	bool output = false;
+=======
+	if (time_step_number == 0)
+		tec_file << "\"TIME\"                   \"CONTENT\"" << "\n";
+	else 
+	{
+>>>>>>> develop
 		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
 		  output = true;
 
@@ -4812,6 +5142,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 		if (output == true)
 		{
+<<<<<<< HEAD
 		double factor;
 		CFEMesh* m_msh = NULL;
 		m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
@@ -4819,6 +5150,13 @@ void COutput::WriteContent(double time_current, int time_step_number)
 			factor = 6.28318530717958; // 2 Pi 
 		else
 			factor = 1;
+=======
+			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
+					domainIntegration_lowerThreshold,
+					domainIntegration_upperThreshold,
+					_nod_value_vector)
+							<< "\n";
+>>>>>>> develop
 			cout << "Data output: " << convertProcessTypeToString(getProcessType());
 			if (_nod_value_vector.size() == 1)
 				cout << " " << _nod_value_vector[0]; 
@@ -4942,7 +5280,7 @@ void COutput::NODCalcFlux(CRFProcess* m_pcs, CElem *elem, CElem* face, int* node
 			NodeVal_adv[k] = m_pcs->GetNodeValue(e_node->GetIndex(), ndx1) * flux_normal * factor;				// advection
 
 			if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
-				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
+				NodeVal_adv[k] *= mfp_vector[0]->SpecificHeatCapacity(NULL,true) * mfp_vector[0]->Density(); //BW: 23.03.2020 please double check
 			// diffusion
 			flux_diff[0] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_X1"));  // Fick / Fourrier
 			flux_diff[1] = m_pcs->GetNodeValue(e_node->GetIndex(), m_pcs->GetNodeValueIndex("VELOCITY_Y1"));
@@ -5420,3 +5758,274 @@ void COutput::WritePotentially(double time_current, int time_step_number, bool o
 		}
     }		
 }
+
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:
+Use:    $DAT_TYPE
+
+Programing:
+06/2018 JOD Implementation
+**************************************************************************/
+
+void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
+{	// a_pcs???
+	std::cout << "Data output: WDC\n";
+	m_pcs = PCSGet(getProcessType());
+	if(m_pcs == NULL)
+	{
+		std::cout << "Warning - PCS not known for WellDoubletControl output" << "\n";
+		return;
+	}
+	if(m_pcs->ogs_WDC_vector.size() == 0)
+		std::cout << "Warning - No WDC instance in output\n";
+
+	for(long long unsigned i=0; i<m_pcs->ogs_WDC_vector.size(); ++i)
+	{  			// long long unsigned for std::to_string
+		// file name
+		std::string tec_file_name = file_base_name + "_"
+		 + std::string(convertProcessTypeToString(getProcessType()))
+				 + "_WellDoublet_" + std::to_string(i) + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file;
+		if (aktueller_zeitschritt == 0)
+			tec_file.open(tec_file_name.data(), ios::out);
+		else
+			tec_file.open(tec_file_name.data(), ios::out | ios::app);
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing WDC data " << geo_name << "\n";
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
+		//--------------------------------------------------------------------
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
+			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
+			tec_file << "\"Power rate Q_H\" \"Flow rate Q_w\" ";
+			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\"\n";
+		}
+		else
+		{
+			// write results
+			const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
+			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
+
+			tec_file << aktueller_zeitschritt
+				<< '\t' << time_current
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
+				<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+				<< '\t' << result.Q_H
+				<< '\t' << result.Q_W
+				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
+				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+				<< '\n';
+
+		}
+		tec_file.close();
+
+	}
+}
+
+/***************************************************************************
+OpenGeoSys - Funktion
+Task:
+Use:    $DAT_TYPE
+
+Programing:
+06/2018 JOD Implementation
+**************************************************************************/
+
+void COutput::WriteContraflow(double time_current, int time_step_number)
+{	// a_pcs???
+	std::cout << "Data output: Contraflow\n";
+	m_pcs = PCSGet(getProcessType());
+	if(m_pcs == NULL)
+	{
+		std::cout << "Warning - PCS not known for Contraflow output" << "\n";
+		return;
+	}
+	if(m_pcs->ogs_contraflow_vector.size() == 0)
+		std::cout << "Warning - No Contraflow instance in output\n";
+
+	for(long long unsigned ii=0; ii<m_pcs->ogs_contraflow_vector.size(); ++ii)
+	{  			// long long unsigned for std::to_string
+		// file name polyname
+		std::string tec_file_name = file_base_name + "_"
+				 + std::string(convertProcessTypeToString(getProcessType()))
+				 + "_Contraflow_ply_" + std::to_string(ii) + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file;
+		if (aktueller_zeitschritt == 0)
+			tec_file.open(tec_file_name.data(), ios::out);
+		else
+			tec_file.open(tec_file_name.data(), ios::out | ios::app);
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing Contraflow data " << geo_name << "\n";
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
+
+		// file name total flux
+		std::string tec_file_name_tf = file_base_name + "_"
+				 + std::string(convertProcessTypeToString(getProcessType()))
+						 + "_Contraflow_" + std::to_string(ii) + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file_tf;
+		if (aktueller_zeitschritt == 0)
+			tec_file_tf.open(tec_file_name_tf.data(), ios::out);
+		else
+			tec_file_tf.open(tec_file_name_tf.data(), ios::out | ios::app);
+
+		tec_file_tf.setf(ios::scientific, ios::floatfield);
+		tec_file_tf.precision(12);
+		if (!tec_file_tf.good())
+		{
+			std::cout << "Warning - Could not open file for writing Contraflow data " << geo_name << "\n";
+			return;
+		}
+		tec_file_tf.seekg(0L, ios::beg);
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file_tf.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
+
+		//--------------------------------------------------------------------
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
+			tec_file << "VARIABLES = \"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
+			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
+			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
+		}
+		else
+		{
+
+			if(m_pcs->ogs_contraflow_vector[ii]->get_input_list().front().Q > 10e-10)
+			{
+
+			tec_file << "ZONE T=\"TIME=" << time_current << "\"\n";
+
+			// write results
+			std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
+			stru3::DVec T_s = stru3::DVec(nodes_vec.size());
+			for(int j=0; j < nodes_vec.size(); ++j)
+			{
+				T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
+			}
+
+			const contra::Result& result = m_pcs->ogs_contraflow_vector[ii]->get_Contraflow()->get_result();
+			std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[ii]->get_segment_data_vec();
+
+			double total_flux1 = 0., total_flux2 = 0;
+			double z = 0;
+
+
+			int j = 0, k = 0;
+			double L_ele = 0.;
+			int N = segment_data_vec[0].N;
+			double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
+			double R_1_Delta = result.resistances_vec[0].R_1_Delta;
+
+			for(int i=0; i < nodes_vec.size(); ++i)
+			{
+
+				if(k == 1)
+				{
+					L_ele = segment_data_vec[j].L/(N);
+					R_0_Delta = result.resistances_vec[j].R_0_Delta;
+					R_1_Delta = result.resistances_vec[j].R_1_Delta;
+				}
+				if(k == N)
+				{
+					R_0_Delta /= 2;
+					R_1_Delta /= 2;
+					L_ele /=2;
+					k = 0;
+					++j;
+					if(j < segment_data_vec.size())
+						N = segment_data_vec[j].N;
+				}
+
+				if(k == 0 && j < segment_data_vec.size())
+				{
+					R_0_Delta += result.resistances_vec[j].R_0_Delta;
+					R_1_Delta += result.resistances_vec[j].R_1_Delta;
+
+					L_ele += segment_data_vec[j].L/(2*N);
+				}
+
+				double flux1 = result.T_in[i] / R_0_Delta;
+				flux1 -=  T_s[i] / R_0_Delta;
+				flux1 *= L_ele;
+
+				double flux2 = result.T_out[i] / R_1_Delta;
+				flux2 -=  T_s[i] / R_1_Delta;
+				flux2 *= L_ele;
+
+				total_flux1 += flux1;
+				total_flux2 += flux2;
+				tec_file << z << "\t" << T_s[i] << "\t" << result.T_in[i] << "\t" << result.T_out[i]
+										<< "\t" << flux1 << "\t" << flux2
+						//<< "\t" << R_0_Delta << "\t" << R_1_Delta
+						<< '\n';
+
+				if(j < segment_data_vec.size())
+					z += segment_data_vec[j].L/(N);
+
+				 ++k;
+
+
+				//const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
+
+				/*tec_file << aktueller_zeitschritt
+					<< '\t' << time_current
+					<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
+					<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+					<< '\t' << result.Q_H
+					<< '\t' << result.Q_W
+					<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
+					<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
+					<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+					<< '\n';
+				 */
+			} // end nodes_vec
+
+			tec_file_tf << time_current << "\t" << result.T_in[0] << "\t" << result.T_out[0]
+							<< "\t" << total_flux1 << "\t" << total_flux2 << "\n";
+
+			} // end Q > 1.e-10
+			else
+			{
+				tec_file_tf << time_current << "\t0\t0\t0\t0\n";
+			}
+		} // end aktueller_zeitschritt != 0
+		tec_file.close();
+		tec_file_tf.close();
+
+	}  // end ogs_contraflow_vector
+}
+

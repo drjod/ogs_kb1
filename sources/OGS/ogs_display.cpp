@@ -32,34 +32,18 @@ void DisplayStartMsg ( void )
 	char buf[128];
 
 	printf("\n");
-	printf("          ###################################################\n");
-	printf("          ##                                               ##\n");
-	printf("          ##               OpenGeoSys-Project              ##\n");
-	printf("          ##                                               ##\n");
-	printf("          ##  Helmholtz Center for Environmental Research  ##\n");
-	printf("          ##    UFZ Leipzig - Environmental Informatics    ##\n");
-	printf("          ##                  TU Dresden                   ##\n");
-	printf("          ##              University of Kiel               ##\n");
-	printf("          ##            University of Edinburgh            ##\n");
-	printf("          ##         University of Tuebingen (ZAG)         ##\n");
-	printf("          ##       Federal Institute for Geosciences       ##\n");
-	printf("          ##          and Natural Resources (BGR)          ##\n");
-	printf("          ##  German Research Centre for Geosciences (GFZ) ##\n");
-	printf("          ##                                               ##\n");
+	printf("     ####################################################\n");
+	printf("     #                                                  #\n");
+	printf("     #    ###    ###    ###        #    #  ####     #   #\n");
+	printf("     #   #   #  #   #  #   #       #   #   #   #   ##   #\n");
+	printf("     #   #   #  #       #          #  #    #   #  # #   #\n");
+	printf("     #   #   #  #        #    ###  ###     ####     #   #\n");
+	printf("     #   #   #  #  ##     #        #  #    #   #    #   #\n");
+	printf("     #   #   #  #   #  #   #       #   #   #   #    #   #\n");
+	printf("     #    ###    ###    ###        #    #  ####     #   #\n");
+	printf("     #                                                  #\n");
+	printf("     ####################################################\n");
 
-	//align the version information to center of the line
-	printf("          ## ");
-	sprintf(buf, "Version %s  Date %s", OGS_VERSION, OGS_DATE);
-	pad_len = 45 - (int)strlen(buf);
-	for (i = 0; i < pad_len / 2; i++)
-		printf(" ");
-	printf("%s", buf);
-	for (i = 0; i < pad_len - pad_len / 2; i++)
-		printf(" ");
-	printf(" ##\n");
-
-	printf("          ##                                               ##\n");
-	printf("          ###################################################\n");
 	printf("\n          File name (without extension): ");
 }
 

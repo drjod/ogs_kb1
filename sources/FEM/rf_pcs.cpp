@@ -125,6 +125,7 @@ REACT_BRNS* m_vec_BRNS;
 // Fluid Props
 #include "Fluid.h"
 
+
 using namespace std;
 using namespace MeshLib;
 using namespace Math_Group;
@@ -403,6 +404,8 @@ CRFProcess::CRFProcess(void) :
 	eqs_x = NULL;
 	_hasConstrainedBC=false;
 	_hasConstrainedST = false;
+	is_conservative = false;
+	is_folded = false;
 }
 
 
@@ -559,7 +562,11 @@ CRFProcess::~CRFProcess(void)
         eqs_new = NULL;
 #endif
 
+    for(i = 0; i < (long)ogs_WDC_vector.size(); i++)
+    	delete ogs_WDC_vector[i];
 
+    for(i = 0; i < (long)ogs_contraflow_vector.size(); i++)
+    	delete ogs_contraflow_vector[i];
 }
 
 
@@ -575,7 +582,9 @@ void CRFProcess::AllocateMemGPoint()
 	//		return;
 	const size_t mesh_ele_vector_size (m_msh->ele_vector.size());
 	for (size_t i = 0; i < mesh_ele_vector_size; i++)
+	{
 		ele_gp_value.push_back(new ElementValue(this, m_msh->ele_vector[i]));
+	}
 }
 
 
@@ -990,7 +999,7 @@ void CRFProcess::Create()
 	number_of_nvals = 2 * DOF + pcs_number_of_secondary_nvals;
 	for (int i = 0; i < pcs_number_of_primary_nvals; i++)
 	{
-		// new time
+		// new time //BW: I am not sure this is right for Heat_Transport Process, because it is should the old , next is the new.
 		nod_val_name_vector.push_back(pcs_primary_function_name[i]);
 		// old time //need this MB!
 		nod_val_name_vector.push_back(pcs_primary_function_name[i]);
@@ -1080,7 +1089,7 @@ void CRFProcess::Create()
 			if (m_msh->isAxisymmetry())
 				Axisymm = -1;  // Axisymmetry is true
 			fem = new CFiniteElementStd(this, Axisymm
-			                            * m_msh->GetCoordinateFlag());
+			                            * m_msh->GetCoordinateFlag());//, 1, m_msh->_2D_with_line_elements);  // order = 1
 		}
 	}
 
@@ -2430,6 +2439,20 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
            napl_dissolution = true;
            continue;
         }
+		if(line_string.find("$CONSERVATIVE") == 0)
+		{
+			is_conservative = true;
+			continue;
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("$FOLDED") != string::npos)
+		{
+			*pcs_file >> folded_zCoord;
+			pcs_file->ignore(MAX_ZEILE, '\n');
+			is_folded = true;
+			continue;
+		}
 	}
 	//----------------------------------------------------------------------
 	return position;
@@ -3306,6 +3329,16 @@ void CRFProcess::ConfigHeatTransport()
 		pcs_number_of_secondary_nvals++;
 		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "VELOCITY_Z1";
 		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "W/m^2";
+		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
+		pcs_number_of_secondary_nvals++;
+
+		//BW 25.03.2020 attempt to write the density and viscostiy after heat transport
+		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "DENSITY1";
+		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "kg/m3";
+		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
+		pcs_number_of_secondary_nvals++;
+		pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "VISCOSITY1";
+		pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "Pa s";
 		pcs_secondary_function_timelevel[pcs_number_of_secondary_nvals] = 1;
 		pcs_number_of_secondary_nvals++;
 
@@ -5321,7 +5354,7 @@ double CRFProcess::Execute()
 	}
 	catch(std::runtime_error& e)
 	{
-		std::cout << "ERROR - " << e.what() << std::endl;
+		std::cout << "ERROR - " << e.what() << "\n";
 		accepted = false;	// JOD 2017-11-15  reduce time step or quit
 	}
 
@@ -5499,10 +5532,12 @@ double CRFProcess::Execute()
 	}                                     // END PICARD
 #else
 	// JT: Coupling error was wrong. Now ok.
-	if(iter_nlin > 0){	// Just getting NL error
+	if(iter_nlin > 0)
+	{	// Just getting NL error
 		pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);     //OK4105//WW4117//JT
 	}
-	else{				// Getting NL and CPL error
+	else
+	{				// Getting NL and CPL error
 		pcs_error = CalcIterationNODError(m_num->getCouplingErrorMethod(),true,true);		//JT2012
 		if(m_num->getNonLinearErrorMethod() != m_num->getCouplingErrorMethod())				//JT: If CPL error method is different, must call separately
 			pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);   //JT2012 // get the NLS error. CPL was obtained before.
@@ -6405,12 +6440,12 @@ void CRFProcess::CalIntegrationPointValue()
        const size_t v_itr_max(this->m_num->local_picard1_max_iterations);
        double pre_v[3] = {};
        double new_v[3] = {};
-       //std::cout << "  Start local Picard iteration: tolerance = " << this->m_num->local_picard1_tolerance << std::endl;
+       //std::cout << "  Start local Picard iteration: tolerance = " << this->m_num->local_picard1_tolerance << "\n";
        size_t i_itr = 0;
        double vel_error = .0;
        for (i_itr=0; i_itr<v_itr_max; ++i_itr)
        {
-           //std::cout << "  non-linear iteration: " << i_itr << "/" << v_itr_max << std::endl;
+           //std::cout << "  non-linear iteration: " << i_itr << "/" << v_itr_max << "\n";
            vel_error = .0;
            for (size_t i = 0; i < mesh_ele_vector_size; i++)
            {
@@ -6432,11 +6467,11 @@ void CRFProcess::CalIntegrationPointValue()
                    vel_error = max(vel_error, fabs(new_v[2]-pre_v[2]));
                }
            }
-           //std::cout << "  error (max. norm): " << vel_error << std::endl;
+           //std::cout << "  error (max. norm): " << vel_error << "\n";
            bool isConverged = (vel_error < this->m_num->local_picard1_tolerance);
            if (isConverged) break;
        }
-       std::cout << "  Local Picard iteration: itr. count = " << i_itr << "/" << v_itr_max << ", error(max. norm)=" << vel_error << std::endl;
+       std::cout << "  Local Picard iteration: itr. count = " << i_itr << "/" << v_itr_max << ", error(max. norm)=" << vel_error << "\n";
    }
 
     //if (getProcessType() == FiniteElement::TNEQ || getProcessType() == FiniteElement::TEQ) {
@@ -7209,6 +7244,25 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 			else
 				bc_msh_node = m_bc_node->geo_node_number;
 #endif// END: if defined(USE_PETSC) // || defined(other parallel libs
+			if(m_bc->is_conditionally_active) // JOD 2019-04-04 threshold
+			{
+				double nodeValue = GetNodeValue(bc_msh_node, 1); // implicit
+				if(m_bc->condition_type == 0)  // lower threshold
+				{
+					if(nodeValue > bc_value)
+						continue;
+				}
+				else if(m_bc->condition_type == 1)  // upper threshold
+				{
+					if(nodeValue < bc_value)
+						continue;
+				}
+				else
+				{
+					cout << "Warning in Incorporate BC - Condition type unkonwn\n";
+				}
+
+			}
 			//------------------------------------------------------------WW
 			if(m_msh)     //OK
 				//	    if(!m_msh->nod_vector[bc_msh_node]->GetMark()) //WW
@@ -7304,7 +7358,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 							local_density = m_bc->getPressureAsHeadDensity();
 							break;
 						default:
-							std::cout << "Warning! No PressureAsHeadDensity specified. Calculating density (i.e. PressureAsHeadModel 0)!" << std::endl;
+							std::cout << "Warning! No PressureAsHeadDensity specified. Calculating density (i.e. PressureAsHeadModel 0)!" << "\n";
 							local_density = MFPGetNodeValue(m_bc_node->msh_node_number, "DENSITY", 0);
 							break;
 						}
@@ -7315,6 +7369,18 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						bc_value = fac * gravity_constant * local_density * ( time_fac * m_bc_node->node_value - local_node_elevation );
 					}
 				}
+
+				if(m_bc->isConnected())	// JOD 2020-01-27
+				{  // !!! DIS_TYPE CONSTANT becomes offset
+					double nodeValue = 0.;
+					for(int i=0; i< m_bc_node->msh_vector_conditional.size(); ++i)
+					{
+						nodeValue += GetNodeValue(m_bc_node->msh_vector_conditional[i], 1); // implicit
+					}
+					nodeValue /= m_bc_node->msh_vector_conditional.size();
+					bc_value = time_fac * fac * (nodeValue + m_bc_node->node_value);
+				}
+
 				//----------------------------------------------------------------
 				// MSH
 				/// 16.08.2010. WW
@@ -8096,7 +8162,7 @@ bool CRFProcess::checkConstrainedBC(CBoundaryCondition const & bc, CBoundaryCond
 				std::cout << "No constrained applied at node " << bc_node.msh_node_number
 						<< " as magnitude of velocity " << magn_vel_v
 						<< " is not > than 0 "
-						<< std::endl;
+						<< "\n";
 				#endif
 				continue;
 			}
@@ -8281,7 +8347,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		CElem* elem = NULL;
 		CElem* face = NULL;
 		ElementValue* gp_ele = NULL;
-    double val = 1.;
+		double val = 1.;
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> st_eqs_id;
 		vector<double> st_eqs_value;
@@ -8295,8 +8361,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		bool is_valid;            //YD
 		CFunction* m_fct = NULL;  //YD
 		long i;                   //, group_vector_length;
-    bool transient = false;
-    double *stvals = NULL;
+		bool transient = false;
+		double *stvals = NULL;
 
 		double Scaling = 1.0;
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
@@ -8417,10 +8483,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 			}
 		}
-
-
 		m_st=NULL;
-
 
 //#####################
 
@@ -8497,8 +8560,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		for (i = begin; i < end; i++)
 		{
 
-      time_fac = 1.0;
-      val = 1.0;
+			time_fac = 1.0;
+			val = 1.0;
 
 			gindex = i;
 #if !defined(USE_PETSC) // && !defined(other parallel libs)//03.3012. WW
@@ -8647,128 +8710,152 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 							cnodev->node_value = +q_face / 2;
 						}
 					}
-				}
-				//--------------------------------------------------------------------
-				// MB
-				//if(m_st->conditional && !m_st->river)
-				//{
+				}  // end system dependent
 
+
+				// time dependencies - moved to here by JOD 2020-03-25
+				curve = cnodev->CurveIndex;
+				if (curve > 0)
+				{
+					//Reading Time interpolation method; BG
+					if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
+						if (interp_method != m_st->TimeInterpolation)
+							interp_method = m_st->TimeInterpolation;
+
+					time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
+					//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
+					if (!valid)
+					{
+						cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
+						cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
+						time_fac = 1.0;
+					}
+				}
+
+			  //----------------------------------------------------------------------------------------
+			  //SB: check if st is active, when Time_Controlled_Aktive for this ST is define
+			  // WTP: if m_st is not defined, the next if statement will cause a crash maybe use (?):
+			  //if (st_node.size() > 0 && (long)st_node.size() > i)
+			  //{
+			  //    m_st = st_node[gindex];
+
+			  // TIME_CONTROLLED_ACTIVE curve
+			  if (m_st->getTimeContrCurve() > 0)
+			  {
+				  val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
+			  }
+
+			  // TIME_CONTROLLED_ACTIVE fct
+
+			  std::string test_fct_name = m_st->getTimeContrFunction();
+			  if (test_fct_name.length() > 0)
+			  {
+				  m_fct = FCTGet(test_fct_name);
+				  if (m_fct)
+					  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
+			  }
+			  if (val < MKleinsteZahl)
+			  {
+				  time_fac = 0.0;
+				  value = 0;
+			  }
+
+				// Time dependencies - FCT    //YD
+				if (m_st)     //WW
+				{
+					//WW/YD //OK
+					if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
+					{
+						if (m_st->getFunctionName().length() > 0)
+						{
+							m_fct = FCTGet(pcs_number);
+							if (m_fct)
+								time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
+							else
+								cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+						}
+					}
+					else if (m_st->getFunctionName().length() > 0)
+					{
+						m_fct = FCTGet(m_st->getFunctionName());
+						if (m_fct){
+							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
+							//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
+						}
+						else
+								cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
+					}
+				}
+				//----------------------------------------------------------------------------------------
+				value *= time_fac * fac;
+
+
+			  if(value != 0)
+			  {   // only if not switched off
+				  if(m_st->isConnected())  // JOD 2/2015
+					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
+				  //--------------------------------------------------------------------
+				  if(m_st->storageRate.apply == true)
+					  value = m_st->CalculateFromStorageRate(value, cnodev);
+				  //----------------------------------------------------------------------------------------
+				  if(m_st->threshold.type != Threshold::no)
+					  value = m_st->CheckThreshold(value, cnodev);
+				  //----------------------------------------------------------------------------------------
+				  if(m_st->ogs_WDC != nullptr)
+					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
+
+				  if(m_st->ogs_contraflow != nullptr)
+					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
+			  }
+
+
+
+
+				//-------------------------------------------------------------------
 				GetNODValue(value, cnodev, m_st);
 			}             // st_node.size()>0&&(long)st_node.size()>i
       else {
         std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
       }
 
-// CB JOD MERGE //			//----------------------------------------------------------------------------------------
-      if (m_st != NULL)
-        if (m_st->isConnected())  // JOD 2/2015
-				  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
-			//--------------------------------------------------------------------
-
-			//----------------------------------------------------------------------------------------
-			//SB: check if st is active, when Time_Controlled_Aktive for this ST is defined
-			// WTP: if m_st is not defined, the next if statement will cause a crash maybe use (?):
-			//if (st_node.size() > 0 && (long)st_node.size() > i)
-			//{
-			//	m_st = st_node[gindex];
-			if (m_st != NULL)
-			{
-        // TIME_CONTROLLED_ACTIVE curve
-        if (m_st->getTimeContrCurve() > 0){
-          val = GetCurveValue(m_st->getTimeContrCurve(), 0, aktuelle_zeit, &valid);
-        }
-        // TIME_CONTROLLED_ACTIVE fct
-        std::string test_fct_name = m_st->getTimeContrFunction();
-				if (test_fct_name.length() > 0){
-					m_fct = FCTGet(test_fct_name);
-					if (m_fct)
-						val = m_fct->GetValue(aktuelle_zeit, &is_valid);
-        }
-        if (val < MKleinsteZahl)
-          time_fac = 0.0;
+		//----------------------------------------------------------------------------------------
 
 
-			}
-			//--------------------------------------------------------------------
-			// Please do not move the this section
-			curve = cnodev->CurveIndex;
-			if (curve > 0)
-			{
-                //Reading Time interpolation method; BG
-				if (m_st != NULL)	// in some cases the m_st is not defined -> interp_method is not changed for this cases
-					if (interp_method != m_st->TimeInterpolation)
-						interp_method = m_st->TimeInterpolation;
-
-				time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
-				//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
-        if (!valid)
-				{
-					cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
-					cout << " in void CRFProcess::IncorporateSourceTerms(const double Scaling)" << "\n";
-					time_fac = 1.0;
-				}
-
-			}
-
-			// Time dependencies - FCT    //YD
-			if (m_st)     //WW
-			{
-        
-        //WW/YD //OK
-				if (m_msh && m_msh->geo_name.find("LOCAL") != string::npos)
-				{
-					if (m_st->getFunctionName().length() > 0)
-					{
-						m_fct = FCTGet(pcs_number);
-						if (m_fct)
-							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
-						else
-							cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-					}
-				}
-				else if (m_st->getFunctionName().length() > 0)
-				{
-					m_fct = FCTGet(m_st->getFunctionName());
-          if (m_fct){
-            time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
-            //std::cout << " Function name: " << m_st->getFunctionName() << "\n";
-          }
-          else
-						cout << "Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
-				}
-			}
-			//----------------------------------------------------------------------------------------
-			value *= time_fac * fac;
-            //std::cout << value << " " << time_fac << " " << fac << "\n";
 
 
 			//------------------------------------------------------------------
 			// EQS->RHS
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 
-			st_eqs_id.push_back(static_cast<int>(m_msh->nod_vector[msh_node]->GetEquationIndex() * dof_per_node + shift));
-			st_eqs_value.push_back(value);
+		st_eqs_id.push_back(static_cast<int>(m_msh->nod_vector[msh_node]->GetEquationIndex() * dof_per_node + shift));
+		st_eqs_value.push_back(value);
 
 #else
-			if (rank > -1)
-				bc_eqs_index = msh_node + shift;
-			else
-				bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
-			eqs_rhs[bc_eqs_index] += value;
+		if (rank > -1)
+			bc_eqs_index = msh_node + shift;
+		else
+			bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
+		
+		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
+		//std::cout << value << '\n';
+		eqs_rhs[bc_eqs_index] += value;
+		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
+		
 #endif
 
       // store transient st values for output
-      if (transient)
+		if (transient)
           stvals[gindex] = value;
 
 		}
 
     
-    // output transient values in ST_RHS file
-    if (transient) {// CB
-        WriteRHS_of_ST_NeumannBC_transient(rank, stvals);
-        free(stvals);
-    }
+		// output transient values in ST_RHS file
+		if (transient)
+		{	// CB
+			WriteRHS_of_ST_NeumannBC_transient(rank, stvals);
+			free(stvals);
+		}
 
 		//====================================================================
 
@@ -9324,11 +9411,16 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			CalcSecondaryVariablesTES(initial);        //HS
 			break;
 		case FiniteElement::LIQUID_FLOW:
-			if(aktueller_zeitschritt>0)
-			{
+			//if(aktueller_zeitschritt>0) // BW: 25.03.2020 why this needs to be larger than 0?? deleted, then we also have density output for 
+			                              //     the first time step
+			//{
 				CalcSecondaryVariablesDensity();
 				CalcSecondaryVariablesViscosity();  // JOD 2016-1-11
-			}
+			//}
+			break;
+		case FiniteElement::HEAT_TRANSPORT: // BW 25.03.2020 for the outputing the right density at this time step based on the current T, this is needed.
+			CalcSecondaryVariablesDensity();
+			CalcSecondaryVariablesViscosity(); 
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
 			break;
@@ -9760,7 +9852,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
    03/2005 OK Implementation
    last modified:
 **************************************************************************/
-	double CRFProcess::GetNodeValue(size_t n,int nidx)
+	double CRFProcess::GetNodeValue(size_t n,int nidx) const
 	{
 		double value;
 #ifdef gDEBUG
@@ -9774,6 +9866,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		value = nod_val_vector[nidx][n];
 		return value;
 	}
+
 
 /**************************************************************************
    FEMLib-Method:
@@ -10643,10 +10736,11 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			}
 		}
 		//
-		// Calculate secondary variables
-		if(accepted){
-			CalcSecondaryVariables();
-		}
+		// Calculate secondary variables: BW, 25.03.2020 deleted from here for secondary variables, because this will give a wrong density for the newly
+		// calculated temperature, this move to the postcoupling loop.
+		//if(accepted){
+		//	CalcSecondaryVariables();
+		//}
 #if !defined(USE_PETSC) // && !defined(other parallel libs)//03.3012. WW
 		// Release temporary memory of linear solver. WW
 #ifdef NEW_EQS                                 //WW
@@ -11188,8 +11282,14 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			{
 
 				if (m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT || m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT ) // JOD 2015-11-18
-				if (var_name.find("VELOCITY") != std::string::npos || var_name.find("DENSITY") != std::string::npos )                   // if variable is of VELOCITY, do not return not a transport, but a flow process
-					  continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
+				//if (var_name.find("VELOCITY") != std::string::npos || var_name.find("DENSITY") != std::string::npos ) //BW: 27.03.2020 For density, it should return transport process
+				if (var_name.find("VELOCITY") != std::string::npos ) // if variable is of VELOCITY, do not return not a transport, but a flow process
+					continue;                                                          // added since transport processes use VELOCITY for fick and fourier fluxes
+
+				//BW: 27.03.2020 always return DENSITY from heat transport process if it is existing
+				if (var_name.find("DENSITY") != std::string::npos)
+					if (pcs_vector.size() > 0 && m_pcs->getProcessType() != FiniteElement::HEAT_TRANSPORT)
+						break;
 
 				pcs_var_name = m_pcs->pcs_secondary_function_name[j];
 				if(pcs_var_name.compare(var_name) == 0)
@@ -11510,18 +11610,31 @@ Programming:
 	void CRFProcess::CalcSecondaryVariablesDensity()
  {
 	CFluidProperties* m_mfp = NULL;
-	CRFProcess* m_pcs = NULL;
-	vector<int> processNDXs;
-	int ndx_dens = GetNodeValueIndex("DENSITY1");
-	// get mfp instance for LIQUID --------------------------------------------
+	
+	//BW 24.03.2020: update for two fluids option -> JOD, please revise whether this is a good way for this
 	for (int i = 0; i < mfp_vector.size(); i++)
+		for (int j = 0; j < mmp_vector.size();j++)
+		{
+			if (mfp_vector[i]->name == "LIQUID"+mmp_vector[j]->dependent_fluid_name)
+			{
+				m_mfp = mfp_vector[i];
+				break;
+			}
+		}
+
+	/*	for (int i = 0; i < mfp_vector.size(); i++)
     {
-        if (mfp_vector[i]->name == "LIQUID")
+        if (mfp_vector[i]->name ==  "LIQUID")
 	    {
 		   m_mfp = mfp_vector[i];
 		   break;
 		}
-	}
+	}*/
+	CRFProcess* m_pcs = NULL;
+	vector<int> processNDXs;
+	int ndx_dens = GetNodeValueIndex("DENSITY1");
+	// get mfp instance for LIQUID --------------------------------------------
+
 
 	if (m_mfp != NULL)
 	{
@@ -11558,10 +11671,10 @@ Programming:
 			free(values);
 		}
 		else
-			std::cout << "ERROR in CalcSecondaryVariablesDensity() - Do not get process indices" << std::endl;
+			std::cout << "ERROR in CalcSecondaryVariablesDensity() - Do not get process indices" << "\n";
 	}
 	else
-		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << std::endl;
+		std::cout << "ERROR in CalcSecondaryVariablesDensity() - No LIQUID" << "\n";
   }
 void CRFProcess::CalcSecondaryVariablesViscosity()
 {
@@ -11613,7 +11726,7 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 
 	}
 	else
-		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << std::endl;
+		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << "\n";
 }
 /**************************************************************************
    FEMLib-Method:
@@ -13424,15 +13537,18 @@ CRFProcess* PCSGetMass(size_t component_number)
 		CRFProcess* m_pcs = NULL;
 
 		m_pcs = PCSGetFlow();
-		flowtype = m_pcs->type;
-		no_processes = (int)pcs_vector.size();
-
-		for(i = 0; i < no_processes; i++)
+		if(m_pcs != NULL)  // JOD 2018-5-4
 		{
-			m_pcs = pcs_vector[i];
-			//if(m_pcs->_pcs_type_name.compare("MASS_TRANSPORT")==0)
-			//m_pcs->twophaseflow=true;
-			m_pcs->flow_pcs_type = flowtype;
+			flowtype = m_pcs->type;
+			no_processes = (int)pcs_vector.size();
+
+			for(i = 0; i < no_processes; i++)
+			{
+				m_pcs = pcs_vector[i];
+				//if(m_pcs->_pcs_type_name.compare("MASS_TRANSPORT")==0)
+				//m_pcs->twophaseflow=true;
+				m_pcs->flow_pcs_type = flowtype;
+			}
 		}
 	}
 
@@ -17202,10 +17318,18 @@ Programming:
 7/2015 JOD consider geoArea
 **************************************************************************/
 
+<<<<<<< HEAD
 void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
 {
 
 	double nodesVal[8], z_coord[8];
+=======
+double CRFProcess::AccumulateContent(const int& mmp_index, const double& threshold_lower, const double& threshold_upper,
+		std::vector<std::string> _nod_value_vector) //const
+{
+
+	double nodesVal[8], x_coord[8], z_coord[8], content = 0, geoArea;
+>>>>>>> develop
 	CNode* e_node;
 	CElem* elem;
 	size_t i, j, nn;
@@ -17220,6 +17344,7 @@ void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _
 			nidx1 = 3; // SATURATION2
 		else
 		nidx1 = 1;
+<<<<<<< HEAD
 	}
 
 	totalContent[0] = totalContent[1] = 0.; // 0: liquid, 1: gas
@@ -17227,8 +17352,12 @@ void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _
 	{
 		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index // elements for index selected in input file
 			                                        || mmp_index == -1 /* complete domain, all elements */ )
+=======
+	for (i = 0; i < m_msh->ele_vector.size(); i++)
+	{
+		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
+>>>>>>> develop
 		{ // -1 : take all
-
 			elem = m_msh->ele_vector[i];
 			if (!elem->GetMark())
 				continue;
@@ -17236,17 +17365,26 @@ void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
+<<<<<<< HEAD
 			//geoArea = elem->GetFluxArea(); // thickness of 2D aquifer - is media prop in calculateContent()
+=======
+			//geoArea = elem->GetFluxArea();
+>>>>>>> develop
 			nn = elem->GetNodesNumber(m_msh->getOrder());
 			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
 				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
+<<<<<<< HEAD
 			fem->CalculateContent(nodesVal, z_coord);
 			totalContent[0] += ele_gp_value[i]->getLiquidContent(); // liquid (sums up element values)
 			if (getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
 			    totalContent[1] += ele_gp_value[i]->getGasContent(); // gas (sums up element values)
+=======
+			content += fem->CalculateContent(nodesVal, z_coord, mmp_index, threshold_lower, threshold_upper);// * geoArea;
+>>>>>>> develop
 		}
 	}
 

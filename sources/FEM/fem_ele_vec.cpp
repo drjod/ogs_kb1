@@ -4085,6 +4085,30 @@ double CFiniteElementVec::VolumeStrainIntegrationForEclipse(MeshLib::CElem* elem
 		disp[k + nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[1]) - pcs->GetNodeValue(nodes[k], Idx_dm0[1])); // uy1-uy0
 		if (dim == 3) // 3D.
 			disp[k + 2 * nnodesHQ] = -fac * (pcs->GetNodeValue(nodes[k], Idx_dm1[2]) - pcs->GetNodeValue(nodes[k], Idx_dm0[2])); // uz1-uz0
+<<<<<<< HEAD
+=======
+
+		//KB: test output
+		//test output
+
+		//if (k == 0) vec_string.push_back("Element; HQnode; Disp_X; Disp_Y; Disp_Z");
+		//temp.str("");
+		//temp.clear();
+		//temp << MeshElement->patch_index << " " << k << " " << disp[k] << " " << disp[k + nnodesHQ] << " " << disp[k + 2 * nnodesHQ] << "\n";
+		//tempstring = temp.str();
+		//vec_string.push_back(tempstring);
+
+		//if (k == nnodesHQ - 1)
+		//{
+		//	datei_ecl.open(FilePath + "\\displacement.txt", std::ios::out);
+		//	for (int j = 0; j < vec_string.size(); j++)
+		//	{
+		//		datei_ecl << vec_string[j] << "\n";
+		//	}
+		//	datei_ecl.close();
+		//}
+
+>>>>>>> develop
 	}
 
 	// integrate

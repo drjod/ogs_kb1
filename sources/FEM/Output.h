@@ -161,6 +161,8 @@ public:
 
 	void WriteTotalFlux(double, int);	// JOD 11/2014 
 	void WriteContent(double, int);     // JOD 2/2015
+	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
+	void WriteContraflow(double, int);  // JOD 2019-08-23
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10
@@ -236,7 +238,8 @@ private:
 	std::vector<double> time_vector;
 	double _time;
 
-	int mmp_index; // JOD 2/2015
+	int mmp_index; // JOD 2/2015  : -2 volume calculation (flag)
+	double domainIntegration_lowerThreshold, domainIntegration_upperThreshold;  // JOD 2020-1-15
 	/**
 	 * the position in the global vector out_vector, used only in NODWritePLYDataTEC
 	 */
@@ -276,6 +279,7 @@ private:
 
 	/// Tecplot share zone
 	bool tecplot_zone_share; // 10.2012. WW
+	bool _ignore_axisymmetry;  // JOD 2018-08-17
 	// Tecplot Block Data Pack Format //10.2014 BW
 	int tecplot_datapack_block;
   std::vector < std::vector <long> > eledefvec;  // CB for surface output

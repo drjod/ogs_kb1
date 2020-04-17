@@ -77,8 +77,8 @@ namespace FiniteElement
    Programmaenderungen:
    01/2005   WW    Erste Version
 **************************************************************************/
-CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order)
-	: CElement(C_Sys_Flad, order), phase(0), comp(0), SolidProp(NULL),
+CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order)//, bool _2D_mesh_with_line_elements)
+	: CElement(C_Sys_Flad)/*, order, _2D_mesh_with_line_elements)*/, phase(0), comp(0), SolidProp(NULL),
 	  FluidProp(NULL), MediaProp(NULL),
 	  pcs(Pcs), dm_pcs(NULL), HEAD_Flag(false)
 {
@@ -92,6 +92,8 @@ CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, con
 	//WW
 	if (pcs->m_num->nls_method_name.compare("NEWTON_RAPHSON") == 0)
 		newton_raphson = true;
+	if (pcs->m_msh->_2D_with_line_elements)  // JOD
+		flag_2D_mesh_with_line_elements = true;
 	Mass = NULL;
 	Mass2 = NULL;
 	Laplace = NULL;
@@ -643,7 +645,6 @@ void CFiniteElementStd::SetMemory()
 	AuxMatrix->LimitSize(Size, Size);
 	AuxMatrix1->LimitSize(Size, Size);
 	if (this->pcs->m_num->fct_method > 0) //NW
-
 		FCT_MassL->LimitSize(Size);
 }
 
@@ -1536,7 +1537,11 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
+<<<<<<< HEAD
 double CFiniteElementStd::CalCoefMass(bool balance = false)
+=======
+double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 please update changes
+>>>>>>> develop
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -1719,7 +1724,7 @@ double CFiniteElementStd::CalCoefMass(bool balance = false)
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta,this);
+		val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		val /= time_unit_factor;
 		break;
 	//....................................................................
@@ -2495,6 +2500,17 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 		// DECOVALEX THM1 or Curce 12.09. WW
 		else if(SolidProp->GetConductModel()%3 == 0 || SolidProp->GetConductModel() == 4)
 		{
+			TG = interpolate(NodalVal1);
+			tensor = MediaProp->HeatDispersionTensorNew(ip);
+			for(size_t i = 0; i < dim * dim; i++)
+				mat[i] = tensor[i];
+			/*
+			for(size_t i = 0; i < dim * dim; i++)
+				mat[i] = 0.0;
+			for(size_t i = 0; i < dim; i++)
+				mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
+				*/
+			/*
 			// WW
 			PG = interpolate(NodalValC1);
 			if(cpl_pcs->type != 1212)
@@ -2504,7 +2520,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				mat[i] = 0.0;
 			mat_fac = SolidProp->Heat_Conductivity(Sw);
 			for(size_t i = 0; i < dim; i++)
-				mat[i * dim + i] = mat_fac;
+				mat[i * dim + i] = mat_fac;*/
 		}
 		//WW        else if(SolidProp->GetCapacityModel()==1 && MediaProp->heat_diffusion_model == 273){
 		else if(SolidProp->GetConductModel() == 1)
@@ -3565,7 +3581,12 @@ double CFiniteElementStd::CalCoefAdvection()
 			val = FluidProp->SpecificHeatCapacity(dens_arg) * FluidProp->Density(dens_arg);
 		}
 		else
-			val = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
+		{
+			if(FluidProp->get_flag_volumetric_heat_capacity())
+				val = FluidProp->get_volumetric_heat_capacity();
+			else
+				val = FluidProp->SpecificHeatCapacity(NULL,false) * FluidProp->Density();
+		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
 		val = 1.0 * time_unit_factor; //*MediaProp->Porosity(Index,pcs->m_num->ls_theta); // Porosity;
@@ -3722,6 +3743,7 @@ void CFiniteElementStd::CalcMass()
 			ComputeGradShapefct(1);  // Linear interpolation function
 
 		// Material
+		//std::cout << "gp: " << gp << '\n';
 		mat_fac = CalCoefMass();
 		// if(Index < 0) cout << "mat_fac in CalCoeffMass: " << mat_fac << "\n";
 		// GEO factor
@@ -4530,7 +4552,7 @@ void CFiniteElementStd::CalcLumpedMass()
 	// Initialize
 	(*Mass) = 0.0;
 	// Volume
-	if(axisymmetry)
+	if(axisymmetry)// && !(flag_2D_mesh_with_line_elements && ele_dim == 1))
 	{                                     // This calculation should be done in CompleteMesh.
 		// However, in order not to destroy the concise of the code,
 		// it is put here. Anyway it is computational cheap. WW
@@ -4853,7 +4875,7 @@ void CFiniteElementStd::CalcContent()
 #else
 		for (i = 0; i < nnodes; i++)
 			for (j = 0; j < nnodes; j++)
-				(*Content)(i,j) += fkt * shapefct[i] * shapefct[j];
+				(*Content)(i,j) = fkt * shapefct[i] * shapefct[j];
 #endif
 	}
 }
@@ -5260,7 +5282,7 @@ void CFiniteElementStd::CalcAdvection()
 				nodal_vel[2][i] = pcs_fluid_momentum->GetNodeValue(connected_nodes[i], pcs_fluid_momentum->_idxVz);
 				break;
 			default:
-				std::cout << "  Invalid coordinate_system: " << coordinate_system << ". Exiting now." << std::endl;
+				std::cout << "  Invalid coordinate_system: " << coordinate_system << ". Exiting now." << "\n";
 				exit(0);
 				break;
 			}
@@ -5287,9 +5309,19 @@ void CFiniteElementStd::CalcAdvection()
 		//---------------------------------------------------------
         mat_factor = CalCoefAdvection(); // this should be called after calculating shape functions. NW
 		//Velocity
-		vel[0] = mat_factor * gp_ele->Velocity(0, gp);
-		vel[1] = mat_factor * gp_ele->Velocity(1, gp);
-		vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+        if(MediaProp->fluidVelocity.type != 0)
+        {
+        	vel[0] = mat_factor * MediaProp->fluidVelocity.x;
+        	vel[1] = mat_factor * MediaProp->fluidVelocity.y;
+        	vel[2] = mat_factor * MediaProp->fluidVelocity.z;
+        }
+        else
+        {
+        	vel[0] = mat_factor * gp_ele->Velocity(0, gp);
+        	vel[1] = mat_factor * gp_ele->Velocity(1, gp);
+        	vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+        }
+
         // CB _ctx_ : modify v if _ctx_ flux needs to be included
         //if(_ctx_){
         //  vel[0] -= porosity * gp_ele->_ctx_Gauss(0,gp);
@@ -5352,8 +5384,19 @@ void CFiniteElementStd::CalcAdvection()
 		for (i = 0; i < nnodes; i++)
 		  for (j = 0; j < nnodes; j++)
 		  for (size_t k = 0; k < dim; k++)
-			  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
-			  * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+		  {
+			  if(pcs->is_conservative)  // JOD-2018-9-14
+			  {
+				  (*Advection)(i, j) += -fkt * shapefct[k*nnodes + j] * vel[k]
+						* dshapefct[i] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+			  }
+			  else
+			  {
+				  (*Advection)(i, j) += fkt * shapefct[i] * vel[k]
+				  	   * dshapefct[k * nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[k]; //  JOD 2015-11-18
+			  }
+		  }
+
 #endif
 		if (pcs->m_num->ele_supg_method > 0) //NW
 		{
@@ -5799,6 +5842,8 @@ void CFiniteElementStd::Assemble_Gravity()
 		else
 		{
 			rho = FluidProp->Density();
+			if(gp == 0)  // JOD 1018-8-15 for element output
+				ele_gp_value[Index]->density = rho;
 		}
 		if(gravity_constant < MKleinsteZahl) // HEAD version
 			rho = 1.0;
@@ -5811,6 +5856,10 @@ void CFiniteElementStd::Assemble_Gravity()
 				rho *= 0.0;
 		}
 		fkt *= rho;               //*rich_f;
+
+		if(pcs->is_folded && MeshElement->gravity_center[2] > pcs->folded_zCoord) // JOD 1018-12-18
+			fkt = -fkt;
+
 		//
 		for(ii = 0; ii < dof_n; ii++)
 		{
@@ -6471,7 +6520,12 @@ void CFiniteElementStd::Cal_Velocity()
 					coef = gravity_constant*FluidProp->Density(eos_arg);
 				}
 				else
-					coef = gravity_constant*FluidProp->Density();
+				{
+					if(pcs->is_folded && MeshElement->gravity_center[2] > pcs->folded_zCoord) // JOD 1018-12-18
+						coef = -gravity_constant * FluidProp->Density();
+					else
+						coef = gravity_constant * FluidProp->Density();
+				}
 				if (dim == 3 && ele_dim == 2)
 				{
 					vel[dim - 1] += coef; //NW local permeability tensor is already transformed to global one in CalCoefLaplace()
@@ -10105,6 +10159,7 @@ ElementValue::ElementValue(CRFProcess* m_pcs, CElem* ele) : pcs(m_pcs)
 	//WW Velocity.resize(m_pcs->m_msh->GetCoordinateFlag()/10, NGPoints);
 	Velocity.resize(3, NGPoints);
 	Velocity = 0.0;
+	density = 0.;
 	// 15.3.2007 Multi-phase flow WW
 	if(pcs->type == 1212 || pcs->type == 1313 || m_pcs->type == 42)
 	{
@@ -11961,7 +12016,12 @@ Programming:
 7/2015 JOD  take hydrostatic pressure into account
 **************************************************************************/
 
+<<<<<<< HEAD
 void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
+=======
+double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord,
+		const int& mmp_index, const double& threshold_lower, const double& threshold_upper)
+>>>>>>> develop
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
@@ -11970,6 +12030,7 @@ void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 	
 	Config();
 	setOrder(Order);
+<<<<<<< HEAD
 	if (PcsType == EPT_MULTIPHASE_FLOW && MediaProp->heat_diffusion_model == 1 && cpl_pcs)
 		diffusion = true;  // account for temperature in density
 	double dens_arg[3]; // 0: pressure, 1: temperature considered
@@ -11990,6 +12051,13 @@ void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 	{
 
 		fkt = geo_factor * GetGaussData(gp, gp_r, gp_s, gp_t);
+=======
+	det = MeshElement->GetVolume();
+	//std::cout << "det: " << det << '\n';
+	for (gp = 0; gp < nGaussPoints; gp++)
+	{
+		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
+>>>>>>> develop
 		ComputeShapefct(Order);
 		Gauss_val = 0.0;
 
@@ -12024,6 +12092,7 @@ void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 					Sw = MediaProp->SaturationCapillaryPressureFunction(-Gauss_val);
 			}
 			else                                        // do nothing
+<<<<<<< HEAD
 					Sw = 1;
 				content_liquid += fkt * Sw * rhow * MediaProp->Porosity(Index, pcs->m_num->ls_theta);
 				break;
@@ -12042,6 +12111,36 @@ void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
 			content_liquid += factor *
 			(shapefct[i] ) * shapefct[j];
 			*/
+=======
+				NodeVal_shifted[i] = NodeVal[i];
+
+			if(mmp_index == -2)
+			{
+				if(NodeVal_shifted[i] > threshold_lower && NodeVal_shifted[i] < threshold_upper)
+					NodeVal_shifted[i] = 1.;
+				else
+					NodeVal_shifted[i] = 0.;
+			}
+		}
+
+
+		Gauss_val = 0.0;
+		for (i = 0; i < nNodes; i++)	   // Interpolation of value to Gauss point
+		{
+			Gauss_val += NodeVal_shifted[i] * shapefct[i];
+		}
+		// Integration
+		double content_increment = fkt * Gauss_val  * MediaProp->ElementVolumeMultiplyer;
+		if(mmp_index != -2)
+			content_increment *= CalCoefMass(true);
+
+		content += content_increment;
+		//std::cout << "fkt: " << fkt << '\n';
+		//std::cout << "Gauss_val: " << Gauss_val<< '\n';
+		//std::cout << "MAss coef: " << CalCoefMass() << '\n';
+		//std::cout << "Multiplier: " << MediaProp->ElementVolumeMultiplyer << '\n';
+
+>>>>>>> develop
 	}
 
 	//content_liquid *= Gauss_val;
@@ -12089,16 +12188,13 @@ void CFiniteElementStd::IncorporateSourceTerm(long From, long To, double factor,
 		else if (i + 1 == From)
 			idxn[1] *= -1;
 	}
-
-	eqs->addMatrixEntries(1, &idxm, 2, idxn, vals);
 #else
 #ifdef NEW_EQS
-
-	CSparseMatrix* A = NULL;
-	if (m_dom)
-		A = m_dom->eqs->A;
-	else
-		A = pcs->eqs_new->A;
+#if defined(USE_MPI)
+	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+#else
+	CSparseMatrix* A = pcs->eqs_new->A;
+#endif
 
 	(*A)(To, To) += factor;
 	if ( diagonalOnly == false )  // 2016-4-19  for flow coupling, normal depth, critical depth (only non-symmetric)
@@ -12122,12 +12218,10 @@ void CFiniteElementStd::IncorporateSourceTerm(long From, long To, double factor,
 
 		(*A)(From, From) += factor;
 		(*A)(From, To) -= factor;
-
 #else
 
 		MXInc(From, From, factor);
 		MXInc(From, To, -factor);
-
 #endif	
 #endif
 

@@ -557,7 +557,7 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 								line_string = GetLineFromFile1(tim_file);
 							}
 							if (time_adapt_tim_vector.size()<2) {
-								std::cout << "ERROR: at least two multipliers should be provided for SELF_ADAPTIVE time stepping" << std::endl;
+								std::cout << "ERROR: at least two multipliers should be provided for SELF_ADAPTIVE time stepping" << "\n";
 								exit(1);
 							}
 						}
@@ -591,8 +591,8 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 						}
 						else
 						{
-							std::cout << "ERROR: Unrecognized keyword in .tim file: " << line.str() << std::endl;
-							std::cout << " You may want to check line endings (carriage return)." << std::endl;
+							std::cout << "ERROR: Unrecognized keyword in .tim file: " << line.str() << "\n";
+							std::cout << " You may want to check line endings (carriage return)." << "\n";
 							exit(1);
 						}
 					} // end of while loop adaptive
@@ -760,11 +760,11 @@ void CTimeDiscretization::Write(std::fstream* tim_file)
 	else
 	{
 		*tim_file << " $TIME_CONTROL" << "\n";
-		*tim_file << "  " << convertTimeControlTypeToString(time_control_type) << std::endl;
+		*tim_file << "  " << convertTimeControlTypeToString(time_control_type) << "\n";
 //		if(time_control_name == "COURANT_MANIPULATE")
 //		{
-//			*tim_file << "  " << time_control_name << std::endl;
-//			*tim_file << "   " << time_control_manipulate << std::endl;
+//			*tim_file << "  " << time_control_name << "\n";
+//			*tim_file << "   " << time_control_manipulate << "\n";
 //		}
 		if(time_control_type == TimeControlType::PI_AUTO_STEP_SIZE)
 		{
@@ -773,7 +773,7 @@ void CTimeDiscretization::Write(std::fstream* tim_file)
 		}
 		else if(time_control_type == TimeControlType::STEP_SIZE_RESTRICTION)
 		{
-			*tim_file << "   " << h_min << " " << h_max << std::endl;
+			*tim_file << "   " << h_min << " " << h_max << "\n";
 		}
 		else if(time_control_type == TimeControlType::SELF_ADAPTIVE)
 		{
@@ -1069,7 +1069,7 @@ double CTimeDiscretization::FirstTimeStepEstimate(void)
 				time_step_length = pow( time_adapt_coe_vector[time_adapt_coe_vector.size() - 1] , rejected_step_count ) * initial_step_size;
 
 				if (time_step_length < min_time_step) {
-					std::cout << "-> ***ERROR*** Next time step size is less than the given minimum size. The simulation is aborted." << std::endl;
+					std::cout << "-> ***ERROR*** Next time step size is less than the given minimum size. The simulation is aborted." << "\n";
 					exit(1);
 				}
 			}
@@ -1129,7 +1129,7 @@ double CTimeDiscretization::FirstTimeStepEstimate(void)
 
 				if (time_step_length<=min_time_step)
 				{
-					std::cout << "-> ***ERROR*** Next time step size is less than or equal to the given minimum size. The simulation is aborted." << std::endl;
+					std::cout << "-> ***ERROR*** Next time step size is less than or equal to the given minimum size. The simulation is aborted." << "\n";
 					exit(1);
 				}
 				//				}
@@ -1681,7 +1681,7 @@ double CTimeDiscretization::SelfAdaptiveTimeControl ( void )
 			double const old_multiplier(multiplier);
 			multiplier = inverse_error*0.5*0.9;
 			std::cout << "Adapting multiplier to " << multiplier
-					<< " instead of " << old_multiplier << std::endl;
+					<< " instead of " << old_multiplier << "\n";
 		}
 	}
 
@@ -2180,7 +2180,7 @@ double CTimeDiscretization::MaxTimeStep()
 		//	std::cout << "Neumann criteria: " << max_diff_time_step << " i " << i << "\n";
 	}
 
-	std::cout << "GEMS3K: maximum Diffusive / Dispersive Time Step " << max_diff_time_step  << std::endl;
+	std::cout << "GEMS3K: maximum Diffusive / Dispersive Time Step " << max_diff_time_step  << "\n";
 
 	return std::min(max_diff_time_step, max_adv_time_step);
 }

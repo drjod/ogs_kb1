@@ -27,6 +27,12 @@
 
 #include "Eigen/Eigen"
 
+#include <vector>
+
+#include "OGS_WDC.h"
+#include "OGS_contraflow.h"
+
+
 //#include "rf_st_new.h"//CMCD 02_06
 // C++ STL
 //#include <fstream>
@@ -68,6 +74,8 @@ public:
 	double val;
 };
 */
+
+
 
 class CSourceTermGroup;
 class CSourceTerm;
@@ -164,6 +172,8 @@ typedef struct
 	double bc_value0;
 } bc_JFNK;
 #endif
+
+
 
 //MB moved inside the Process object
 //extern vector<double*>nod_val_vector; //OK
@@ -279,11 +289,17 @@ protected:                                        //WW
   int mysize;                               
   int myrank; 
 #elif defined(NEW_EQS)
+
 #ifdef LIS
 public:
-	Linear_EQS* eqs_new;
+	Linear_EQS* eqs_new;public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #else
 	Linear_EQS* eqs_new;
+public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #endif                                         // LIS endif for Fluid Momentum	// PCH
 	bool configured_in_nonlinearloop;
 #else
@@ -342,8 +358,13 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
+<<<<<<< HEAD
 	double getTotalLiquidContent(void) { return totalContent[0]; }  // JOD 2016-7-28 - balancing toolkit
 	double getTotalGasContent(void) { return totalContent[1]; }
+=======
+	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
+	std::vector<OGS_contraflow*> ogs_contraflow_vector;  // JOD 2019-31-07
+>>>>>>> develop
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -518,6 +539,7 @@ public:
 	bool auto_water_vapor;
 	bool JTC_fct_file_flag;
 	bool ECLunits_reservoir_conditions;
+	bool inFemFCTmode() const { return femFCTmode; }
 
 	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014
@@ -611,8 +633,13 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
+<<<<<<< HEAD
 	void CalculateTotalContent(int, std::vector<std::string>); // JOD 2/2015
 	void IncorporateSourceTermIntoMatrix(long, long, double, CSourceTerm*); // JOD 2/2015
+=======
+	double AccumulateContent(const int&, const double&, const double&, std::vector<std::string>); // JOD 2/2015
+	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
+>>>>>>> develop
 
 	// MSH
 	CFEMesh* m_msh;                       //OK
@@ -622,12 +649,24 @@ public:
 	                                      //OK
 	std::vector<std::string> nod_val_name_vector;
 	void SetNodeValue(long,int,double);   //OK
-	double GetNodeValue(size_t,int);        //OK
+	double GetNodeValue(size_t,int) const;        //OK
          double *getNodeValue_per_Variable(const int entry_id) const //WW
 	{
             return nod_val_vector[entry_id];
 	}
 	int GetNodeValueIndex(const std::string&, bool reverse_order = false); //OK
+
+	double GetMaxNodeValue(const std::vector<size_t> nodes, const int& ndx) const  // JOD 2018-9-28
+	{
+		return GetNodeValue(*std::max_element(nodes.begin(), nodes.end(),
+				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
+	}
+
+	double GetMinNodeValue(const std::vector<size_t> nodes, const int& ndx) const
+	{
+		return GetNodeValue(*std::min_element(nodes.begin(), nodes.end(),
+				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
+	}
 	//-----------------------------
 
 	std::vector<std::string> const& getElementValueNameVector () { return ele_val_name_vector; }
@@ -795,6 +834,10 @@ public:
         LINEAR_SOLVER *getEQSPointer() const { return eqs; } // WW
 #endif
 #endif
+
+    bool is_conservative;  // JOD 2018-09-14
+    bool is_folded; // JOD 2018-12-17
+    double folded_zCoord;
 
 	CTimeDiscretization* GetTimeStepping() const {return Tim; }
 	double timebuffer;                    //YD
@@ -1156,4 +1199,6 @@ extern REACT_BRNS* m_vec_BRNS;
 #endif
 
 extern bool hasAnyProcessDeactivatedSubdomains;   //NW
+
+
 #endif

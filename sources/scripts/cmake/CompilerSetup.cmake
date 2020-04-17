@@ -3,6 +3,7 @@ include(SetDefaultBuildType)
 include(DisableCompilerFlag)
 SET_DEFAULT_BUILD_TYPE(Release)
 include(MSVCMultipleProcessCompile) # /MP Switch for VS
+		
 
 if (WIN32)
 	## For Visual Studio compiler
@@ -32,6 +33,7 @@ if (WIN32)
 		set(GCC ON)
 #		message (FATAL_ERROR "Aborting: On Windows only the Visual Studio compiler is supported!")
 	endif ()
+
 endif ()
 
 ### For GNU C/CXX. WW
@@ -45,7 +47,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_GNUCC)
 		endif()
 	endif()
 	# -g
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -Wall -Wextra -fno-nonansi-builtins")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated -Wall -Wextra -fno-nonansi-builtins -std=c++11")
 
 	execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
 	string(REPLACE "\n" "" GCC_VERSION ${GCC_VERSION})
@@ -68,6 +70,11 @@ endif() # CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_GNUCC
 
 if(BLUE_G)
 	add_definitions(-O3 -qstrict -qarch=qp -qtune=qp)
+endif()
+
+if(${CMAKE_C_COMPILER} MATCHES "icc.*$")
+        message(STATUS "Set flag for C++11")  # JOD 2018-06-13 for WellDoubletControl
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
 if(OGS_COVERAGE)

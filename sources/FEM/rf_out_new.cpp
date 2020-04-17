@@ -230,7 +230,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 #endif
 	//
 	COutput* m_out = NULL;
-	//CRFProcess* m_pcs = NULL;
+	//CRFProcess* m_pcs = NULL; 
 	//CFEMesh* m_msh = NULL;
 	bool OutputBySteps = false;
 	//double tim_value;
@@ -254,6 +254,8 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		//	m_pcs = m_out->GetPCS();  //OK
 		//if (!m_pcs)
 		//	cout << "Warning in OUTData - no PCS data" << "\n";
+
+
 		//OK4704 continue;
 		//--------------------------------------------------------------------'
 		m_out->setTime (time_current);
@@ -286,10 +288,16 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 			m_out->WriteTotalFlux(time_current, time_step_number); // 6/2012 JOD, MW 
 		else if (m_out->dat_type_name.compare("CONTENT") == 0)
 			m_out->WriteContent(time_current, time_step_number); //JOD 2/2015
+		else if (m_out->dat_type_name.compare("VOLUME") == 0)
+			m_out->WriteContent(time_current, time_step_number); //JOD 2020-1-16
 		else if (m_out->dat_type_name.compare("COMBINE_POINTS") == 0) 
 			m_out->NODWritePointsCombined(time_current, time_step_number);	// 6/2012 for calibration JOD
 		else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)
 			m_out->NODWritePrimaryVariableList(time_current, time_step_number); //JOD 2014-11-10
+		else if (m_out->dat_type_name.compare("WELL_DOUBLET_CONTROL") == 0)
+					m_out->WriteWellDoubletControl(time_current, time_step_number); // 2018-06-27 JOD
+		else if (m_out->dat_type_name.compare("CONTRAFLOW") == 0)
+					m_out->WriteContraflow(time_current, time_step_number); // JOD 2019-08-23 JOD
 		// ELE values, only called if ele values are defined for output, 05/2012 BG
 		if (m_out->getElementValueVector().size() > 0)
 			m_out->CalcELEFluxes();

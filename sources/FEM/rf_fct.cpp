@@ -241,7 +241,7 @@ std::ios::pos_type CFunction::Read(std::ifstream* fct_file)
 				for(i = 0; i < (int)no_variable_names; i++) //OK411
 				{
 					line_stream >> variable_data[i];
-					variable_data_vector.push_back(variable_data);
+					variable_data_vector.push_back(variable_data);  // ????? not variable_name[i]?
 				}
 				line_stream.clear();
 			}

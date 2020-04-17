@@ -119,22 +119,22 @@ template<typename VectorType, int Size> class VectorBlock
   *
   * \sa class Block, segment(Index)
   */
-template<typename Derived>
+/*template<typename Derived>
 inline typename DenseBase<Derived>::SegmentReturnType
 DenseBase<Derived>::segment(Index start, Index size)
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
   return SegmentReturnType(derived(), start, size);
-}
+}*/
 
 /** This is the const version of segment(Index,Index).*/
-template<typename Derived>
+/*template<typename Derived>
 inline typename DenseBase<Derived>::ConstSegmentReturnType
 DenseBase<Derived>::segment(Index start, Index size) const
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
   return ConstSegmentReturnType(derived(), start, size);
-}
+}*/
 
 /** \returns a dynamic-size expression of the first coefficients of *this.
   *
@@ -160,13 +160,13 @@ DenseBase<Derived>::head(Index size)
 }
 
 /** This is the const version of head(Index).*/
-template<typename Derived>
+/*template<typename Derived>
 inline typename DenseBase<Derived>::ConstSegmentReturnType
 DenseBase<Derived>::head(Index size) const
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
   return ConstSegmentReturnType(derived(), 0, size);
-}
+}*/
 
 /** \returns a dynamic-size expression of the last coefficients of *this.
   *
@@ -192,13 +192,13 @@ DenseBase<Derived>::tail(Index size)
 }
 
 /** This is the const version of tail(Index).*/
-template<typename Derived>
+/*template<typename Derived>
 inline typename DenseBase<Derived>::ConstSegmentReturnType
 DenseBase<Derived>::tail(Index size) const
 {
   EIGEN_STATIC_ASSERT_VECTOR_ONLY(Derived)
   return ConstSegmentReturnType(derived(), this->size() - size, size);
-}
+}*/
 
 /** \returns a fixed-size expression of a segment (i.e. a vector block) in \c *this
   *

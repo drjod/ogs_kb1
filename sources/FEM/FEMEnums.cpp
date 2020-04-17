@@ -400,7 +400,9 @@ DistributionType convertDisType(const std::string& dis_type_string)
 	if (dis_type_string.compare("FUNCTION") == 0)
 		return FUNCTION;                              //24.08.2011. WW
 	if (dis_type_string.compare("TRANSFER_SURROUNDING") == 0)
-		return TRANSFER_SURROUNDING;    
+		return TRANSFER_SURROUNDING;
+	if (dis_type_string.compare("ZCURVE") == 0)
+		return ZCURVE;
 	else
 	{
 		std::cout << "convertDisType #" << dis_type_string << "# not found"

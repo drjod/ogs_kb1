@@ -139,6 +139,9 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+	${CMAKE_SOURCE_DIR}/TOOLS
+	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+	${CMAKE_SOURCE_DIR}/../Libs/Contraflow
 )
 
 if (LIS)
@@ -166,6 +169,7 @@ target_link_libraries(FEM
 	GCC
 	GEO
 	MSH
+	TOOLS
 )
 
 if(OGS_FEM_PQC)

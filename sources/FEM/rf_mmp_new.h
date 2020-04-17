@@ -22,6 +22,14 @@
 // PCSLib
 #include "rf_pcs.h"
 
+struct FluidVelocity  // JOD 2018-5-4
+{
+	FluidVelocity() : type(0) {}
+	int type;  // 0: not used, 1: constant, 2: time curve
+	int curve_nr;
+	double x, y, z;
+};
+
 namespace FiniteElement
 {class CFiniteElementStd;
 }
@@ -123,7 +131,7 @@ private:
 	void CalStressPermeabilityFactor4(double* kfac, double);
 	//CMCD 9/2004 GeoSys 4
 	double StorageFunction(long number,double* gp,double theta);
-	double HeatCapacity(long number,double theta, CFiniteElementStd* assem = NULL);
+	double HeatCapacity(long number,double theta, bool flag_calcContent=false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 Please update changes
 	double* HeatConductivityTensor(int number); //MX
 	double* HeatDispersionTensorNew(int ip); //CMCD
 	double* MassDispersionTensorNew(int ip, int phase); //CMCD, SB, BG
@@ -158,6 +166,7 @@ private:
 
     CFEMesh* getMesh(void) { return _mesh; }
 
+    FluidVelocity fluidVelocity;  // JOD 2018-5-4
 	// Properties
 private:
 	// PCS
@@ -238,7 +247,9 @@ public:
 	double saturation_exponent[MAX_FLUID_PHASES];
 	double perm_saturation_value[MAX_FLUID_PHASES];
 	//
-	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file;
+	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file,BW: X Direction; taken by JOD 2020-3-20
+	std::string permeability_Y_file;        //SB //OK/MB string permeability_dis_type_file,BW: Y Direction
+	std::string permeability_Z_file;        //SB //OK/MB string permeability_dis_type_file,BW: Z Direction;
 	std::string tortuosity_file;          // PCH
 	bool entry_pressure_conversion;		//JT
 	int capillary_pressure_model;

@@ -69,6 +69,8 @@ namespace SolidProp
 	//
 	Matrix* data_Plasticity;
 	Matrix* data_Creep;
+
+	int heat_conductivity_fct_number;  // JOD 2019-3-14
 	//
 	int Density_mode;
          //

@@ -43,11 +43,11 @@ REACT_BRNS::REACT_BRNS(void)
 #ifdef GCC
 	hDll = dlopen("./brns.so", RTLD_NOW);
 	if (hDll==NULL)
-		std::cout << "***error: failed to load a library ./brns.so" << std::endl;
+		std::cout << "***error: failed to load a library ./brns.so" << "\n";
 	cout << "Debugging #2." << endl;
 	invokebrns = (LPFNDLLFUNC)dlsym(hDll, "invokebrns_");
 	if (invokebrns==NULL)
-		std::cout << "***error: failed to find a symbol \"invokebrns_\"" << std::endl;
+		std::cout << "***error: failed to find a symbol \"invokebrns_\"" << "\n";
 #endif
 	cout << "Debugging #3." << endl;
 }

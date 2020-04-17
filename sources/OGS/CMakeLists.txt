@@ -14,6 +14,9 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/GEO
 	${CMAKE_SOURCE_DIR}/MathLib
 	${CMAKE_SOURCE_DIR}/MSH
+	${CMAKE_SOURCE_DIR}/TOOLS
+	${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl
+	${CMAKE_SOURCE_DIR}/../Libs/Contraflow
 )
 
 if (LIS)
@@ -36,15 +39,33 @@ endif ()
 # Create the library
 add_executable( ogs ${SOURCES} )
 
-target_link_libraries( ogs
-	${CMAKE_THREAD_LIBS_INIT}
-	Base
-	FEM
-	FileIO
-	GEO
-	MathLib
-	MSH
+if (MSVC)
+	target_link_libraries( ogs
+		${CMAKE_THREAD_LIBS_INIT}
+		Base
+		FEM
+		FileIO
+		GEO
+		MathLib
+		MSH
+		TOOLS
+		${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl/wellDoubletControl.lib
+		${CMAKE_SOURCE_DIR}/../Libs/Contraflow/contraflow.lib
+	)
+else()
+	target_link_libraries( ogs
+		${CMAKE_THREAD_LIBS_INIT}
+		Base
+		FEM
+		FileIO
+		GEO
+		MathLib
+		MSH
+		TOOLS
+		${CMAKE_SOURCE_DIR}/../Libs/WellDoubletControl/libwellDoubletControl.a
+		${CMAKE_SOURCE_DIR}/../Libs/Contraflow/libcontraflow.a
 )
+endif ()
 
 if (OGS_FEM_GEMS OR OGS_FEM_PETSC_GEMS)
 	target_link_libraries( ogs

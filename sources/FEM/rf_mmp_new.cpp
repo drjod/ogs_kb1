@@ -697,16 +697,16 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				break;
             case 3: // EE formulation for Forchheimer
                 in >> forchheimer_cf;
-                std::cout << "->Forchheimer nonlinear flow for EE" << std::endl;
+                std::cout << "->Forchheimer nonlinear flow for EE" << "\n";
                 break;
             case 4: // GW formulation for Forchheimer
                 in >> forchheimer_a1 >> forchheimer_a2;
-                std::cout << "->Forchheimer nonlinear flow with given a1, a2" << std::endl;
+                std::cout << "->Forchheimer nonlinear flow with given a1, a2" << "\n";
                 break;
             case 5: // GW formulation for Forchheimer if a1=1/k0
               in >> forchheimer_a2;
               forchheimer_a1 = .0;
-              std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << std::endl;
+              std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << "\n";
               break;
             case 6: // EE formulation 2 for Forchheimer
                 in >> forchheimer_De;
@@ -1784,7 +1784,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		indexChWin = indexChLinux = 0;
 		std::string funfname;
 		//subkeyword found
-		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos)
+		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos) // JOD 2020-3-20 from BW
 		{
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_file;
@@ -1808,6 +1808,76 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			//--------------------------------------
 			//WW
 			std::ifstream mmp_file(funfname.data(),std::ios::in);
+			if (!mmp_file.good())
+				std::cout <<
+				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
+				"\n";
+			mmp_file.close();
+			permeability_model = 2;
+			in.clear();
+			continue;
+		}
+
+		if (line_string.find("$PERMEABILITY_YDISTRIBUTION") != std::string::npos)	// JOD 2020-3-20 from BW, Y direction
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> permeability_Y_file;
+			string file_name = permeability_Y_file;
+			
+			//-------WW
+			indexChWin = FileName.find_last_of('\\');
+			indexChLinux = FileName.find_last_of('/');
+			if (indexChWin == string::npos && indexChLinux == std::string::npos)
+				funfname = file_name;
+			else if (indexChWin != string::npos)
+			{
+				funfname = FileName.substr(0, indexChWin);
+				funfname = funfname + "\\" + file_name;
+			}
+			else if (indexChLinux != string::npos)
+			{
+				funfname = FileName.substr(0, indexChLinux);
+				funfname = funfname + "/" + file_name;
+			}
+			permeability_Y_file = funfname;
+			//--------------------------------------
+			//WW
+			std::ifstream mmp_file(funfname.data(), std::ios::in);
+			if (!mmp_file.good())
+				std::cout <<
+				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
+				"\n";
+			mmp_file.close();
+			permeability_model = 2;
+			in.clear();
+			continue;
+		}
+		if (line_string.find("$PERMEABILITY_ZDISTRIBUTION") != std::string::npos)	 //BW Z direction
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> permeability_Z_file;
+			string file_name = permeability_Z_file;
+			
+
+			//-------WW
+			indexChWin = FileName.find_last_of('\\');
+			indexChLinux = FileName.find_last_of('/');
+			if (indexChWin == string::npos && indexChLinux == std::string::npos)
+				funfname = file_name;
+			else if (indexChWin != string::npos)
+			{
+				funfname = FileName.substr(0, indexChWin);
+				funfname = funfname + "\\" + file_name;
+			}
+			else if (indexChLinux != string::npos)
+			{
+				funfname = FileName.substr(0, indexChLinux);
+				funfname = funfname + "/" + file_name;
+			}
+			permeability_Z_file = funfname;
+			//--------------------------------------
+			//WW
+			std::ifstream mmp_file(funfname.data(), std::ios::in);
 			if (!mmp_file.good())
 				std::cout <<
 				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
@@ -1947,14 +2017,14 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			 if (geo_dimension == 1){
 				 in >> ElementLengthMultiplyer_vector[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
-				 std::cout << ElementLengthMultiplyer_vector[0]  << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0]  << "\n";
 			 }
 			 else if (geo_dimension == 2)
 			 {
 				 in >> ElementLengthMultiplyer_vector[0];
 				 in >> ElementLengthMultiplyer_vector[1];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << "\n";
 			 }
 			 else if (geo_dimension == 3)
 			 {
@@ -1962,7 +2032,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				 in >> ElementLengthMultiplyer_vector[1];
 				 in >> ElementLengthMultiplyer_vector[2];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << std::endl;
+				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << "\n";
 			 }
 			 else
 				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension";
@@ -1983,7 +2053,17 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		  continue;
 	  }
 	  //------------------------------------------------------------------------
-
+	  //subkeyword found
+	  if(line_string.find("$FLUID_VELOCITY") != std::string::npos)  // JOD 2018-5-4
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> fluidVelocity.curve_nr;
+		  in >> fluidVelocity.x >> fluidVelocity.y >> fluidVelocity.z;
+		  in.clear();
+		  fluidVelocity.type = 1;
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
    }
 	return position;
 }
@@ -2553,7 +2633,7 @@ double CMediumProperties::PermeabilitySaturationFunction(const double wetting_sa
    10/2005 YD/OK: general concept for heat capacity
    10/2010 TF changed access to process type
 **************************************************************************/
-double CMediumProperties::HeatCapacity(long number, double theta,
+double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calcContent,
                                        CFiniteElementStd* assem)
 {
 	SolidProp::CSolidProperties* m_msp = NULL;
@@ -2592,7 +2672,7 @@ double CMediumProperties::HeatCapacity(long number, double theta,
 		if (FLOW)
 		{
 			porosity = assem->MediaProp->Porosity(number, theta);
-			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(assem);
+			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
 		}
 		else
 		{
@@ -2856,7 +2936,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	static double heat_dispersion_tensor[9];
 	double* heat_conductivity_porous_medium;
 	double vg, D[9];
-	double heat_capacity_fluids = 0.0;
+	double volumetric_heat_capacity_fluids = 0.0;  // JOD 2018-9-20
 	double fluid_density;
 	double alpha_t, alpha_l;
 	long index = Fem_Ele_Std->GetMeshElement()->GetIndex();
@@ -2869,12 +2949,21 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	//MX, add index
 	heat_conductivity_porous_medium = HeatConductivityTensor(index);
 	m_mfp = Fem_Ele_Std->FluidProp;
-		fluid_density = m_mfp->Density();
-	heat_capacity_fluids = m_mfp->getSpecificHeatCapacity();
+	if(m_mfp->get_flag_volumetric_heat_capacity())
+		volumetric_heat_capacity_fluids = m_mfp->get_volumetric_heat_capacity();
+	else
+		volumetric_heat_capacity_fluids = m_mfp->SpecificHeatCapacity() * m_mfp->Density(); //BW:23.03.2020 please update changes
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
-	gp_ele->getIPvalue_vec(ip, velocity); //gp velocities
+	if(fluidVelocity.type != 0)
+	{ // only fluid phase - JOD 2018-5-9
+	  velocity[0] = fluidVelocity.x;
+	  velocity[1] = fluidVelocity.y;
+	  velocity[2] = fluidVelocity.z;
+	}
+	else
+		gp_ele->getIPvalue_vec(ip, velocity); //gp velocities
 	vg = MBtrgVec(velocity,3);
 
 	//Dl in local coordinates
@@ -2889,8 +2978,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 		{
 		case 1:                   // line elements
 			heat_dispersion_tensor[0] =   heat_conductivity_porous_medium[0] +
-			                            alpha_l * heat_capacity_fluids *
-			                            fluid_density * vg;
+			                            alpha_l * volumetric_heat_capacity_fluids * vg;
 			break;
 		case 2:
 			D[0] =
@@ -2903,8 +2991,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 			         vg) + (alpha_l - alpha_t) * (velocity[1] * velocity[1]) / vg;
 			for (i = 0; i < 4; i++)
 				heat_dispersion_tensor[i] =   heat_conductivity_porous_medium[i] +
-				                            (D[i] * heat_capacity_fluids *
-				                             fluid_density);
+				                            (D[i] * volumetric_heat_capacity_fluids);
 			break;
 		case 3:
 			D[0] =
@@ -2924,8 +3011,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 			         vg) + (alpha_l - alpha_t) * (velocity[2] * velocity[2]) / vg;
 			for (i = 0; i < 9; i++)
 				heat_dispersion_tensor[i] =   heat_conductivity_porous_medium[i] +
-				                            (D[i] * heat_capacity_fluids *
-				                             fluid_density);
+				                            (D[i] * volumetric_heat_capacity_fluids);
 			break;
 		}
 	}
@@ -3037,7 +3123,14 @@ double* CMediumProperties::MassDispersionTensorNew(int ip, int tr_phase) // SB +
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
-	gp_ele->getIPvalue_vec_phase(ip, tr_phase, velocity); //gp velocities // SB
+	if(fluidVelocity.type != 0)
+	{ // only fluid phase - JOD 2018-5-9
+	  velocity[0] = fluidVelocity.x;
+	  velocity[1] = fluidVelocity.y;
+	  velocity[2] = fluidVelocity.z;
+	}
+	else
+		gp_ele->getIPvalue_vec_phase(ip, tr_phase, velocity); //gp velocities // SB
 	vg = MBtrgVec(velocity,3);
 	//  if(index < 10) cout <<" Velocity in MassDispersionTensorNew(): "<<velocity[0]<<", "<<velocity[1]<<", "<<velocity[2]<<", "<<vg<<"\n";
 	// test bubble velocity
@@ -3256,7 +3349,7 @@ double* CMediumProperties::DispersionTensorMCF(int ip, int PCSIndex, int CIndex,
 		//cout << " alpha_L = " << alpha_l << " < l_char/Pe; setting alpha_L = " << l_char/lgpn << " for element " << index << endl;
 		if((set > 0) & (aktueller_zeitschritt == 1) & (CIndex < 2) & (ip < 1))
 			std::cout << "element " << index << " " << l_char << " " << alpha_l <<
-			             " " << alpha_t <<  std::endl;
+			             " " << alpha_t <<  "\n";
 	}
 	//----------------------------------------------------------------------
 
@@ -4660,6 +4753,33 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				idx_k = m_pcs_tmp->GetElementValueIndex("PERMEABILITY_ZZ");
 				tensor[8] = m_pcs_tmp->GetElementValue(index, idx_k + 1);
 			}
+			else if (permeability_model == 2)   // JOD 2020-3-20 from BW: For X,Y,Z directions permeability
+			{                         // here get the initial permeability values from material perperty class;
+				// get the index:-------------------------------------------------------------------
+				for (perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
+					perm_index++){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY") == 0){
+						tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
+						tensor[1] = 0.0;
+						tensor[2] = 0.0;
+					}
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y") == 0){
+						tensor[3] = 0.0;
+						tensor[4] = _mesh->ele_vector[index]->mat_vector(perm_index);
+						tensor[5] = 0.0;
+					}
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z") == 0)	 {
+						tensor[6] = 0.0;
+						tensor[7] = 0.0;
+						tensor[8] = _mesh->ele_vector[index]->mat_vector(perm_index);
+					}
+				}
+				// end of getting the index---------------------------------------------------------
+				//CMCD
+				//01.09.2011 WW.  int edx = m_pcs->GetElementValueIndex("PERMEABILITY");
+				//CMCD
+				//01.09.2011 WW.   m_pcs->SetElementValue(index,edx,tensor[0]);
+			}
 			else
 			{
 				tensor[0] = permeability_tensor[0];
@@ -5379,7 +5499,17 @@ void GetHeterogeneousFields()
 			//WW file_path_base_ext = file_path + m_mmp->permeability_file;
 			//WW
 			m_mmp->SetDistributedELEProperties(m_mmp->permeability_file);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
+		}
+
+		//Set Permeability for Y and Z JOD 2020-3-20 from BW
+		if (m_mmp->permeability_Y_file.size() > 0)
+		{
+			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Y_file);
+		}
+		if (m_mmp->permeability_Z_file.size() > 0)
+		{
+			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Z_file);
 		}
 		//....................................................................
 		// For Porosity
@@ -5392,7 +5522,7 @@ void GetHeterogeneousFields()
 			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
 			// CB Removed bugs in this function
 			m_mmp->SetDistributedELEProperties(m_mmp->porosity_file);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//....................................................................
 		// GEOMETRY_AREA
@@ -5400,7 +5530,7 @@ void GetHeterogeneousFields()
 		{
 			file_path_base_ext = file_path + m_mmp->geo_area_file;
 			m_mmp->SetDistributedELEProperties(file_path_base_ext);
-			m_mmp->WriteTecplotDistributedProperties();
+			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
 		//....................................................................
@@ -5518,8 +5648,29 @@ void CMediumProperties::SetDistributedELEProperties(string file_name)
 		{
 			element_area = false;
 			mmp_property_file >> mmp_property_name;
-			cout << mmp_property_name << "\n";
-			_mesh->mat_names_vector.push_back(mmp_property_name);
+			// cout << mmp_property_name << "\n";
+			// _mesh->mat_names_vector.push_back(mmp_property_name);
+			// JOD 2020-3-20 from BW - the same name entry does not save
+			bool existedname = false;
+			if (_mesh->mat_names_vector.size() == 0)
+			{
+				cout << " SetDistributedELEProperties: ";
+				cout << mmp_property_name << "\n";
+				_mesh->mat_names_vector.push_back(mmp_property_name);
+			}
+			else
+			{
+				for (unsigned int idx = 0; idx < _mesh->mat_names_vector.size(); idx++)
+					if (_mesh->mat_names_vector[idx].compare(mmp_property_name) == 0)
+						existedname = true;
+
+				if (existedname == false)
+				{
+					cout << " SetDistributedELEProperties: ";
+					cout << mmp_property_name << "\n";
+					_mesh->mat_names_vector.push_back(mmp_property_name);
+				}
+			}
 			if (mmp_property_name == "GEOMETRY_AREA")
 				element_area = true;
 			continue;
@@ -5597,41 +5748,47 @@ void CMediumProperties::SetDistributedELEProperties(string file_name)
 					}
 				}
 				break;
-			case 'E':     // Element data
+			case 'E':     // Element data modified by JOD 2020-3-20 according to BW
 				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
 				{
 					m_ele_geo = _mesh->ele_vector[i];
+
+					int group = m_ele_geo->GetPatchIndex();
 					mmp_property_file >> ddummy >> mmp_property_value;
-					mat_vector_size = m_ele_geo->mat_vector.Size();
-					if (mat_vector_size > 0)
-					{
-						for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-							temp_store.push_back(m_ele_geo->mat_vector(
-							                             c_vals));
-						m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-						for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-							m_ele_geo->mat_vector(c_vals) =
-							        temp_store[c_vals];
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmp_property_value;
-						temp_store.clear();
+					if (group == this->number){				//BW: Only Write for this Material Group					
+						mat_vector_size = m_ele_geo->mat_vector.Size();
+						if (mat_vector_size > 0)
+						{
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								temp_store.push_back(m_ele_geo->mat_vector(
+								c_vals));
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								m_ele_geo->mat_vector(c_vals) =
+								temp_store[c_vals];
+							m_ele_geo->mat_vector(mat_vector_size) =
+								mmp_property_value;
+							temp_store.clear();
+						}
+						else
+						{
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							m_ele_geo->mat_vector(mat_vector_size) =
+								mmp_property_value;
+						}
+						if (element_area)
+							_mesh->ele_vector[i]->SetFluxArea(
+							mmp_property_value);
+						if (line_string.empty())
+						{
+							cout <<
+								"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
+								<< "\n";
+							return;
+						}
 					}
 					else
-					{
-						m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmp_property_value;
-					}
-					if (element_area)
-						_mesh->ele_vector[i]->SetFluxArea(
-						        mmp_property_value);
-					if(line_string.empty())
-					{
-						cout <<
-						"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
-						     << "\n";
-						return;
-					}
+						continue;
 				}
 				break;
 			default:
@@ -7144,7 +7301,7 @@ double CMediumProperties::NonlinearFlowFunction(long index, int gp, double /*the
            double rhog = assem->FluidProp->Density(dens_arg); // which model?
            if (flowlinearity_model==6) {
                if (ParticleDiameter()==.0) {
-                   std::cout << "***Error: dp = .0" << std::endl;
+                   std::cout << "***Error: dp = .0" << "\n";
                    exit(0);
                }
                forchheimer_cf = 0.55*(1.-5.5*ParticleDiameter()/forchheimer_De);
@@ -7191,7 +7348,7 @@ double CMediumProperties::NonlinearFlowFunction(long index, int gp, double /*the
    }
    else
    {
-       std::cout << "***ERROR: not supported flow linearity model " << flowlinearity_model << std::endl;
+       std::cout << "***ERROR: not supported flow linearity model " << flowlinearity_model << "\n";
    }
 
 	/*OK411
@@ -7771,7 +7928,7 @@ double CMediumProperties::StorageFunction(long index,double* gp,double theta)
 		// MW I have no idea, why I need 1/(g^2*rho) here; it should only be 1/(g*rho)
 		// maybe, the mass term in richards flow has been normalized on g ???
 		else
-			std::cout << "Wrong PERMEABILITY_SATURATION_MODEL for STORAGE model 10." << std::endl;
+			std::cout << "Wrong PERMEABILITY_SATURATION_MODEL for STORAGE model 10." << "\n";
 		break;
 	default:
 		storage = 0.0;            //OK DisplayMsgLn("The requested storativity model is unknown!!!");

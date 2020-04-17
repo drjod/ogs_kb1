@@ -8,11 +8,15 @@
    Modification:
             12.2008 WW Incorporate the changes from previous versions.
    ========================================================================*/
+
+#include "fancyTimer.h"
+
 #include "problem.h"
 
 #if defined (USE_MPI)
 #include <mpi.h>
 #endif
+
 
 
 
@@ -84,6 +88,10 @@ extern int ReadData(char*, GEOLIB::GEOObjects& geo_obj, std::string& unique_name
 #include "rf_REACT_BRNS.h"
 #endif
 #include "rf_kinreact.h"
+
+#include <ctime>
+#include <fstream>
+#include <iomanip>
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03.3012. WW
 #include "PETSC/PETScLinearSolver.h"
@@ -1090,6 +1098,8 @@ void Problem::Euler_TimeDiscretize()
 	// ------------------------------------------
 	// PERFORM TRANSIENT SIMULATION
 	// ------------------------------------------
+	std::fstream fout("timer.txt", std::ofstream::out | std::ios::app);
+	FancyTimer<std::fstream> timer("Coupling loop: ", fout);
 	double previous_rejected_dt = .0;
 	while(end_time > current_time)
 	{
@@ -1268,7 +1278,7 @@ void Problem::Euler_TimeDiscretize()
 bool Problem::CouplingLoop()
 {
   int i, index, cpl_index;
-  double max_outer_error, max_inner_error; //, error;
+  double max_outer_error, max_inner_error, error;
   bool transient_bc = false;
   bool run_flag[max_processes];
   int outer_index, inner_index, inner_max; //, inner_min;
@@ -1283,7 +1293,8 @@ bool Problem::CouplingLoop()
   print_result = false;
   int acounter = 0;
   //
-  for (i = 0; i < (int)pcs_vector.size(); i++){
+  for (i = 0; i < (int)pcs_vector.size(); i++)
+  {
     pcs_vector[i]->UpdateTransientBC();
     if (pcs_vector[i]->bc_transient_index.size() != 0)
       transient_bc = true;
@@ -1306,7 +1317,8 @@ bool Problem::CouplingLoop()
     }
     else
     {   //21.05.2010.  WW
-      if (total_processes[i] && total_processes[i]->tim_type == TimType::STEADY) {
+      if (total_processes[i] && total_processes[i]->tim_type == TimType::STEADY)
+      {
         acounter++;
         m_tim = total_processes[i]->Tim;
         m_tim->step_current++; //NW increment needed to get correct time step length in CTimeDiscretization::CalcTimeStep()
@@ -1317,12 +1329,14 @@ bool Problem::CouplingLoop()
   int num_processes = (int)active_process_index.size();
   //
   // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-  for (i = 0; i < (int)total_processes.size(); i++){
+  for (i = 0; i < (int)total_processes.size(); i++)
+  {
     run_flag[i] = exe_flag[i];
   }
   //if (m_tim->step_current == 1)
   //{
-  for (i = 0; i < num_processes; i++){
+  for (i = 0; i < num_processes; i++)
+  {
     index = active_process_index[i];
     total_processes[index]->first_coupling_iteration = true;
   }
@@ -1358,11 +1372,13 @@ bool Problem::CouplingLoop()
   for (outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
   {
     // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-    for (i = 0; i < num_processes; i++){
+    for (i = 0; i < num_processes; i++)
+    {
       index = active_process_index[i];
       run_flag[index] = exe_flag[index];
     }
-    for (i = 0; i < num_processes; i++){
+    for (i = 0; i < num_processes; i++)
+    {
       index = active_process_index[i];
       m_tim = total_processes[index]->Tim;
       if (!m_tim->time_active) run_flag[index] = false;
@@ -1377,6 +1393,7 @@ bool Problem::CouplingLoop()
       } // end output SB  */
 
     max_outer_error = 0.0; //NW reset error for each iteration
+    bool converged = true;
     for (i = 0; i < num_processes; i++)
     {
       index = active_process_index[i];
@@ -1407,7 +1424,8 @@ bool Problem::CouplingLoop()
           if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
           //					 error = Call_Member_FN(this, active_processes[index])();
           Call_Member_FN(this, active_processes[index])();
-          if (!a_pcs->TimeStepAccept()){
+          if (!a_pcs->TimeStepAccept())
+          {
             accept = false;
             break;
           }
@@ -1417,7 +1435,8 @@ bool Problem::CouplingLoop()
           if (b_pcs->first_coupling_iteration) PreCouplingLoop(b_pcs);
           //					 error = Call_Member_FN(this, active_processes[cpl_index])();
           Call_Member_FN(this, active_processes[cpl_index])();
-          if (!b_pcs->TimeStepAccept()){
+          if (!b_pcs->TimeStepAccept())
+          {
             accept = false;
             break;
           }
@@ -1439,9 +1458,9 @@ bool Problem::CouplingLoop()
           // Coupling convergence criteria (use loop minimum from a_pcs because this is where the coupled process was called)
           if (max_inner_error <= 1.0 && inner_index + 2 > a_pcs->m_num->cpl_min_iterations) // JT: error is relative to the tolerance.
             break;
-        }
+        }  // end for inner_index
         run_flag[cpl_index] = false; // JT: CRUCIAL!!
-      }
+      }  // end if (cpl_index >= 0 && run_flag[cpl_index])
       else
       {
         // PERFORM AN OUTER COUPLING
@@ -1454,24 +1473,38 @@ bool Problem::CouplingLoop()
         if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
         //				error = Call_Member_FN(this, active_processes[index])(); // TF: error set, but never used
         Call_Member_FN(this, active_processes[index])();
-        if (!a_pcs->TimeStepAccept()){
+
+        for(int ii = 0; ii < a_pcs->pcs_number_of_primary_nvals; ii++)
+        {	// there is only one coupling error for each process (although multiphase flow has two errors)
+        	if(a_pcs->pcs_absolute_error[ii] >= a_pcs->m_num->cpl_error_tolerance[0])
+        		converged = false;
+        }
+
+        if (!a_pcs->TimeStepAccept())
+        {
           accept = false;
           break;
         }
+
+        //if(a_pcs->wellDoubletControl_converged == true)
+        //	break;
+
         // SB time control 02/2014
         a_pcs->Tim->last_time_simulated = aktuelle_zeit; //SB
-        if (a_pcs->flag_delta_max)
+        if(a_pcs->flag_delta_max)
         {
           // WTP: var_name_delta_max is not set anywhere except in the constructor. Thus if activated the code will crash in CalcMaxPrimaryVariableChange()
           delta = a_pcs->CalcMaxPrimaryVariableChange(); // calulate max variable change
           // get connected process to be activated
-          for (size_t ii = 0; ii<total_processes.size(); ii++){
+          for (size_t ii = 0; ii<total_processes.size(); ii++)
+          {
             if (this->active_processes[ii])
             if (this->total_processes[ii]->pcs_type_name_vector[0] == a_pcs->pcs_name_delta_max)
               max_delta_index = ii;
           }
 
-          if (delta > a_pcs->delta_max_pv_max){ // Change in variable is high, activate controlled process
+          if (delta > a_pcs->delta_max_pv_max)
+          { // Change in variable is high, activate controlled process
             std::cout << "       -> Activating " << a_pcs->pcs_name_delta_max << " for this timestep " << "\n";
             // set process active
             run_flag[max_delta_index] = true;
@@ -1484,10 +1517,13 @@ bool Problem::CouplingLoop()
           // make time step correspondingly
           m_pcs2 = total_processes[max_delta_index];
           m_pcs2->Tim->time_step_length = aktuelle_zeit - m_pcs2->Tim->last_time_simulated;
-        }
+        }  // end if(a_pcs->flag_delta_max)
         a_pcs->first_coupling_iteration = false; // No longer true.
         // Check for break criteria
-        max_outer_error = MMax(max_outer_error, a_pcs->cpl_max_relative_error);
+        if(a_pcs->m_num->fct_method == 0)
+        	max_outer_error = MMax(max_outer_error, a_pcs->cpl_max_relative_error);
+        else
+        	max_outer_error = 0.;
 
         // Reapply BCs if constrained BC
 #if defined(USE_MPI) || defined(USE_PETSC)
@@ -1506,35 +1542,85 @@ bool Problem::CouplingLoop()
 #endif
           a_pcs->IncorporateBoundaryConditions(rank);
         }
-      }
+      }  // end outer coupling
       if (!accept) break;
-    }
-    if (!accept){
+    }  // end num_processes
+    if (!accept)
+    {
       std::cout << "\n";
       break;
     }
     //
-    if (cpl_overall_max_iterations > 1){
+    if (cpl_overall_max_iterations > 1)
+    {
       std::cout << "\n======================================================\n";
       std::cout << "Outer coupling loop " << outer_index + 1 << "/" << cpl_overall_max_iterations << " complete." << "\n";
       std::cout << "Max coupling error (relative to tolerance): " << max_outer_error << "\n";
       std::cout << "======================================================\n";
     }
-    else{
+    else
+    {
       std::cout << "\n";
     }
     // Coupling convergence criteria
-    //if(max_outer_error <= 1.0 && outer_index+2 > cpl_overall_min_iterations) // JT: error is relative to the tolerance.	//MW outer_index + 2 is hard to follow - is it faster to write it like this?
-	if (max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations) // JT: error is relative to the tolerance.
-			break;
+    //max_outer_error=0.;
 
-	
+    bool wdc_converged = true;
+    if(a_pcs->ogs_WDC_vector.size() != 0)
+    {
+
+    	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
+    	{
+    		ogs_wdc->set_unevaluated();
+
+    		if(!ogs_wdc->get_WellDoubletControl()->converged())
+    			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
+    			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
+    			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
+    		{
+				wdc_converged = false;  // do not break since all wdc must be set unevaluated
+    		}
+    	}
+
+    	if(wdc_converged)
+    	{
+    		std::cout << "\tWDC converged\n";
+    		for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
+    			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
+				<< a_pcs->ogs_WDC_vector[i]->get_extremum(a_pcs, 1, a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger) << '\n';
+    			  //  << a_pcs->GetNodeValue(a_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes().heatExchanger[0], 1) << '\n';
+    	}
+    }
+
+  	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
+  	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
+  	&& wdc_converged)
+    || outer_index+1 == cpl_overall_max_iterations)  // for FCT
+  	 // JT: error is relative to the tolerance.
+  	{
+        //auto now = std::time(nullptr);
+        //stream.imbue(std::locale)
+        std::ofstream stream("logging.txt", std::ios::app);
+        //stream << std::put_time(std::localtime(&now), "%c");
+        stream << aktuelle_zeit << '\t' << outer_index + 1;
+        for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
+        {
+        	stream << '\t' << ogs_wdc->get_extremum(a_pcs, 1, ogs_wdc->get_doublet_mesh_nodes().heatExchanger);
+        	//stream << '\t' << a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1);
+        	ogs_wdc->discard();  // !!! to recreate WDC in next time step
+        }
+        stream << '\n';
+		break;
+  	}
+
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
     {
       accept = false;
       break;
     }
+
+
   }
     if (accept){
       if (cp_vec.size() > 0){
@@ -1689,6 +1775,9 @@ void Problem::PostCouplingLoop()
 			m_pcs->CopyTimestepNODValues();
 			m_pcs->CopyTimestepELEValues();
 		}
+
+		//Secondary variables should be calculated after update the results, BW: 25.03.2020
+		m_pcs->CalcSecondaryVariables();
 	}
 // WW
 #if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
@@ -3234,7 +3323,7 @@ inline double Problem::HeatTransport()
 	CRFProcess* m_pcs = total_processes[8];
     if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StartTime(); // SB time
-
+    std::cout.flush();
 	if(!m_pcs->selected)
 		return error;             //12.12.2008 WW
    //CB This is a cheat to map a 2D horizontal heat pump distribution on a vertical model

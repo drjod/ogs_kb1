@@ -9,6 +9,7 @@
 #include "BruteForceClosestPair.h"
 #include "PointVec.h"
 #include "PointWithID.h"
+#include <cstdlib>
 
 // MathLib
 #include "MathTools.h"
@@ -27,9 +28,12 @@ PointVec::PointVec (const std::string& name, std::vector<Point*>* points,
 	rel_eps *= sqrt(MathLib::sqrDist (&(_aabb.getMinPoint()),&(_aabb.getMaxPoint())));
 	makePntsUnique (_data_vec, _pnt_id_map, rel_eps);
 
-	if (number_of_all_input_pnts - _data_vec->size() > 0)
-		std::cerr << "WARNING: there are " << number_of_all_input_pnts -
+	if (number_of_all_input_pnts - _data_vec->size() > 0)  // JOD 2020-04-07 changed to error
+	{
+		std::cerr << "ERROR: there are " << number_of_all_input_pnts -
 		_data_vec->size() << " double points" << "\n";
+		abort();    
+	}
 }
 
 PointVec::~PointVec ()

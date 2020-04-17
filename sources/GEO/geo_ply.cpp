@@ -631,6 +631,7 @@ ios::pos_type CGLPolyline::Read(std::ifstream &gli_file) //CC8888
 					std::string error_str = m_strname + m_strnameid;
 					return position;
 				}
+				std::streampos oldpos = gli_file.tellg();  // bookmark
 				gli_file.getline(line, MAX_ZEILEN);
 				line_string = line;
 				if ((line_string.find("#") != string::npos) \
@@ -638,7 +639,8 @@ ios::pos_type CGLPolyline::Read(std::ifstream &gli_file) //CC8888
 				    || (line_string.find("$") != string::npos)) //OK bugfix
 				{
 					i = 0;
-					new_keyword = true;
+					//new_keyword = true;
+					gli_file.seekg(oldpos);  // go back one line
 				}
 				else
 					lvalue = strtol(line_string.data(), NULL, 0);

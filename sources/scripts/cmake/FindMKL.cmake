@@ -12,7 +12,7 @@
 set(MKL_DIR "${MKL_DIR}" CACHE PATH "MKL root diretory")
 
 find_path(MKL_INCLUDES NAMES mkl.h
-    HINTS ${MKL_DIR} PATH_SUFFIXES include
+    HINTS ${MKL_DIR} $ENV{MKLROOT} PATH_SUFFIXES include # MKLROOT for intel16 on rzcluster - JOD 2018-1-16
 )
 
 # list up MKL library names
