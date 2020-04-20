@@ -3223,19 +3223,12 @@ void M2Vorkond(int aufgabe, double* x, double* b)
 		break;
 	//--------------------------------------------------------------------
 	case 2:
-		if VK_Modus         // JODNEW - fell into case 3
-			(VK_iLDU)         /*  incomplete L(D)U-Zerlegung geht nicht! */
-			DisplayMsgLn("Modell 2: kein ILU-Vorkonditionierer!");
-		break;
 	//--------------------------------------------------------------------
 	case 3:                               /* Linkstransformationen */
 		if VK_Modus
 		        (VK_iLDU)         /*  incomplete L(D)U-Zerlegung geht nicht! */
 		DisplayMsgLn("Modell 2: kein ILU-Vorkonditionierer!");
-		break;
 		//--------------------------------------------------------------------
-	default:
-		DisplayMsgLn("Error in M2Vorkond()");
 	}
 	//======================================================================
 }

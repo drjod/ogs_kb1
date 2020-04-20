@@ -121,7 +121,7 @@ CNumerics::CNumerics(string name)
 	// Deformation
 	GravityProfile = 0;
 	DynamicDamping = NULL;                //WW
-	/*if(pcs_type_name.compare("DEFORMATION") == 0)
+	if(pcs_type_name.compare("DEFORMATION") == 0)
 	{
 		ls_method = 2;
 		ls_error_method = 2;
@@ -141,7 +141,7 @@ CNumerics::CNumerics(string name)
 		ls_precond = 4;
 		ls_storage_method = 4;
 		nls_max_iterations = 25;
-    } */  // JODNEW removed
+	}
 
 #ifdef USE_PETSC
 	lsover_name = "bcgs";

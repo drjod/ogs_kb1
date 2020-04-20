@@ -7647,8 +7647,7 @@ double CMediumProperties::StorageFunction(long index,double* gp,double theta)
 		break;
 	case 21:	//KB0514: new storage model for defining fluid and solid compressibility directly
 		//m_mfp = mfp_vector[0];
-		//storage = porosity_model_values[0] * mfp_vector[0]->Density() * storage_model_values[1] + mfp_vector[0]->Density() * (1 - porosity_model_values[0]) * storage_model_values[0];
-        storage = porosity_model_values[0] * storage_model_values[1] + (1 - porosity_model_values[0]) * storage_model_values[0]; // 2016-5-2 KB/JOD TH Eclipse
+		storage = porosity_model_values[0] * mfp_vector[0]->Density() * storage_model_values[0] + mfp_vector[0]->Density() * (1 - porosity_model_values[0]) * storage_model_values[1];
 		break;
 	case 22:	//KB0514:
 		storage = 0.0;

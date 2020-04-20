@@ -1537,11 +1537,7 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-<<<<<<< HEAD
-double CFiniteElementStd::CalCoefMass(bool balance = false)
-=======
 double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 please update changes
->>>>>>> develop
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -1793,10 +1789,6 @@ double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 pl
 			val -= poro * rhov * dSdp / rhow;
 			val += (1.0 - Sw) * poro * rhov / (rhow * rhow * GAS_CONSTANT_V * TG);
 		}
-		if (balance == true)
-		{
-			val = Sw * rhow  * poro;
-		}
 		break;
 	case EPT_FLUID_MOMENTUM:                               // Fluid Momentum
 		val = 1.0;
@@ -1815,7 +1807,7 @@ double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 pl
    02/2007 WW Multi-phase flow
    05/2008 WW Generalization
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass2(int dof_index, bool balance = true)
+double CFiniteElementStd::CalCoefMass2(int dof_index)
 {
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
@@ -12016,102 +12008,29 @@ Programming:
 7/2015 JOD  take hydrostatic pressure into account
 **************************************************************************/
 
-<<<<<<< HEAD
-void CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord)
-=======
 double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord,
 		const int& mmp_index, const double& threshold_lower, const double& threshold_upper)
->>>>>>> develop
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
-	double fkt, Gauss_val;
-	bool diffusion = false;
+	double fkt = 0.0, det, Gauss_val, content = 0, NodeVal_shifted[8];
 	
 	Config();
 	setOrder(Order);
-<<<<<<< HEAD
-	if (PcsType == EPT_MULTIPHASE_FLOW && MediaProp->heat_diffusion_model == 1 && cpl_pcs)
-		diffusion = true;  // account for temperature in density
-	double dens_arg[3]; // 0: pressure, 1: temperature considered
-	double geo_factor = MediaProp->ElementVolumeMultiplyer;
-	//det = MeshElement->GetVolume();
-	double content_liquid = 0, content_gas = 0;
-
-	ElementValue* ele_value;
-	ele_value = ele_gp_value[Index];
-	if (PcsType == EPT_LIQUID_FLOW)
-	{
-		for (i = 0; i < nNodes; i++)
-			NodeVal[i] += FluidProp->Density() * gravity_constant * z_coord[i];   // take hydrostatic gradient into account 
-	}
-	else{
-	}
-	for (gp = 0; gp < nGaussPoints; gp++)
-	{
-
-		fkt = geo_factor * GetGaussData(gp, gp_r, gp_s, gp_t);
-=======
 	det = MeshElement->GetVolume();
 	//std::cout << "det: " << det << '\n';
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
 		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
->>>>>>> develop
 		ComputeShapefct(Order);
-		Gauss_val = 0.0;
 
-		for (i = 0; i < nNodes; i++) {
-			Gauss_val += NodeVal[i] * shapefct[i]; // Interpolation of value to Gauss point
-		}
-		switch (PcsType)
+		for (i = 0; i < nNodes; i++)
 		{
-			case EPT_PSGLOBAL:
-				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
-				content_liquid += fkt * (1 - Gauss_val) * FluidProp->Density() * poro;
-				content_gas += fkt * Gauss_val * GasProp->Density() * poro;
-				break;
-			case EPT_MULTIPHASE_FLOW:
-				dens_arg[0] = Gauss_val;
-				dens_arg[1] = 293.15;
-				if (diffusion)
+			if (PcsType == FiniteElement::LIQUID_FLOW)  
 			{                                           // take hydrostatic gradient into account 
-					TG = interpolate(NodalValC1) + T_KILVIN_ZERO;
-					dens_arg[1] = TG;
-				}
-				rhow = FluidProp->Density(dens_arg);
-				Sw = MediaProp->SaturationCapillaryPressureFunction(Gauss_val);
-				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
-				content_liquid += fkt * Sw * rhow * poro;
-				rho_ga = GasProp->Density(dens_arg);
-				content_gas += fkt * (1 - Sw) * rho_ga * poro;
-				break;
-			case EPT_RICHARDS_FLOW:
-				rhow = FluidProp->Density(dens_arg);
-				if (Gauss_val < 0.) {
-					Sw = MediaProp->SaturationCapillaryPressureFunction(-Gauss_val);
+				NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
 			}
 			else                                        // do nothing
-<<<<<<< HEAD
-					Sw = 1;
-				content_liquid += fkt * Sw * rhow * MediaProp->Porosity(Index, pcs->m_num->ls_theta);
-				break;
-			case EPT_LIQUID_FLOW:
-			case EPT_HEAT_TRANSPORT:
-			case EPT_MASS_TRANSPORT:
-				content_liquid += fkt * Gauss_val * CalCoefMass(true);
-				break;
-			default:
-				cout << "ERROR in CalculateContent - Process " << PcsType << "not supported" << endl;
-		}
-		
-		/*for (i = 0; i < nnodes; i++)
-		for (int j = 0; j < nnodes; j++)
-			// bei CT: phi * omega; phi beinh. uw-fakt.
-			content_liquid += factor *
-			(shapefct[i] ) * shapefct[j];
-			*/
-=======
 				NodeVal_shifted[i] = NodeVal[i];
 
 			if(mmp_index == -2)
@@ -12140,13 +12059,10 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord,
 		//std::cout << "MAss coef: " << CalCoefMass() << '\n';
 		//std::cout << "Multiplier: " << MediaProp->ElementVolumeMultiplyer << '\n';
 
->>>>>>> develop
 	}
+	
+	return content;
 
-	//content_liquid *= Gauss_val;
-
-	ele_value->setLiquidContent(content_liquid);
-	ele_value->setGasContent(content_gas);
 }
 
 /**************************************************************************
@@ -12157,7 +12073,7 @@ Programming:
 
 **************************************************************************/
 
-void CFiniteElementStd::IncorporateSourceTerm(long From, long To, double factor, bool symmetric, bool diagonalOnly)
+void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric)
 {
 
 
@@ -12197,13 +12113,11 @@ void CFiniteElementStd::IncorporateSourceTerm(long From, long To, double factor,
 #endif
 
 	(*A)(To, To) += factor;
-	if ( diagonalOnly == false )  // 2016-4-19  for flow coupling, normal depth, critical depth (only non-symmetric)
-	    (*A)(To, From) -= factor;
+	(*A)(To, From) -= factor;
 #else
 
 	MXInc(To, To, factor ); // ToNode on diagonal
-	if ( diagonalOnly == false )   // 2016-4-19 for flow coupling, normal depth, critical depth (only non-symmetric)
-	    MXInc(To, From, -factor); 
+	MXInc(To, From, -factor); //
 
 #endif	
 #endif

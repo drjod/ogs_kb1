@@ -265,7 +265,6 @@ public:
 	std::vector<double> vec_PRESS1;//KB
     std::vector<double> vec_PRESS2;
     std::vector<double> vec_PRESS3;
-	std::vector<double> vec_P_init; //KB
     //std::vector <std::vector<double> > vec_Comp_MLSC_elements;
     //std::vector <double> vec_RS_elements;
 	//std::vector <std::vector<double> > vec_CompConc_like_values_elements;
@@ -374,11 +373,11 @@ public:
 
 	bool ReplaceWellRate(CReadTextfiles_ECL* eclDataFile);
 
-	int WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string projectname, long Timestep);// timestep for HM
+	int WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string projectname);
 
     bool CalculateDeltaGeoSysECL(CRFProcess* m_pcs);
 
-	bool InterpolateDeltaGeoSysECL(CRFProcess* m_pcs, long Timestep);  // timestep for HM
+	bool InterpolateDeltaGeoSysECL(CRFProcess* m_pcs);
 
 	void ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfiles_ECL* eclFFile, long Timestep, CRFProcess* m_pcs);
 
@@ -413,7 +412,7 @@ public:
 	//bool MakeNodeVector(CRFProcess *m_pcs, std::string path, int timestep, int phase_index);
 	bool MakeNodeVector(void);
 
-	void ReadEclipseData(std::string Pathname, CRFProcess* m_pcs,  long Timestep);// timestep for HM
+	void ReadEclipseData(std::string Pathname);
 
 	//void CalculateRSfromMassFraction_E300();
 	void ConvertEclipseDataToUniformUnits(CRFProcess* m_pcs, long Timestep);
@@ -436,7 +435,7 @@ public:
 
 	void InterpolateGeosysVelocitiesToNodes(CRFProcess* m_pcs, double* vel_nod, long node);
 
-	void WriteDataToGeoSys(CRFProcess* m_pcs, const std::string folder, long Timestep);// timestep for HM
+	void WriteDataToGeoSys(CRFProcess* m_pcs, std::string folder);
 	
 	void SaveEclipseDataFile(long Timestep, CRFProcess* m_pcs); // WTP function to save a copy of the .data file 
 

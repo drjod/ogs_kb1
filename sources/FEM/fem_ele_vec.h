@@ -103,7 +103,7 @@ public:
 	// Set material data
 	void SetMaterial();
 	//KB0714
-	double VolumeStrainIntegrationForEclipse(MeshLib::CElem* elem);
+	double VolumeStrainIntegrationForEclipse();
 
 	// Get strain
 	double* GetStrain() const {return dstrain; }

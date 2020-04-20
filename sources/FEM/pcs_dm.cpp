@@ -3665,7 +3665,7 @@ void CRFProcessDeformation::VolumeStrainIntegrationForEclipse()
 			continue;
 		elem->SetOrder(true);
 		fem_dm->ConfigElement(elem, m_num->ele_gauss_points);
-		pcs_vector[0]->d_strain_2.push_back(fem_dm->VolumeStrainIntegrationForEclipse(elem));
+		pcs_vector[0]->d_strain_2.push_back(fem_dm->VolumeStrainIntegrationForEclipse());
 	}
 }
 }                                                 // end namespace

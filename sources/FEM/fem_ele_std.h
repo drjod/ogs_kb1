@@ -12,7 +12,7 @@
 
 #include "fem_ele.h"
 #include "matrix_class.h"
-#include <vector>
+
 // Problems
 #include "rf_mfp_new.h"
 //#include "rf_msp_new.h"
@@ -109,13 +109,8 @@ public:
 	void CalcStorage();
 	// 9. Content matrix
 	void CalcContent();
-<<<<<<< HEAD
-	void CalculateContent(double *, double *);       // for budgets JOD 2/2015
-	void IncorporateSourceTerm(long UpwindNode, long DownwindNode, double factor, bool symmetric, bool diagonalOnly); // JOD 2/2015
-=======
 	double CalculateContent(double *, double *, const int&, const double&, const double&);       // for budgets JOD 2/2015
 	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
->>>>>>> develop
 	void CalcContentTNEQ(); //NW
 	void CalcContentTES(); //NW
 	//
@@ -287,13 +282,9 @@ private:
 	//
 	void Config();
 	//
-<<<<<<< HEAD
-	double CalCoefMass(bool);
-=======
 	double CalCoefMass(bool flag_calcContent=false); // BW: 23.03.2020 please update changes
->>>>>>> develop
 	// 25.2.2007 WW
-	double CalCoefMass2(int dof_index, bool);
+	double CalCoefMass2(int dof_index);
 	double CalCoefMasstneq(int dof_index);
 	// 03.3.2009 PCH
 	double CalCoefMassPSGLOBAL(int dof_index);
@@ -461,10 +452,6 @@ public:
 	Matrix Velocity_g; // WTP
 	double density;  // JOD 2018-8-15 - for output of density from the (last) LIQUID_FLOW iteration
 
-	double getLiquidContent(void) { return content[0]; }  // JOD 2016-7-28 - getter / setter for content output
-	double getGasContent(void) { return content[1]; }
-	void setLiquidContent(double value) { content[0] = value; }
-	void setGasContent(double value) { content[1] = value; }
 	// HS Thermal Storage parameters---------------
 	// Array of parameters on each Gauss point
 	double *rho_s_prev, *rho_s_curr;
@@ -482,7 +469,6 @@ private:
 	//WTP Matrix Velocity_g;
 	// CB _ctx_ CB_merge_0513
 	//Matrix _ctx_Gauss;
-	double content[2]; // JOD 2016-7-28 - content output - balancing toolkit
 };
 }                                                 // end namespace
 

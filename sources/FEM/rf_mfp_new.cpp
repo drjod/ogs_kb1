@@ -2284,7 +2284,6 @@ double CFluidProperties::Viscosity(double* values)
 	case 0:                               // rho = f(x)
 	{
 		int valid;
-		//cout << "primVal" << primVal[0] << endl;
 		viscosity = GetCurveValue(viscosity_curve_number, 0, primVal[0], &valid);
 		if ( valid != 1)
 		  cout << "Error in CFluidProperties::Viscosity: Did not get curve value" << "\n";

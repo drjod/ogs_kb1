@@ -131,18 +131,6 @@ CSourceTerm::CSourceTerm() :
    _isConstrainedST = false;
 
    everyoneWithEveryone = false;  //  JOD 2015-11-18
-<<<<<<< HEAD
-
-   this->connected_geometry = false;
-   this->diagonalOnly = true;
-   this->connected_geometry_verbose_level = 0;
-   this->connected_geometry_exchange_term = 0.0;
-   this->connected_geometry_mode = 1;
-   this->connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
-   this->connected_geometry_ref_element_number = -1;
-   this->connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
-
-=======
    threshold.type = Threshold::no;
    storageRate.apply = false;
    assign_to_element_edge = false;
@@ -161,7 +149,6 @@ CSourceTerm::CSourceTerm() :
    ignore_axisymmetry = false;
 
    wdc_connector_materialGroup = -1;
->>>>>>> develop
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -575,7 +562,6 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	      //in.str(readNonBlankLineFromInputStream(*st_file));
 		  //in >> connected_geometry_type >> connected_geometry_name;
 		  this->connected_geometry = true;
-		  diagonalOnly = false;
 		  in.clear();
 		  continue;
 	  }
@@ -2935,21 +2921,7 @@ void GetGreenAmptNODValue(double &value, CSourceTerm* m_st, long msh_node)
  Programing:
  01/2007 JOD Implementation
  09/2010 KR cleaned up code
- 04/2016 JOD reactivated
  **************************************************************************/
-<<<<<<< HEAD
-
-void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
-{
-
-	if (st->isCoupled())
-	{
-	    if ( st->getProcessType() == FiniteElement::OVERLAND_FLOW )
-		    GetCouplingNODValueNewton(value, st, cnodev);
-		else
-			GetCouplingNODValuePicard(value, st, cnodev);  // GROUNDWATER, RICHARDS, MULTI_PHASE, HEAT
-	}
-=======
 #if !defined(USE_PETSC)
 //&& !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
@@ -2973,8 +2945,8 @@ void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
 	  GetCouplingNODValueNewton(value, st, cnodev);
 	else
       std::cout << "Error in GetCouplingNODValue";
->>>>>>> develop
 }
+#endif
 
 /**************************************************************************
  FEMLib-Method:
@@ -2985,19 +2957,13 @@ void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
  01/2007 JOD Implementation
  10/2008 JOD overland node shifting for soil columns, averaging automatically 4.7.10
  12/2012 JOD Extension to TWO_PHASE_FLOW  5.3.07
- 04/2016 JOD reactivate - extend for sparse matrix solver & HEAT_TRANSPORT
  **************************************************************************/
-<<<<<<< HEAD
-
-void GetCouplingNODValuePicard(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
-=======
 #if !defined(USE_PETSC)
 //&& !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
 void GetCouplingNODValuePicard(double &value
 	, CSourceTerm* m_st,
 CNodeValue* cnodev)
->>>>>>> develop
 {
 
    double relPerm, condArea;
@@ -3075,9 +3041,6 @@ CNodeValue* cnodev)
       condArea /= gamma; // pressure as a primary variable
    /////
 
-<<<<<<< HEAD
-   m_pcs_this->IncorporateSourceTermIntoMatrix(cnodev->msh_node_number, cnodev->msh_node_number, condArea, m_st);
-=======
 #ifdef NEW_EQS
    // JOD 2018-5-17
    CSparseMatrix* A = NULL;
@@ -3086,14 +3049,10 @@ CNodeValue* cnodev)
 #else
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, condArea);
 #endif
->>>>>>> develop
 
    if(m_st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW &&  m_st->pcs_pv_name_cond == "HEAD"   // 
 		 && m_st->pcs_type_name_cond == "OVERLAND_FLOW" ) // ??? 
    {   // gas pressure term 
-<<<<<<< HEAD
-	   //MXInc(cnodev->msh_node_number , cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size(), -condArea); 
-=======
 
 #ifdef NEW_EQS
 	   // JOD 2018-5-17
@@ -3101,7 +3060,6 @@ CNodeValue* cnodev)
 #else
 		MXInc(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size(), -condArea);
 #endif
->>>>>>> develop
 	   value  -= condArea * m_st->coup_given_value;
    }
   
@@ -3114,6 +3072,7 @@ CNodeValue* cnodev)
      value = 0; 
 
 }
+#endif
 
 
 /**************************************************************************
@@ -3174,17 +3133,12 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
  01/2007 JOD Implementation
  10/2008 JOD node shifting for soil columns 4.7.10
  12/2012 JOD coupling with TWO_PHASE_FLOW  5.3.07
- 04/2016 JOD reactivate - extend for sparse matrix solver
  **************************************************************************/
-<<<<<<< HEAD
-void GetCouplingNODValueNewton(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
-=======
 #if !defined(USE_PETSC)
 //&& !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
 void GetCouplingNODValueNewton(double &value, CSourceTerm* m_st,
 CNodeValue* cnodev)
->>>>>>> develop
 {
    double relPerm, area, condArea, gamma = 0.0;
    double h_this, h_cond, z_this, z_cond, h_this_shifted, h_this_averaged;
@@ -3268,12 +3222,6 @@ CNodeValue* cnodev)
    value = CalcCouplingValue(condArea, h_this_averaged, h_cond, z_cond, m_st);
 
    value_jacobi = -condArea_epsilon * (h_cond - h_this_epsilon) + value; // it's a Newton iteration
-<<<<<<< HEAD
-
-   m_pcs_this->IncorporateSourceTermIntoMatrix(cnodev->msh_node_number, cnodev->msh_node_number, value_jacobi / epsilon, m_st);
-   //MXInc(cnodev->msh_node_number, cnodev->msh_node_number, value_jacobi 
-  //    / epsilon);
-=======
 #ifndef NEW_EQS
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, value_jacobi 
       / epsilon);
@@ -3281,7 +3229,6 @@ CNodeValue* cnodev)
 #endif
 
 
->>>>>>> develop
    /////  output 
    m_pcs_this->SetNodeValue(cnodev->msh_node_number,
    // coupling flux (m/s)
@@ -3289,6 +3236,7 @@ CNodeValue* cnodev)
  
  
 }
+#endif
 
 /**************************************************************************
  FEMLib-Method:
@@ -3350,8 +3298,6 @@ double CSourceTerm::GetRelativeInterfacePermeability(CRFProcess* pcs, double hea
   return relPerm;
 }
 
-<<<<<<< HEAD
-=======
 /**************************************************************************
  FEMLib-Method:
  Task: Coupling of overland and soil flow by using water depth as soil boundary
@@ -3379,12 +3325,17 @@ CNodeValue* cnodev)
    CRFProcess* m_pcs_this = NULL;
    m_pcs_this = PCSGet(convertProcessTypeToString (m_st->getProcessType()));
    m_pcs_cond = PCSGet(m_st->pcs_type_name_cond);
->>>>>>> develop
 
-//#if !defined(NEW_EQS) && !defined(USE_PETSC)                                   //WW. 06.11.2008
+   area = value;
+   leakance = m_st->getCoupLeakance();
+   deltaZ = m_st->st_rill_height;
+                                                  // phase  = 0 !!!!
+   gamma = mfp_vector[0]->Density() * GRAVITY_CONSTANT;
+   long msh_node_2nd;
+   double const* const xyz_this (m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->getData());
+//   double y_this = m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->Y();
+//   double z_this = m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->Z();
 
-<<<<<<< HEAD
-=======
    msh_node_2nd = -1;                             //WW
 
    cond0 = leakance * deltaZ;
@@ -3574,7 +3525,6 @@ CNodeValue* cnodev)
 //	double flux = value / NodeReachLength; //fluxes in m^2/s !!
 //	m_pcs_this->SetNodeValue(cnodev->msh_node_number, nidxFLUX, flux);
 //}
->>>>>>> develop
 
 /**************************************************************************
  FEMLib-Method:
@@ -3582,7 +3532,6 @@ CNodeValue* cnodev)
  Programing:
  02/2006 MB Implementation
  02/2006 WW Change argument
- 04/2016 JOD reactivate - extend for sparse matrix solver
  **************************************************************************/
 //double CSourceTermGroup::GetCriticalDepthNODValue(CNodeValue* cnodev,CSourceTerm* m_st, long msh_node)
 void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
@@ -3625,15 +3574,10 @@ void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
       /*
 #ifndef NEW_EQS && !defined(USE_PETSC)
                                                   // write source term into jacobi
-<<<<<<< HEAD
-	  m_pcs_this->IncorporateSourceTermIntoMatrix(msh_node, msh_node, value_jacobi / epsilon, m_st);
-
-=======
       MXInc(msh_node, msh_node, value_jacobi / epsilon);
 // else ...
 #endif
 */
->>>>>>> develop
       m_pcs_this->SetNodeValue(msh_node,
          m_pcs_this->GetNodeValueIndex("FLUX") + 0, -value);
 
@@ -3647,7 +3591,6 @@ void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
  Programing:
  02/2006 MB JOD Implementation
  06/2007 JOD 2D case with slope in st-file
- 04/2016 JOD reactivate - extend for sparse matrix solver
  **************************************************************************/
 void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
 {
@@ -3708,13 +3651,6 @@ void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
    /*
 #ifndef NEW_EQS && !defined(USE_PETSC)
                                                   // write source term into jacobi
-<<<<<<< HEAD
-   pcs_this->IncorporateSourceTermIntoMatrix(msh_node, msh_node, value_for_jacobi / epsilon, st);
-
-   pcs_this->SetNodeValue(msh_node, pcs_this->GetNodeValueIndex("FLUX")
-      + 0, -value);
-}
-=======
    MXInc(msh_node, msh_node, value_for_jacobi / epsilon);
 // else
 #endif
@@ -3723,23 +3659,18 @@ void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
       + 0, -value);
 }
 //#endif
->>>>>>> develop
 
 /**************************************************************************
  FEMLib-Method:
  Task:
  Programing:
  11/2007 JOD Implementation
- 04/2016 JOD reactivate critical depth, normal depth, flow coupling - extend for sparse matrix solver
  **************************************************************************/
 void GetNODValue(double& value, CNodeValue* cnodev, CSourceTerm* st)
 {
-<<<<<<< HEAD
-=======
 #if !defined(USE_PETSC)
 	//&& !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
   //#ifndef NEW_EQS                                //WW. 06.11.2008
->>>>>>> develop
    if (st->isCoupled())
       GetCouplingNODValue(value, st, cnodev);
    else if (st->isAnalytical())
@@ -3750,13 +3681,22 @@ void GetNODValue(double& value, CNodeValue* cnodev, CSourceTerm* st)
       //WW         value = m_st_group->GetAnalyticalSolution(m_st,msh_node,(string)function_name[j]);
    }
 
+   //	if (cnodev->node_distype == 5) // River Condition
+   //	if (cnodev->getProcessDistributionType() == RIVER)
+   //		GetRiverNODValue(value, cnodev, st); //MB
+   //	if (cnodev->node_distype == 6) // CriticalDepth Condition
+                                                  // CriticalDepth Condition
    if (cnodev->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
                                                   //MB
       GetCriticalDepthNODValue(value, st, cnodev->msh_node_number);
+   //	if (cnodev->node_distype == 8) // NormalDepth Condition JOD
    if (cnodev->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
                                                   //M
       GetNormalDepthNODValue(value, st, cnodev->msh_node_number);
-
+#endif
+   //	if (cnodev->node_distype == 10) // Philip infiltration JOD
+   //		GetPhilipNODValue(value, st);
+   //	if (cnodev->node_distype == 11) // Green_Ampt infiltration JOD
    if (cnodev->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
       GetGreenAmptNODValue(value, st, cnodev->msh_node_number);
 
@@ -6113,15 +6053,15 @@ CSourceTerm* m_st, CNodeValue* cnodev, long msh_node_number, long msh_node_numbe
 
    *h_this = m_pcs_this->GetNodeValue(msh_node_number, nidx);
 
-   if (m_st->pcs_pv_name_cond == "GIVEN_HEIGHT" || m_st->pcs_pv_name_cond == "GIVEN_TEMPERATURE" || m_st->pcs_pv_name_cond == "PRESSURE2")
+   if(m_st->pcs_pv_name_cond == "GIVEN_HEIGHT" || m_st->pcs_pv_name_cond == "PRESSURE2")
    {
-	 *h_cond = *h_shifted = m_st->coup_given_value; // coupled to fixed pressure head, atmospheric pressure or temperature
+	 *h_cond = *h_shifted = m_st->coup_given_value; // coupled to fixed pressure head / or atmospheric pressure
 	 *z_this = *z_cond = 0;
 	 return;
    }
    else if(m_st->pcs_pv_name_cond == "GIVEN_PRESSURE")
   {
-	 *h_cond = *h_shifted = m_st->coup_given_value / gamma; // coupled to fixed pressure head, atmospheric pressure or temperature
+	 *h_cond = *h_shifted = m_st->coup_given_value / gamma; // coupled to fixed pressure head / or atmospheric pressure
 	 *z_this = *z_cond = 0;
 	 return;
    }
@@ -6206,7 +6146,6 @@ CSourceTerm* m_st, CNodeValue* cnodev, long msh_node_number, long msh_node_numbe
 /**************************************************************************
  FEMLib-Method: 4.7.10
  10/2008 JOD Implementation
- 04/2016 JOD add HEAT_TRANSPORT
  **************************************************************************/
 double CalcCouplingValue(double factor, double h_this, double h_cond,
 double z_cond, CSourceTerm* m_st)
@@ -6219,19 +6158,17 @@ double z_cond, CSourceTerm* m_st)
       else
          return factor * (h_cond - h_this);
    }                                              // Richards' & groundwater flow
-   else if (m_st->getProcessType() == FiniteElement::GROUNDWATER_FLOW)
-   {
-       if (h_this < z_cond && m_st->pcs_type_name_cond == "OVERLAND_FLOW")
-		   return factor * (h_cond - z_cond); // decoupled
-	    else
-	     return factor * h_cond;
-   }
-   else if (m_st->getProcessType() == FiniteElement::RICHARDS_FLOW || m_st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW)
-      return factor * (h_cond - z_cond); 
-   else if (m_st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
-	   return factor * h_cond;
    else
-	   cout << "ERROR IN CalcCouplingValue - Process " << m_st->getProcessType() << " not supported";
+   {
+      if (m_st->getProcessType() == FiniteElement::GROUNDWATER_FLOW)
+      {
+         if (h_this < z_cond && m_st->pcs_type_name_cond == "OVERLAND_FLOW")
+            return factor * (h_cond - z_cond); // decoupled
+         else
+            return factor * h_cond;
+      } else
+      return factor * (h_cond - z_cond);  // Richards', two-phase flow (liquid & gas)
+   }
 }
 
 
@@ -6307,7 +6244,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
-	m_pcs->IncorporateSourceTermIntoMatrix(FromNode, ToNode, factor, m_st);
+	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st);
 
 	value = 0; // factor * m_st->connected_geometry_offset;
 

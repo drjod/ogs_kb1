@@ -1098,8 +1098,8 @@ void Problem::Euler_TimeDiscretize()
 	// ------------------------------------------
 	// PERFORM TRANSIENT SIMULATION
 	// ------------------------------------------
-	//std::fstream fout("timer.txt", std::ofstream::out | std::ios::app);
-	//FancyTimer<std::fstream> timer("Coupling loop: ", fout);
+	std::fstream fout("timer.txt", std::ofstream::out | std::ios::app);
+	FancyTimer<std::fstream> timer("Coupling loop: ", fout);
 	double previous_rejected_dt = .0;
 	while(end_time > current_time)
 	{
@@ -1628,11 +1628,7 @@ bool Problem::CouplingLoop()
         //	index = active_process_index[i];
         //	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
         //}
-		  double errorPostMass;
-        errorPostMass = PostMassTrasport();
-		std::cout << " ----------- TRACER ERROR: " << errorPostMass  << "\n";
-		//if (errorPostMass > 1000.)
-		//	accept = false;
+        PostMassTrasport();
       }
     }
 	
@@ -3514,7 +3510,7 @@ inline double Problem::PostMassTrasport()
   if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StopTime("EquiReact", aktueller_zeitschritt); // CB time
 
-  return error;
+  return 1;
 }
 
 /*-------------------------------------------------------------------------

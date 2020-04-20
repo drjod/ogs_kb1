@@ -354,7 +354,7 @@ CRFProcess::CRFProcess(void) :
 	dissolved_co2_pcs_name = ""; // SB, CB 10/2011 Name of MASS_TRANSPORT process used to store dissolved total CO2 in water
 	dissolved_co2_ingas_pcs_name = "";
 	this->Gravity_on = 1; // SB 03/2015
-	Terzaghi = false; // WTP 07/2015
+	this->therzagi = 0; // WTP 07/2015
 
 	//----------------------------------------------------------------------
 	m_bCheck = false;                     //OK
@@ -2415,9 +2415,9 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 			*pcs_file >> Gravity_on; // 0 = neglect, 1 = consider
 			continue;
 		}
-		if (line_string.find("$TERZAGHI") == 0)//KB1014
+		if (line_string.find("$THERZAGI") == 0)//KB1014
 		{
-			Terzaghi = true; 
+			*pcs_file >> therzagi; // 0 = false, 1 = true
 			continue;
 		}
 		//....................................................................
@@ -17318,45 +17318,22 @@ Programming:
 7/2015 JOD consider geoArea
 **************************************************************************/
 
-<<<<<<< HEAD
-void CRFProcess::CalculateTotalContent(int mmp_index, std::vector<std::string> _nod_value_vector) //const
-{
-
-	double nodesVal[8], z_coord[8];
-=======
 double CRFProcess::AccumulateContent(const int& mmp_index, const double& threshold_lower, const double& threshold_upper,
 		std::vector<std::string> _nod_value_vector) //const
 {
 
 	double nodesVal[8], x_coord[8], z_coord[8], content = 0, geoArea;
->>>>>>> develop
 	CNode* e_node;
 	CElem* elem;
 	size_t i, j, nn;
 	int nidx1;
 	if (_nod_value_vector.size() == 1)
-	{   // take variable as selected in input file (for MASS_TRANSPORT) - only one component in each output instance!!!
-		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true);// +1; provides index for new time step 
-	}
+		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true) + 1;   // only one component in  MASS TRANSPORT !!!!
 	else
-	{   // take primary variable
-		if (getProcessType() == FiniteElement::PS_GLOBAL)
-			nidx1 = 3; // SATURATION2
-		else
 		nidx1 = 1;
-<<<<<<< HEAD
-	}
-
-	totalContent[0] = totalContent[1] = 0.; // 0: liquid, 1: gas
-	for (i = 0; i < m_msh->ele_vector.size(); i++)
-	{
-		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index // elements for index selected in input file
-			                                        || mmp_index == -1 /* complete domain, all elements */ )
-=======
 	for (i = 0; i < m_msh->ele_vector.size(); i++)
 	{
 		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
->>>>>>> develop
 		{ // -1 : take all
 			elem = m_msh->ele_vector[i];
 			if (!elem->GetMark())
@@ -17365,11 +17342,7 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const double& thresho
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
-<<<<<<< HEAD
-			//geoArea = elem->GetFluxArea(); // thickness of 2D aquifer - is media prop in calculateContent()
-=======
 			//geoArea = elem->GetFluxArea();
->>>>>>> develop
 			nn = elem->GetNodesNumber(m_msh->getOrder());
 			for (j = 0; j < nn; j++) {
 				e_node = elem->GetNode(j);
@@ -17377,17 +17350,11 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const double& thresho
 
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 			}
-<<<<<<< HEAD
-			fem->CalculateContent(nodesVal, z_coord);
-			totalContent[0] += ele_gp_value[i]->getLiquidContent(); // liquid (sums up element values)
-			if (getProcessType() == FiniteElement::MULTI_PHASE_FLOW || getProcessType() == FiniteElement::PS_GLOBAL)
-			    totalContent[1] += ele_gp_value[i]->getGasContent(); // gas (sums up element values)
-=======
 			content += fem->CalculateContent(nodesVal, z_coord, mmp_index, threshold_lower, threshold_upper);// * geoArea;
->>>>>>> develop
 		}
 	}
 
+	return content;
 
 }
 
@@ -17410,7 +17377,7 @@ mode 0: symmetric
  if abs(v) < min_vel:  symmetric
 **************************************************************************/
 
-void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, double factor, CSourceTerm* m_st)
+void CRFProcess::IncorporateNodeConnectionSourceTerms(long FromNode, long ToNode, double factor, CSourceTerm* m_st)
 {
 
 	double velocity_ref[3];
@@ -17431,7 +17398,7 @@ void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, dou
 		  if (m_st->connected_geometry_verbose_level > 0)
 			std::cout << "        Incorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateSourceTerm( FromNode, ToNode, factor, true, m_st->diagonalOnly );
+		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
 		  break;
 
 	  case 1 : // non-symmetric - downstream fixed
@@ -17439,7 +17406,7 @@ void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, dou
 		  if (m_st->connected_geometry_verbose_level > 0)
 			std::cout << "        Incorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateSourceTerm( FromNode, ToNode, factor, false, m_st->diagonalOnly );
+		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
 		  break;
 
 	  case 2 : // variable - dependent on velocity in reference element
@@ -17456,14 +17423,14 @@ void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, dou
 				if (m_st->connected_geometry_verbose_level > 0)
 					std::cout << "        Incorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateSourceTerm( FromNode, ToNode, factor, false, m_st->diagonalOnly ); // non-symmetric in direction of n_ref
+				fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
 			}
 			else            // swap nodes
 			{
 				if (m_st->connected_geometry_verbose_level > 0)
 					std::cout << "        Incorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateSourceTerm( ToNode, FromNode, factor, false, m_st->diagonalOnly ); // non-symmetric in direction of -n_ref
+				fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
 			}
 
 		}
@@ -17472,7 +17439,7 @@ void CRFProcess::IncorporateSourceTermIntoMatrix(long FromNode, long ToNode, dou
 			if (m_st->connected_geometry_verbose_level > 0)
 				std::cout << "        Incorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-			fem->IncorporateSourceTerm( FromNode, ToNode, factor, true, m_st->diagonalOnly );
+			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
 		}
 
 		break;

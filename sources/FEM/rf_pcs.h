@@ -227,7 +227,6 @@ private:
 	bool _hasConstrainedBC;
 	bool _hasConstrainedST;
 	long _idxVx, _idxVy, _idxVz;
-	double totalContent[2]; // JOD - 2016-7-28 - for mass balance toolkit- 0: liquid, 1: gas getter below
 
 protected:                                        //WW
 	friend class FiniteElement::CFiniteElementStd;
@@ -358,13 +357,8 @@ protected:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
-<<<<<<< HEAD
-	double getTotalLiquidContent(void) { return totalContent[0]; }  // JOD 2016-7-28 - balancing toolkit
-	double getTotalGasContent(void) { return totalContent[1]; }
-=======
 	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
 	std::vector<OGS_contraflow*> ogs_contraflow_vector;  // JOD 2019-31-07
->>>>>>> develop
 	// BG, DL Calculate phase transition of CO2
 	void CO2_H2O_NaCl_VLE_isobaric(double T,
 	                               double P,
@@ -543,7 +537,7 @@ public:
 
 	bool M_feedback;				//KB1014
 	int Gravity_on;				//KB1014
-	bool Terzaghi;				//KB1014
+	int therzagi;				//KB1014
 	bool Iterative_Eclipse_coupling; //KB0116
 	std::string simulator_well_path;      // path to well schedule ( *.well), with extension
 	std::vector <std::vector < std::string > > vec_component_pcs_names;   // WTP 04/2014 new data structure for coupling the ogs pcs names to ECL component names
@@ -633,13 +627,8 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
-<<<<<<< HEAD
-	void CalculateTotalContent(int, std::vector<std::string>); // JOD 2/2015
-	void IncorporateSourceTermIntoMatrix(long, long, double, CSourceTerm*); // JOD 2/2015
-=======
 	double AccumulateContent(const int&, const double&, const double&, std::vector<std::string>); // JOD 2/2015
 	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
->>>>>>> develop
 
 	// MSH
 	CFEMesh* m_msh;                       //OK

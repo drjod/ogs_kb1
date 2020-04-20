@@ -45,7 +45,6 @@ public:
 	std::vector<double> DistribedBC;
 	std::string dis_type;
 
-	double accumulatedFlux_diffusive, accumulatedFlux_diffusive_gas, accumulatedFlux_advective;  // JOD 2016-2-24  mass balance toolkit
 	/**
 	 * scaling factor for values
 	 * @param amplifier - a double value for scaling data
@@ -166,12 +165,12 @@ public:
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10
-	void AccumulateTotalFlux(CRFProcess*, double*, double*, double*); // JOD 2/2015
+	void AccumulateTotalFlux(CRFProcess*, double*, double*); // JOD 2/2015
 	void SetTotalFluxNodes(std::vector<long>& nodes_vector); //JOD 2014-11-10
 	void SetTotalFluxNodesPLY(std::vector<long>& nodes_vector); // JOD 2014-11-10
 	void SetTotalFluxNodesSURF(std::vector<long>& nodes_vector); // JOD 2014-11-10
 	void SetTotalFluxNodesDOM(std::vector<long>& nodes_vector); // JOD 2014-11-10
-	void NODCalcFlux(CRFProcess*, MeshLib::CElem *, MeshLib::CElem*, int*, int, double *, double *, double *);   // JOD 2/2015
+	void NODCalcFlux(CRFProcess*, MeshLib::CElem *, MeshLib::CElem*, int*, int, double *, double *);   // JOD 2/2015
 	//void InterpolatePoints2Nodes(std::vector<double>&);   // JOD 2/2015
     //------------------------------------------------------
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW

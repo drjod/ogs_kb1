@@ -1559,18 +1559,18 @@ Programming:
 
 **************************************************************************/
 
-void CElement::CalculateFluxThroughFace(long element_index, double location_factor, double *NodeVal, double *NodeVal2, double *NodeVal_adv, double* normal_diff_flux, double* normal_diff_flux2, double* normal_adv_flux)
+void CElement::CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
-	double fkt;
-	double det = MeshElement->GetVolume();
-	double Gauss_val_normal_diff_flux, Gauss_val_normal_diff_flux2, Gauss_val_normal_adv_flux;
+	double fkt = 0.0, det;
+	double Gauss_val_normal_diff_flux, Gauss_val_normal_adv_flux;
 
 	ElementValue* gp_ele = ele_gp_value[element_index];
 
 	setOrder(Order);
 
+	det = MeshElement->GetVolume();
 	// Loop over Gauss points
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
@@ -1604,7 +1604,7 @@ void CElement::CalculateFluxThroughFace(long element_index, double location_fact
 				"\n";
 		}
 
-		fkt *= location_factor; // factor= 0.5 if face in domain; 1 if face at domain boundary
+		fkt *= factor; // factor= 0.5 if face in domain; 1 if face at somain boundary
 
 		ComputeShapefct(Order);
 
@@ -1613,12 +1613,10 @@ void CElement::CalculateFluxThroughFace(long element_index, double location_fact
 
 		for (i = 0; i < nNodes; i++) {	// Interpolation to Gauss point
 			Gauss_val_normal_diff_flux += NodeVal[i] * shapefct[i];
-			Gauss_val_normal_diff_flux2 += NodeVal2[i] * shapefct[i];
 			Gauss_val_normal_adv_flux += NodeVal_adv[i] * shapefct[i];
 		}
 		//////
 		*normal_diff_flux += fkt * Gauss_val_normal_diff_flux;
-		*normal_diff_flux2 += fkt * Gauss_val_normal_diff_flux2;
 		*normal_adv_flux += fkt * Gauss_val_normal_adv_flux;
 
 	} // end gauss points
