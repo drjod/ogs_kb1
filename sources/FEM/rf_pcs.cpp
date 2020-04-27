@@ -14729,7 +14729,7 @@ CRFProcess* PCSGetMass(size_t component_number)
 		long nindex = 0;
 		if (size_bc > 0)
 		{
-			os << "#Dirchilet BC  (from " << m_file_name << ".bc file) " << "\n";
+			os << "#Dirchilet BC\n"; //  (from " << m_file_name << ".bc file) " << "\n";
 			os << "#Total BC nodes  " << size_bc << "\n";
 			os << "#Node index, name, x, y, z,   value: " << "\n";
 			for (size_t i = 0; i < size_bc; i++)
@@ -14749,8 +14749,7 @@ CRFProcess* PCSGetMass(size_t component_number)
 		}
 		if (size_st > 0)
 		{
-			os << "#Source term or Neumann BC  (from " << m_file_name
-			   << ".st file) " << "\n";
+			os << "#Source term or Neumann BC\n"; //  (from " << m_file_name << ".st file) " << "\n";
 			os << "#Total ST nodes  " << size_st << "\n";
 			os << "#Node index, x, y, z, name    value: " << "\n";
 			for (size_t i = 0; i < size_st; i++)
