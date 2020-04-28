@@ -118,14 +118,7 @@ public:
 	                        const std::string & unique_name);
 	void Write(std::fstream*);
 
-	void EdgeIntegration(MeshLib::CFEMesh* m_msh,
-	                     const std::vector<long> & nodes_on_ply,
-	                     std::vector<double> & node_value_vector) const;
 
-
-	void DomainIntegration(MeshLib::CFEMesh* m_msh,
-	                       const std::vector<long> & nodes_in_dom,
-	                       std::vector<double> & node_value_vector) const;
 
 	void SetNOD2MSHNOD(std::vector<long> & nodes, std::vector<long> & conditional_nodes);
 
@@ -564,10 +557,22 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
+extern void DomainIntegration(CRFProcess* m_pcs,
+	                       const std::vector<long> & nodes_in_dom,
+	                       std::vector<double> & node_value_vector);
+
 extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
                      std::vector<long> const & nodes_on_sfc,
                      std::vector<double> & node_value_vector,
 					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+	
+extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
+	                     const std::vector<long> & nodes_on_ply,
+	                     std::vector<double> & node_value_vector, 
+			     FiniteElement::DistributionType dis_type, 
+			     FiniteElement::PrimaryVariable prim_val, 
+			     bool flag_ignore_axisymmetry, bool flag_is_bc);
+
 
 double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 #endif

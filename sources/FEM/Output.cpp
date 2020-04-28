@@ -3028,6 +3028,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 	tec_file.close();                     // kg44 close file
 }
 
+
 /**************************************************************************
    FEMLib-Method:
    12/2005 OK Implementation
@@ -3134,273 +3135,121 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 		}
 
 		tec_file << "\n";
-		/*if (m_sfc)
-		{
-			m_msh->GetNODOnSFC(m_sfc, nodes_vector);
-			//for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
-
-			// CB set up data for Element section
-			//std::vector < std::vector <long> > eledefvec;
-			std::vector <long> eledef;
-			bool* elecheck;
-			if (aktueller_zeitschritt == 0)
-			{
-
-			  MeshLib::CElem* m_ele = NULL;
-			  MeshLib::CNode* m_node = NULL;
-
-			  elecheck = new bool[m_msh->ele_vector.size()];
-			  for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-				elecheck[i] = false;
-
-
-			  for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
-			  {
-				int nd = nodes_vector[i];
-				m_node = m_msh->nod_vector[nd];
-
-				//test all connected elements of a node
-				for (size_t j = 0; j < m_node->getNumConnectedElements(); j++) // AB SB
-				{
-				  m_ele = m_msh->ele_vector[m_node->getConnectedElementIDs()[j]];
-				  if (elecheck[m_ele->GetIndex()] == true)
-					continue;
-				  //test all faces of the element
-				  for (size_t k = 0; k < m_ele->GetFacesNumber(); k++) // AB SB
-				  {
-
-					int faceNodeIndex_loc[10];
-					int faceNodeIndex_glo[10];
-					int faceNodeIndex_lis[10];
-					// get # face nodes and their local indices
-					int n_face_node = m_ele->GetElementFaceNodes(k, faceNodeIndex_loc);
-					int n = 0; // reset counter
-
-					// check if all nodes of a face are in the list of surface nodes
-					for (size_t l = 0; l < n_face_node; l++) // AB SB
-					{
-					  //get global Node index for comparison
-					  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
-					  // compare with all nodes of surface node list
-					  for (size_t m = 0; m < nodes_vector.size(); m++) // AB SB
-					  {
-						if (faceNodeIndex_glo[l] == nodes_vector[m])
-						{
-						  n++; // a match --> save the list index
-						  faceNodeIndex_lis[l] = m;
-						}
-						// check if all nodes of face match
-						if (n == n_face_node)
-						  break;  // face identified, skip rest of loop now
-					  }  // end nodes_vector
-					  // check if face in surface
-					  if (n == n_face_node)
-					  {
-						for (size_t l = 0; l < n_face_node; l++)
-						{
-						  eledef.push_back(1 + faceNodeIndex_lis[l]);
-						}
-						eledefvec.push_back(eledef);
-						eledef.clear();
-					  }  // end n == n_face_node
-					}  // end n_face_node
-
-				  }  // end faces
-				  elecheck[m_ele->GetIndex()] = true;
-				}  // end elements
-			  }  // end nodes_vector
-
-			  delete[] elecheck;
-			  // Element section finished
-			}  // end aktueller_zeitschritt == 0
-
-			// CB extend header
-			tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
-			if (eledefvec[0].size() == 3)
-			  tec_file << "TRIANGLE" << "\n";
-			if (eledefvec[0].size() == 4)
-			  tec_file << "QUADRILATERAL" << "\n";
-
-			// node values
-			for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
-			{
-				double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
-				tec_file << pnt_i[0] << " ";
-				tec_file << pnt_i[1] << " ";
-				tec_file << pnt_i[2] << " ";
-				for (size_t k = 0; k < _nod_value_vector.size(); k++)
-				{
-					m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
-					int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
-
-					if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
-						tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
-					else
-					tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
-				}
-				tec_file << "\n";
-			}  // end nodes_vector
-
-			// CB print element section
-			for (size_t i = 0; i < eledefvec.size(); i++)
-			{
-			  for (size_t j = 0; j < eledefvec[j].size(); j++)
-				tec_file << eledefvec[i][j] << " ";
-			  tec_file << "\n";
-			}
-			//clean up
-			//eledefvec.clear();
-			eledef.clear();
-
-		}  // end m_sfc
-		else
-			tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
-			         << " not found" << "\n";
-*/
 		tec_file.close();                     // kg44 close file
-
-	/*
-	bool no_pcs = false;
-	double dtemp;
-	vector<long> sfc_nodes_vector;
-	double node_flux = 0.0;
-	int idx = -1;
-	double t_flux = 0.0;
-	double node_conc = 0.0;
-	CRFProcess* m_pcs_gw (PCSGet(FiniteElement::GROUNDWATER_FLOW));
-	if (!m_pcs_gw)
-		PCSGet(FiniteElement::LIQUID_FLOW);
-	//--------------------------------------------------------------------
-	// Tests
-	Surface* m_sfc = NULL;
-	m_sfc = GEOGetSFCByName(geo_name);
-	if (!m_sfc)
-	{
-		cout << "Warning in COutput::NODWriteSFCAverageDataTEC - no GEO data"
-		     << "\n";
-		return;
-	}
-	//	CFEMesh* m_msh = NULL;
-	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
-	if (!m_msh)
-	{
-		cout << "Warning in COutput::NODWriteSFCAverageDataTEC - no MSH data"
-		     << "\n";
-		return;
-	}
-	CRFProcess* m_pcs(PCSGet(getProcessType()));
-	if (!m_pcs)
-		no_pcs = true;
-	//cout << "Warning in COutput::NODWriteSFCAverageDataTEC - no PCS data" << "\n";
-	//return;
-	//--------------------------------------------------------------------
-	// File handling
-	string tec_file_name = file_base_name + "_TBC_" + getGeoTypeAsString()
-	                       + "_" + geo_name + TEC_FILE_EXTENSION;
-	if (!_new_file_opened)
-		remove(tec_file_name.c_str());  //WW
-	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
-	tec_file.setf(ios::scientific, ios::floatfield);
-	tec_file.precision(12);
-	if (!tec_file.good())
-		return;
-	tec_file.seekg(0L, ios::beg);
-#ifdef SUPERCOMPUTER
-	// kg44 buffer the output
-	char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
-	tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
-	//
-#endif
-	//--------------------------------------------------------------------
-	// Write header
-	if (time_step_number == 0)            // WW Old:  if(time_step_number==1)
-	{
-		//project_title;
-		string project_title_string = "Time curve at surface";
-		tec_file << " TITLE = \"" << project_title_string
-		         << "\"" << "\n";
-		tec_file << " VARIABLES = Time ";
-		for (size_t i = 0; i < _nod_value_vector.size(); i++)
-			tec_file << _nod_value_vector[i] << " ";
-		tec_file << "\n";
-		//, I=" << anz_zeitschritte << ", J=1, K=1, F=POINT" << "\n";
-		tec_file << " ZONE T=\"SFC=" << geo_name << "\"" << "\n";
-	}
-	//--------------------------------------------------------------------
-	// node_value_index_vector
-
-	std::vector<int> node_value_index_vector(_nod_value_vector.size());
-	//	int itemp;
-	if (m_pcs)
-		for (size_t i = 0; i < _nod_value_vector.size(); i++)
-		{
-			node_value_index_vector[i] = m_pcs->GetNodeValueIndex(
-			        _nod_value_vector[i]) + 1;
-			//			itemp = node_value_index_vector[i];
-			for (size_t n_pv = 0; n_pv < m_pcs->GetPrimaryVNumber(); n_pv++)
-				if (_nod_value_vector[i].compare(
-				            m_pcs->pcs_primary_function_name[n_pv]) == 0)
-				{
-					node_value_index_vector[i]++;
-					break;
-				}
-		}
-	//--------------------------------------------------------------------
-	// Write data
-	if (no_pcs)
-	{
-		tec_file << time_current << " ";
-		for (size_t i = 0; i < _nod_value_vector.size(); i++)
-		{
-			//Specified currently for MASS_TRANSPORT only.
-			m_pcs = PCSGet(FiniteElement::MASS_TRANSPORT, _nod_value_vector[i]);
-			node_value_index_vector[i] = m_pcs->GetNodeValueIndex(
-			        _nod_value_vector[i]) + 1;
-			m_pcs->m_msh->GetNODOnSFC(m_sfc, sfc_nodes_vector);
-			dtemp = 0.0;
-			t_flux = 0.0;
-			for (size_t j = 0; j < sfc_nodes_vector.size(); j++)
-			{
-				idx = m_pcs_gw->GetNodeValueIndex("FLUX");
-				node_flux = abs(
-				        m_pcs_gw->GetNodeValue(sfc_nodes_vector[j], idx));
-				node_conc = m_pcs->GetNodeValue(sfc_nodes_vector[j],
-				                                node_value_index_vector[i]);
-				dtemp += (node_flux * node_conc);
-				t_flux += node_flux;
-			}
-			dtemp /= t_flux;
-			tec_file << dtemp << " ";
-		}
-		tec_file << "\n";
-	}
-	else
-	{
-		m_msh->GetNODOnSFC(m_sfc, sfc_nodes_vector);
-		idx = m_pcs_gw->GetNodeValueIndex("FLUX");
-		tec_file << time_current << " ";
-		dtemp = 0.0;
-		t_flux = 0.0;
-		for (size_t i = 0; i < _nod_value_vector.size(); i++)
-		{
-			dtemp = 0.0;
-			for (size_t j = 0; j < sfc_nodes_vector.size(); j++)
-			{
-				node_flux = abs(
-				        m_pcs_gw->GetNodeValue(sfc_nodes_vector[j], idx));
-				node_conc = m_pcs->GetNodeValue(sfc_nodes_vector[j],
-				                                node_value_index_vector[i]);
-				dtemp += (node_flux * node_conc);
-				t_flux += node_flux;
-			}
-			dtemp /= t_flux;
-			tec_file << dtemp << " ";
-		}
-		tec_file << "\n";
-	}
-	tec_file.close();                     // kg44 close file
-	*/
 }
+
+/**************************************************************************
+   FEMLib-Method:
+   04/2020 JOD Implementation
+
+restrictions:
+	to primary variables (index increased by one)
+	axisymmety ignored
+**************************************************************************/
+void COutput::NODWritePLYAverageDataTEC(double time_current,int time_step_number)
+{
+		if (_nod_value_vector.size() == 0)
+		{
+			std::cout << "Warning - No nodes for polyline " << geo_name << "\n";
+			return;
+		}
+
+		m_pcs = PCSGet(getProcessType());
+		if(m_pcs == NULL)
+		{
+			std::cout << "Warning - PCS not known for polyline-averaged output" << "\n";
+			return;
+		}
+
+		// File handling
+		int number=1;
+		char number_char[6];
+		sprintf(number_char, "%i", number);
+		string number_string(number_char);
+
+
+		std::string tec_file_name = file_base_name
+	     + "_ply_" + geo_name + "_" + std::string(convertProcessTypeToString(getProcessType()))
+	    		 + "_averaged" + TEC_FILE_EXTENSION;
+
+	   std::fstream tec_file;
+	   if (aktueller_zeitschritt == 0)
+	     tec_file.open(tec_file_name.data(), ios::out);
+	   else
+	     tec_file.open(tec_file_name.data(), ios::app|ios::out);
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing polyline data " << geo_name << "\n";
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+	#ifdef SUPERCOMPUTER
+		// kg44 buffer the output
+		char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+		tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+		//
+	#endif
+		//--------------------------------------------------------------------
+		// Write header
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "Time "; // << "\n";
+			for(int n = 0; n < _nod_value_vector.size(); n++)
+				tec_file << _nod_value_vector[n] << " ";
+			tec_file << "\n";
+		}
+
+		//--------------------------------------------------------------------
+		// Write data
+		std::vector<long> nodes_vector;
+		
+		GEOLIB::Polyline const* const ply (
+                dynamic_cast<GEOLIB::Polyline const* const>(this->getGeoObj()));
+		m_msh->GetNODOnPLY(ply, nodes_vector);
+
+		double total_area, average_value;
+		std::vector<double> nodes_area_vector(nodes_vector.size(), 1.);
+
+		if (m_msh->GetMaxElementDim() == 1)
+			DomainIntegration(m_pcs, nodes_vector, nodes_area_vector);
+		else
+			EdgeIntegration(m_msh, nodes_vector, nodes_area_vector,
+					FiniteElement::CONSTANT_NEUMANN,
+					FiniteElement::convertPrimaryVariable(m_pcs->GetPrimaryVName(0)),  // not used (for BC)
+					true,  // ignore axisymmetry
+					false  // means no pressure BC
+			);
+
+
+		total_area = 0.;
+		for(int i = 0; i<nodes_vector.size(); i++)
+		{
+			total_area += nodes_area_vector[i];
+		}
+
+		tec_file << _time;
+
+		for(int n = 0; n < _nod_value_vector.size(); n++)
+		{
+			average_value = 0;
+			for(int i = 0; i<nodes_vector.size(); i++)
+			{
+				average_value += m_pcs->GetNodeValue(nodes_vector[i],
+						m_pcs->GetNodeValueIndex(_nod_value_vector[n]) + 1)   // index increased by one - new value taken
+								* nodes_area_vector[i];
+			}
+			average_value /= total_area;
+			tec_file << " " << average_value;
+		}
+
+		tec_file << "\n";
+		tec_file.close();
+}
+
+
 
 void COutput::GetNodeIndexVector(vector<int>&NodeIndex)
 {
@@ -5529,7 +5378,13 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			//------------------------------------------------------------------
 		case GEOLIB::POLYLINE: // profiles along polylines
 			cout << "Data output: Polyline profile - " << getGeoName() << endl;
-			outputFunction = &COutput::WriteTEC_POLYLINE;
+			if (getProcessDistributionType() == FiniteElement::AVERAGE)
+			{
+				if (output_by_steps)
+					NODWritePLYAverageDataTEC(time_current, time_step_number);
+			}
+			else
+				outputFunction = &COutput::WriteTEC_POLYLINE;
 			break;
 			//------------------------------------------------------------------
 		case GEOLIB::POINT: // breakthrough curves in points

@@ -1789,8 +1789,10 @@ double AreaProjection(CEdge *edge, FiniteElement::PrimaryVariable primaryVariabl
 }
 
 
-void CSourceTerm::EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
-std::vector<double>&node_value_vector) const
+void EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
+std::vector<double>&node_value_vector, 
+FiniteElement::DistributionType dis_type, FiniteElement::PrimaryVariable prim_val, 
+bool flag_ignore_axisymmetry, bool flag_is_bc)
 {
    long i, j, k, l;
    long this_number_of_nodes;
@@ -1807,7 +1809,7 @@ std::vector<double>&node_value_vector) const
 
    double area_projection (1.0); //for projection of element areas for edges not parallel to the coordinate axes
    bool Const = false;
-   if (this->getProcessDistributionType() == FiniteElement::CONSTANT || this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+   if (dis_type == FiniteElement::CONSTANT || dis_type == FiniteElement::CONSTANT_NEUMANN)
       Const = true;
 
    //CFEMesh* msh = m_pcs->m_msh;
@@ -1907,9 +1909,9 @@ std::vector<double>&node_value_vector) const
 		   continue;
 	   edge->GetNodes(e_nodes);
 
-	   if (this->isPressureBoundaryCondition())
+	   if (flag_is_bc)
 	   {
-		   area_projection=AreaProjection(edge, this->getProcessPrimaryVariable());
+		   area_projection=AreaProjection(edge, prim_val);
 
 	   }
 
@@ -1921,7 +1923,7 @@ std::vector<double>&node_value_vector) const
             Jac = 0.5 * edge->getLength()*area_projection;
             v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
             v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (Const && (!msh->isAxisymmetry() || ignore_axisymmetry))
+            if (Const && (!msh->isAxisymmetry() || flag_ignore_axisymmetry))
             {
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
               if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
@@ -1974,7 +1976,7 @@ std::vector<double>&node_value_vector) const
             Jac = 0.5 * edge->getLength()*area_projection;
             v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
             v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (!msh->isAxisymmetry()  && !ignore_axisymmetry)
+            if (!msh->isAxisymmetry()  && !flag_ignore_axisymmetry)
             {
                if (Const)
                {
@@ -2021,7 +2023,7 @@ std::vector<double>&node_value_vector) const
                      eta = MXPGaussPkt(3, l);
                      ShapeFunctionLine(Shfct, &eta);
                      //Axisymmetical problem
-                     if (msh->isAxisymmetry() && !ignore_axisymmetry)
+                     if (msh->isAxisymmetry() && !flag_ignore_axisymmetry)
                      {
                         radius = 0.0;
                         for (ii = 0; ii < 2; ii++)
@@ -2619,9 +2621,10 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
  08/2005 WW Re-Implementation
  09/2010 TF re structured some things
  **************************************************************************/
-void CSourceTerm::DomainIntegration(CFEMesh* msh, const std::vector<long>&nodes_in_dom,
-std::vector<double>&node_value_vector) const
+void DomainIntegration(CRFProcess* m_pcs, const std::vector<long>&nodes_in_dom,
+std::vector<double>&node_value_vector)
 {
+   CFEMesh* msh = m_pcs->m_msh;
    double nodesFVal[8];
 
    int Axisymm = 1;                               // ani-axisymmetry
@@ -2671,7 +2674,7 @@ std::vector<double>&node_value_vector) const
          continue;
       for (size_t j = 0; j < nn; j++)
          nodesFVal[j] = node_value_vector[G2L[e_nodes[j]->GetIndex()]];
-      fem->ConfigElement(elem, this->_pcs->m_num->ele_gauss_points, true);
+      fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, true);
       fem->setOrder(msh->getOrder() + 1);
       fem->FaceIntegration(nodesFVal);
       for (size_t j = 0; j < nn; j++)
@@ -3931,7 +3934,9 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 						 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
 
 				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+				 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values, 
+						 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+						 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 			 }
@@ -3963,7 +3968,9 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 						 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
 
 				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+				 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
+						 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+						 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 			 }
@@ -4144,7 +4151,9 @@ const int ShiftInNodeVector)
 					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
 
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
+					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -4175,7 +4184,9 @@ const int ShiftInNodeVector)
 			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
 					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
+			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
+					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -5007,9 +5018,11 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 			|| distype==FiniteElement::RECHARGE)	//MW
 	{
 		if (m_msh->GetMaxElementDim() == 1 || st->assign_to_element_edge) // 1D  //WW MB
-			st->DomainIntegration(m_msh, ply_nod_vector,
+			DomainIntegration(PCSGet(pcs_type_name), ply_nod_vector,
 					ply_nod_val_vector);
-		else st->EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector);
+		else EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector,
+				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 	}
 
 	if (distype == FiniteElement::CRITICALDEPTH
@@ -5018,8 +5031,10 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 		st->node_value_vectorArea.resize(number_of_nodes);
 		for (size_t i = 0; i < number_of_nodes; i++)
 			st->node_value_vectorArea[i] = 1.0; //Element width !
-		st->EdgeIntegration(m_msh, ply_nod_vector,
-				st->node_value_vectorArea);
+		EdgeIntegration(m_msh, ply_nod_vector,
+				st->node_value_vectorArea,
+				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 	}
 
 	if (distype == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
@@ -5030,10 +5045,12 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 		}
 
 		if (m_msh->GetMaxElementDim() == 1) // 1D  //WW MB
-			st->DomainIntegration(m_msh, ply_nod_vector,
+			DomainIntegration(PCSGet(pcs_type_name), ply_nod_vector,
 					 st->node_value_vectorArea);
 		else
-			st->EdgeIntegration(m_msh, ply_nod_vector, st->node_value_vectorArea);
+			EdgeIntegration(m_msh, ply_nod_vector, st->node_value_vectorArea,
+					st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+					st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 
 		
 		//CNode * a_node; //Fl�che wird hier im Knoten als patch area abgelegt
@@ -5063,6 +5080,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
  Programing:
  11/2007 JOD
  12/2012 JOD Extension to TWO_PHASE_FLOW
+ 04/2020 JOD deactivated
  last modification:
  **************************************************************************/
 void CSourceTermGroup::AreaAssembly(const CSourceTerm* const st,
@@ -5071,12 +5089,13 @@ std::vector<double>& ply_nod_val_vector) const
 {
    if (pcs_type_name == "RICHARDS_FLOW" || pcs_type_name == "MULTI_PHASE_FLOW")
    {
-      if (m_msh_cond->GetMaxElementDim() == 1)    // 1D  //WW MB
-         st->DomainIntegration(m_msh_cond, ply_nod_vector_cond,
+      /*if (m_msh_cond->GetMaxElementDim() == 1)    // 1D  //WW MB
+         DomainIntegration(m_msh_cond, ply_nod_vector_cond,
             ply_nod_val_vector);
       else
          st->EdgeIntegration(m_msh_cond, ply_nod_vector_cond,
             ply_nod_val_vector);
+	    */
       double sum_node_value = 0;
       for (size_t i = 0; i < ply_nod_val_vector.size(); i++)
          sum_node_value += ply_nod_val_vector[i];
@@ -5164,7 +5183,7 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
 		   || st->getProcessDistributionType() == FiniteElement::RECHARGE)
    {
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
-         st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
+         DomainIntegration(PCSGet(pcs_type_name), sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements
          FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc,
         		 st->getProcessDistributionType(), st->_pcs->m_num->ele_gauss_points);

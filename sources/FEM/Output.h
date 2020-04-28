@@ -128,6 +128,7 @@ public:
 	void WriteBLOCKValuesTECData(std::fstream&);
 	void NODWriteSFCDataTEC(int);
 	void NODWriteSFCAverageDataTEC(double, int); //OK
+	void NODWritePLYAverageDataTEC(double, int); //JOD 2020-4-27
 	void WriteRFO();                      //OK
 	void WriteRFOHeader(std::fstream&);   //OK
 	void WriteRFONodes(std::fstream&);    //OK
