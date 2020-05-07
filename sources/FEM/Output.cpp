@@ -2431,7 +2431,7 @@ double COutput::NODWritePLYDataTEC(int number )
    12/2005 WW Output stress invariants
    10/2010 TF changed access to process type
 **************************************************************************/
-void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
+void COutput::NODWritePNTDataTEC(int time_step_number)
 {
 
 //#if defined(USE_PETSC)  // JOD 2015-11-17
@@ -2577,7 +2577,7 @@ void COutput::NODWritePNTDataTEC(double time_current,int time_step_number)
 	//--------------------------------------------------------------------
 	// Write data
 	//......................................................................
-	tec_file << time_current << " ";
+	tec_file << aktuelle_zeit << " ";
 	//......................................................................
 	// NOD values
 	if (getProcessType() == FiniteElement::RANDOM_WALK)
@@ -3037,7 +3037,7 @@ void COutput::NODWriteSFCDataTEC(int number)
    03/2018 JOD rewritten to use FaceIntegration
    	   	   works only for primary variables since index is incremented
 **************************************************************************/
-void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number)
+void COutput::NODWriteSFCAverageDataTEC(int time_step_number)
 {
 
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
@@ -3119,7 +3119,7 @@ void COutput::NODWriteSFCAverageDataTEC(double time_current,int time_step_number
 			total_area += nodes_area_vector[i];
 		}
 
-		tec_file << _time;
+		tec_file << aktuelle_zeit;
 
 		for(int n = 0; n < _nod_value_vector.size(); n++)
 		{
@@ -3146,7 +3146,7 @@ restrictions:
 	to primary variables (index increased by one)
 	axisymmety ignored
 **************************************************************************/
-void COutput::NODWritePLYAverageDataTEC(double time_current,int time_step_number)
+void COutput::NODWritePLYAverageDataTEC(int time_step_number)
 {
 		if (_nod_value_vector.size() == 0)
 		{
@@ -3230,7 +3230,7 @@ void COutput::NODWritePLYAverageDataTEC(double time_current,int time_step_number
 			total_area += nodes_area_vector[i];
 		}
 
-		tec_file << _time;
+		tec_file << aktuelle_zeit;
 
 		for(int n = 0; n < _nod_value_vector.size(); n++)
 		{
@@ -5380,8 +5380,7 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			cout << "Data output: Polyline profile - " << getGeoName() << endl;
 			if (getProcessDistributionType() == FiniteElement::AVERAGE)
 			{
-				if (output_by_steps)
-					NODWritePLYAverageDataTEC(time_current, time_step_number);
+				outputFunction = &COutput::NODWritePLYAverageDataTEC;
 			}
 			else
 				outputFunction = &COutput::WriteTEC_POLYLINE;
@@ -5389,7 +5388,8 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			//------------------------------------------------------------------
 		case GEOLIB::POINT: // breakthrough curves in points
 			cout << "Data output: Breakthrough curves - " << getGeoName() << endl;
-			NODWritePNTDataTEC(time_current, time_step_number);
+			outputFunction = &COutput::NODWritePNTDataTEC;
+			//NODWritePNTDataTEC(time_current, time_step_number);
 			break;
 			//------------------------------------------------------------------
 		case GEOLIB::SURFACE: // profiles at surfaces
@@ -5397,8 +5397,7 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 			//..............................................................
 			if (getProcessDistributionType() == FiniteElement::AVERAGE)
 			{
-				if (output_by_steps)
-					NODWriteSFCAverageDataTEC(time_current, time_step_number);
+				outputFunction = &COutput::NODWriteSFCAverageDataTEC;
 			}
 			//..............................................................
 			else
@@ -5631,10 +5630,164 @@ Task:
 Use:    $DAT_TYPE
 
 Programing:
-06/2018 JOD Implementation
+08/2019 JOD Implementation
 **************************************************************************/
 
 void COutput::WriteContraflow(double time_current, int time_step_number)
+{	// a_pcs???
+	std::cout << "Data output: Contraflow\n";
+	m_pcs = PCSGet(getProcessType());
+	if(m_pcs == NULL)
+	{
+		std::cout << "Warning - PCS not known for Contraflow output" << "\n";
+		return;
+	}
+	if(m_pcs->ogs_contraflow_vector.size() == 0)
+		std::cout << "Warning - No Contraflow instance in output\n";
+
+	for(long long unsigned ii=0; ii<m_pcs->ogs_contraflow_vector.size(); ++ii)
+	{  			// long long unsigned for std::to_string
+		std::string tec_file_name_tf = file_base_name + "_"
+				 + std::string(convertProcessTypeToString(getProcessType()))
+						 + "_Contraflow_" + std::to_string(ii) + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file_tf;
+		if (aktueller_zeitschritt == 0)
+			tec_file_tf.open(tec_file_name_tf.data(), ios::out);
+		else
+			tec_file_tf.open(tec_file_name_tf.data(), ios::out | ios::app);
+
+		tec_file_tf.setf(ios::scientific, ios::floatfield);
+		tec_file_tf.precision(12);
+		if (!tec_file_tf.good())
+		{
+			std::cout << "Warning - Could not open file for writing Contraflow data " << geo_name << "\n";
+			return;
+		}
+		tec_file_tf.seekg(0L, ios::beg);
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file_tf.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
+
+		//--------------------------------------------------------------------
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
+			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
+		}
+		else
+		{
+
+			if(m_pcs->ogs_contraflow_vector[ii]->get_input_list().front().Q > 10e-10)
+			{
+
+				// write results
+				std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
+				stru3::DVec T_s = stru3::DVec(nodes_vec.size());
+				for(int j=0; j < nodes_vec.size(); ++j)
+				{
+					T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
+				}
+
+				const contra::Result& result = m_pcs->ogs_contraflow_vector[ii]->get_Contraflow()->get_result();
+				std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[ii]->get_segment_data_vec();
+
+				double total_flux1 = 0., total_flux2 = 0;
+				double z = 0;
+
+
+				int j = 0, k = 0;
+				double L_ele = 0.;
+				int N = segment_data_vec[0].N;
+				double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
+				double R_1_Delta = result.resistances_vec[0].R_1_Delta;
+
+				for(int i=0; i < nodes_vec.size(); ++i)
+				{
+					if(k == 1)
+					{
+						L_ele = segment_data_vec[j].L/(N);
+						R_0_Delta = result.resistances_vec[j].R_0_Delta;
+						R_1_Delta = result.resistances_vec[j].R_1_Delta;
+					}
+					if(k == N)
+					{
+						R_0_Delta /= 2;
+						R_1_Delta /= 2;
+						L_ele /=2;
+						k = 0;
+						++j;
+						if(j < segment_data_vec.size())
+							N = segment_data_vec[j].N;
+					}
+
+					if(k == 0 && j < segment_data_vec.size())
+					{
+						R_0_Delta += result.resistances_vec[j].R_0_Delta;
+						R_1_Delta += result.resistances_vec[j].R_1_Delta;
+
+						L_ele += segment_data_vec[j].L/(2*N);
+					}
+
+					double flux1 = result.T_in[i] / R_0_Delta;
+					flux1 -=  T_s[i] / R_0_Delta;
+					flux1 *= L_ele;
+
+					double flux2 = result.T_out[i] / R_1_Delta;
+					flux2 -=  T_s[i] / R_1_Delta;
+					flux2 *= L_ele;
+
+					total_flux1 += flux1;
+					total_flux2 += flux2;
+
+					if(j < segment_data_vec.size())
+						z += segment_data_vec[j].L/(N);
+
+					 ++k;
+
+
+					//const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
+
+					/*tec_file << aktueller_zeitschritt
+						<< '\t' << time_current
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
+						<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+						<< '\t' << result.Q_H
+						<< '\t' << result.Q_W
+						<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
+						<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+						<< '\n';
+					 */
+				} // end nodes_vec
+
+				tec_file_tf << time_current << "\t" << result.T_in[0] << "\t" << result.T_out[0]
+								<< "\t" << total_flux1 << "\t" << total_flux2 << "\n";
+
+			} // end Q > 1.e-10
+			else
+			{
+				tec_file_tf << time_current << "\t0\t0\t0\t0\n";
+			}
+		} // end aktueller_zeitschritt != 0
+		tec_file_tf.close();
+
+	}  // end ogs_contraflow_vector
+}
+
+/***************************************************************************
+OpenGeoSys - Funktion
+Task:
+Use:    $DAT_TYPE
+
+Programing:
+04/2020 JOD Implementation
+**************************************************************************/
+
+void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 {	// a_pcs???
 	std::cout << "Data output: Contraflow\n";
 	m_pcs = PCSGet(getProcessType());
@@ -5674,145 +5827,106 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 			//
 		#endif
 
-		// file name total flux
-		std::string tec_file_name_tf = file_base_name + "_"
-				 + std::string(convertProcessTypeToString(getProcessType()))
-						 + "_Contraflow_" + std::to_string(ii) + TEC_FILE_EXTENSION;
-		// open file
-		std::fstream tec_file_tf;
-		if (aktueller_zeitschritt == 0)
-			tec_file_tf.open(tec_file_name_tf.data(), ios::out);
-		else
-			tec_file_tf.open(tec_file_name_tf.data(), ios::out | ios::app);
-
-		tec_file_tf.setf(ios::scientific, ios::floatfield);
-		tec_file_tf.precision(12);
-		if (!tec_file_tf.good())
-		{
-			std::cout << "Warning - Could not open file for writing Contraflow data " << geo_name << "\n";
-			return;
-		}
-		tec_file_tf.seekg(0L, ios::beg);
-		#ifdef SUPERCOMPUTER
-			// kg44 buffer the output
-			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
-			tec_file_tf.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
-			//
-		#endif
 
 		//--------------------------------------------------------------------
-		if (aktueller_zeitschritt == 0)
-		{
-			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file << "VARIABLES = \"Depth\" \"T_s\" \"T_in\" \"T_out\" \"flux_1\" \"flux2\"\n";
-			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
-		}
-		else
+		if (aktueller_zeitschritt != 0)
 		{
 
 			if(m_pcs->ogs_contraflow_vector[ii]->get_input_list().front().Q > 10e-10)
 			{
 
-			tec_file << "ZONE T=\"TIME=" << time_current << "\"\n";
+				tec_file << "ZONE T=\"TIME=" << time_current << "\"\n";
 
-			// write results
-			std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
-			stru3::DVec T_s = stru3::DVec(nodes_vec.size());
-			for(int j=0; j < nodes_vec.size(); ++j)
-			{
-				T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
-			}
-
-			const contra::Result& result = m_pcs->ogs_contraflow_vector[ii]->get_Contraflow()->get_result();
-			std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[ii]->get_segment_data_vec();
-
-			double total_flux1 = 0., total_flux2 = 0;
-			double z = 0;
-
-
-			int j = 0, k = 0;
-			double L_ele = 0.;
-			int N = segment_data_vec[0].N;
-			double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
-			double R_1_Delta = result.resistances_vec[0].R_1_Delta;
-
-			for(int i=0; i < nodes_vec.size(); ++i)
-			{
-
-				if(k == 1)
+				// write results
+				std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
+				stru3::DVec T_s = stru3::DVec(nodes_vec.size());
+				for(int j=0; j < nodes_vec.size(); ++j)
 				{
-					L_ele = segment_data_vec[j].L/(N);
-					R_0_Delta = result.resistances_vec[j].R_0_Delta;
-					R_1_Delta = result.resistances_vec[j].R_1_Delta;
+					T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
 				}
-				if(k == N)
+
+				const contra::Result& result = m_pcs->ogs_contraflow_vector[ii]->get_Contraflow()->get_result();
+				std::vector<contra::SegmentData> segment_data_vec = m_pcs->ogs_contraflow_vector[ii]->get_segment_data_vec();
+
+				double total_flux1 = 0., total_flux2 = 0;
+				double z = 0;
+
+
+				int j = 0, k = 0;
+				double L_ele = 0.;
+				int N = segment_data_vec[0].N;
+				double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
+				double R_1_Delta = result.resistances_vec[0].R_1_Delta;
+
+				for(int i=0; i < nodes_vec.size(); ++i)
 				{
-					R_0_Delta /= 2;
-					R_1_Delta /= 2;
-					L_ele /=2;
-					k = 0;
-					++j;
+
+					if(k == 1)
+					{
+						L_ele = segment_data_vec[j].L/(N);
+						R_0_Delta = result.resistances_vec[j].R_0_Delta;
+						R_1_Delta = result.resistances_vec[j].R_1_Delta;
+					}
+					if(k == N)
+					{
+						R_0_Delta /= 2;
+						R_1_Delta /= 2;
+						L_ele /=2;
+						k = 0;
+						++j;
+						if(j < segment_data_vec.size())
+							N = segment_data_vec[j].N;
+					}
+
+					if(k == 0 && j < segment_data_vec.size())
+					{
+						R_0_Delta += result.resistances_vec[j].R_0_Delta;
+						R_1_Delta += result.resistances_vec[j].R_1_Delta;
+
+						L_ele += segment_data_vec[j].L/(2*N);
+					}
+
+					double flux1 = result.T_in[i] / R_0_Delta;
+					flux1 -=  T_s[i] / R_0_Delta;
+					flux1 *= L_ele;
+
+					double flux2 = result.T_out[i] / R_1_Delta;
+					flux2 -=  T_s[i] / R_1_Delta;
+					flux2 *= L_ele;
+
+					total_flux1 += flux1;
+					total_flux2 += flux2;
+					tec_file << z << "\t" << T_s[i] << "\t" << result.T_in[i] << "\t" << result.T_out[i]
+											<< "\t" << flux1 << "\t" << flux2
+							//<< "\t" << R_0_Delta << "\t" << R_1_Delta
+							<< '\n';
+
 					if(j < segment_data_vec.size())
-						N = segment_data_vec[j].N;
-				}
+						z += segment_data_vec[j].L/(N);
 
-				if(k == 0 && j < segment_data_vec.size())
-				{
-					R_0_Delta += result.resistances_vec[j].R_0_Delta;
-					R_1_Delta += result.resistances_vec[j].R_1_Delta;
+					 ++k;
 
-					L_ele += segment_data_vec[j].L/(2*N);
-				}
 
-				double flux1 = result.T_in[i] / R_0_Delta;
-				flux1 -=  T_s[i] / R_0_Delta;
-				flux1 *= L_ele;
+					//const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
 
-				double flux2 = result.T_out[i] / R_1_Delta;
-				flux2 -=  T_s[i] / R_1_Delta;
-				flux2 *= L_ele;
-
-				total_flux1 += flux1;
-				total_flux2 += flux2;
-				tec_file << z << "\t" << T_s[i] << "\t" << result.T_in[i] << "\t" << result.T_out[i]
-										<< "\t" << flux1 << "\t" << flux2
-						//<< "\t" << R_0_Delta << "\t" << R_1_Delta
+					/*tec_file << aktueller_zeitschritt
+						<< '\t' << time_current
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
+						<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+						<< '\t' << result.Q_H
+						<< '\t' << result.Q_W
+						<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
+						<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 						<< '\n';
+					 */
+				} // end nodes_vec
 
-				if(j < segment_data_vec.size())
-					z += segment_data_vec[j].L/(N);
-
-				 ++k;
-
-
-				//const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
-
-				/*tec_file << aktueller_zeitschritt
-					<< '\t' << time_current
-					<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
-					<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
-					<< '\t' << result.Q_H
-					<< '\t' << result.Q_W
-					<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
-					<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
-					<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
-					<< '\n';
-				 */
-			} // end nodes_vec
-
-			tec_file_tf << time_current << "\t" << result.T_in[0] << "\t" << result.T_out[0]
-							<< "\t" << total_flux1 << "\t" << total_flux2 << "\n";
 
 			} // end Q > 1.e-10
-			else
-			{
-				tec_file_tf << time_current << "\t0\t0\t0\t0\n";
-			}
+
 		} // end aktueller_zeitschritt != 0
 		tec_file.close();
-		tec_file_tf.close();
 
 	}  // end ogs_contraflow_vector
 }
-

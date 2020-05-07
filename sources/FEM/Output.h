@@ -119,7 +119,7 @@ public:
 	void WriteTECElementData(std::fstream&, int);
 	void WriteTECBLOCKData(std::fstream&); // BW
 	double NODWritePLYDataTEC(int); 
-	void NODWritePNTDataTEC(double, int);
+	void NODWritePNTDataTEC(int);
 	void ELEWriteDOMDataTEC();
 	void WriteELEValuesTECHeader(std::fstream&);
 	void WriteELEValuesTECData(std::fstream&);
@@ -127,8 +127,8 @@ public:
 	void WriteBLOCKValuesTECHeader(std::fstream&);
 	void WriteBLOCKValuesTECData(std::fstream&);
 	void NODWriteSFCDataTEC(int);
-	void NODWriteSFCAverageDataTEC(double, int); //OK
-	void NODWritePLYAverageDataTEC(double, int); //JOD 2020-4-27
+	void NODWriteSFCAverageDataTEC(int);
+	void NODWritePLYAverageDataTEC(int); //JOD 2020-4-27
 	void WriteRFO();                      //OK
 	void WriteRFOHeader(std::fstream&);   //OK
 	void WriteRFONodes(std::fstream&);    //OK
@@ -163,6 +163,7 @@ public:
 	void WriteContent(double, int);     // JOD 2/2015
 	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
 	void WriteContraflow(double, int);  // JOD 2019-08-23
+	void WriteContraflowPolyline(double, int);  // JOD 2020-04-30
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10
