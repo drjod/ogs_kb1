@@ -88,9 +88,9 @@ COutput::COutput() :
 #endif
 }
 
-COutput::COutput(size_t id) :
+COutput::COutput(size_t id, bool flag_append_data) :
 	GeoInfo(GEOLIB::GEODOMAIN), ProcessInfo(), _id(id), out_amplifier(0.0),
-	m_msh(NULL), nSteps(-1), _new_file_opened(false), dat_type_name("TECPLOT")
+	m_msh(NULL), nSteps(-1), _new_file_opened(flag_append_data), dat_type_name("TECPLOT")
 {
 	tim_type_name = "TIMES";
 	m_pcs = NULL;
@@ -516,6 +516,12 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 			std::cout << "\tIgnore axisymmetry in content output " << mmp_index << '\n';
 			continue;
 		}
+		if (line_string.find("$APPEND_DATA") != string::npos)  // JOD 2020-05-08
+		{
+			_new_file_opened = true;  // declared as already deleted
+			std::cout << "\tAppend data (File not deleted)\n";
+			continue;
+		}
 		// For tecplot block datapack format 10.2014 BW
 		if (line_string.find("$TECPLOT_DATAPACK_BLOCK") != string::npos)
 		{
@@ -750,8 +756,9 @@ void COutput::NODWriteDOMDataTEC()
 #endif
 		tec_file_name += TEC_FILE_EXTENSION;
 		//WW
-		if(!_new_file_opened)
+		if (!_new_file_opened)
 			remove(tec_file_name.c_str());
+
 		fstream tec_file (tec_file_name.data(),ios::app | ios::out);
 		tec_file.setf(ios::scientific,ios::floatfield);
 		tec_file.precision(12);
@@ -2118,7 +2125,7 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
    10/2008 OK MFP values
    07/2010 TF substituted GEOGetPLYByName
 **************************************************************************/
-double COutput::NODWritePLYDataTEC(int number )
+double COutput::NODWritePLYDataTEC(int time_step_number)
 {
 	//WW  int nidx;
 	long gnode;
@@ -2155,7 +2162,9 @@ double COutput::NODWritePLYDataTEC(int number )
 
 	tec_file_name += TEC_FILE_EXTENSION;
 	if (!_new_file_opened)
-		remove(tec_file_name.c_str());  //WW
+		remove(tec_file_name.c_str());
+	else if (time_step_number == 0)  // JOD 2020-05-08
+		return 0.;
 
 	//WW
 	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
@@ -2456,9 +2465,10 @@ void COutput::NODWritePNTDataTEC(int time_step_number)
 	std::string tec_file_name(file_base_name + "_time_");
 	addInfoToFileName(tec_file_name, true, true, true);
 
-
 	if (!_new_file_opened)
-		remove(tec_file_name.c_str());  //WW
+		remove(tec_file_name.c_str());
+	else if (time_step_number == 0)  // JOD 2020-05-08
+		return;
 	//......................................................................
 	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
 
@@ -2833,7 +2843,7 @@ void COutput::WriteRFO()
 	rfo_file.close();                     // kg44 close file
 }
 
-void COutput::NODWriteSFCDataTEC(int number)
+void COutput::NODWriteSFCDataTEC(int time_step_number)
 {
 
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
@@ -2848,7 +2858,7 @@ void COutput::NODWriteSFCDataTEC(int number)
 
 	// File handling
 	char number_char[6];
-	sprintf(number_char, "%i", number);
+	sprintf(number_char, "%i", time_step_number);
 	string number_string(number_char);
 
 	//	string tec_file_name = pcs_type_name + "_sfc_" + geo_name + "_t"
@@ -2866,10 +2876,12 @@ void COutput::NODWriteSFCDataTEC(int number)
    //  remove(tec_file_name.c_str());  //WW
 
    std::fstream tec_file;
-   if (aktueller_zeitschritt == 0)
-     tec_file.open(tec_file_name.data(), ios::out);
-   else
-     tec_file.open(tec_file_name.data(), ios::app);
+	if (!_new_file_opened)
+		remove(tec_file_name.c_str());
+	else if (time_step_number == 0)  // JOD 2020-05-08
+		return;
+
+	tec_file.open(tec_file_name.data(), ios::app);
 
 	tec_file.setf(ios::scientific, ios::floatfield);
 	tec_file.precision(12);
@@ -3070,11 +3082,12 @@ void COutput::NODWriteSFCAverageDataTEC(int time_step_number)
 	   //  remove(tec_file_name.c_str());  //WW
 
 	   std::fstream tec_file;
-	   if (aktueller_zeitschritt == 0)
-	     tec_file.open(tec_file_name.data(), ios::out);
-	   else
-	     tec_file.open(tec_file_name.data(), ios::app|ios::out);
+		if (!_new_file_opened)
+			remove(tec_file_name.c_str());
+		else if (time_step_number == 0)  // JOD 2020-05-08
+			return;
 
+	    tec_file.open(tec_file_name.data(), ios::app|ios::out);
 
 		tec_file.setf(ios::scientific, ios::floatfield);
 		tec_file.precision(12);
@@ -3172,11 +3185,13 @@ void COutput::NODWritePLYAverageDataTEC(int time_step_number)
 	     + "_ply_" + geo_name + "_" + std::string(convertProcessTypeToString(getProcessType()))
 	    		 + "_averaged" + TEC_FILE_EXTENSION;
 
+		if (!_new_file_opened)
+			remove(tec_file_name.c_str());
+		else if (time_step_number == 0)  // JOD 2020-05-08
+			return;
+
 	   std::fstream tec_file;
-	   if (aktueller_zeitschritt == 0)
-	     tec_file.open(tec_file_name.data(), ios::out);
-	   else
-	     tec_file.open(tec_file_name.data(), ios::app|ios::out);
+	   tec_file.open(tec_file_name.data(), ios::app|ios::out);
 
 		tec_file.setf(ios::scientific, ios::floatfield);
 		tec_file.precision(12);
@@ -4139,8 +4154,9 @@ void COutput::PCONWriteDOMDataTEC()
 #endif
 		tec_file_name += TEC_FILE_EXTENSION;
 		//WW
-		if(!_new_file_opened)
+		if (!_new_file_opened)
 			remove(tec_file_name.c_str());
+
 		fstream tec_file (tec_file_name.data(),ios::app | ios::out);
 		tec_file.setf(ios::scientific,ios::floatfield);
 		tec_file.precision(12);
@@ -4554,8 +4570,10 @@ void COutput::NODWritePointsCombined(double time_current, int time_step_number)
 	string number_string = number_char;
 	string tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) + "_time_" + "POINTS"; 
 
-	if (time_step_number == 0) 
+	if (!_new_file_opened)
 		remove(tec_file_name.c_str());
+	else if (time_step_number == 0)  // JOD 2020-05-08
+		return;
 
 	if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number
 		% nSteps == 0))

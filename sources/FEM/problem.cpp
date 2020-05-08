@@ -1078,6 +1078,7 @@ void Problem::Euler_TimeDiscretize()
 	if(mrank == 0)
 	{
 #endif
+	aktuelle_zeit = current_time;
 	OUTData(current_time,aktueller_zeitschritt,true);
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
 	}

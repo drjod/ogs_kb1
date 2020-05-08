@@ -123,6 +123,7 @@ bool OUTRead(const std::string& file_base_name,
 		return false;
 	out_file.seekg(0L, ios::beg);
 
+	bool flag_append_data = false;
 	// Keyword loop
 	cout << "OUTRead" << "\n";
 	while (!out_file.eof())
@@ -132,20 +133,24 @@ bool OUTRead(const std::string& file_base_name,
 		if (line_string.find("#STOP") != string::npos)
 			return true;
 
-		COutput* out(new COutput(out_vector.size()));
-
-#if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
-		out->setMPI_Info(rank, msize, rank_str);
-#endif
-		out->setFileBaseName(file_base_name);
 		// Give version in file name
 		//15.01.2008. WW
 		if (line_string.find("#VERSION") != string::npos)
 			output_version = true;  // 02.2011. WW
 		//----------------------------------------------------------------------
+		if (line_string.find("$APPEND_DATA") != string::npos)  // JOD 2020-05-06
+			flag_append_data = true;
+
 		// keyword found
 		if (line_string.find("#OUTPUT") != string::npos)
 		{
+			COutput* out(new COutput(out_vector.size(), flag_append_data));
+
+#if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
+			out->setMPI_Info(rank, msize, rank_str);
+#endif
+			out->setFileBaseName(file_base_name);
+
 			position = out->Read(out_file, geo_obj, unique_name);
 
 			if(output_version) //// 02.2011. WW
