@@ -8625,6 +8625,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 						dim_space = m_msh->msh_max_dim;
 				}
 				shift = m_dom->shift[dim_space];
+				cout << "msh_node_number: " << cnodev->msh_node_number << "; geo_node_number: " << cnodev->geo_node_number << '\n';
+				cout << "Shift: " << shift << "; dimspace: " << dim_space << '\n';
 			}
 			else
 			{
