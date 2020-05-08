@@ -3092,6 +3092,9 @@ CNodeValue* cnodev)
 void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeValue* cnodev)
 {
     const long mesh_node_number = cnodev->msh_node_number;
+    long eq_index;
+    long dom_node_index;
+    
     //double  poro = 0.0;
     //int material_group;
     //long msh_ele;
@@ -3101,9 +3104,12 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
    CRFProcess* m_pcs_this = NULL;
    m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
    double nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
+
+   eq_index = m_pcs_this->m_msh->nod_vector[mesh_node_number]->GetEquationIndex();
    //std::cout << temperature << ", ";
    //double density_test = mfp_vector[0]->Density();
-   //std::cout << density_test << '\n';
+   std::cout << " mesh node number: " << mesh_node_number << "; Value: "<< value << '\n';
+   std::cout << " Equation Index: " << eq_index << '\n';
 
    if (mfp_vector[0]->get_flag_volumetric_heat_capacity())
        value *= mfp_vector[0]->get_volumetric_heat_capacity();
@@ -3113,12 +3119,17 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, CNodeVa
 
 #if defined(NEW_EQS)
 #if defined(USE_MPI)  // JOD 2020-04-08
-	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+   std::cout << "myrank: " << myrank << "; mesh node number: " << mesh_node_number << "; Value: " << value << '\n' ;
+   CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+   dom_node_index = dom_vector[myrank]->GetDOMNode(mesh_node_number);
+   std::cout << "mesh node number: " << mesh_node_number << "; dom_node_index: " << dom_node_index << '\n';
+   (*A)(dom_node_index, dom_node_index) -= value;
 #else // not USE_MPI
    // JOD 2020-3-25
    CSparseMatrix* A = m_pcs_this->get_eqs_new()->get_A();
+   (*A)(mesh_node_number, mesh_node_number) -= value;
 #endif
-	(*A)(mesh_node_number, mesh_node_number) -= value;
+	
 #else  // not  NEW_EQS
    MXInc(mesh_node_number, mesh_node_number, -value);
 #endif
