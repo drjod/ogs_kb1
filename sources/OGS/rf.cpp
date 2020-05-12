@@ -18,6 +18,8 @@
  * the preprocessor directive RFW_FRACTURE is only useable until version 4.11 of OGS
  * */
 #include "Configure.h"
+#include "logger.h"
+Logger logger = Logger::get_instance();
 
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || \
         defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
@@ -29,7 +31,7 @@
 #include <omp.h>
 #endif
 
-
+#include "logger.h"
 
 #include "BuildInfo.h"
 
@@ -77,6 +79,8 @@ double elapsed_time_mpi;
 
 // declaration of defaultOutputPath
 #include "rf_out_new.h"
+
+
 
 
 /* Definitionen */
@@ -299,6 +303,8 @@ int main ( int argc, char* argv[] )
 		FilePath = FileName.substr(0,indexChWin) + "\\";
 	else if(indexChLinux != std::string::npos)
 		FilePath = FileName.substr(0,indexChLinux) + "/";
+
+	logger.initialize(FilePath);
 	// ---------------------------WW
 	Problem* aproblem = new Problem(dateiname);
 #ifdef USE_PETSC

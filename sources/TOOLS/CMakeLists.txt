@@ -7,6 +7,7 @@ set( HEADERS
 set( SOURCES
 	OGS_contraflow.cpp
 	OGS_WDC.cpp
+	logger.cpp
 )
 
 include_directories(
