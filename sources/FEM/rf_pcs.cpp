@@ -45,6 +45,7 @@
 #include "memory.h"
 // GEOLib
 #include "PointWithID.h"
+#include "logger.h"
 
 /*------------------------------------------------------------------------*/
 /* MshLib */
@@ -877,17 +878,18 @@ void CRFProcess::Create()
 	// Time unit factor //WW
 	std::cout << "->Create TIM" << '\n';
 	//CTimeDiscretization* Tim = TIMGet(_pcs_type_name);
+
 	Tim = TIMGet(pcs_type_name);
 	if (!Tim)
 	{
 		//21.08.2008. WW
-		/* JT->WW: It doesn't seem like a good idea to give a non-existent Tim the properties of some specified [0] vector.
-		           Why not set default values, and then let other "Tim" control the stepping?
-				   In other words. If HEAT_TRANSPORT doesn't have time control,
-				   we cannot assign a time control type for a FLOW process to a HEAT process, this could give incorrect results.
-				   THE DEFAULTS ARE NOW SET UP SUCH THAT... if "Tim" doesn't exist, this process has no influence on the time step.
-		Tim = new CTimeDiscretization(*time_vector[0], pcs_type_name);
-		*/
+		// JT->WW: It doesn't seem like a good idea to give a non-existent Tim the properties of some specified [0] vector.
+		//           Why not set default values, and then let other "Tim" control the stepping?
+		//		   In other words. If HEAT_TRANSPORT doesn't have time control,
+		//		   we cannot assign a time control type for a FLOW process to a HEAT process, this could give incorrect results.
+		//		   THE DEFAULTS ARE NOW SET UP SUCH THAT... if "Tim" doesn't exist, this process has no influence on the time step.
+		//Tim = new CTimeDiscretization(*time_vector[0], pcs_type_name);
+
 		Tim = new CTimeDiscretization();
 		Tim->pcs_type_name = pcs_type_name;
 		time_vector.push_back(Tim); //21.08.2008. WW
@@ -8981,6 +8983,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #else // ifdef USE_MPI
 
 		iter_count = eqs->LinearSolver(eqs->b,eqs->x,eqs->dim);
+		logger.info<2>("Solver:", iter_count, "/", cg_maxiter);
 #endif
 
 		eqs->master_iter = iter_count;
@@ -8989,6 +8992,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			cout <<
 			"Warning in CRFProcess::ExecuteLinearSolver() - Maximum iteration number reached"
 			     << "\n";
+			logger.warning("ExecuteLinearSolver() - Maximum iteration number reached");
 			return -1;
 		}
 		iter_sum += iter_count;
@@ -10497,9 +10501,11 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			if(getProcessType() == FiniteElement::MASS_TRANSPORT){
 				std::cout << "    ->Process   " << loop_process_number << ": " << convertProcessTypeToString (getProcessType()) << "\n";
 				std::cout << "    ->Component " << pcs_component_number << ": " << pcs_primary_function_name[0] << "\n";
+				logger.info<2>("Process:", convertProcessTypeToString (getProcessType()), "-", pcs_primary_function_name[0]);
 			}
 			else{
 				std::cout << "    ->Process " << loop_process_number << ": " << convertProcessTypeToString (getProcessType()) << "\n";
+				logger.info<2>("Process:", convertProcessTypeToString (getProcessType()));
 			}
 			std::cout << "      ================================================" << "\n";
 		}
@@ -10516,6 +10522,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 		last_error = 1.0;
 		for(iter_nlin = 0; iter_nlin < m_num->nls_max_iterations; iter_nlin++)
 		{
+			logger.info<2>("Iter:", iter_nlin, "/", m_num->nls_max_iterations);
 			cout << "    PCS non-linear iteration: " << iter_nlin << "/"
          << m_num->nls_max_iterations << '\n';
 			nonlinear_iteration_error = Execute();
@@ -10778,6 +10785,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			if(write_std_errors){
 				for(ii = 0; ii < pcs_number_of_primary_nvals; ii++){
 					 std::cout << "         PCS error DOF["<< ii <<"]: " << pcs_absolute_error[ii] << "\n";
+					 logger.info<2>("PCS error DOF[", ii, "]:", pcs_absolute_error[ii], "\n");
 				}
 			}
 			return;
@@ -10794,9 +10802,11 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 		if(write_std_errors){
 			if(pcs_num_dof_errors == 1){
 				std::cout << "         PCS error: " << pcs_absolute_error[0] << "\n";
+				logger.info<2>("PCS error:", pcs_absolute_error[0], "\n");
 			}else{
 				for (ii = 0; ii < pcs_number_of_primary_nvals; ii++){
 					 std::cout << "         PCS error DOF["<< ii <<"]: " << pcs_absolute_error[ii] << "\n";
+					 logger.info<2>("PCS error DOF[", ii, "]:", pcs_absolute_error[ii], "\n");
 				}
 			}
 			std::cout <<"         ->Euclidian norm of unknowns: " << pcs_unknowns_norm << "\n";

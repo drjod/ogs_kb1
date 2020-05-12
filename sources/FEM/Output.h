@@ -32,7 +32,7 @@ class COutput : public GeoInfo, public ProcessInfo, public DistributionInfo
 
 public:
 	COutput();
-	COutput (size_t id, bool flag_append_data);
+	COutput (size_t id);
 	/**
 	 * method initializes process and mesh attributes
 	 */

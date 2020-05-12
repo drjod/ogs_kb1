@@ -12,6 +12,8 @@ class CRFProcess;
 // GEOLIB
 #include "GEOObjects.h"
 
+extern int logging;
+
 //---------------------------------------------------------------------
 //Pointers to member functions
 class Problem;

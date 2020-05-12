@@ -43,6 +43,9 @@
 #include "tools.h"
 #include "FileTools.h"
 
+#include "logger.h"
+bool flag_append_data = false;
+
 #include "rf_st_new.h" /// JOD 2018-4-6 to use FaceIntegration (surface-averaged output)
 
 extern size_t max_dim;                            //OK411 todo
@@ -88,9 +91,9 @@ COutput::COutput() :
 #endif
 }
 
-COutput::COutput(size_t id, bool flag_append_data) :
+COutput::COutput(size_t id) :
 	GeoInfo(GEOLIB::GEODOMAIN), ProcessInfo(), _id(id), out_amplifier(0.0),
-	m_msh(NULL), nSteps(-1), _new_file_opened(flag_append_data), dat_type_name("TECPLOT")
+	m_msh(NULL), nSteps(-1), _new_file_opened(false), dat_type_name("TECPLOT")
 {
 	tim_type_name = "TIMES";
 	m_pcs = NULL;
@@ -519,7 +522,9 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		if (line_string.find("$APPEND_DATA") != string::npos)  // JOD 2020-05-08
 		{
 			_new_file_opened = true;  // declared as already deleted
+			flag_append_data = true;  // for logger
 			std::cout << "\tAppend data (File not deleted)\n";
+			logger.block_deletion();
 			continue;
 		}
 		// For tecplot block datapack format 10.2014 BW
@@ -4780,7 +4785,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 
 	tec_file_name += ".txt";
 
-	if (time_step_number == 0)
+	if(!_new_file_opened)
 		remove(tec_file_name.c_str());
 
 	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
@@ -4789,7 +4794,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 	if (!tec_file.good()) return;
 	tec_file.seekg(0L, ios::beg);
 
-	if (time_step_number == 0)
+	if(!_new_file_opened)
 	{
 		tec_file << "\"TIME\"                   ";
 		if (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT || m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
@@ -4950,8 +4955,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 	tec_file_name += ".txt";
 
-
-	if (time_step_number == 0)
+	 if(!_new_file_opened)
 		remove(tec_file_name.c_str());
 
 	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
@@ -4960,7 +4964,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	if (!tec_file.good()) return;
 	tec_file.seekg(0L, ios::beg);
 
-	if (time_step_number == 0)
+	if(!_new_file_opened)
 		tec_file << "\"TIME\"                   \"CONTENT\"" << "\n";
 	else 
 	{

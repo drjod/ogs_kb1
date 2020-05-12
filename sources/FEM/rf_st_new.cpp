@@ -698,9 +698,6 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		  in.clear();
 
-		  std::ofstream stream("logging.txt"); // to delete old file - later, number of iterations are appended
-		  stream << "simulationTime\titerations\tT_HE\n";
-
 		  continue;
 	  }
 	  //....................................................................
