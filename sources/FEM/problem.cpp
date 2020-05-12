@@ -11,6 +11,7 @@
 
 #include "fancyTimer.h"
 #include "logger.h"
+extern bool flag_block_output_of_initial_values;
 #include "problem.h"
 
 #if defined (USE_MPI)
@@ -1078,7 +1079,8 @@ void Problem::Euler_TimeDiscretize()
 	{
 #endif
 	aktuelle_zeit = current_time;
-	OUTData(current_time,aktueller_zeitschritt,true);
+	if(!flag_block_output_of_initial_values)
+		OUTData(current_time,aktueller_zeitschritt,true);
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
 	}
 #endif
@@ -1139,7 +1141,7 @@ void Problem::Euler_TimeDiscretize()
 		std::cout << "\n\n#############################################################\n";
 		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
 		current_time << "|  Time step size: " << dt << "\n";
-		logger.info("Time step:", aktueller_zeitschritt, "- Time:", current_time, "- Step size", dt);
+		logger.info<1>("Time step:", aktueller_zeitschritt, "- Time:", current_time, "- Step size", dt);
 		if(dt_rec > dt){
       double diff = dt_rec - dt;
       std::cout << "This time step size was modified by " << diff << " to match a critical time!" << "\n";
@@ -1374,7 +1376,7 @@ bool Problem::CouplingLoop()
   max_outer_error = 0.0;
   for (outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
   {
-	logger.info("Coupling loop:", outer_index, "/", cpl_overall_max_iterations);
+	logger.info<1>("Coupling loop:", outer_index, "/", cpl_overall_max_iterations);
     // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
     for (i = 0; i < num_processes; i++)
     {

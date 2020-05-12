@@ -44,7 +44,7 @@
 #include "FileTools.h"
 
 #include "logger.h"
-bool flag_append_data = false;
+bool flag_block_output_of_initial_values = false;
 
 #include "rf_st_new.h" /// JOD 2018-4-6 to use FaceIntegration (surface-averaged output)
 
@@ -522,7 +522,7 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		if (line_string.find("$APPEND_DATA") != string::npos)  // JOD 2020-05-08
 		{
 			_new_file_opened = true;  // declared as already deleted
-			flag_append_data = true;  // for logger
+			flag_block_output_of_initial_values = true;  // no output for step 0
 			std::cout << "\tAppend data (File not deleted)\n";
 			logger.block_deletion();
 			continue;
@@ -788,7 +788,7 @@ void COutput::NODWriteDOMDataTEC()
 		{
             WriteTECElementData(tec_file,te);
 		}
-
+        _new_file_opened = true;
 		tec_file.close();         // kg44 close file
 		//--------------------------------------------------------------------
 		// tri elements
@@ -1095,6 +1095,7 @@ void COutput::NODDomainWriteBinary()
    MPI_Barrier( MPI_COMM_WORLD ) ;
    MPI_File_sync( fh ) ; 
    MPI_File_close(&fh);
+   _new_file_opened = true;
 }
 #endif //  end of USE_PETSC
 
@@ -1245,6 +1246,7 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 		}
 		tec_file << "\n";
 	}
+	_new_file_opened = true;
 }
 
 /**************************************************************************
@@ -1407,6 +1409,7 @@ void COutput::ELEWriteDOMDataTEC()
 	WriteELEValuesTECHeader(tec_file);
 	WriteELEValuesTECData(tec_file);
 	//--------------------------------------------------------------------
+	_new_file_opened = true;
 	tec_file.close();                     // kg44 close file
 }
 
@@ -1670,7 +1673,7 @@ void COutput::BLOCKWriteDOMDataTEC()
 		WriteTECBLOCKData(tec_file);
 	}
 
-
+	_new_file_opened = true;
 	tec_file.close();         // kg44 close file
 }
 
@@ -2431,6 +2434,7 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
 
 		tec_file << "\n";
 	}
+	_new_file_opened = true;
 	tec_file.close();                     // kg44 close file
 	return flux_sum;
 }
@@ -2728,6 +2732,7 @@ void COutput::NODWritePNTDataTEC(int time_step_number)
 			                            - 1) << " ";  //NB
 	}
 	tec_file << "\n";
+	_new_file_opened = true;
 	//----------------------------------------------------------------------
 	tec_file.close();                     // kg44 close file
 }
@@ -2877,8 +2882,6 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 	  //                          + number_string + TEC_FILE_EXTENSION;   
    std::string tec_file_name = file_base_name
      + "_sfc_" + geo_name + TEC_FILE_EXTENSION;
-   //if (!_new_file_opened)
-   //  remove(tec_file_name.c_str());  //WW
 
    std::fstream tec_file;
 	if (!_new_file_opened)
@@ -3042,6 +3045,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 		tec_file << "Error in NODWriteSFCDataTEC: Surface " << geo_name
 		         << " not found" << "\n";
 
+	_new_file_opened = true;
 	tec_file.close();                     // kg44 close file
 }
 
@@ -3082,9 +3086,6 @@ void COutput::NODWriteSFCAverageDataTEC(int time_step_number)
 		std::string tec_file_name = file_base_name
 	     + "_sfc_" + geo_name + "_" + std::string(convertProcessTypeToString(getProcessType()))
 	    		 + "_averaged" + TEC_FILE_EXTENSION;
-
-	   //if (!_new_file_opened)
-	   //  remove(tec_file_name.c_str());  //WW
 
 	   std::fstream tec_file;
 		if (!_new_file_opened)
@@ -3153,6 +3154,7 @@ void COutput::NODWriteSFCAverageDataTEC(int time_step_number)
 		}
 
 		tec_file << "\n";
+		_new_file_opened = true;
 		tec_file.close();                     // kg44 close file
 }
 
@@ -3266,6 +3268,7 @@ void COutput::NODWritePLYAverageDataTEC(int time_step_number)
 		}
 
 		tec_file << "\n";
+		_new_file_opened = true;
 		tec_file.close();
 }
 
@@ -3481,6 +3484,7 @@ void COutput::ELEWriteSFC_TEC()
 	ELEWriteSFC_TECData(tec_file);
 	//--------------------------------------------------------------------
 	tec_file.close();                     // kg44 close file
+	_new_file_opened = true;
 }
 
 void COutput::ELEWriteSFC_TECHeader(fstream &tec_file)
@@ -3703,7 +3707,7 @@ void COutput::ELEWritePLY_TEC()
 	ELEWritePLY_TECHeader(tec_file);
 	ELEWritePLY_TECData(tec_file);
 	//--------------------------------------------------------------------
-
+	_new_file_opened = true;
 	tec_file.close();                     // kg44 close file
 }
 
@@ -3920,6 +3924,7 @@ void COutput::TIMValues_TEC(double tim_value[5], std::string *header, int dimens
    for (int i = 0; i < dimension; i++)
       tec_file << " " << j[i];
    tec_file << "\n";
+   _new_file_opened = true;
    //--------------------------------------------------------------------
    tec_file.close();                              // kg44 close file
 
@@ -4303,6 +4308,7 @@ void COutput::PCONWriteDOMDataTEC()
 		//      tec_file.close(); // kg44 close file
 		//    }
 	}
+	_new_file_opened = true;
 }
 
 /**************************************************************************
@@ -4617,6 +4623,7 @@ void COutput::NODWritePointsCombined(double time_current, int time_step_number)
 	}
 
 		tec_file.close();
+		_new_file_opened = true;
 	}
 }
 
@@ -4803,7 +4810,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 			tec_file << "\"DARCY FLUX\"";
 		tec_file << "\n";
 	}
-	else 
+	else
 	{
 		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number
 			% nSteps == 0))
@@ -4830,6 +4837,7 @@ void COutput::WriteTotalFlux(double time_current, int time_step_number)
 		}
 	}
 	tec_file.close();
+	_new_file_opened = true;
 
 }
 
@@ -4966,7 +4974,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 
 	if(!_new_file_opened)
 		tec_file << "\"TIME\"                   \"CONTENT\"" << "\n";
-	else 
+	else
 	{
 		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
 		  output = true;
@@ -4988,7 +4996,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 			cout << " TOTAL_CONTENT " << mmp_index << endl;
 		}
 	}
-
+	_new_file_opened = true;
 	tec_file.close();
 
 }
