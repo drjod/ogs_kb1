@@ -1603,7 +1603,12 @@ bool Problem::CouplingLoop()
   	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
   	&& wdc_converged)
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
+  	{
+        for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
+        	ogs_wdc->discard();  // !!! to recreate WDC in next time step
+
   		break;
+  	}
 
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
