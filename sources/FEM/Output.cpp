@@ -5643,9 +5643,13 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 				<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
 				<< '\t' << result.Q_H
 				<< '\t' << result.Q_W
-				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well1_aquifer, 1)
-				<< '\t' << m_pcs->GetNodeValue(doublet_mesh_nodes.well2_aquifer, 1)
-				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well1_aquifer,
+						doublet_mesh_nodes.well1_aquifer_area_fraction, 1)
+				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well2_aquifer,
+						doublet_mesh_nodes.well2_aquifer_area_fraction, 1)
+				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
+						doublet_mesh_nodes.heatExchanger_area_fraction, 1)
+				//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 				<< '\n';
 
 		}

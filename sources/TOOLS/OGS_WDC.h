@@ -41,10 +41,13 @@ public:
 	};
 
 	struct doublet_mesh_nodes_t
-	{	// geometric locations
-		long well1_aquifer;
-		long well2_aquifer;
+	{	// geometry
+		std::vector<size_t> well1_aquifer;
+		std::vector<size_t> well2_aquifer;
 		std::vector<size_t> heatExchanger;
+		std::vector<double> well1_aquifer_area_fraction;  // sums up to 1
+		std::vector<double> well2_aquifer_area_fraction;  // sums up to 1
+		std::vector<double> heatExchanger_area_fraction;  // sums up to 1
 	};
 private:
 	std::shared_ptr<wdc::WellDoubletControl> wellDoubletControl;
@@ -54,7 +57,7 @@ private:
 	bool is_evaluated;  // to do wdc evaluation only once each iteration beginning with second iteration
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 	size_t nodes_counter;
-	double heatExchangerArea;
+	//double heatExchangerArea;
 	double well_shutdown_temperature_range;
 	double accuracy_temperature, accuracy_powerrate, accuracy_flowrate;
 
@@ -64,8 +67,9 @@ public:
 	OGS_WDC(const double& _well_shutdown_temperature_range, const double& _accuracy_temperature,
 			const double& _accuracy_powerrate, const double& _accuracy_flowrate) :
 		is_initialized(false), is_evaluated(true),
-		doublet_mesh_nodes({-1, -1, std::vector<size_t>()}),
-		nodes_counter(0), heatExchangerArea(1.),
+		doublet_mesh_nodes({std::vector<size_t>(), std::vector<size_t>(),
+					std::vector<size_t>(), std::vector<double>(), std::vector<double>(), std::vector<double>()}),
+		nodes_counter(0), // heatExchangerArea(1.),
 		well_shutdown_temperature_range(_well_shutdown_temperature_range),
 		accuracy_temperature(_accuracy_temperature), accuracy_powerrate(_accuracy_powerrate), accuracy_flowrate(_accuracy_flowrate) {}
 	std::shared_ptr<wdc::WellDoubletControl> get_WellDoubletControl() const { return wellDoubletControl; }
@@ -76,12 +80,20 @@ public:
 	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
-	long get_upwind_aquifer_mesh_node(const double& current_time); // for time step
+	int get_aquifer_mesh_nodes(const double& current_time, // for time step
+			std::vector<size_t>& heatExchanger_aquifer_mesh_nodes,
+			std::vector<double>& heatExchanger_aquifer_mesh_nodes_area_fraction,
+			std::vector<size_t>& upwind_aquifer_mesh_nodes,
+			std::vector<double>& upwind_aquifer_mesh_nodes_area_fraction);
+	void set_heat_exchanger_mesh_nodes(std::vector<size_t> mesh_nodes, std::vector<double> mesh_nodes_area_fraction)
+			// just for output with WDC at polylines (heat exchanger switches)
+			{ doublet_mesh_nodes.heatExchanger = mesh_nodes;
+				doublet_mesh_nodes.heatExchanger_area_fraction = mesh_nodes_area_fraction; }
 	double call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 
 	double get_extremum(const CRFProcess* m_pcs, const int& ndx, const std::vector<size_t> nodes) const;
 
-	void set_heatExchangerArea(double _heatExchangerArea) { heatExchangerArea = _heatExchangerArea; }
+	//void set_heatExchangerArea(double _heatExchangerArea) { heatExchangerArea = _heatExchangerArea; }
 };
 
 

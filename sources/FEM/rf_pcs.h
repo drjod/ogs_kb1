@@ -656,6 +656,17 @@ public:
 		return GetNodeValue(*std::min_element(nodes.begin(), nodes.end(),
 				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
 	}
+
+	double GetWeightedAverageNodeValue(const std::vector<size_t> nodes, const std::vector<double> weights,
+			const int& ndx) const
+	{
+		double value = 0.;
+		for(int i=0; i<nodes.size(); ++i)
+		{
+			value += GetNodeValue(nodes[i], ndx) * weights[i];
+		}
+		return value;
+	}
 	//-----------------------------
 
 	std::vector<std::string> const& getElementValueNameVector () { return ele_val_name_vector; }

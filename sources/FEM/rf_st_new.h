@@ -108,6 +108,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	OGS_contraflow* ogs_contraflow;  // pointer to vector entry in pcs
 	int wdc_connector_materialGroup;
 	double wdc_connector_normaldirectionVector[3];
+	bool wdc_flag_extract_and_reinject;
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -236,8 +237,8 @@ public:
 
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
-	double apply_wellDoubletControl(const double &value, const CNodeValue* cnodev,
-			const double& aktuelle_zeit, const CRFProcess* m_pcs);  // JOD 2018-06-14
+	double apply_wellDoubletControl(double value, const CNodeValue* cnodev,
+			const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
 	double apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
@@ -523,7 +524,7 @@ extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeVal
 extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 // JOD
 extern void GetCouplingNODValuePicard(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
-extern void GetCouplingNODValueConvectiveForm(double& value, CSourceTerm* m_st, CNodeValue* cnodev);  // JOD 2020-03-25
+extern void GetCouplingNODValueConvectiveForm(double& value, CSourceTerm* m_st, const long mesh_node_number);//, CNodeValue* cnodev);  // JOD 2020-03-25
 #endif
 // JOD
 extern double CalcCouplingValue(double factor,
