@@ -5,6 +5,7 @@
 // must be called (at least) at beginning of each time step before WDC is created (in CSourceTerm::apply_wellDoubletControl())
 // return value 1: stroing, -1: retrieving
 int OGS_WDC::get_aquifer_mesh_nodes(const double& current_time,
+		const bool & wdc_flag_extract_and_reinject,
 		std::vector<size_t>& heatExchanger_aquifer_mesh_nodes,
 		std::vector<double>& heatExchanger_aquifer_mesh_nodes_area_fraction,
 		std::vector<size_t>& upwind_aquifer_mesh_nodes,
@@ -16,25 +17,47 @@ int OGS_WDC::get_aquifer_mesh_nodes(const double& current_time,
 
 	if(parameter_list.empty())
 		throw std::runtime_error("ERROR in WDC - Parameter list empty");
-//std::cout << "Power: " << parameter_list.begin()->powerrate << "\n";
-	if(parameter_list.begin()->powerrate > 0)
-	{	// storing
-		heatExchanger_aquifer_mesh_nodes = get_doublet_mesh_nodes().well1_aquifer;
-		heatExchanger_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well1_aquifer_area_fraction;
 
-		upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well2_aquifer;
-		upwind_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well2_aquifer_area_fraction;
-		return 1;
+	if(wdc_flag_extract_and_reinject)
+	{	// heat exchanger at warm well when storing and at cold well when retrieving
+
+		if(parameter_list.begin()->powerrate > 0)
+		{	// storing
+			heatExchanger_aquifer_mesh_nodes = get_doublet_mesh_nodes().well1_aquifer;
+			heatExchanger_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well1_aquifer_area_fraction;
+
+			upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well2_aquifer;
+			upwind_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well2_aquifer_area_fraction;
+			return 1;
+		}
+		else
+		{	// retrieving
+			heatExchanger_aquifer_mesh_nodes = get_doublet_mesh_nodes().well2_aquifer;
+			heatExchanger_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well2_aquifer_area_fraction;
+
+			upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well1_aquifer;
+			upwind_aquifer_mesh_nodes_area_fraction = get_doublet_mesh_nodes().well1_aquifer_area_fraction;
+			return -1;
+		}
 	}
 	else
-	{	// retrieving
-		heatExchanger_aquifer_mesh_nodes = get_doublet_mesh_nodes().well2_aquifer;
-		heatExchanger_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well2_aquifer_area_fraction;
-
-		upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well1_aquifer;
-		upwind_aquifer_mesh_nodes_area_fraction = get_doublet_mesh_nodes().well1_aquifer_area_fraction;
-		return -1;
+	{	// heat exchanger at fixed position given by $GEO_TYPE
+		heatExchanger_aquifer_mesh_nodes = get_doublet_mesh_nodes().heatExchanger;
+		heatExchanger_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().heatExchanger_area_fraction;
+		if(parameter_list.begin()->powerrate > 0)
+		{  // storing
+			upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well2_aquifer;
+			upwind_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well2_aquifer_area_fraction;
+			return 1;
+		}
+		else
+		{  // retrieving
+			upwind_aquifer_mesh_nodes = get_doublet_mesh_nodes().well1_aquifer;
+			upwind_aquifer_mesh_nodes_area_fraction =  get_doublet_mesh_nodes().well1_aquifer_area_fraction;
+			return -1;
+		}
 	}
+
 }
 
 // creates and configures new wellDoubletControl
@@ -46,10 +69,11 @@ int OGS_WDC::get_aquifer_mesh_nodes(const double& current_time,
 void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
-	std::cout << "\t\t\tWDC\n";
+	std::cout << "\tWDC create\n";
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
 			well_shutdown_temperature_range,
 			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
+	wellDoubletControl->set_heatPump(heat_pump_parameter._type, heat_pump_parameter.T_sink, heat_pump_parameter.eta);
 	wellDoubletControl->configure(parameter_list.begin()->powerrate,
 						parameter_list.begin()->target_value, parameter_list.begin()->threshold_value,
 						balancing_properties);
@@ -61,7 +85,7 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 // also flow rates are updated if required
 void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
-	std::cout << "\t\t\tWDC\n";
+	std::cout << "\tWDC - evaluate\n";
 	wellDoubletControl->evaluate_simulation_result(balancing_properties);
 }
 
@@ -77,9 +101,10 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl:
 			if(!is_initialized)// && nodes_counter == 0)
 			{
 				create_new_WDC(balancing_properties);
-				is_evaluated = true;
+				is_evaluated = true;//false;
 			}
-			else if(!is_evaluated)
+
+			if(!is_evaluated)
 			{
 				evaluate_simulation_result(balancing_properties);
 				is_evaluated = true;
@@ -92,6 +117,7 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl:
 			// std::cout << "Q_w: " << wellDoubletControl->get_result().Q_W << std::endl;
 			break;
 		case FiniteElement::HEAT_TRANSPORT:
+			is_evaluated = false;
 			// result is power rate (flow rate might be updated)
 			/*if(m_pcs->iter_outer_cpl > 0 && !m_pcs->inFemFCTmode() && nodes_counter == 0)
 			{
@@ -108,6 +134,8 @@ double OGS_WDC::call_WDC(const CRFProcess* m_pcs, const wdc::WellDoubletControl:
 	nodes_counter++;
 	if(nodes_counter == doublet_mesh_nodes.heatExchanger.size())
 		nodes_counter = 0;
+
+	// std::cout << "result: " << result << "\n";
 	return result;
 }
 

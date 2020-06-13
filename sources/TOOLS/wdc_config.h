@@ -1,9 +1,11 @@
 #define LOGGING 1
 
+#include <iostream>
+
 
 #if LOGGING == 1
-        #define LOG(x) std::cout << x << "\n"
+        #define WDC_LOG(x) std::cout << x << "\n"
 #else
-        #define LOG(x)
+        #define WDC_LOG(x)
 #endif
 

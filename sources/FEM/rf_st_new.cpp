@@ -673,14 +673,40 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
 	  {
+		  std::cout << "Read WDC parameter\n";
 		  int numberOfParameterSets;
-		  double accuracy_temperature = 0.01, accuracy_powerrate = 10., accuracy_flowrate = 1.e-5;  // default values
-		  double well_shutdown_temperature_range = 10.;
+		  double accuracy_temperature = 0.01, accuracy_powerrate = 1e3, accuracy_flowrate = 1.e-5;  // default values
+		  double well_shutdown_temperature_range = 5.;
+
+		  std::string tmp;
+		  int heatPumpType;
+		  double temperature_sink, eta;  // for carnot
+
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> tmp >> heatPumpType;
+		  if(heatPumpType == 0)
+		  {
+			  std::cout << "\tNo heat pump";
+		  }
+		  if(heatPumpType == 1)
+		  {
+			  in >> temperature_sink >> eta;
+			  std::cout << "\tCarnot heat pump; T_sink = " << temperature_sink << ", eta = " << eta <<  "\n";
+		  }
+		  else
+			  std::runtime_error("ERROR in heat pump specification");
+		  in.clear();
+
+		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
+		  in.clear();
+
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
+		  in.clear();
 
 		  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
-		  in.clear();
+		  ogs_WDC->set_heat_pump_parameter(heatPumpType, temperature_sink, eta);
+
 		  while(numberOfParameterSets--)  // no check if number is right
 		  {
 			  double tmp0, tmp2, tmp3, tmp4;
@@ -3924,7 +3950,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 				  }
 			  }
 		/////
-		if(st->ogs_WDC != nullptr)
+		if(st->ogs_WDC != nullptr)  // for (3D) ATES with polyline wells
 		{  	  // point for measurements
 			std::vector<long> ply_nod_vector_well2;
 
@@ -6497,11 +6523,11 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 	std::vector<size_t> heatExchanger_aquifer_mesh_nodes, upwind_aquifer_mesh_nodes;
 	std::vector<double> heatExchanger_aquifer_mesh_nodes_area_fraction, upwind_aquifer_mesh_nodes_area_fraction;
 
-	int operation_type = ogs_WDC->get_aquifer_mesh_nodes(aktuelle_zeit,
+	int operation_type = ogs_WDC->get_aquifer_mesh_nodes(aktuelle_zeit, wdc_flag_extract_and_reinject,
 				heatExchanger_aquifer_mesh_nodes, heatExchanger_aquifer_mesh_nodes_area_fraction,
 				upwind_aquifer_mesh_nodes, upwind_aquifer_mesh_nodes_area_fraction);
 
-	if(m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	if(wdc_flag_extract_and_reinject && m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
 	{
 		if(operation_type * value < 0)  // storing with injection at warm well and retrieving with injection at cold well
 			return 0;
@@ -6510,6 +6536,18 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 	}
 
 	ogs_WDC->set_heat_exchanger_mesh_nodes(heatExchanger_aquifer_mesh_nodes, heatExchanger_aquifer_mesh_nodes_area_fraction);
+
+	/*std::cout << "heat_exchanger\n";
+	for(int i=0; i< heatExchanger_aquifer_mesh_nodes.size(); ++i)
+	{
+		std::cout << heatExchanger_aquifer_mesh_nodes[i] << " " << heatExchanger_aquifer_mesh_nodes_area_fraction[i] << "\n";
+	}
+
+	std::cout << "unpwind\n";
+	for(int i=0; i< upwind_aquifer_mesh_nodes.size(); ++i)
+	{
+		std::cout << upwind_aquifer_mesh_nodes[i] << " " << upwind_aquifer_mesh_nodes_area_fraction[i] << "\n";
+	}*/
 
 	const CRFProcess* const m_pcs_liquid = (m_pcs->getProcessType() ==
 			FiniteElement::LIQUID_FLOW)? m_pcs : PCSGet("LIQUID_FLOW");

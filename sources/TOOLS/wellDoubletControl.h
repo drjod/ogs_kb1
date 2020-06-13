@@ -5,6 +5,7 @@
 
 #include "wdc_config.h"
 #include "comparison.h"
+#include "heatPump.h"
 
 namespace wdc
 {
@@ -35,6 +36,7 @@ public:
 		double Q_H, Q_W;  // power rate Q_H (given input, potentially adapted),
                                 // flow rate Q_W either calculated
                                 // (schemes A and C) or set as input (Scheme B)
+		double Q_H_sys;
         	double T_HE, T_UA;  // temperature at heat exchanger and in upwind aquifer
         	storage_state_t storage_state;  // says if storage meets demand or not
 	};
@@ -52,37 +54,40 @@ public:
 private:
 	result_t result;  // for the client
 	int _scheme_ID;
+	double Q_H_sys_target;
 protected:
-	accuracies_t accuracies; // const
+	wdc::HeatPump* heatPump;
 	double well_shutdown_temperature_range;  // 10. - to shut down if storage is full or empty 
+	accuracies_t accuracies; // const
 
-	double Q_H_old;
-	double Q_W_old;  // looks redundant
+	double Q_H_sys_old;  // for error evaluation
+	double Q_W_old;
 
 	WellDoubletControl(int __scheme_ID, double _well_shutdown_temperature_range, accuracies_t _accuracies) : 
-		_scheme_ID(__scheme_ID), well_shutdown_temperature_range(_well_shutdown_temperature_range), 
+		_scheme_ID(__scheme_ID), heatPump(new wdc::NoHeatPump()), well_shutdown_temperature_range(_well_shutdown_temperature_range), 
 				accuracies(_accuracies), value_target(0.){} 
 
 	void set_flowrate(const double& _Q_W)
 	{ 
 		result.Q_W = _Q_W; 
-		LOG("\t\t\tset flow rate\t" << _Q_W);
+		WDC_LOG("\t\t\tset flow rate\t" << _Q_W);
 	}
 
 	void set_powerrate(const double& _Q_H) 
 	{ 
 		result.Q_H = _Q_H;
-		LOG("\t\t\tadapt power rate\t" << _Q_H);
-		result.storage_state = powerrate_to_adapt;
+		result.Q_H_sys = (_Q_H > 0.)? _Q_H : heatPump->get_heat_sink(_Q_H);
+		WDC_LOG("\t\t\tadapt power rate - Storage: " << _Q_H << " - System: " << result.Q_H_sys << " - COP: " << heatPump->get_COP());
+		//result.storage_state = powerrate_to_adapt;
 	}
 
 	void set_storage_state(storage_state_t _storage_state)
 	{
 		result.storage_state = _storage_state;
 		if(result.storage_state == powerrate_to_adapt)
-			LOG("\t\tpowerrate to adapt");
+			WDC_LOG("\t\tpowerrate to adapt");
 		if(result.storage_state == target_not_achievable)
-			LOG("\t\ttarget not achievable");
+			WDC_LOG("\t\ttarget not achievable");
 	}
 
 	double volumetricHeatCapacity_HE, volumetricHeatCapacity_UA;  // parameter
@@ -100,9 +105,13 @@ protected:
 	virtual void estimate_flowrate() = 0;
 	void write_outputFile() const;
 public:
-	int scheme_ID() const { return _scheme_ID; }
+	int get_scheme_ID() const { return _scheme_ID; }
+	double get_system_powerrate() const { return result.Q_H_sys; }
+	double get_system_target_powerrate() const { return Q_H_sys_target; }
+	double get_COP() const { return heatPump->get_COP(); }
+	void set_heatPump(const int& _type, const double& T_sink, const double& eta);
 
-	virtual ~WellDoubletControl() = default;
+	virtual ~WellDoubletControl() { delete heatPump; }
 
 	result_t get_result() const { return result; }
 	virtual void configure_scheme() = 0;
@@ -118,7 +127,7 @@ public:
 			// instance is created before time-stepping
 	
 	void print_temperatures() const;
-	bool powerrate_converged() const { return fabs(result.Q_H - Q_H_old) < accuracies.powerrate; }
+	bool powerrate_converged() const { return fabs(result.Q_H_sys - Q_H_sys_old) < accuracies.powerrate; }
 	//virtual bool converged(double _T_HE, double accuracy) const = 0;
 	virtual bool flowrate_converged() const = 0;
 	bool converged() const { return flowrate_converged() && powerrate_converged(); }
@@ -161,7 +170,7 @@ public:
 	{ 
 		if(notReached(get_result().T_HE, value_target) && get_result().storage_state == on_demand)
 			return false;
-		return fabs(get_result().Q_W - Q_W_old) < accuracies.flowrate; 
+		return fabs(get_result().Q_W - Q_W_old) < accuracies.flowrate;
 	}
 };
 
@@ -182,7 +191,7 @@ public:
 	//bool converged(double _T_HE, double _accuracy) const override { return (fabs(_T_HE - value_target) < _accuracy || flag_converged); }
 	bool flowrate_converged() const override 
 	{ 
-		if(beyond(get_result().T_HE, value_target) && get_result().storage_state == on_demand)
+		if(beyond(get_result().T_HE - get_result().T_UA, value_target) && get_result().storage_state == on_demand)
 			return false;
 		return fabs(get_result().Q_W - Q_W_old) < accuracies.flowrate; 
 	}

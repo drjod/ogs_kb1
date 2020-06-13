@@ -5628,8 +5628,8 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 		{
 			tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
 			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
-			tec_file << "\"Power rate Q_H\" \"Flow rate Q_w\" ";
-			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\"\n";
+			tec_file << "\"Power rate Q_H\"  \"System power rate Q_H_sys\" \"System target power rate Q_H_sys_target\" \"Flow rate Q_w\" ";
+			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"COP\"\n";
 		}
 		else
 		{
@@ -5637,11 +5637,17 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 			const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
 			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
 
+			const double system_powerrate = (result.Q_H>0.)?
+					result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
+			const double COP = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_COP();
+
 			tec_file << aktueller_zeitschritt
 				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->scheme_ID()
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_scheme_ID()
 				<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
 				<< '\t' << result.Q_H
+				<< '\t' << system_powerrate
+				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_target_powerrate()
 				<< '\t' << result.Q_W
 				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well1_aquifer,
 						doublet_mesh_nodes.well1_aquifer_area_fraction, 1)
@@ -5650,6 +5656,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
 						doublet_mesh_nodes.heatExchanger_area_fraction, 1)
 				//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+				<< '\t' << COP
 				<< '\n';
 
 		}

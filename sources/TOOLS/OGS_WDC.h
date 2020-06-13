@@ -49,9 +49,17 @@ public:
 		std::vector<double> well2_aquifer_area_fraction;  // sums up to 1
 		std::vector<double> heatExchanger_area_fraction;  // sums up to 1
 	};
+
+	struct heat_pump_parameter_t
+	{
+		int _type;
+		double T_sink;
+		double eta;
+	};
 private:
 	std::shared_ptr<wdc::WellDoubletControl> wellDoubletControl;
 	std::list<parameter_group_t> parameter_list;
+	heat_pump_parameter_t heat_pump_parameter;
 
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
 	bool is_evaluated;  // to do wdc evaluation only once each iteration beginning with second iteration
@@ -80,7 +88,10 @@ public:
 	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
+	void set_heat_pump_parameter(const int& _type, const double& T_sink, const double& eta)
+		{ heat_pump_parameter._type = _type ; heat_pump_parameter.T_sink = T_sink; heat_pump_parameter.eta = eta ;}
 	int get_aquifer_mesh_nodes(const double& current_time, // for time step
+			const bool & wdc_flag_extract_and_reinject,
 			std::vector<size_t>& heatExchanger_aquifer_mesh_nodes,
 			std::vector<double>& heatExchanger_aquifer_mesh_nodes_area_fraction,
 			std::vector<size_t>& upwind_aquifer_mesh_nodes,

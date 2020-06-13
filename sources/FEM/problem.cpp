@@ -1577,7 +1577,7 @@ bool Problem::CouplingLoop()
 
     	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
     	{
-    		ogs_wdc->set_unevaluated();
+    		//ogs_wdc->set_unevaluated(); set unevaluted when HEAT_TRAASPORT calculation
 
     		if(!ogs_wdc->get_WellDoubletControl()->converged())
     			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
@@ -1594,8 +1594,8 @@ bool Problem::CouplingLoop()
     		std::cout << "\tWDC converged\n";
     		for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
     			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
-				<< a_pcs->ogs_WDC_vector[i]->get_extremum(a_pcs, 1, a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger) << '\n';
-    			  //  << a_pcs->GetNodeValue(a_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes().heatExchanger[0], 1) << '\n';
+				<< a_pcs->GetWeightedAverageNodeValue(a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger,
+		    			a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger_area_fraction, 1) << '\n';
     	}
     }
 
