@@ -126,7 +126,8 @@ CMediumProperties::CMediumProperties() :
     betaexpo = 0;
 	ElementVolumeMultiplyer = 1.0; //SB / JOD 2014-11-10
 	ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1]
-		= ElementLengthMultiplyer_vector[2] = 1;            //  JOD 2015-11-18 LPVC 
+		= ElementLengthMultiplyer_vector[2] = 1.;            //  JOD 2015-11-18 LPVC
+	Multiplyer_direction_factor[0] = Multiplyer_direction_factor[1] = Multiplyer_direction_factor[2] = 1.;
 	permeability_pressure_model = -1; //01.09.2011. WW
 	permeability_strain_model = -1; //01.09.2011. WW
     forchheimer_cf = 0.0; //NW
@@ -2002,7 +2003,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  //------------------------------------------------------------------------
 	  if (line_string.find("$ELEMENT_VOLUME_MULTIPLYER") != std::string::npos)
 	  {
-		  int mode;
+		 int mode;
 
 		 std::string ElementVolumeMultiplyer_vector_type_name;
 		 in.str(GetLineFromFile1(mmp_file));
@@ -2015,27 +2016,32 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		 else if (mode == 1)
 		 {
 			 if (geo_dimension == 1){
-				 in >> ElementLengthMultiplyer_vector[0];
+				 in >>  Multiplyer_direction_factor[0];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
-				 std::cout << ElementLengthMultiplyer_vector[0]  << "\n";
+				 std::cout << Multiplyer_direction_factor[0]  << "\n";
 			 }
 			 else if (geo_dimension == 2)
 			 {
-				 in >> ElementLengthMultiplyer_vector[0];
-				 in >> ElementLengthMultiplyer_vector[1];
-				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << "\n";
+				 in >> Multiplyer_direction_factor[0] >> Multiplyer_direction_factor[1];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0] / Multiplyer_direction_factor[1];
+				 ElementLengthMultiplyer_vector[1] = Multiplyer_direction_factor[1] / Multiplyer_direction_factor[0];
+
+				 ElementVolumeMultiplyer = Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1];
+				 std::cout << Multiplyer_direction_factor[0] << " " << Multiplyer_direction_factor[1]  << "\n";
 			 }
 			 else if (geo_dimension == 3)
 			 {
-				 in >> ElementLengthMultiplyer_vector[0];
-				 in >> ElementLengthMultiplyer_vector[1];
-				 in >> ElementLengthMultiplyer_vector[2];
-				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << "\n";
+				 in >> Multiplyer_direction_factor[0] >> Multiplyer_direction_factor[1] >> Multiplyer_direction_factor[2];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0] / (Multiplyer_direction_factor[1] * Multiplyer_direction_factor[2]);
+				 ElementLengthMultiplyer_vector[1] = Multiplyer_direction_factor[1] / (Multiplyer_direction_factor[0] * Multiplyer_direction_factor[2]);
+				 ElementLengthMultiplyer_vector[2] = Multiplyer_direction_factor[2] / (Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1]);
+
+				 ElementVolumeMultiplyer = Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1] * Multiplyer_direction_factor[2];
+				 std::cout << Multiplyer_direction_factor[0] << " " << Multiplyer_direction_factor[1] << " " << Multiplyer_direction_factor[2] << "\n";
 			 }
 			 else
-				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension";
+				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension 1, 2 or 3";
 		 }
 		 else
 		     std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1";

@@ -225,8 +225,8 @@ public:
 	int permeability_porosity_updating_type; //ABM
 	int tortuosity_tensor_type;
 	double ElementVolumeMultiplyer; // Multiplyer of element volume
-	double ElementLengthMultiplyer_vector[3]; //  JOD 2015-11-18 direction-dependent multiplier 
-
+	double ElementLengthMultiplyer_vector[3]; //  JOD 2015-11-18 direction-dependent multiplier
+	double Multiplyer_direction_factor[3];  // JOD 2020-06-17 used for velocities
 	std::string PhaseHeatedByFriction; //In TNEQ/TES models: dissipated heat due to friction into solid or fluid energy balance
 
 	int permeability_pressure_model;

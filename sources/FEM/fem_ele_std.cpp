@@ -5891,7 +5891,7 @@ void CFiniteElementStd::Assemble_Gravity()
 			    for (size_t k = 0; k < dim; k++)
 			      {
 				NodalVal[ipiinn] -= fkt *
-				  dshapefct[k * nnodes + i] * mat[dim * k + dim - 1];
+				  dshapefct[k * nnodes + i] * mat[dim * k + dim - 1] / MediaProp->ElementLengthMultiplyer_vector[k];
 			      }
 			  }
 		}
@@ -6610,9 +6610,9 @@ void CFiniteElementStd::Cal_Velocity()
 		else                      // 02.2010. WW
 		{
 			for (size_t i = 0; i < dim; i++)
-            {				
+            {
 				for (size_t j = 0; j < dim; j++)
-					tmp_gp_velocity(i, gp) -= mat[dim*i + j] * vel[j] / (time_unit_factor * MediaProp->ElementLengthMultiplyer_vector[j]); // JOD 2015-11-18
+					tmp_gp_velocity(i, gp) -= mat[dim*i + j] * vel[j] / (time_unit_factor * MediaProp->Multiplyer_direction_factor[j]); // JOD 2020-06-17
             }
 
 		}
