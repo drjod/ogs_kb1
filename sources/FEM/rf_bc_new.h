@@ -158,6 +158,9 @@ public:
 
 	bool is_conditionally_active;  // JOD 2019-04-04
 	int condition_type;  // 0: lower threshold, 1: upper threshold
+
+	std::vector<double> changingBC_z_vec;  // JOD 2020-7
+	std::vector<int> changingBC_curve_vec;
 private:
 
 	std::vector<std::string> _PointsFCTNames;

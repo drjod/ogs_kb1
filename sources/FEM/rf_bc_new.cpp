@@ -371,13 +371,37 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			}
 		}
 
-		if (line_string.find("GRADIENT") != std::string::npos) // 6/2012  JOD
+		if (line_string.find("GRADIENT") != std::string::npos
+				&& line_string.find("CHANGING") == std::string::npos) // 6/2012  JOD
 		{
 			this->setProcessDistributionType(FiniteElement::GRADIENT);
 		    in >> gradient_ref_depth;
             in >> gradient_ref_depth_value;
             in >> gradient_ref_depth_gradient;
 			in.clear();
+		}
+
+		if (line_string.find("CHANGING_GRADIENT") != std::string::npos) // 7/2020  JOD
+		{
+			this->setProcessDistributionType(FiniteElement::CHANGING_GRADIENT);
+			geo_node_value = 0.;  // used in Set function
+			int number_of_curves;
+			in >> number_of_curves;
+			in.clear();
+			double z_before = -1e20;
+			for(int i=0; i<number_of_curves; ++i)
+			{
+				in.str(readNonBlankLineFromInputStream(*bc_file));
+				double z;
+				int curve;
+				in >> z >> curve;
+				changingBC_z_vec.push_back(z);
+				changingBC_curve_vec.push_back(curve);
+				in.clear();
+				if(z_before >= z)
+					throw std::runtime_error("ERROR in CHANGING_GRADIENT BC - z must be increasing");
+				z_before = z;
+			}
 		}
 
 		// Time dependent function
@@ -1212,7 +1236,8 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 						bc->SetPolylineNodeVectorConnected(nodes_vector_cond);
 					}
 
-					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT)
+					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT
+							|| bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)
 					{
 						// 08/2010 TF
 						double msh_min_edge_length = m_msh->getMinEdgeLength();

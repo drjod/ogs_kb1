@@ -2015,7 +2015,8 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		 }
 		 else if (mode == 1)
 		 {
-			 if (geo_dimension == 1){
+			 if (geo_dimension == 1)
+			 {
 				 in >>  Multiplyer_direction_factor[0];
 				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];

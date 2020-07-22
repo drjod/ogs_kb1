@@ -37,7 +37,7 @@
 #include <cfloat>
 #include <iomanip>                                //WW
 #include <iostream>
-//#include <algorithm> // header of transform. WW
+#include <algorithm>
 #include <set>
 
 #include "isnan.h"
@@ -7383,6 +7383,23 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 					bc_value = time_fac * fac * (nodeValue + m_bc_node->node_value);
 				}
 
+				if (m_bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)  // JOD 2020-7
+				{
+					///
+					 const double z_coord = m_msh->nod_vector[bc_msh_node]->getData()[2];
+
+					 const int upper = std::lower_bound(m_bc->changingBC_z_vec.begin(), m_bc->changingBC_z_vec.end(),
+							 z_coord) - m_bc->changingBC_z_vec.begin();  // index to entry above
+
+					 const double value_lower = GetCurveValue(m_bc->changingBC_curve_vec[upper-1],
+							 interp_method, aktuelle_zeit,  &valid);
+					 const double value_upper = GetCurveValue(m_bc->changingBC_curve_vec[upper],
+							 interp_method, aktuelle_zeit,  &valid);
+
+					 bc_value = value_lower + (value_upper-value_lower) *
+							 (z_coord - m_bc->changingBC_z_vec[upper-1]) /
+							 (m_bc->changingBC_z_vec[upper] - m_bc->changingBC_z_vec[upper-1]);
+				}
 				//----------------------------------------------------------------
 				// MSH
 				/// 16.08.2010. WW
