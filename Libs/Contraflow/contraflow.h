@@ -6,9 +6,9 @@
 #include "piping.h"
 #include "interface.h"
 #include <vector>
-#include <inttypes.h>
 
 #include "stru3_matrix.h"
+#include <inttypes.h>
 
 namespace contra
 {

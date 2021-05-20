@@ -30,7 +30,7 @@ const double c_flowrate_adaption_factor = .5;
 class WellDoubletControl
 {
 public:
-	enum storage_state_t { powerrate_to_adapt, on_demand, target_not_achievable };
+	enum storage_state_t { powerrate_to_adapt, on_demand, target_not_achievable, rates_reduced };
 	struct result_t
 	{
 		double Q_H, Q_W;  // power rate Q_H (given input, potentially adapted),
@@ -88,6 +88,8 @@ protected:
 			WDC_LOG("\t\tpowerrate to adapt");
 		if(result.storage_state == target_not_achievable)
 			WDC_LOG("\t\ttarget not achievable");
+		if(result.storage_state == rates_reduced)
+			WDC_LOG("\t\trates reduced");
 	}
 
 	double volumetricHeatCapacity_HE, volumetricHeatCapacity_UA;  // parameter

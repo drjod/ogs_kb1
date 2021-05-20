@@ -138,6 +138,7 @@ T dot_product(const Slice_iter<T>& it_a, const Slice_iter<T>& it_b)
 	for(Slice_iter<T> it_a2(it_a), it_b2(it_b); it_a2 != it_a2.end(); ++it_a2, ++it_b2)
 		res += *it_a2 * *it_b2;
 
+	return res;
 }
 
 //-------------------------------------------------------------
@@ -229,6 +230,7 @@ T dot_product(const Cslice_iter<T>& cit_a, const Cslice_iter<T>& cit_b)
 	T res = 0.;
 	for(Cslice_iter<T> cit_a2(cit_a), cit_b2(cit_b); cit_a2 != cit_a.end(); ++cit_a2, ++cit_b2)
 		res += *cit_a2 * *cit_b2;
+
 	return res;
 }
 
