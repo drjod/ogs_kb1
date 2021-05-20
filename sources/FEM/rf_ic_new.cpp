@@ -874,6 +874,7 @@ void CInitialCondition::SetDomain(int nidx)
 		//--------------------------------------------------------------------
 		// Remove unused stuff by WW
 		else if (this->getProcessDistributionType() == FiniteElement::GRADIENT)
+		{
 			//WW
 			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
 			{
@@ -895,6 +896,32 @@ void CInitialCondition::SetDomain(int nidx)
 				this->getProcess()->SetNodeValue(
 				        m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
 			}
+		}
+		//--------------------------------------------------------------------
+		else if (this->getProcessDistributionType() == FiniteElement::BOUNDED)  // JOD 2020-09-30 reimplemented
+		{
+			//WW
+			for (i = 0; i < m_msh->GetNodesNumber(true); i++)
+			{
+				if (onZ == 1) //2D
+					node_depth = m_msh->nod_vector[i]->getData()[1];
+				if (onZ == 2) //3D
+					node_depth = m_msh->nod_vector[i]->getData()[2];
+
+				if(node_depth > gradient_ref_depth1)
+					node_val = gradient_ref_depth_value1;
+				else if(node_depth < gradient_ref_depth)
+					node_val = gradient_ref_depth_value;
+				else
+				{
+					node_val = gradient_ref_depth_value +
+							(gradient_ref_depth_value1 - gradient_ref_depth_value) *
+							(node_depth - gradient_ref_depth) / (gradient_ref_depth1 - gradient_ref_depth);
+				}
+				this->getProcess()->SetNodeValue(
+						m_msh->nod_vector[i]->GetIndex(), nidx, node_val);
+			}
+		}
 		//if(dis_type_name.find("GRADIENT")!=string::npos)
 		//----------------------------------------------------------------------
 		else if (this->getProcessDistributionType() == FiniteElement::RESTART)
@@ -992,7 +1019,7 @@ void CInitialCondition::SetDomain(int nidx)
 						GetCurveValue(CurveIndex, 0, node_depth, &valid));
 
 				if(valid == 0)
-					std:cerr << "WARNING: Error when reading curve value - value will be apart of given range" << "\n";
+					std::cerr << "WARNING: Error when reading curve value - value will be apart of given range" << "\n";
 			}
 
 		}

@@ -811,7 +811,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	// -----------------------------------
 	if(time_control_type == TimeControlType::NEUMANN || time_control_type == TimeControlType::SELF_ADAPTIVE){
     adapt = true;
-    if(aktuelle_zeit < MKleinsteZahl && repeat == false){
+    if(aktuelle_zeit - time_start < MKleinsteZahl && repeat == false){
 			time_step_length = FirstTimeStepEstimate();
 		}
 		else if( time_control_type == TimeControlType::NEUMANN){
@@ -1157,7 +1157,7 @@ double CTimeDiscretization::FirstTimeStepEstimate(void)
 			break;
 		}
 	}
-	return time_step_length;
+	return time_start;
 }
 
 /**************************************************************************

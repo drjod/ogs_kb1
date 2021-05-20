@@ -109,6 +109,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int wdc_connector_materialGroup;
 	double wdc_connector_normaldirectionVector[3];
 	bool wdc_flag_extract_and_reinject;
+	bool variable_storage;
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);

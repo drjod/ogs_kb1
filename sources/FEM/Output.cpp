@@ -84,6 +84,8 @@ COutput::COutput() :
 	tecplot_datapack_block = 0; // 10.2014 BW
 	_ignore_axisymmetry = false;
 	VARIABLESHARING = false;	//BG
+	flag_volumeCalculation = false;
+	variable_storage = false;
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
 	int_disp = 0;
 	offset = 0;
@@ -101,6 +103,8 @@ COutput::COutput(size_t id) :
 	tecplot_zone_share = false; // 10.2012. WW
 	tecplot_datapack_block = 0; // 10.2014 BW
 	VARIABLESHARING = false;	//BG
+	flag_volumeCalculation = false;
+	variable_storage = false;
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//01.3014. WW
 	int_disp = 0;
 	domain_output_counter = 0;
@@ -260,6 +264,14 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 
 			continue;
 		}
+
+		//....................................................................
+	  	if (line_string.find("$VARIABLE_STORAGE") != std::string::npos)
+	  	{
+			in.clear();
+	  	 	variable_storage = true;
+  		 	continue;
+ 	 	 }
 		//--------------------------------------------------------------------
 		// subkeyword found //MX
 		if (line_string.find("$PCON_VALUES") != string::npos)
@@ -398,8 +410,8 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 			}
 			if (dat_type_name == "VOLUME") // JOD 2020-1-16
 			{
-						mmp_index = -2;  // flag for volume calculation
-						in_str >> domainIntegration_lowerThreshold >> domainIntegration_upperThreshold; // JOD 2020-1-15
+						flag_volumeCalculation = true;  // flag for volume calculation
+						in_str >> mmp_index >> domainIntegration_lowerThreshold >> domainIntegration_upperThreshold; // JOD 2020-1-15
 			}
 			in_str.ignore(MAX_ZEILE, '\n');
 			continue;
@@ -1222,7 +1234,6 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 			{
 				m_pcs = GetPCS(_nod_value_vector[k]);
 				if (m_pcs != NULL) { //WW
-
 					if (NodeIndex[k] > -1) {
 						if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10 
 							val_n = m_pcs->GetNodeValue(n_id, 1) - m_pcs->GetNodeValue(n_id, NodeIndex[k]);
@@ -3024,7 +3035,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 				if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
 					tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
 				else
-				tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
+					tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
 			}
 			tec_file << "\n";
 		}  // end nodes_vector
@@ -4040,6 +4051,7 @@ void COutput::NODWriteLAYDataTEC(int time_step_number)
 **************************************************************************/
 void COutput::PCONWriteDOMDataTEC()
 {
+std::cout << "fffffffffff" << std::endl;
 	int te = 0;
 	string eleType;
 	string tec_file_name;
@@ -4920,85 +4932,100 @@ void COutput::WriteContent(double time_current, int time_step_number)
 {
 	CFEMesh* m_msh = NULL;
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
-	CRFProcess* m_pcs = NULL;
 	double factor = 1.;
-	if (_nod_value_vector.size() > 0)
-		m_pcs = PCSGet(_nod_value_vector[0], true);
-	else
-		m_pcs = PCSGet(getProcessType());
-	bool output = false;
-
-	//--------------------------------------------------------------------
-	/*if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
-		factor = 6.283185307; // 2 Pi
-	else
-		factor = 1.;*/
-	// File handling
-	string tec_file_name;
+	//if (_nod_value_vector.size() > 0) 2021-02-10  removed by JOD
+	//	m_pcs = PCSGet(getProcessType(), _nod_value_vector[0]);
+	//else
+	CRFProcess* m_pcs = PCSGet(getProcessType());
+	if(m_pcs)
+	{
+		bool output = false;
 	
-	tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) ;
-	if (_nod_value_vector.size() > 0)
-		tec_file_name += "_" + _nod_value_vector[0];
-
-	if (mmp_index == -2)
-	{
-		stringstream ss; ss << "_VOLUME_" << domainIntegration_lowerThreshold << "_" << domainIntegration_upperThreshold;
-		tec_file_name += ss.str();
-	}
-	else
-	{
-		tec_file_name += "_CONTENT";
-	}
-
-	if (mmp_index >= 0)
-	{
-		stringstream ss; ss << mmp_index;
-		tec_file_name += ss.str();
-	}
-
-
-#if defined(USE_PETSC)  // JOD 2015-11-18
-	tec_file_name += "_" + mrank_str;
-#endif
-
-	tec_file_name += ".txt";
-
-	 if(!_new_file_opened)
-		remove(tec_file_name.c_str());
-
-	fstream tec_file(tec_file_name.data(), ios::app | ios::out);
-	tec_file.setf(ios::scientific, ios::floatfield);
-	tec_file.precision(12);
-	if (!tec_file.good()) return;
-	tec_file.seekg(0L, ios::beg);
-
-	if(!_new_file_opened)
-		tec_file << "\"TIME\"                   \"CONTENT\"" << "\n";
-	else
-	{
-		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
-		  output = true;
-
-		for (size_t j = 0; j < time_vector.size(); j++)
-		if ((fabs(time_current - time_vector[j])) < MKleinsteZahl)
-			output = true;
-
-		if (output == true)
+		//--------------------------------------------------------------------
+		//if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+		//	factor = 6.283185307; // 2 Pi
+		//else
+		//	factor = 1.;
+		// File handling
+		string tec_file_name;
+		
+		tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType()) ;
+		if (_nod_value_vector.size() > 0)
+			tec_file_name += "_" + _nod_value_vector[0];
+	
+		if (flag_volumeCalculation)
 		{
-			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
-					domainIntegration_lowerThreshold,
-					domainIntegration_upperThreshold,
-					_nod_value_vector)
-							<< "\n";
-			cout << "Data output: " << convertProcessTypeToString(getProcessType());
-			if (_nod_value_vector.size() == 1)
-				cout << " " << _nod_value_vector[0]; 
-			cout << " TOTAL_CONTENT " << mmp_index << endl;
+			stringstream ss; ss << "_VOLUME_" << domainIntegration_lowerThreshold << "_" << domainIntegration_upperThreshold;
+			tec_file_name += ss.str();
 		}
+		else
+		{
+			tec_file_name += "_CONTENT";
+		}
+		if(variable_storage)
+		{
+			tec_file_name += "_variableStorage";
+		}
+	
+		if (mmp_index >= 0)
+		{
+			stringstream ss; ss << "_" << mmp_index;
+			tec_file_name += ss.str();
+		}
+	
+	
+#if defined(USE_PETSC)  // JOD 2015-11-18
+		tec_file_name += "_" + mrank_str;
+#endif
+	
+		tec_file_name += ".txt";
+	
+		 if(!_new_file_opened)
+			remove(tec_file_name.c_str());
+	
+		fstream tec_file(tec_file_name.data(), ios::app | ios::out);
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good()) return;
+		tec_file.seekg(0L, ios::beg);
+	
+		if(!_new_file_opened)
+		{
+			if (flag_volumeCalculation)
+				tec_file << "\"TIME\"\t\t\"VOLUME\"\n";
+			else
+				tec_file << "\"TIME\"\t\t\"CONTENT\"\n";
+		}
+		else
+		{
+			if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
+			  output = true;
+	
+			for (size_t j = 0; j < time_vector.size(); j++)
+			if ((fabs(time_current - time_vector[j])) < MKleinsteZahl)
+				output = true;
+	
+			if (output == true)
+			{
+				tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
+						flag_volumeCalculation,
+						domainIntegration_lowerThreshold,
+						domainIntegration_upperThreshold,
+						_nod_value_vector, variable_storage)
+								<< "\n";
+				cout << "Data output: " << convertProcessTypeToString(getProcessType());
+			if (flag_volumeCalculation)
+				cout << " VOLUME " << mmp_index << " " << domainIntegration_lowerThreshold << " " << domainIntegration_upperThreshold << '\n';
+			else
+				cout << " CONTENT " << mmp_index << '\n';
+			}
+		}
+		_new_file_opened = true;
+		tec_file.close();
+	
 	}
-	_new_file_opened = true;
-	tec_file.close();
-
+	else
+		throw std::runtime_error("Error in content calculation - pcs unknown");
 }
 
 
@@ -5159,8 +5186,8 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	for (long i = 0; i < (long)elements_at_geo.size(); i++) {
 
 		elem = m_pcs->m_msh->ele_vector[elements_at_geo[i]];
-		if (!elem->GetMark())
-			continue;
+		//if (!elem->GetMark())
+		//	continue;
 		nfaces = elem->GetFacesNumber();
 		elem->SetOrder(m_pcs->m_msh->getOrder());
 		
@@ -5476,7 +5503,9 @@ void COutput::WriteTEC_DOMAIN(int time_step_number)
 	{
 #endif
 		if (_pcon_value_vector.size() > 0)
+		{
 			PCONWriteDOMDataTEC();  //MX
+		}
 		else
 		{
 			if (tecplot_datapack_block == 0) // BW

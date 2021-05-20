@@ -150,6 +150,8 @@ CSourceTerm::CSourceTerm() :
 
    wdc_connector_materialGroup = -1;
    wdc_flag_extract_and_reinject = false;
+
+   variable_storage = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -847,6 +849,15 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		 in.clear();
 		 assign_to_element_edge = true;
 		 continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$VARIABLE_STORAGE") != std::string::npos)
+	  {
+		 in.clear();
+		 variable_storage = true;
+		 continue;
+		 std::cout << "VARIABLE STORAGE\n";
+		 std::cout << "\tWARNING: Time step size form LIQUID_FLOW used\n";
 	  }
 	 //....................................................................
       if (line_string.find("$IGNORE_AXISYMMETRY") != std::string::npos)
@@ -4394,7 +4405,7 @@ void CSourceTermGroup::SetDMN(CSourceTerm *m_st, const int ShiftInNodeVector)
    dmn_nod_val_vector.resize(number_of_nodes);
 
    for (size_t i = 0; i < number_of_nodes; i++)
-      dmn_nod_val_vector[i] = 0;
+      dmn_nod_val_vector[i] = m_st->geo_node_value;
 
    m_st->SetNodeValues(dmn_nod_vector, dmn_nod_vector_cond,
       dmn_nod_val_vector, ShiftInNodeVector);
@@ -6628,62 +6639,64 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 		T_s[i] = m_pcs->GetNodeValue(nodes_vec[i], 1);
 	}
 
-	// std::cout << "\napply contraflow\n";
-	contra::Result result = ogs_contraflow->call_contraflow(aktuelle_zeit, T_s);
-	std::vector<contra::SegmentData> segment_data_vec = ogs_contraflow->get_segment_data_vec();
-
-	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << nodes_vec[i] << " ";
-	// std::cout << std::endl;
-	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << result.T_out[i] << " ";
-	// std::cout << std::endl;
-	// std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
-	// std::cout << "value: " << " " << value << "\n";
-	int j = 0;  // segment index
-	int k = 0;  // node in segment index
-	double L_ele = 0.;
-	int N = segment_data_vec[0].N;
-
-	for(std::size_t i=0; i < nodes_vec.size(); ++i)
+	//std::cout << "\napply contraflow\n";
+	contra::Result result;
+	if(ogs_contraflow->call_contraflow(aktuelle_zeit, T_s, result))
 	{
-		if(k == 1)
+		std::vector<contra::SegmentData> segment_data_vec = ogs_contraflow->get_segment_data_vec();
+
+		 //for(int i=0; i < nodes_vec.size(); ++i) std::cout << nodes_vec[i] << " ";
+		 //std::cout << std::endl;
+		 //for(int i=0; i < nodes_vec.size(); ++i) std::cout << result.T_out[i] << " ";
+		 //std::cout << std::endl;
+		 //std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
+		 //std::cout << "value: " << " " << value << "\n";
+		int j = 0;  // segment index
+		int k = 0;  // node in segment index
+		double L_ele = 0.;
+		int N = segment_data_vec[0].N;
+
+		for(std::size_t i=0; i < nodes_vec.size(); ++i)
 		{
-			L_ele = segment_data_vec[j].L/N;
-		}
-		else if(k == N)
-		{
-			k = 0;
-			if(j < int(segment_data_vec.size()-1))
+			if(k == 1)
 			{
-				L_ele /=2;  // inside BHE
-				++j;
+				L_ele = segment_data_vec[j].L/N;
 			}
-			else
-				L_ele = 0.;  // end of BHE
-		}
+			else if(k == N)
+			{
+				k = 0;
+				if(j < int(segment_data_vec.size()-1))
+				{
+					L_ele /=2;  // inside BHE
+					++j;
+				}
+				else
+					L_ele = 0.;  // end of BHE
+			}
 
-		if(k == 0)
-		{
-			N = segment_data_vec[j].N;
-			L_ele += segment_data_vec[j].L/(2*N);
+			if(k == 0)
+			{
+				N = segment_data_vec[j].N;
+				L_ele += segment_data_vec[j].L/(2*N);
 
-		}
+			}
 
 #ifdef NEW_EQS
-		CSparseMatrix* A = NULL;
-	   A = m_pcs->get_eqs_new()->get_A();
-	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
+			CSparseMatrix* A = NULL;
+		   A = m_pcs->get_eqs_new()->get_A();
+		   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
 #else
-	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
+		   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
 #endif
-		// not implemented for PETSc
-	   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[j].R_0_Delta) + result.T_out[i] / result.resistances_vec[j].R_1_Delta);
+			// not implemented for PETSc
+		   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[j].R_0_Delta) + result.T_out[i] / result.resistances_vec[j].R_1_Delta);
 
-	   //double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[j].R_0_Delta) + (result.T_out[i] / result.resistances_vec[j].R_1_Delta)
-	//	- ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta)) * T_s[i]);
+		   //double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[j].R_0_Delta) + (result.T_out[i] / result.resistances_vec[j].R_1_Delta)
+		//	- ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta)) * T_s[i]);
 
-	   ++k;
-	}
-
+		   ++k;
+		}
+	} // end contraflow true (no shutin)
 
 	return 0.;
 }

@@ -2028,7 +2028,7 @@ std::ios::pos_type CRFProcess::Read(std::ifstream* pcs_file)
 					this->isPCSMass = true; //JT2012
 					pcs_number_mass[pcs_no_components] = pcs_vector.size(); //JT2012
 					pcs_no_components++;
-					this->setProcessPrimaryVariable(FiniteElement::CONCENTRATION);
+					//this->setProcessPrimaryVariable(FiniteElement::CONCENTRATION);  // 2021-02-20 removed by JOD
 				}
 				if (this->getProcessType() == FiniteElement::MULTI_COMPONENTIAL_FLOW){
 					MULTI_COMPONENTIAL_FLOW_Process = true;
@@ -2680,6 +2680,7 @@ void CRFProcess::Config(void)
 	//	if (_pcs_type_name.compare("RICHARDS_FLOW") == 0) {
 	if (this->getProcessType() == FiniteElement::RICHARDS_FLOW)
 	{
+		std::cout << "CRFProcess::Config RICHARDS_FLOW" << "\n";
 		if (continuum_vector.size() > 1)
 		{
 			RD_Process = true;
@@ -2725,6 +2726,7 @@ void CRFProcess::Config(void)
 	//	if (_pcs_type_name.compare("MASS_TRANSPORT") == 0) {
 	if (this->getProcessType() == FiniteElement::MASS_TRANSPORT)
 	{
+		std::cout << "CRFProcess::Config MASS_TRANSPORT" << "\n";
 		type = 2;
 		ConfigMassTransport();
 	}
@@ -3246,7 +3248,7 @@ void CRFProcess::ConfigMassTransport()
 	pcs_secondary_function_unit[1] = "kg/m3/s";
 	pcs_secondary_function_timelevel[1] = 1;
 	//KG44 added secondary function for adaptive time stepping
-	string comp_name = "DELTA_" + convertPrimaryVariableToString(this->getProcessPrimaryVariable());// JOD 2014-11-10
+	string comp_name = "DELTA_" + string(pcs_primary_function_name[0])  ;  // JOD 2021-02-20 //convertPrimaryVariableToString(this->getProcessPrimaryVariable());// JOD 2014-11-10
 	pcs_secondary_function_name[2] = new char[80];  
 	strncpy((char*)pcs_secondary_function_name[2], comp_name.c_str(), 80);
 	pcs_secondary_function_unit[2] = "kg/m3";
@@ -7388,8 +7390,8 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 					///
 					 const double z_coord = m_msh->nod_vector[bc_msh_node]->getData()[2];
 
-					 const int upper = std::lower_bound(m_bc->changingBC_z_vec.begin(), m_bc->changingBC_z_vec.end(),
-							 z_coord) - m_bc->changingBC_z_vec.begin();  // index to entry above
+					 const int upper = std::max(1, int(std::lower_bound(m_bc->changingBC_z_vec.begin(), m_bc->changingBC_z_vec.end(),
+							 z_coord) - m_bc->changingBC_z_vec.begin()));  // index to entry above
 
 					 const double value_lower = GetCurveValue(m_bc->changingBC_curve_vec[upper-1],
 							 interp_method, aktuelle_zeit,  &valid);
@@ -8827,6 +8829,23 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 				  if(m_st->ogs_contraflow != nullptr)
 					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
+
+				  if(m_st->variable_storage)
+				  {
+					  CRFProcess* m_pcs_liquid;
+					   m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+					   long mesh_node_number = cnodev->msh_node_number;
+					   value *= m_pcs_liquid->GetNodeValue(mesh_node_number, 1) - m_pcs_liquid->GetNodeValue(mesh_node_number, 0);
+					   value /= -m_pcs_liquid->Tim->time_step_length;
+#ifdef NEW_EQS
+					   CSparseMatrix* A = eqs_new->A;
+					   (*A)(mesh_node_number, mesh_node_number) += value;
+#else
+					   MXInc(mesh_node_number, mesh_node_number, value);
+#endif
+					   value = 0;
+				  }
 			  }
 
 
@@ -17346,39 +17365,53 @@ Programming:
 7/2015 JOD consider geoArea
 **************************************************************************/
 
-double CRFProcess::AccumulateContent(const int& mmp_index, const double& threshold_lower, const double& threshold_upper,
-		std::vector<std::string> _nod_value_vector) //const
+double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_contentCalculation, const double& threshold_lower, const double& threshold_upper,
+		std::vector<std::string> _nod_value_vector, const bool& variable_storage)
 {
 
-	double nodesVal[8], x_coord[8], z_coord[8], content = 0, geoArea;
-	CNode* e_node;
-	CElem* elem;
-	size_t i, j, nn;
-	int nidx1;
-	if (_nod_value_vector.size() == 1)
-		nidx1 = GetNodeValueIndex(_nod_value_vector[0], true) + 1;   // only one component in  MASS TRANSPORT !!!!
-	else
-		nidx1 = 1;
-	for (i = 0; i < m_msh->ele_vector.size(); i++)
+	double content = 0;//, geoArea;
+	const int nidx1 = (_nod_value_vector.size() == 1) ? GetNodeValueIndex(_nod_value_vector[0], true) :   1;  // implicit
+    	// condition reacitvated 2021-02-10  - removed 2020-11-18, Did not work with more than one components MASS_TRANSPORT
+
+	if (_nod_value_vector.size() > 1)
+		throw std::runtime_error("Error in content calculation - only one variable can be given");
+
+	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
 	{
 		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
 		{ // -1 : take all
-			elem = m_msh->ele_vector[i];
-			if (!elem->GetMark())
-				continue;
+			CElem* elem = m_msh->ele_vector[i];
+			//if (!elem->GetMark())
+			//	continue;
 			
 			elem->SetOrder(m_msh->getOrder());
 			elem->ComputeVolume();
 			fem->ConfigElement(elem, m_num->ele_gauss_points, false);
 			//geoArea = elem->GetFluxArea();
-			nn = elem->GetNodesNumber(m_msh->getOrder());
-			for (j = 0; j < nn; j++) {
-				e_node = elem->GetNode(j);
-				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+
+			const CRFProcess* const m_pcs_liquid = PCSGet("LIQUID_FLOW");
+			double nodesVal[8], nodesVal_liquid[8],x_coord[8], z_coord[8];
+
+			for (size_t j = 0; j < elem->GetNodesNumber(m_msh->getOrder()); j++)
+			{
+				CNode* e_node = elem->GetNode(j);
+                                if (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0) // JOD 2021-02-10
+				{
+                                        nodesVal[j] = GetNodeValue(e_node->GetIndex(), 1) - GetNodeValue(e_node->GetIndex(), nidx1-1);  
+					// !!! takes always 1 as index
+				} 
+                               else
+					nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
+				if(m_pcs_liquid)
+					nodesVal_liquid[j] = m_pcs_liquid->GetNodeValue(e_node->GetIndex(), 1);
 			}
-			content += fem->CalculateContent(nodesVal, z_coord, mmp_index, threshold_lower, threshold_upper);// * geoArea;
+
+			content += fem->CalculateContent(nodesVal, nodesVal_liquid, z_coord, 
+								flag_contentCalculation,
+								threshold_lower, threshold_upper, 
+								variable_storage);// * geoArea;
 		}
 	}
 

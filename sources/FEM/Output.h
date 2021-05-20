@@ -45,6 +45,7 @@ public:
 	std::vector<double> DistribedBC;
 	std::string dis_type;
 
+	bool variable_storage;
 	/**
 	 * scaling factor for values
 	 * @param amplifier - a double value for scaling data
@@ -239,7 +240,8 @@ private:
 	std::vector<double> time_vector;
 	double _time;
 
-	int mmp_index; // JOD 2/2015  : -2 volume calculation (flag)
+	int mmp_index; // JOD 2/2015
+	bool flag_volumeCalculation;
 	double domainIntegration_lowerThreshold, domainIntegration_upperThreshold;  // JOD 2020-1-15
 	/**
 	 * the position in the global vector out_vector, used only in NODWritePLYDataTEC

@@ -1474,7 +1474,7 @@ double CFluidProperties::Density(double* values)
 		}
 		break;
 	case 27: // JOD 2020-3-20  - density has a non-linear denpendency on temperature BW 31.08.2017
-		// temperature need to be in the unit of [°C] not [K]
+		// temperature need to be in the unit of [K] not [°C]
 		density = (999.83952
 			+ 16.945176*(primVal[0] - 273.15)
 			- 7.9870401e-3*pow((primVal[0] - 273.15), 2.0)

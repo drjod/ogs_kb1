@@ -37,7 +37,7 @@
 enum EnumProcessType { EPT_LIQUID_FLOW, EPT_UNCONFINED_FLOW, EPT_GROUNDWATER_FLOW, EPT_TWOPHASE_FLOW, EPT_COMPONENTAL_FLOW,
                        EPT_HEAT_TRANSPORT, EPT_MASS_TRANSPORT, EPT_OVERLAND_FLOW, EPT_RICHARDS_FLOW, EPT_FLUID_MOMENTUM,
                        EPT_GAS_FLOW, EPT_MULTIPHASE_FLOW, EPT_PSGLOBAL, EPT_MULTI_COMPONENTIAL_FLOW,
-                       EPT_THERMAL_NONEQUILIBRIUM, EPT_TES };
+                       EPT_THERMAL_NONEQUILIBRIUM, EPT_TES, EPT_UNDEFINED };
 //-----------------------------------------------------
 
 namespace process
@@ -109,7 +109,7 @@ public:
 	void CalcStorage();
 	// 9. Content matrix
 	void CalcContent();
-	double CalculateContent(double *, double *, const int&, const double&, const double&);       // for budgets JOD 2/2015
+	double CalculateContent(double *, double*, double *, const bool&, const double&, const double&, const bool&);       // for budgets JOD 2/2015
 	void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
 	void CalcContentTNEQ(); //NW
 	void CalcContentTES(); //NW
@@ -282,7 +282,7 @@ private:
 	//
 	void Config();
 	//
-	double CalCoefMass(bool flag_calcContent=false); // BW: 23.03.2020 please update changes
+	double CalCoefMass(EnumProcessType _pcs_type = EPT_UNDEFINED); // BW: 23.03.2020 please update changes
 	// 25.2.2007 WW
 	double CalCoefMass2(int dof_index);
 	double CalCoefMasstneq(int dof_index);

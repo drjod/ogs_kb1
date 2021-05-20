@@ -1537,8 +1537,10 @@ void CFiniteElementStd::CalNodalEnthalpy()
    11/2005 CMCD Heat capacity function included in mmp
    01/2007 OK Two-phase flow
 **************************************************************************/
-double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 please update changes
+double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.2020 please update changes
 {
+	bool flag_calcContent = (_pcs_type == EPT_UNDEFINED) ? false : true;  // give _pcs_tpye when using function to calculate content
+
 	int Index = MeshElement->GetIndex();
 	double val = 0.0;
 	double humi = 1.0;
@@ -1552,7 +1554,10 @@ double CFiniteElementStd::CalCoefMass(bool flag_calcContent) //BW: 23.03.2020 pl
 
 	if(pcs->m_num->ele_mass_lumping)
 		ComputeShapefct(1);
-	switch(PcsType)
+
+	const EnumProcessType pcs_type =  (_pcs_type != EPT_UNDEFINED) ? _pcs_type : PcsType;
+
+	switch(pcs_type)
 	{
 	default:
 		std::cout << "Fatal error in CalCoefMass: No valid PCS type" << "\n";
@@ -3578,6 +3583,8 @@ double CFiniteElementStd::CalCoefAdvection()
 				val = FluidProp->get_volumetric_heat_capacity();
 			else
 				val = FluidProp->SpecificHeatCapacity(NULL,false) * FluidProp->Density();
+
+			TG = .5*(interpolate(NodalVal0)+interpolate(NodalVal1));
 		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport //SB4200
@@ -4914,6 +4921,7 @@ void CFiniteElementStd::CalcLaplace()
 		//  Compute Jacobian matrix and its determinate
 		//---------------------------------------------------------
 		double fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
+
 		//---------------------------------------------------------
 		// Compute geometry
 		ComputeGradShapefct(1);   // Linear interpolation function
@@ -8367,7 +8375,7 @@ void CFiniteElementStd::AssembleMixedHyperbolicParabolicEquation()
 			EleMat->SetStorage(Storage);
 			EleMat->SetContent(Content);
 		}
-	}                                     //SB-3
+	}                                      //SB-3
 	else
 	{
 		if(Index < 1)
@@ -8413,9 +8421,9 @@ void CFiniteElementStd::AssembleMixedHyperbolicParabolicEquation()
 		(*AuxMatrix)   *= fac_storage;
 		*StiffMatrix   += *AuxMatrix;
 		// Content matrix
-		//*AuxMatrix      = *Content;		//SB, BG; Korrektur Stofftransport bei Mehrphasenströmung
-		//(*AuxMatrix)   *= fac_content;
-		//*StiffMatrix   += *AuxMatrix; // SB, BG
+		*AuxMatrix      = *Content;		//SB, BG; Korrektur Stofftransport bei Mehrphasenströmung
+		(*AuxMatrix)   *= fac_content;
+		*StiffMatrix   += *AuxMatrix; // SB, BG
 
 #if !defined(USE_PETSC) // && !defined(other parallel libs)//03~04.3012. WW
 		//----------------------------------------------------------------------
@@ -12008,59 +12016,71 @@ Programming:
 7/2015 JOD  take hydrostatic pressure into account
 **************************************************************************/
 
-double CFiniteElementStd::CalculateContent(double *NodeVal, double *z_coord,
-		const int& mmp_index, const double& threshold_lower, const double& threshold_upper)
+double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liquid, double *z_coord,
+		const bool& flag_volumeCalculation, 
+		const double& threshold_lower, const double& threshold_upper, 
+		const bool& variable_storage)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
-	double fkt = 0.0, det, Gauss_val, content = 0, NodeVal_shifted[8];
-	
+	double content = 0, NodeVal_shifted[8];
+
 	Config();
 	setOrder(Order);
-	det = MeshElement->GetVolume();
-	//std::cout << "det: " << det << '\n';
+	const double det = MeshElement->GetVolume();
+
+	for (i = 0; i < nNodes; i++)
+	{
+		if (PcsType == EPT_LIQUID_FLOW)
+		{                                           // take hydrostatic gradient into account
+			NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
+		}
+		else                                        // do nothing
+			NodeVal_shifted[i] = NodeVal[i];
+
+		if(flag_volumeCalculation)
+		{
+			if(NodeVal_shifted[i] > threshold_lower && NodeVal_shifted[i] < threshold_upper)
+				NodeVal_shifted[i] = 1.;
+			else
+				NodeVal_shifted[i] = 0.;
+		}
+	}
+
 	for (gp = 0; gp < nGaussPoints; gp++)
 	{
-		fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
+		const double fkt = GetGaussData(gp, gp_r, gp_s, gp_t);
 		ComputeShapefct(Order);
 
-		for (i = 0; i < nNodes; i++)
-		{
-			if (PcsType == FiniteElement::LIQUID_FLOW)  
-			{                                           // take hydrostatic gradient into account 
-				NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
-			}
-			else                                        // do nothing
-				NodeVal_shifted[i] = NodeVal[i];
+		double Gauss_val = 0.0;
+		double Gauss_val_liquid = 0.0;
 
-			if(mmp_index == -2)
-			{
-				if(NodeVal_shifted[i] > threshold_lower && NodeVal_shifted[i] < threshold_upper)
-					NodeVal_shifted[i] = 1.;
-				else
-					NodeVal_shifted[i] = 0.;
-			}
-		}
-
-
-		Gauss_val = 0.0;
 		for (i = 0; i < nNodes; i++)	   // Interpolation of value to Gauss point
 		{
 			Gauss_val += NodeVal_shifted[i] * shapefct[i];
+			Gauss_val_liquid += NodeVal_liquid[i] * shapefct[i];
 		}
-		// Integration
-		double content_increment = fkt * Gauss_val  * MediaProp->ElementVolumeMultiplyer;
-		if(mmp_index != -2)
-			content_increment *= CalCoefMass(true);
 
-		content += content_increment;
-		//std::cout << "fkt: " << fkt << '\n';
-		//std::cout << "Gauss_val: " << Gauss_val<< '\n';
-		//std::cout << "MAss coef: " << CalCoefMass() << '\n';
-		//std::cout << "Multiplier: " << MediaProp->ElementVolumeMultiplyer << '\n';
+		// Integration
+		const double factor = fkt *  MediaProp->ElementVolumeMultiplyer;
+
+		double content_increment = Gauss_val;
+		if(!flag_volumeCalculation)
+			content_increment *= CalCoefMass(PcsType);
+
+		if( variable_storage && (PcsType == EPT_HEAT_TRANSPORT || PcsType == EPT_MASS_TRANSPORT))
+		{
+			double content_increment_liquid = Gauss_val * Gauss_val_liquid;
+			if(!flag_volumeCalculation)
+				content_increment_liquid *= CalCoefMass(EPT_LIQUID_FLOW);
+
+			content_increment += content_increment_liquid;
+		}
+
+		content += factor * content_increment;
 
 	}
-	
+
 	return content;
 
 }
