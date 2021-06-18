@@ -5653,43 +5653,83 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 			//
 		#endif
 		//--------------------------------------------------------------------
-		if (aktueller_zeitschritt == 0)
+		const OGS_WDC::result_t wdc_result = m_pcs->ogs_WDC_vector[i]->get_result();
+
+		if (aktueller_zeitschritt == 1)
 		{
-			tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
-			tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
-			tec_file << "\"Power rate Q_H\"  \"System power rate Q_H_sys\" \"System target power rate Q_H_sys_target\" \"Flow rate Q_w\" ";
-			tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"COP\"\n";
+			if(wdc_result.scheme_ID == 3)
+			{
+				tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
+				tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power rate Q_H\" \"Target power rate Q_H_target\" \"Flow rate Q_W\" \"Heat exchanger T_HE\" \"Heat exchanger T_UA\"\n";
+			}
+			else
+			{
+				tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
+				tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
+				tec_file << "\"Power rate Q_H\"  \"System power rate Q_H_sys\" \"System target power rate Q_H_sys_target\" \"Flow rate Q_w\" ";
+				tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"COP\"\n";
+			}
 		}
-		else
+
+
+	if (aktueller_zeitschritt > 0)
+	{  // write results
+	
+		if(m_pcs->ogs_WDC_vector[i])
 		{
-			// write results
-			const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
-			const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
+			if(wdc_result.scheme_ID == 3)
+			{
+	
+				const OGS_WDC::result_t wdc_result = m_pcs->ogs_WDC_vector[i]->get_result();
+	
+				tec_file << aktueller_zeitschritt
+						<< '\t' << time_current
+						<< "\t3"
+						<< '\t' << wdc_result.power_rate
+						<< '\t' << wdc_result.power_rate_target
+						<< '\t' << wdc_result.flow_rate
+						<< '\t' << wdc_result.T_HE
+						<< '\t' << wdc_result.T_UA
+						<< '\n';
+	
+			}
+	
+		
+			else
+			{
+				if( m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl())
+				{
+					const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
+					const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
+	
+					const double system_powerrate = (result.Q_H>0.)?
+						result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
+					const double COP = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_COP();
+	
+					tec_file << aktueller_zeitschritt
+						<< '\t' << time_current
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_scheme_ID()
+						<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+						<< '\t' << result.Q_H
+						<< '\t' << system_powerrate
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_target_powerrate()
+						<< '\t' << result.Q_W
+						<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well1_aquifer,
+								doublet_mesh_nodes.well1_aquifer_area_fraction, 1)
+						<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well2_aquifer,
+								doublet_mesh_nodes.well2_aquifer_area_fraction, 1)
+						<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
+								doublet_mesh_nodes.heatExchanger_area_fraction, 1)
+						//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+						<< '\t' << COP
+						<< '\n';
+				}		
+			}  // end if WDC
+		}  // end
+	
+	} // end zeitschritt > 0
 
-			const double system_powerrate = (result.Q_H>0.)?
-					result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
-			const double COP = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_COP();
-
-			tec_file << aktueller_zeitschritt
-				<< '\t' << time_current
-				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_scheme_ID()
-				<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
-				<< '\t' << result.Q_H
-				<< '\t' << system_powerrate
-				<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_target_powerrate()
-				<< '\t' << result.Q_W
-				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well1_aquifer,
-						doublet_mesh_nodes.well1_aquifer_area_fraction, 1)
-				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.well2_aquifer,
-						doublet_mesh_nodes.well2_aquifer_area_fraction, 1)
-				<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
-						doublet_mesh_nodes.heatExchanger_area_fraction, 1)
-				//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
-				<< '\t' << COP
-				<< '\n';
-
-		}
-		tec_file.close();
+	tec_file.close();
 
 	}
 }

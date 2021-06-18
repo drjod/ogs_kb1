@@ -63,6 +63,7 @@ using Math_Group::CSparseMatrix;
 #include "rf_node.h"
 #include "rfmat_cp.h"
 
+
 // Base
 #include "quicksort.h"
 
@@ -604,7 +605,9 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;
-		  if (connected_geometry_mode == 2)
+		  	  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
+		  	  // 3: RHS non-symmetric (downwind fixed), 4 RHS non-symmetric (downwind)
+		  if ((connected_geometry_mode == 2) || (connected_geometry_mode == 4))
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
@@ -679,6 +682,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  int numberOfParameterSets;
 		  double accuracy_temperature = 0.01, accuracy_powerrate = 1e3, accuracy_flowrate = 1.e-5;  // default values
 		  double well_shutdown_temperature_range = 5.;
+		  connected_geometry_mode = 1;  // NNNC as default
 
 		  std::string tmp;
 		  int heatPumpType;
@@ -699,37 +703,39 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  std::runtime_error("ERROR in heat pump specification");
 		  in.clear();
 
-		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
-		  in.clear();
+		  bool logging = false;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
+		  in >> numberOfParameterSets >> well_shutdown_temperature_range
+		  	  >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate
+			  >> connected_geometry_mode >> logging;  // 1 or 3
 		  in.clear();
-
-		  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
-		  ogs_WDC->set_heat_pump_parameter(heatPumpType, temperature_sink, eta);
-
-		  while(numberOfParameterSets--)  // no check if number is right
-		  {
-			  double tmp0, tmp2, tmp3, tmp4;
-		  	  int tmp1;
-
-			  in.str(readNonBlankLineFromInputStream(*st_file));
-			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
-			  in.clear();
-			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
-			  ogs_WDC->add_parameterGroup
-			  (
-				tmp0,  // time
-				tmp1,  // scheme indicator [0, 1, 2]
-				tmp2,  // powerrate
-				tmp3,  // target value
-				tmp4  // threshold value
-			  );
-		  }
 
 		  if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
 		  {
+			  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range,
+					  accuracy_temperature, accuracy_powerrate, accuracy_flowrate,
+					  m_pcs->ogs_WDC_vector.size(), logging);
+			  ogs_WDC->set_heat_pump_parameter(heatPumpType, temperature_sink, eta);
+
+			  while(numberOfParameterSets--)  // no check if number is right
+			  {
+				  double tmp0, tmp2, tmp3, tmp4;
+				  int tmp1;
+
+				  in.str(readNonBlankLineFromInputStream(*st_file));
+				  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
+				  in.clear();
+				  ogs_WDC->add_parameterGroup
+				  (
+					tmp0,  // time
+					tmp1,  // scheme indicator [0, 1, 2]
+					tmp2,  // powerrate
+					tmp3,  // target value
+					tmp4  // threshold value
+				  );
+			  }
+
 			  m_pcs->ogs_WDC_vector.push_back(ogs_WDC);
 		  }
 		  else
@@ -6312,19 +6318,19 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 {
 	// get data from input *.st
 
-	double alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
-	double factor = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
+	const double alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
+	const double factor = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
 
 	// determine downwind node part I - select now msh_node_number obtained from input *.gli in SetST()   - nodes are fixed for modes 0, 1 - if mode 2, nodes will be rearranged according to velocity later on)
 
-	long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE 
-	long FromNode = cnodev->msh_node_number_conditional;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY) 
+	const long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE
+	const long FromNode = cnodev->msh_node_number_conditional;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY)
+
+	std::cout << "connect " << ToNode << " " << FromNode << " "<< value <<  std::endl;
 	
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
-	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st);
-
-	value = 0; // factor * m_st->connected_geometry_offset;
+	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st, value);
 
 }
 
@@ -6537,8 +6543,9 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 	int operation_type = ogs_WDC->get_aquifer_mesh_nodes(aktuelle_zeit, wdc_flag_extract_and_reinject,
 				heatExchanger_aquifer_mesh_nodes, heatExchanger_aquifer_mesh_nodes_area_fraction,
 				upwind_aquifer_mesh_nodes, upwind_aquifer_mesh_nodes_area_fraction);
-
-	if(wdc_flag_extract_and_reinject && m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	// operation_type 1: storing, -1: retrieving
+	if(wdc_flag_extract_and_reinject // polyline approach, no connection by elements
+		&& m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
 	{
 		if(operation_type * value < 0)  // storing with injection at warm well and retrieving with injection at cold well
 			return 0;
@@ -6593,39 +6600,58 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 				m_pcs_heat->GetWeightedAverageNodeValue(upwind_aquifer_mesh_nodes,
 					upwind_aquifer_mesh_nodes_area_fraction, ndx1),  // temperature in upwind aquifer
 				volumetric_heat_capacity_heatExchanger,
-				volumetric_heat_capacity_upwindAquifer });
+				volumetric_heat_capacity_upwindAquifer },
+				heatExchanger_aquifer_mesh_nodes);
 
 	// NNNC
-	if(wdc_flag_extract_and_reinject && m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT &&
-			result > 1.e-10 || result < -1.e-10  // use NNNC and connect wells only if storage is active (storing or retrieving)
+	if( (ogs_WDC->get_parameter_list().begin()->indicator == 0 
+		|| ogs_WDC->get_parameter_list().begin()->indicator == 1 
+		|| ogs_WDC->get_parameter_list().begin()->indicator == 2)  // ST / ST
+			&& wdc_flag_extract_and_reinject 
+			&& m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT 
+			&& (result > 1.e-10 || result < -1.e-10)  // use NNNC and connect wells only if storage is active (storing or retrieving)
 			)
 	{
-		connected_geometry_mode = 1;  // 1: downwind fixed
+		//connected_geometry_mode = 1;  // 1: NNNC downwind fixed, 3 RHS downwind fixed
 		connected_geometry_verbose_level = 0;
 
+		//std::cout << "mode: " << connected_geometry_mode << std::endl;
 		for(size_t i=0; i < upwind_aquifer_mesh_nodes.size(); ++i)
 		{
 			for(size_t j=0; j < heatExchanger_aquifer_mesh_nodes.size(); ++j)
 			{
+				double value_connection = value;
 				// constant (volumetric) heat capacity
 				const double factor = value * heatExchanger_aquifer_mesh_nodes_area_fraction[j] *
 								upwind_aquifer_mesh_nodes_area_fraction[i] *
 								volumetric_heat_capacity_upwindAquifer *
 								fabs(ogs_WDC->get_WellDoubletControl()->get_result().Q_W);
+
+
 				m_pcs_heat->IncorporateNodeConnectionSourceTerms(
 						upwind_aquifer_mesh_nodes[i],
 						heatExchanger_aquifer_mesh_nodes[j],
 						factor,
-						this);
-			}
+						this, value_connection);
 
+				if(connected_geometry_mode == 3)
+				{  // set RHS values
+					m_pcs_heat->add_to_RHS(
+#if defined(USE_MPI)
+							dom_vector[myrank]->GetDOMNode(heatExchanger_aquifer_mesh_nodes[j]),
+
+#else
+							heatExchanger_aquifer_mesh_nodes[j],
+#endif
+							value_connection);
+					double convective_term = -factor / volumetric_heat_capacity_upwindAquifer;
+					GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
+				}
+			}
 		}
 
-		// not used with NNNC
-		// double flow_ST = -ogs_WDC->get_WellDoubletControl()->get_result().Q_W	* value;
-		// GetCouplingNODValueConvectiveForm(flow_ST, this, cnodev->msh_node_number);
-	}
 
+	}
 	return value * result;
 }
 

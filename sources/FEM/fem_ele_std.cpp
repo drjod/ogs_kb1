@@ -1724,8 +1724,15 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 		break;
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
-		TG = interpolate(NodalVal1);
-		val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
+		if(MediaProp->volumetric_heat_capacity == -1.)
+		{
+			TG = interpolate(NodalVal1);
+			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
+		}
+		else
+		{
+			val = MediaProp->volumetric_heat_capacity;
+		}
 		val /= time_unit_factor;
 		break;
 	//....................................................................
@@ -2486,52 +2493,61 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	case EPT_COMPONENTAL_FLOW:                               // Componental flow
 		break;
 	case EPT_HEAT_TRANSPORT:                               // heat transport
-		if(SolidProp->GetConductModel() == 2) // Boiling model. DECOVALEX THM2
+		if(MediaProp->heat_conductivity == -1)
 		{
-			TG = interpolate(NodalVal1);
-			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = 0.0;
-			for(size_t i = 0; i < dim; i++)
-				mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
-		}
-		// DECOVALEX THM1 or Curce 12.09. WW
-		else if(SolidProp->GetConductModel()%3 == 0 || SolidProp->GetConductModel() == 4)
-		{
-			TG = interpolate(NodalVal1);
-			tensor = MediaProp->HeatDispersionTensorNew(ip);
-			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = tensor[i];
-			/*
-			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = 0.0;
-			for(size_t i = 0; i < dim; i++)
-				mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
-				*/
-			/*
-			// WW
-			PG = interpolate(NodalValC1);
-			if(cpl_pcs->type != 1212)
-				PG *= -1.0;
-			Sw = MediaProp->SaturationCapillaryPressureFunction(PG);
-			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = 0.0;
-			mat_fac = SolidProp->Heat_Conductivity(Sw);
-			for(size_t i = 0; i < dim; i++)
-				mat[i * dim + i] = mat_fac;*/
-		}
-		//WW        else if(SolidProp->GetCapacityModel()==1 && MediaProp->heat_diffusion_model == 273){
-		else if(SolidProp->GetConductModel() == 1)
-		{
-			TG = interpolate(NodalVal1);
-			tensor = MediaProp->HeatDispersionTensorNew(ip);
-			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = tensor[i];
+			if(SolidProp->GetConductModel() == 2) // Boiling model. DECOVALEX THM2
+			{
+				TG = interpolate(NodalVal1);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = 0.0;
+				for(size_t i = 0; i < dim; i++)
+					mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
+			}
+			// DECOVALEX THM1 or Curce 12.09. WW
+			else if(SolidProp->GetConductModel()%3 == 0 || SolidProp->GetConductModel() == 4)
+			{
+				TG = interpolate(NodalVal1);
+				tensor = MediaProp->HeatDispersionTensorNew(ip);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = tensor[i];
+				/*
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = 0.0;
+				for(size_t i = 0; i < dim; i++)
+					mat[i * dim + i] = SolidProp->Heat_Conductivity(TG);
+					*/
+				/*
+				// WW
+				PG = interpolate(NodalValC1);
+				if(cpl_pcs->type != 1212)
+					PG *= -1.0;
+				Sw = MediaProp->SaturationCapillaryPressureFunction(PG);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = 0.0;
+				mat_fac = SolidProp->Heat_Conductivity(Sw);
+				for(size_t i = 0; i < dim; i++)
+					mat[i * dim + i] = mat_fac;*/
+			}
+			//WW        else if(SolidProp->GetCapacityModel()==1 && MediaProp->heat_diffusion_model == 273){
+			else if(SolidProp->GetConductModel() == 1)
+			{
+				TG = interpolate(NodalVal1);
+				tensor = MediaProp->HeatDispersionTensorNew(ip);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = tensor[i];
+			}
+			else
+			{
+				tensor = MediaProp->HeatConductivityTensor(Index);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = tensor[i];  //mat[i*dim+i] = tensor[i];
+			}
+
 		}
 		else
 		{
-			tensor = MediaProp->HeatConductivityTensor(Index);
 			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = tensor[i];  //mat[i*dim+i] = tensor[i];
+				mat[i] = MediaProp->heat_conductivity;
 		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport
@@ -12128,12 +12144,14 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #ifdef NEW_EQS
 #if defined(USE_MPI)
 	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
+	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(From)) -= factor;
 #else
 	CSparseMatrix* A = pcs->eqs_new->A;
-#endif
-
 	(*A)(To, To) += factor;
 	(*A)(To, From) -= factor;
+#endif
+
 #else
 
 	MXInc(To, To, factor ); // ToNode on diagonal
@@ -12149,9 +12167,13 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 		// TODO
 #else
 #ifdef NEW_EQS
-
+#if defined(USE_MPI)
+		(*A)(dom_vector[myrank]->GetDOMNode(From), dom_vector[myrank]->GetDOMNode(From)) += factor;
+		(*A)(dom_vector[myrank]->GetDOMNode(From), dom_vector[myrank]->GetDOMNode(To)) -= factor;
+#else
 		(*A)(From, From) += factor;
 		(*A)(From, To) -= factor;
+#endif
 #else
 
 		MXInc(From, From, factor);

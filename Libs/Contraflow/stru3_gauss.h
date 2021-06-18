@@ -1,6 +1,8 @@
 #ifndef GAUSS_H
 #define GAUSS_H
 
+#include "stru3_matrix.h"
+
 //#include <stdexcept>
 
 // use slice function
@@ -17,7 +19,8 @@ Matrix_ref<T, 1>  __slice(Matrix_ref<T, 1> v, size_type i, size_type n)
 	return v(slice(i, n));
 }
 */
-
+namespace stru3
+{
 
 
 void classical_elimination(DMat& A, DVec& b)
@@ -60,6 +63,7 @@ DVec back_substitution(const DMat& A, const DVec& b)
 			throw std::runtime_error("Backsubstitution failure");
 	}
 	return x;
+}
 }
 
 #endif

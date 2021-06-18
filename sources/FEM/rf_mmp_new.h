@@ -167,6 +167,8 @@ private:
     CFEMesh* getMesh(void) { return _mesh; }
 
     FluidVelocity fluidVelocity;  // JOD 2018-5-4
+
+    double volumetric_heat_capacity, heat_conductivity; // JOD 2021-5-21
 	// Properties
 private:
 	// PCS

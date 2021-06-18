@@ -147,6 +147,9 @@ CMediumProperties::CMediumProperties() :
 	evaporation = -1;
 
 	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
+
+	volumetric_heat_capacity = -1.;
+	heat_conductivity = -1.;
 }
 
 /**************************************************************************
@@ -2068,6 +2071,24 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		  in >> fluidVelocity.x >> fluidVelocity.y >> fluidVelocity.z;
 		  in.clear();
 		  fluidVelocity.type = 1;
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
+	  //subkeyword found
+	  if(line_string.find("$VOLUMETRIC_HEAT_CAPACITY") != std::string::npos)  // JOD 2021-5-21
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> volumetric_heat_capacity;
+		  in.clear();
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
+	  //subkeyword found
+	  if(line_string.find("$HEAT_CONDUCTIVITY") != std::string::npos)  // JOD 2021-5-21
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> heat_conductivity;
+		  in.clear();
 		  continue;
 	  }
 	  //------------------------------------------------------------------------

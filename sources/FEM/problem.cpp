@@ -1572,6 +1572,7 @@ bool Problem::CouplingLoop()
     //max_outer_error=0.;
 
     bool wdc_converged = true;
+
     if(a_pcs->ogs_WDC_vector.size() != 0)
     {
 
@@ -1579,7 +1580,8 @@ bool Problem::CouplingLoop()
     	{
     		//ogs_wdc->set_unevaluated(); set unevaluted when HEAT_TRAASPORT calculation
 
-    		if(!ogs_wdc->get_WellDoubletControl()->converged())
+		
+    		if(ogs_wdc->get_WellDoubletControl() && !ogs_wdc->get_WellDoubletControl()->converged())
     			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
     			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
     			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
@@ -1588,6 +1590,32 @@ bool Problem::CouplingLoop()
     		}
     	}
 
+
+#if defined (USE_MPI) 
+int wdc_conv = wdc_converged;
+
+int world_size;
+MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+int *rbuf;
+
+if(myrank == 0)
+	rbuf = (int *)malloc(world_size*100*sizeof(int));
+
+
+MPI_Gather(&wdc_conv, 1, MPI_INT, rbuf, world_size, MPI_INT, 0, MPI_COMM_WORLD); 
+
+if(myrank == 0)
+{
+	for(int i=0; i < world_size; ++i)
+		if(rbuf[i] == false)
+			 wdc_converged = false;
+}
+
+wdc_conv = wdc_converged;
+MPI_Bcast(&wdc_conv, 1, MPI_INT, 0, MPI_COMM_WORLD); 
+
+wdc_converged = wdc_conv;
+#endif
     	if(wdc_converged)
     	{
     		//Logger(std::string("WDC converged"));
@@ -1599,16 +1627,19 @@ bool Problem::CouplingLoop()
     	}
     }
 
+
+
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
   	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
   	&& wdc_converged)
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
   	{
-        for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
-        	ogs_wdc->discard();  // !!! to recreate WDC in next time step
+        	for(std::size_t ndx = 0; ndx < a_pcs->ogs_WDC_vector.size(); ++ndx)
+        		a_pcs->ogs_WDC_vector[ndx]->discard(aktuelle_zeit, ndx, a_pcs);  // !!! to recreate WDC in next time step
 
   		break;
   	}
+
 
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&

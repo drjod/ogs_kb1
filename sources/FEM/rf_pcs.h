@@ -302,7 +302,9 @@ protected:
 #endif                                         // LIS endif for Fluid Momentum	// PCH
 	bool configured_in_nonlinearloop;
 #else
-  LINEAR_SOLVER* eqs;
+    LINEAR_SOLVER* eqs;
+
+
 #endif
 
 	//
@@ -357,6 +359,8 @@ protected:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
+	void set_BCNode(long bc_eqs_index, long bc_value);
+	void add_to_RHS(const int& ndx, const double& value);
 	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
 	std::vector<OGS_contraflow*> ogs_contraflow_vector;  // JOD 2019-31-07
 	// BG, DL Calculate phase transition of CO2
@@ -376,7 +380,7 @@ public:
 	int Phase_Transition_Model;           //BG, NB flag of Phase_Transition_Model (1...CO2-H2O-NaCl)
 	                                      // BG 11/2010 Sets the initial conditions for multi phase flow if Phase_Transition_CO2 is used
 	void CalculateFluidDensitiesAndViscositiesAtNodes(CRFProcess* m_pcs);
-	/**
+	/**eqs
 	 * Sets the value for pointer _problem.
 	 * @param problem the value for _problem
 	 */
@@ -628,7 +632,7 @@ public:
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
 	double AccumulateContent(const int&, const bool&, const double&, const double&, std::vector<std::string>, const bool&); // JOD 2/2015
-	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
+	void IncorporateNodeConnectionSourceTerms(const long&, const long&, const double&, CSourceTerm*, double& value); // JOD 2/2015
 
 	// MSH
 	CFEMesh* m_msh;                       //OK
