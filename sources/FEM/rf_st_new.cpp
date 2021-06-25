@@ -144,6 +144,7 @@ CSourceTerm::CSourceTerm() :
    connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
    connected_geometry_ref_element_number = -1;
    connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
+   connected_geometry_couplingType = 1; // matrix couplig as default
 
    threshold_geometry = false;
    storageRate_geometry = false;
@@ -604,10 +605,9 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  if (line_string.find("$CONNECT_MODE") != std::string::npos)  //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> connected_geometry_mode;
-		  	  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
-		  	  // 3: RHS non-symmetric (downwind fixed), 4 RHS non-symmetric (downwind)
-		  if ((connected_geometry_mode == 2) || (connected_geometry_mode == 4))
+		  in >> connected_geometry_mode;  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
+		  in >> connected_geometry_couplingType; // 0: RHS, 1: matrix entry
+		  if ((connected_geometry_mode == 2))
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
@@ -708,7 +708,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> numberOfParameterSets >> well_shutdown_temperature_range
 		  	  >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate
-			  >> connected_geometry_mode >> logging;  // 1 or 3
+			  >> connected_geometry_couplingType  // as in $CONNECT_MODE
+			  >> logging;
 		  in.clear();
 
 		  if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
@@ -6326,12 +6327,9 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	const long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE
 	const long FromNode = cnodev->msh_node_number_conditional;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY)
 
-	std::cout << "connect " << ToNode << " " << FromNode << " "<< value <<  std::endl;
-	
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
 	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st, value);
-
 }
 
 /**************************************************************************
@@ -6612,10 +6610,9 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 			&& (result > 1.e-10 || result < -1.e-10)  // use NNNC and connect wells only if storage is active (storing or retrieving)
 			)
 	{
-		//connected_geometry_mode = 1;  // 1: NNNC downwind fixed, 3 RHS downwind fixed
+		connected_geometry_mode = 1;  // downwind fixed
 		connected_geometry_verbose_level = 0;
 
-		//std::cout << "mode: " << connected_geometry_mode << std::endl;
 		for(size_t i=0; i < upwind_aquifer_mesh_nodes.size(); ++i)
 		{
 			for(size_t j=0; j < heatExchanger_aquifer_mesh_nodes.size(); ++j)
@@ -6627,14 +6624,13 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 								volumetric_heat_capacity_upwindAquifer *
 								fabs(ogs_WDC->get_WellDoubletControl()->get_result().Q_W);
 
-
 				m_pcs_heat->IncorporateNodeConnectionSourceTerms(
-						upwind_aquifer_mesh_nodes[i],
-						heatExchanger_aquifer_mesh_nodes[j],
-						factor,
-						this, value_connection);
+															upwind_aquifer_mesh_nodes[i],
+															heatExchanger_aquifer_mesh_nodes[j],
+															factor,
+															this, value_connection);
 
-				if(connected_geometry_mode == 3)
+				if(connected_geometry_couplingType == 0)
 				{  // set RHS values
 					m_pcs_heat->add_to_RHS(
 #if defined(USE_MPI)
@@ -6644,14 +6640,18 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 							heatExchanger_aquifer_mesh_nodes[j],
 #endif
 							value_connection);
+
 					double convective_term = -factor / volumetric_heat_capacity_upwindAquifer;
-					GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
+																		GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
 				}
+
+
 			}
 		}
 
 
 	}
+
 	return value * result;
 }
 

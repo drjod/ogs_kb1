@@ -17455,107 +17455,79 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 	switch (m_st->connected_geometry_mode)
 	{
   	  case 0 :  // NNNC symmetric
-		  if (m_st->connected_geometry_verbose_level > 0)
-			std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  if(m_st->connected_geometry_verbose_level > 0)
+			  std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
-		  value = 0.;
+  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  			  throw std::runtime_error("Error - Node connection not supported");
+  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  {
+			  fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+			  value = 0.;
+  		  }
+  		  else
+  			throw std::runtime_error("Error - Node connection not supported");
 		  break;
 
 	  case 1 : // NNNC non-symmetric - downstream fixed
-		  if (m_st->connected_geometry_verbose_level > 0)
-			std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  if(m_st->connected_geometry_verbose_level > 0)
+			  std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-		  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
-		  value = 0.;
+  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  		  {
+  			  value = factor * GetNodeValue(FromNode, 1);  // implicit
+  		  }
+  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  {
+			  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
+			  value = 0.;
+  		  }
+  		  else
+  			  throw std::runtime_error("Error - Node connection not supported");
 		  break;
 
 	  case 2 : // NNNC variable - dependent on velocity in reference element
-		velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
-		velocity_ref[1] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(1, 0);
-		velocity_ref[2] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(2, 0);
+  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  			  throw std::runtime_error("Error - Node connection not supported");
+  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  {
+				velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
+				velocity_ref[1] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(1, 0);
+				velocity_ref[2] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(2, 0);
 
-		if (sqrt(velocity_ref[0] * velocity_ref[0] + velocity_ref[1] * velocity_ref[1] + velocity_ref[2] * velocity_ref[2]) > m_st->connected_geometry_minimum_velocity_abs)  // if abs(v) > min_vel
-		{
-			// non-symmetric
-			if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
-			{
-				if (m_st->connected_geometry_verbose_level > 0)
-					std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+				if (sqrt(velocity_ref[0] * velocity_ref[0] + velocity_ref[1] * velocity_ref[1] + velocity_ref[2] * velocity_ref[2]) > m_st->connected_geometry_minimum_velocity_abs)  // if abs(v) > min_vel
+				{
+					// non-symmetric
+					if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
+					{
+						if (m_st->connected_geometry_verbose_level > 0)
+							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
-			}
-			else            // swap nodes
-			{
-				if (m_st->connected_geometry_verbose_level > 0)
-					std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
+						fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
+					}
+					else            // swap nodes
+					{
+						if (m_st->connected_geometry_verbose_level > 0)
+							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
 
-				fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
-			}
+						fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
+					}
 
-		}
-		else  // symmetric
-		{
-			if (m_st->connected_geometry_verbose_level > 0)
-				std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
-
-			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
-		}
-		value = 0.;
-		break;
-
-	  case 3: // RHS non-symmetric - downwind fixed
-		if (m_st->connected_geometry_verbose_level > 0)
-					  std::cout << "\t\tIncorporate fixed downstream RHS: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
-
-
-		value = factor * GetNodeValue(
-//#if defined(U SE_MPI)
-//				dom_vector[myrank]->GetDOMNode(FromNode),
-//#else
-				FromNode,
-//#endif
-				1);  // implicit
-		break;
-
-	  case 4:  // RHS variable - dependent on velocity in reference element
-			if (sqrt(velocity_ref[0] * velocity_ref[0] + velocity_ref[1] * velocity_ref[1] + velocity_ref[2] * velocity_ref[2]) > m_st->connected_geometry_minimum_velocity_abs)  // if abs(v) > min_vel
-			{
-				// non-symmetric
-				if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
+				}
+				else  // symmetric
 				{
 					if (m_st->connected_geometry_verbose_level > 0)
-						std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
 
-
-					value = factor * GetNodeValue(
-#if defined(USE_MPI)
-							dom_vector[myrank]->GetDOMNode(FromNode),
-#else
-							FromNode,
-#endif
-							1);  // implicit
+					fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
 				}
-				else            // swap nodes
-				{
-					if (m_st->connected_geometry_verbose_level > 0)
-						std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
-
-					throw std::runtime_error("Node conenction case 4 (variable RHS) not implemented");
-					value = 0.;
-				}
-
-			}
-			else  // symmetric
-			{
-				if (m_st->connected_geometry_verbose_level > 0)
-					std::cout << "\t\tNo connection - Flow rate to low\n";
-
 				value = 0.;
-			}
-			break;
+  		  }
+  		  else
+  			throw std::runtime_error("Error - Node connection not supported");
+		break;
 	  default :
-		  throw std::runtime_error("Node conenction mode not supported");
+		  throw std::runtime_error("Node connection mode not supported");
 	}
 
 }
