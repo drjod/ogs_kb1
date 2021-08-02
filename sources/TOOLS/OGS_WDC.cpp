@@ -76,7 +76,12 @@ int OGS_WDC::get_aquifer_mesh_nodes(const double& current_time,
 void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
-	std::cout << "\tWDC create\n";
+	std::cout << "\tWDC create"
+#if defined(USE_MPI)
+				<< " - pcs: " << myrank
+#endif
+	<< '\n';
+
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
 			well_shutdown_temperature_range,
 			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
@@ -92,7 +97,11 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 // also flow rates are updated if required
 void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
-	std::cout << "\tWDC - evaluate\n";
+	std::cout << "\tWDC - evaluate"
+#if defined(USE_MPI)
+				<< " - pcs: " << myrank
+#endif
+	<< '\n';
 	wellDoubletControl->evaluate_simulation_result(balancing_properties);
 }
 
@@ -174,26 +183,29 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 			break;
 		case FiniteElement::HEAT_TRANSPORT:
 			is_evaluated = false;
-			if(parameter_list.begin()->indicator == 0 || parameter_list.begin()->indicator == 1 || parameter_list.begin()->indicator == 2) // via STs
+			if(parameter_list.size() > 0)
 			{
-				result = wellDoubletControl->get_result().Q_H; // / heatExchangerArea;
+				if(parameter_list.begin()->indicator == 0 || parameter_list.begin()->indicator == 1 || parameter_list.begin()->indicator == 2) // via STs
+				{
+					result = wellDoubletControl->get_result().Q_H; // / heatExchangerArea;
+				}
+				else if(parameter_list.begin()->indicator == 3 && !shut_in) // via ST and BC
+				{ 	// set BC
+					for(int i=0; i < heatExchanger_aquifer_mesh_nodes.size(); i++)
+						m_pcs->set_BCNode(heatExchanger_aquifer_mesh_nodes[i], parameter_list.begin()->target_value);
+				}
+				else
+					std::runtime_error("WDC indicator unknown");
 			}
-			else if(parameter_list.begin()->indicator == 3 && !shut_in) // via ST and BC
-			{ 	// set BC
-				for(int i=0; i < heatExchanger_aquifer_mesh_nodes.size(); i++)
-					m_pcs->set_BCNode(heatExchanger_aquifer_mesh_nodes[i], parameter_list.begin()->target_value);
-			}
-			else
-				std::runtime_error("WDC indicator unknown");
+
 			break;
 		default:
 			throw std::runtime_error("WellDoubletControl - PCS not supported");
-	}
+	}	
 	nodes_counter++;
 	if(nodes_counter == doublet_mesh_nodes.heatExchanger.size())
 		nodes_counter = 0;
-
-	// std::cout << "result: " << result << "\n";
+			
 	return result;
 }
 
@@ -283,8 +295,8 @@ void OGS_WDC::write_logfile(const double& time, const std::size_t& ndx, const CR
 				<< '\t' << wdc_result.T_UA
 				<< '\n';
 		}
-		else
-			throw std::runtime_error("WDC scheme unknown");
+//		else
+//			throw std::runtime_error("WDC scheme unknown");
 
 	}
 }

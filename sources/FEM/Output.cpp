@@ -5702,8 +5702,9 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 					const wdc::WellDoubletControl::result_t& result = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_result();
 					const OGS_WDC::doublet_mesh_nodes_t& doublet_mesh_nodes = m_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes();
 	
-					const double system_powerrate = (result.Q_H>0.)?
-						result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
+					//const double system_powerrate = (result.Q_H>0.)?
+					//	result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
+					const double system_powerrate = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
 					const double COP = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_COP();
 	
 					tec_file << aktueller_zeitschritt

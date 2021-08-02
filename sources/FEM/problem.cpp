@@ -1122,6 +1122,9 @@ void Problem::Euler_TimeDiscretize()
 			break;
 		}
 
+		if(dt < DBL_EPSILON)  // JOD 2021-08-02 used when reaching time_end with adaptive time stepping
+			return;
+
 		SetTimeActiveProcesses(); // JT2012: Activate or deactivate processes with independent time stepping
 //
 #if defined(USE_MPI)
@@ -1592,17 +1595,13 @@ bool Problem::CouplingLoop()
 
 
 #if defined (USE_MPI) 
-int wdc_conv = wdc_converged;
 
 int world_size;
 MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 int *rbuf;
+rbuf = (int *)malloc(world_size*sizeof(int));
 
-if(myrank == 0)
-	rbuf = (int *)malloc(world_size*100*sizeof(int));
-
-
-MPI_Gather(&wdc_conv, 1, MPI_INT, rbuf, world_size, MPI_INT, 0, MPI_COMM_WORLD); 
+MPI_Gather(&wdc_converged, 1, MPI_INT, rbuf, 1, MPI_INT, 0, MPI_COMM_WORLD); 
 
 if(myrank == 0)
 {
@@ -1611,23 +1610,27 @@ if(myrank == 0)
 			 wdc_converged = false;
 }
 
-wdc_conv = wdc_converged;
-MPI_Bcast(&wdc_conv, 1, MPI_INT, 0, MPI_COMM_WORLD); 
+MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD); 
 
-wdc_converged = wdc_conv;
 #endif
+
     	if(wdc_converged)
     	{
     		//Logger(std::string("WDC converged"));
     		std::cout << "\tWDC converged\n";
-    		for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
-    			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
-				<< a_pcs->GetWeightedAverageNodeValue(a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger,
-		    			a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger_area_fraction, 1) << '\n';
-    	}
-    }
+    		//for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
+		//{
+		//	if(a_pcs->ogs_WDC_vector[i])
+		//	{
+    		//		std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
+		//			<< a_pcs->GetWeightedAverageNodeValue(a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger,
+		//    				a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger_area_fraction, 1) << '\n';
+		//
+		//	}
+		//}
+   	}
 
-
+} // end if WDC
 
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
   	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
@@ -1635,8 +1638,10 @@ wdc_converged = wdc_conv;
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
   	{
         	for(std::size_t ndx = 0; ndx < a_pcs->ogs_WDC_vector.size(); ++ndx)
-        		a_pcs->ogs_WDC_vector[ndx]->discard(aktuelle_zeit, ndx, a_pcs);  // !!! to recreate WDC in next time step
-
+		{
+			if(a_pcs->ogs_WDC_vector[ndx])
+        			a_pcs->ogs_WDC_vector[ndx]->discard(aktuelle_zeit, ndx, a_pcs);  // !!! to recreate WDC in next time step
+		}
   		break;
   	}
 
@@ -1648,8 +1653,8 @@ wdc_converged = wdc_conv;
       break;
     }
 
+}
 
-  }
     if (accept){
       if (cp_vec.size() > 0){
         //for (i = 0; i < num_processes; i++){

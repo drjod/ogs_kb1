@@ -110,6 +110,7 @@ public:
 
 	void discard(const double& time, const std::size_t ndx, const CRFProcess* m_pcs)  // must be called, when iteration loop between LIQUID and HEAT has converged(than new WDC will be created in next time step)
 		{ is_initialized = false; write_logfile(time, ndx, m_pcs); }
+
 	void set_unevaluated() { is_evaluated = false; }  // call this at end of each iteration - than wdc will be evaluated once in next time step
 	template<typename... Args>
 	void add_parameterGroup(Args&&...args) { parameter_list.emplace_back(std::forward<Args>(args)...); }

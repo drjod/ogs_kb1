@@ -6530,6 +6530,8 @@ only heat capacity and density of fluid is considered (mfp_vector[0])
 double CSourceTerm::apply_wellDoubletControl(double value,
 				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
+	//if(myrank==1)
+	//	return 0.;
 	if(!m_pcs)
 		throw std::runtime_error("WellDoubletControl - No PCS");
 
@@ -6602,7 +6604,7 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 				heatExchanger_aquifer_mesh_nodes);
 
 	// NNNC
-	if( (ogs_WDC->get_parameter_list().begin()->indicator == 0 
+	if((ogs_WDC->get_parameter_list().begin()->indicator == 0 
 		|| ogs_WDC->get_parameter_list().begin()->indicator == 1 
 		|| ogs_WDC->get_parameter_list().begin()->indicator == 2)  // ST / ST
 			&& wdc_flag_extract_and_reinject 
@@ -6642,7 +6644,7 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 							value_connection);
 
 					double convective_term = -factor / volumetric_heat_capacity_upwindAquifer;
-																		GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
+					GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
 				}
 
 
