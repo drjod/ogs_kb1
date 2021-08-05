@@ -85,10 +85,11 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
 			well_shutdown_temperature_range,
 			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
-	wellDoubletControl->set_heatPump(heat_pump_parameter._type, heat_pump_parameter.T_sink, heat_pump_parameter.eta);
+	wellDoubletControl->set_heatPump(heat_pump_parameter._type, parameter_list.begin()->temperature_sink, heat_pump_parameter.eta);
 	wellDoubletControl->configure(parameter_list.begin()->powerrate,
 						parameter_list.begin()->target_value, parameter_list.begin()->threshold_value,
 						balancing_properties);
+	temperature_sink = parameter_list.begin()->temperature_sink;
 	is_initialized = true;
 }
 

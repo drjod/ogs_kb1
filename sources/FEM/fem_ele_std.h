@@ -207,6 +207,7 @@ public:
 	//void Set_ctx_(long ele_index, double val, int gaussp, int i_dim);
 	//double Get_ctx_(long ele_index, int gaussp, int i_dim);
 
+	CMediumProperties* get_MediaProp() { return MediaProp; }
 private:
 	bool newton_raphson;                  //24.05.2007 WW
 	long index;

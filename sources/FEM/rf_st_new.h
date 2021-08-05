@@ -102,7 +102,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	std::string well2_geometry_name_aquifer;
 	std::string well1_geometry_name_liquidBC;
 	std::string well2_geometry_name_liquidBC;
-
+	bool scaling_with_permeability; // JOD 2021-08-04
 
 	OGS_WDC* ogs_WDC;  // pointer to vector entry in pcs
 	OGS_contraflow* ogs_contraflow;  // pointer to vector entry in pcs
@@ -574,7 +574,7 @@ extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
 	                     std::vector<double> & node_value_vector, 
 			     FiniteElement::DistributionType dis_type, 
 			     FiniteElement::PrimaryVariable prim_val, 
-			     bool flag_ignore_axisymmetry, bool flag_is_bc);
+			     bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability=false);
 
 
 double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);

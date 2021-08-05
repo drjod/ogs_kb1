@@ -34,10 +34,12 @@ public:
 		double powerrate;
 		double target_value;
 		double threshold_value;
+		double temperature_sink;
 		parameter_group_t(const double& _time, const int& _indicator,
-				const double& _powerrate, const double& _target_value, const double& _threshold_value) :
+				const double& _powerrate, const double& _target_value,
+				const double& _threshold_value, const double& _temperature_sink) :
 			time(_time), indicator(_indicator), powerrate(_powerrate),
-			target_value(_target_value), threshold_value(_threshold_value) {}
+			target_value(_target_value), threshold_value(_threshold_value), temperature_sink(_temperature_sink) {}
 		// constructor used with emplace_back below - do not reorder without considering this
 	};
 
@@ -54,7 +56,6 @@ public:
 	struct heat_pump_parameter_t
 	{
 		int _type;
-		double T_sink;
 		double eta;
 	};
 
@@ -83,6 +84,7 @@ private:
 	//double heatExchangerArea;
 	double well_shutdown_temperature_range;
 	double accuracy_temperature, accuracy_powerrate, accuracy_flowrate;
+	double temperature_sink;
 
 	void create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
 	void evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties);
@@ -93,6 +95,7 @@ public:
 	double get_well_shutdown_temperature_range() { return well_shutdown_temperature_range; }
 	//void set_result(const double& _result) { result = _result; }   // for scheme 3
 	result_t get_result() { return wdc_result; }
+	double get_temperature_sink() { return temperature_sink; }
 	std::list<parameter_group_t> get_parameter_list() { return parameter_list; }
 
 	OGS_WDC(const double& _well_shutdown_temperature_range, const double& _accuracy_temperature,
@@ -117,8 +120,8 @@ public:
 	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
-	void set_heat_pump_parameter(const int& _type, const double& T_sink, const double& eta)
-		{ heat_pump_parameter._type = _type ; heat_pump_parameter.T_sink = T_sink; heat_pump_parameter.eta = eta ;}
+	void set_heat_pump_parameter(const int& _type, const double& eta)
+		{ heat_pump_parameter._type = _type ; heat_pump_parameter.eta = eta ;}
 	int get_aquifer_mesh_nodes(const double& current_time, // for time step
 			const bool & wdc_flag_extract_and_reinject,
 			std::vector<size_t>& heatExchanger_aquifer_mesh_nodes,

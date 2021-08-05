@@ -5177,7 +5177,8 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 		ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
 		
 
-	if ((m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT) || (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)) {
+	if ((m_pcs->getProcessType() == FiniteElement::MASS_TRANSPORT)
+			|| (m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)) {
 		m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
 		m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
 	}
@@ -5221,7 +5222,8 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			//element->setOrder(m_pcs->m_msh->getOrder() + 1);
 			//face->ComputeVolume();    
 			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
-			element->CalculateFluxThroughFace(elements_at_geo[i], fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
+			element->CalculateFluxThroughFace(elements_at_geo[i],
+					fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
 		} // end j, faces
 	} // end i, elements at surface
 
@@ -5667,7 +5669,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 				tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
 				tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
 				tec_file << "\"Power rate Q_H\"  \"System power rate Q_H_sys\" \"System target power rate Q_H_sys_target\" \"Flow rate Q_w\" ";
-				tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"COP\"\n";
+				tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"T_sink\" \"COP\"\n";
 			}
 		}
 
@@ -5722,6 +5724,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 						<< '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
 								doublet_mesh_nodes.heatExchanger_area_fraction, 1)
 						//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_temperature_sink() 
 						<< '\t' << COP
 						<< '\n';
 				}		

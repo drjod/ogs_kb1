@@ -8,6 +8,7 @@
 
 #include "rf_fct.h"
 
+#include "fem_ele_std.h"
 #include "makros.h"
 // C++ STL
 //#include <fstream>
@@ -154,6 +155,8 @@ CSourceTerm::CSourceTerm() :
    wdc_flag_extract_and_reinject = false;
 
    variable_storage = false;
+
+   scaling_with_permeability = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -606,7 +609,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
-		  in >> connected_geometry_couplingType; // 0: RHS, 1: matrix entry
+		  in >> connected_geometry_couplingType; // 0: RHS (only with mode 1), 1: matrix entry
 		  if ((connected_geometry_mode == 2))
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
@@ -682,11 +685,12 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  int numberOfParameterSets;
 		  double accuracy_temperature = 0.01, accuracy_powerrate = 1e3, accuracy_flowrate = 1.e-5;  // default values
 		  double well_shutdown_temperature_range = 5.;
-		  connected_geometry_mode = 1;  // NNNC as default
+		  connected_geometry_mode = 1;  // NNNC downwind fixed
+		  connected_geometry_couplingType = 1; // NNNC via matrix entry as default
 
 		  std::string tmp;
 		  int heatPumpType;
-		  double temperature_sink, eta;  // for carnot
+		  double eta;  // for carnot
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> tmp >> heatPumpType;
@@ -696,8 +700,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  }
 		  if(heatPumpType == 1)
 		  {
-			  in >> temperature_sink >> eta;
-			  std::cout << "\tCarnot heat pump; T_sink = " << temperature_sink << ", eta = " << eta <<  "\n";
+			  in >> eta;
+			  std::cout << "\tCarnot heat pump; eta = " << eta <<  "\n";
 		  }
 		  else
 			  std::runtime_error("ERROR in heat pump specification");
@@ -717,15 +721,15 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range,
 					  accuracy_temperature, accuracy_powerrate, accuracy_flowrate,
 					  m_pcs->ogs_WDC_vector.size(), logging);
-			  ogs_WDC->set_heat_pump_parameter(heatPumpType, temperature_sink, eta);
+			  ogs_WDC->set_heat_pump_parameter(heatPumpType, eta);
 
 			  while(numberOfParameterSets--)  // no check if number is right
 			  {
-				  double tmp0, tmp2, tmp3, tmp4;
+				  double tmp0, tmp2, tmp3, tmp4, tmp5=-1.;
 				  int tmp1;
 
 				  in.str(readNonBlankLineFromInputStream(*st_file));
-				  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
+				  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5;
 				  in.clear();
 				  ogs_WDC->add_parameterGroup
 				  (
@@ -733,7 +737,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 					tmp1,  // scheme indicator [0, 1, 2]
 					tmp2,  // powerrate
 					tmp3,  // target value
-					tmp4  // threshold value
+					tmp4,  // threshold value
+					tmp5   // temperature sink for heat pump
 				  );
 			  }
 
@@ -751,6 +756,13 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in >> wdc_connector_materialGroup;
 		  in >> wdc_connector_normaldirectionVector[0] >> wdc_connector_normaldirectionVector[1]
 					>> wdc_connector_normaldirectionVector[2];
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$SCALING_WITH_PERMEABILITY") != std::string::npos) // JOD 2021-08-04
+	  {
+		  scaling_with_permeability = true;
 		  in.clear();
 		  continue;
 	  }
@@ -1842,7 +1854,7 @@ double AreaProjection(CEdge *edge, FiniteElement::PrimaryVariable primaryVariabl
 void EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
 std::vector<double>&node_value_vector, 
 FiniteElement::DistributionType dis_type, FiniteElement::PrimaryVariable prim_val, 
-bool flag_ignore_axisymmetry, bool flag_is_bc)
+bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability)
 {
    long i, j, k, l;
    long this_number_of_nodes;
@@ -1862,9 +1874,6 @@ bool flag_ignore_axisymmetry, bool flag_is_bc)
    if (dis_type == FiniteElement::CONSTANT || dis_type == FiniteElement::CONSTANT_NEUMANN)
       Const = true;
 
-   //CFEMesh* msh = m_pcs->m_msh;
-   //CFEMesh* msh;  // JOD
-   //msh = FEMGet(pcs_type_name);
    CElem* elem = NULL;
    CEdge* edge = NULL;
    CNode* node = NULL;
@@ -1901,6 +1910,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc)
       G2L[k] = i;
       node = msh->nod_vector[k];
       elemsCnode = (int) node->getConnectedElementIDs().size();
+
       for (j = 0; j < elemsCnode; j++)
       {
          l = msh->nod_vector[k]->getConnectedElementIDs()[j];
@@ -1910,6 +1920,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc)
          for (ii = 0; ii < nedges; ii++)
          {
             edge = e_edges[ii];
+
             if (edge->GetMark())
                continue;
             edge->GetNodes(e_nodes);
@@ -1929,14 +1940,19 @@ bool flag_ignore_axisymmetry, bool flag_is_bc)
                if (msh->getOrder())
                {
                   if (e_nodes[2]->GetMark())
+                  {
                      edge->SetMark(true);
-               } else
-               edge->SetMark(true);
+                  }
+               }
+               else
+               {
+            	   edge->SetMark(true);
+               }
             }
-
-         }                                        // e_edges
-      }
+         } // e_edges
+      }  //
    }
+
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
    const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
    const size_t id_act_h_min =  msh->GetNodesNumber(false);
@@ -2101,6 +2117,56 @@ bool flag_ignore_axisymmetry, bool flag_is_bc)
    G2L.clear();
    e_nodes.resize(0);
    e_edges.resize(0);
+
+   //////////////////////////////////////////////////////////////////////////
+   if(scaling_with_permeability)  // JOD 2021-08-05
+   {
+	   std::vector<double> scaling_vector(this_number_of_nodes, 0.);
+
+	   for (i = 0; i < this_number_of_nodes; i++)
+	   {
+			 node = msh->nod_vector[nodes_on_ply[i]];
+			 int nelem = 0;
+
+			 for (j = 0; j < node->getConnectedElementIDs().size(); j++)
+			 {
+				elem = msh->ele_vector[msh->nod_vector[k]->getConnectedElementIDs()[j]];
+
+				std::vector<size_t> node_indices;
+				elem->getNodeIndices(node_indices);
+
+				int nnodes = 0;
+
+				for(size_t ndx=0; ndx<node_indices.size(); ndx++)
+				{
+					if(std::find(nodes_on_ply.begin(), nodes_on_ply.end(), node_indices[ndx]) != nodes_on_ply.end())
+						nnodes++;
+				}
+
+				if(nnodes == 2)
+				{
+					// take permeability first component (x-direction) for scaling
+					scaling_vector[i] += mmp_vector[elem->GetPatchIndex()]->permeability_tensor[0];
+					nelem++;
+				}
+
+			 }
+			 scaling_vector[i] /= nelem;
+	   }  // end for nodes
+
+	   double divisor= 0.;
+	   for(i=0;  i < this_number_of_nodes; i++)
+	   {
+		   divisor += scaling_vector[i] * node_value_vector[i];
+	   }
+	   divisor /= std::accumulate(node_value_vector.begin(),  node_value_vector.end(), 0.);  // divide by total st
+
+
+	   for (i = 0; i < this_number_of_nodes; i++)
+	   {
+		   node_value_vector[i] *= scaling_vector[i] / divisor;
+	   }
+   }  // end if scaling with permeability
 }
 
 
