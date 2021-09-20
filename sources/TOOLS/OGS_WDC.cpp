@@ -8,6 +8,33 @@
 #include <mpi.h>
 #endif
 
+
+double interpolate( vector<double> &xData, vector<double> &yData, double x, bool extrapolate )
+{
+   int size = xData.size();
+
+   int i = 0;                                                                  // find left end of interval for interpolation
+   if ( x >= xData[size - 2] )                                                 // special case: beyond right end
+   {
+      i = size - 2;
+   }
+   else
+   {
+      while ( x > xData[i+1] ) i++;
+   }
+   double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];      // points on either side (unless beyond ends)
+   if ( !extrapolate )                                                         // if beyond ends of array and not extrapolating
+   {
+      if ( x < xL ) yR = yL;
+      if ( x > xR ) yL = yR;
+   }
+
+   double dydx = ( yR - yL ) / ( xR - xL );                                    // gradient
+
+   return yL + dydx * ( x - xL );                                              // linear interpolation
+}
+
+
 // configuration for time step (parameter list, measurement mesh nodes)
 // must be called (at least) at beginning of each time step before WDC is created (in CSourceTerm::apply_wellDoubletControl())
 // return value 1: stroing, -1: retrieving
@@ -85,9 +112,24 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
 			well_shutdown_temperature_range,
 			{ accuracy_temperature, accuracy_powerrate, accuracy_flowrate}));
-	wellDoubletControl->set_heatPump(heat_pump_parameter._type, parameter_list.begin()->temperature_sink, heat_pump_parameter.eta);
+
+	double target_value;
+	if(!heat_pump_flag || parameter_list.begin()->powerrate > 0.)
+		target_value = parameter_list.begin()->target_value;
+	else
+	{
+		const double T_UA = (balancing_properties.T_UA > 200.)?  balancing_properties.T_UA - 273.15 : balancing_properties.T_UA;
+
+		target_value = (parameter_list.begin()->indicator == 2)?
+				-interpolate(heat_pump_parameter.T_source, heat_pump_parameter.Delta_T, T_UA, true) :
+				parameter_list.begin()->target_value;
+
+		const double eta = interpolate(heat_pump_parameter.T_source, heat_pump_parameter.eta, T_UA, true);
+		wellDoubletControl->set_heatPump(heat_pump_flag, parameter_list.begin()->temperature_sink, eta);
+	}
+
 	wellDoubletControl->configure(parameter_list.begin()->powerrate,
-						parameter_list.begin()->target_value, parameter_list.begin()->threshold_value,
+						target_value, parameter_list.begin()->threshold_value,
 						balancing_properties);
 	temperature_sink = parameter_list.begin()->temperature_sink;
 	is_initialized = true;
@@ -103,6 +145,21 @@ void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancin
 				<< " - pcs: " << myrank
 #endif
 	<< '\n';
+
+	double target_value = parameter_list.begin()->target_value;
+
+	if(heat_pump_flag & parameter_list.begin()->powerrate < 0.)
+	{
+		const double T_UA = (balancing_properties.T_UA > 200.)?  balancing_properties.T_UA - 273.15 : balancing_properties.T_UA;
+		const double eta = interpolate(heat_pump_parameter.T_source, heat_pump_parameter.eta, T_UA, true);
+
+		wellDoubletControl->set_heatPump(heat_pump_flag, parameter_list.begin()->temperature_sink, eta);
+
+		if(parameter_list.begin()->indicator == 2)
+			target_value = -interpolate(heat_pump_parameter.T_source, heat_pump_parameter.Delta_T, T_UA, true);
+
+	}
+
 	wellDoubletControl->evaluate_simulation_result(balancing_properties);
 }
 
@@ -117,7 +174,9 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 	{
 		case FiniteElement::LIQUID_FLOW:
 			// result is flow rate
-			if(parameter_list.begin()->indicator == 0 || parameter_list.begin()->indicator == 1 || parameter_list.begin()->indicator == 2) // via STs
+			if(parameter_list.begin()->indicator == 0 ||
+					parameter_list.begin()->indicator == 1 ||
+					parameter_list.begin()->indicator == 2) // via STs
 			{
 				wdc_result.scheme_ID = parameter_list.begin()->indicator;
 				{
@@ -186,7 +245,9 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 			is_evaluated = false;
 			if(parameter_list.size() > 0)
 			{
-				if(parameter_list.begin()->indicator == 0 || parameter_list.begin()->indicator == 1 || parameter_list.begin()->indicator == 2) // via STs
+				if(parameter_list.begin()->indicator == 0 ||
+						parameter_list.begin()->indicator == 1 ||
+						parameter_list.begin()->indicator == 2) // via STs
 				{
 					result = wellDoubletControl->get_result().Q_H; // / heatExchangerArea;
 				}
@@ -239,7 +300,7 @@ void OGS_WDC::write_logfileheader(const std::size_t& ndx)
 				".txt";
 
 		std::fstream fout(ss.str(), std::fstream::out);
- 		fout << "scheme_ID = 0, 1, 2:\n\ttime\tscheme_ID\tpower_adaption_flag\tpower_rate\tsystem_power_rate\tsystem_target_power_rate\tflow_rate\ttemperature_warm_well\ttemperature_cold_well\ttemperature_heat_exchanger\tCOP\n";
+ 		fout << "scheme_ID = 0, 1, 2:\n\ttime\tscheme_ID\tpower_adaption_flag\tpower_rate\tsystem_power_rate\tsystem_target_power_rate\tflow_rate\ttemperature_warm_well\ttemperature_cold_well\ttemperature_heat_exchanger\ttemperature_sink\tCOP\teta\n";
 		fout << "scheme_ID = 3:\n\ttime\tscheme_ID\tpower_rate\tpower_rate_target\tflow_rate\tT_HE (heat exchanger)\tT_UA (upwind aquifer)\n";
 
 	}
@@ -266,6 +327,7 @@ void OGS_WDC::write_logfile(const double& time, const std::size_t& ndx, const CR
                        const double system_powerrate = (result.Q_H>0.)?
                                result.Q_H: wellDoubletControl->get_system_powerrate();
                        const double COP = (result.Q_H>0)? -1: wellDoubletControl->get_COP();
+                       const double eta = (result.Q_H>0)? -1: wellDoubletControl->get_heatPumpParameter();
 
                        fout << time
                                << '\t' << wellDoubletControl->get_scheme_ID()
@@ -281,7 +343,9 @@ void OGS_WDC::write_logfile(const double& time, const std::size_t& ndx, const CR
                                << '\t' << m_pcs->GetWeightedAverageNodeValue(doublet_mesh_nodes.heatExchanger,
                                                doublet_mesh_nodes.heatExchanger_area_fraction, 1)
                                //m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
+			       << '\t' << get_temperature_sink()
                                << '\t' << COP
+							   << '\t' << eta
                                << '\n';
 		  }		
 		}
@@ -299,5 +363,34 @@ void OGS_WDC::write_logfile(const double& time, const std::size_t& ndx, const CR
 //		else
 //			throw std::runtime_error("WDC scheme unknown");
 
+	}
+}
+
+
+void OGS_WDC::set_heat_pump_parameter(const bool & _heat_pump_flag, const std::string& heat_pump_file_name)
+{
+	heat_pump_flag = _heat_pump_flag;
+
+	if(heat_pump_flag)
+	{
+		std::string line;
+		std::fstream infile(heat_pump_file_name);
+		if(infile.is_open())
+		{
+			std::getline(infile, line); // header
+
+			while (std::getline(infile, line))
+			{
+				std::istringstream iss(line);
+				double T_source, eta, Delta_T;
+				iss >> T_source >> eta >> Delta_T;
+
+				heat_pump_parameter.T_source.push_back(T_source);
+				heat_pump_parameter.eta.push_back(eta);
+				heat_pump_parameter.Delta_T.push_back(Delta_T);
+			}
+		}
+		else
+			std::runtime_error("Failed to open heat pump file");
 	}
 }

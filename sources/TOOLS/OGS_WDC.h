@@ -55,8 +55,9 @@ public:
 
 	struct heat_pump_parameter_t
 	{
-		int _type;
-		double eta;
+		std::vector<double> T_source;
+		std::vector<double> eta;
+		std::vector<double> Delta_T;
 	};
 
 	struct result_t  // for scheme 3
@@ -79,6 +80,7 @@ private:
 	bool is_initialized; // new WDC for each new time step - WDC creation is controlled by this flag
 	bool is_evaluated;  // to do wdc evaluation only once each iteration beginning with second iteration
 	bool logging;
+	bool heat_pump_flag;
 	doublet_mesh_nodes_t doublet_mesh_nodes;
 	size_t nodes_counter;
 	//double heatExchangerArea;
@@ -101,7 +103,7 @@ public:
 	OGS_WDC(const double& _well_shutdown_temperature_range, const double& _accuracy_temperature,
 			const double& _accuracy_powerrate, const double& _accuracy_flowrate,
 			std::size_t ndx, const bool& logging) :
-		is_initialized(false), is_evaluated(true), logging(logging),
+		is_initialized(false), is_evaluated(true), logging(logging), heat_pump_flag(false),
 		doublet_mesh_nodes({std::vector<size_t>(), std::vector<size_t>(),
 					std::vector<size_t>(), std::vector<double>(), std::vector<double>(), std::vector<double>()}),
 		nodes_counter(0), // heatExchangerArea(1.),
@@ -120,8 +122,7 @@ public:
 	doublet_mesh_nodes_t get_doublet_mesh_nodes() const { return doublet_mesh_nodes; }
 	void set_doublet_mesh_nodes(doublet_mesh_nodes_t _doublet_mesh_nodes) { doublet_mesh_nodes = _doublet_mesh_nodes; }
 																		// called in set functions for source terms
-	void set_heat_pump_parameter(const int& _type, const double& eta)
-		{ heat_pump_parameter._type = _type ; heat_pump_parameter.eta = eta ;}
+	void set_heat_pump_parameter(const bool& heat_pump_flag, const std::string& heat_pump_file_name);
 	int get_aquifer_mesh_nodes(const double& current_time, // for time step
 			const bool & wdc_flag_extract_and_reinject,
 			std::vector<size_t>& heatExchanger_aquifer_mesh_nodes,
@@ -140,6 +141,8 @@ public:
 
 	//void set_heatExchangerArea(double _heatExchangerArea) { heatExchangerArea = _heatExchangerArea; }
 };
+
+
 
 
 #endif

@@ -689,19 +689,19 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  connected_geometry_couplingType = 1; // NNNC via matrix entry as default
 
 		  std::string tmp;
-		  int heatPumpType;
-		  double eta;  // for carnot
+		  int heat_pump_flag;
+		  std::string heat_pump_file_name;  // for carnot
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> tmp >> heatPumpType;
-		  if(heatPumpType == 0)
+		  in >> tmp >> heat_pump_flag >> heat_pump_file_name;
+		  if(heat_pump_flag == 0)
 		  {
 			  std::cout << "\tNo heat pump";
 		  }
-		  if(heatPumpType == 1)
+		  if(heat_pump_flag == 1)
 		  {
-			  in >> eta;
-			  std::cout << "\tCarnot heat pump; eta = " << eta <<  "\n";
+			  in >> heat_pump_file_name;
+			  std::cout << "\tCarnot heat pump - File name: " << heat_pump_file_name <<  "\n";
 		  }
 		  else
 			  std::runtime_error("ERROR in heat pump specification");
@@ -721,7 +721,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range,
 					  accuracy_temperature, accuracy_powerrate, accuracy_flowrate,
 					  m_pcs->ogs_WDC_vector.size(), logging);
-			  ogs_WDC->set_heat_pump_parameter(heatPumpType, eta);
+
+			  ogs_WDC->set_heat_pump_parameter(heat_pump_flag, heat_pump_file_name);
 
 			  while(numberOfParameterSets--)  // no check if number is right
 			  {
@@ -2130,11 +2131,11 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability)
 
 			 for (j = 0; j < node->getConnectedElementIDs().size(); j++)
 			 {
-				elem = msh->ele_vector[msh->nod_vector[k]->getConnectedElementIDs()[j]];
+				elem = msh->ele_vector[node->getConnectedElementIDs()[j]];
 
 				std::vector<size_t> node_indices;
 				elem->getNodeIndices(node_indices);
-
+				//std::cout << "ndx: " << elem->GetPatchIndex() << std::endl;
 				int nnodes = 0;
 
 				for(size_t ndx=0; ndx<node_indices.size(); ndx++)
@@ -2167,6 +2168,9 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability)
 		   node_value_vector[i] *= scaling_vector[i] / divisor;
 	   }
    }  // end if scaling with permeability
+
+   //for (i = 0; i < this_number_of_nodes; i++)
+	 //  std::cout << i << ": " << node_value_vector[i] << std::endl;
 }
 
 
@@ -4281,7 +4285,7 @@ const int ShiftInNodeVector)
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
 					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-					 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -4314,7 +4318,7 @@ const int ShiftInNodeVector)
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
 					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-					 st->ignore_axisymmetry, st->isPressureBoundaryCondition());
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -5152,7 +5156,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 					ply_nod_val_vector);
 		else EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector,
 				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-				st->ignore_axisymmetry, st->isPressureBoundaryCondition());
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
 	}
 
 	if (distype == FiniteElement::CRITICALDEPTH
@@ -6596,8 +6600,6 @@ only heat capacity and density of fluid is considered (mfp_vector[0])
 double CSourceTerm::apply_wellDoubletControl(double value,
 				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
-	//if(myrank==1)
-	//	return 0.;
 	if(!m_pcs)
 		throw std::runtime_error("WellDoubletControl - No PCS");
 
@@ -6712,12 +6714,8 @@ double CSourceTerm::apply_wellDoubletControl(double value,
 					double convective_term = -factor / volumetric_heat_capacity_upwindAquifer;
 					GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
 				}
-
-
 			}
 		}
-
-
 	}
 
 	return value * result;

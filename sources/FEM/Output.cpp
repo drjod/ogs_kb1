@@ -5669,7 +5669,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 				tec_file << "TITLE = \"Well doublet " <<  i << "\"\n";
 				tec_file << "VARIABLES = \"Step\" \"Time\" \"Scheme\" \"Power adaption flag\" ";
 				tec_file << "\"Power rate Q_H\"  \"System power rate Q_H_sys\" \"System target power rate Q_H_sys_target\" \"Flow rate Q_w\" ";
-				tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"T_sink\" \"COP\"\n";
+				tec_file << "\"Warm well T_1\" \"Cold well T_2\" \"Heat exchanger T_HE\" \"T_sink\" \"COP\" \"eta\"\n";
 			}
 		}
 
@@ -5695,8 +5695,6 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 						<< '\n';
 	
 			}
-	
-		
 			else
 			{
 				if( m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl())
@@ -5708,11 +5706,12 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 					//	result.Q_H: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
 					const double system_powerrate = m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_powerrate();
 					const double COP = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_COP();
-	
+					const double eta = (result.Q_H>0)? -1: m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_heatPumpParameter();
+
 					tec_file << aktueller_zeitschritt
 						<< '\t' << time_current
 						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_scheme_ID()
-						<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand
+						<< '\t' << result.storage_state   // 0: powerrate_to_adapt, 1: on_demand, 2: target_not_achievable, 3: rates_reduced because of well_shut_down_temperature_range
 						<< '\t' << result.Q_H
 						<< '\t' << system_powerrate
 						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_WellDoubletControl()->get_system_target_powerrate()
@@ -5726,6 +5725,7 @@ void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
 						//m_pcs->ogs_WDC_vector[i]->get_extremum(m_pcs, 1, doublet_mesh_nodes.heatExchanger)
 						<< '\t' << m_pcs->ogs_WDC_vector[i]->get_temperature_sink() 
 						<< '\t' << COP
+						<< '\t' << eta
 						<< '\n';
 				}		
 			}  // end if WDC
