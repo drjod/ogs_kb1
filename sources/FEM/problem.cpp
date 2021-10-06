@@ -1171,13 +1171,8 @@ void Problem::Euler_TimeDiscretize()
 					force_output = true;
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
 				if(myrank == 0)
-				{
 #endif
-					//
 				OUTData(current_time, aktueller_zeitschritt, force_output);
-#if defined(USE_MPI) || defined(USE_MPI_KRC) 
-				}
-#endif
 			}
 			accepted_times++;
 			for(i=0; i<(int)active_process_index.size(); i++)
@@ -1238,6 +1233,9 @@ void Problem::Euler_TimeDiscretize()
 //		// executing only one time step for profiling
 //		current_time = end_time;
 	}
+			
+	
+
 #if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)  || defined(USE_MPI_KRC) 
 	if(mrank == 0)
 	{
@@ -1574,14 +1572,14 @@ bool Problem::CouplingLoop()
     // Coupling convergence criteria
     //max_outer_error=0.;
 
-    bool wdc_converged = true;
+    int wdc_converged = 1;
 
     if(a_pcs->ogs_WDC_vector.size() != 0)
     {
 
     	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
     	{
-    		//ogs_wdc->set_unevaluated(); set unevaluted when HEAT_TRAASPORT calculation
+    		ogs_wdc->set_unevaluated(); // set unevaluted after HEAT_TRANSPORT calculation
 
 		
     		if(ogs_wdc->get_WellDoubletControl() && !ogs_wdc->get_WellDoubletControl()->converged())
@@ -1589,34 +1587,38 @@ bool Problem::CouplingLoop()
     			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
     			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
     		{
-				wdc_converged = false;  // do not break since all wdc must be set unevaluated
+				wdc_converged = 0;  // do not break since all wdc must be set unevaluated
     		}
     	}
 
+    
 
 #if defined (USE_MPI) 
+	int world_size;
+	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+	int *rbuf;
+	rbuf = (int *)malloc(world_size*sizeof(int));
 
-int world_size;
-MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-int *rbuf;
-rbuf = (int *)malloc(world_size*sizeof(int));
+	MPI_Gather(&wdc_converged, 1, MPI_INT, rbuf, 1, MPI_INT, 0, MPI_COMM_WORLD); 
 
-MPI_Gather(&wdc_converged, 1, MPI_INT, rbuf, 1, MPI_INT, 0, MPI_COMM_WORLD); 
+	if(myrank == 0)
+	{
+		for(int i=0; i < world_size; ++i)
+			if(rbuf[i] == 0)
+				 wdc_converged = 0;
+	}
 
-if(myrank == 0)
-{
-	for(int i=0; i < world_size; ++i)
-		if(rbuf[i] == false)
-			 wdc_converged = false;
-}
+	MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD); 
 
-MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD); 
-
+	free(rbuf);
 #endif
 
     	if(wdc_converged)
     	{
     		//Logger(std::string("WDC converged"));
+#if defined(USE_MPI)
+                if(myrank == 0)
+#endif	
     		std::cout << "\tWDC converged\n";
     		//for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
 		//{
@@ -1630,11 +1632,11 @@ MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		//}
    	}
 
-} // end if WDC
+    } // end if WDC
 
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
-  	if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
-  	&& wdc_converged)
+  if (((converged && outer_index + 1 >= cpl_overall_min_iterations) 
+			  && wdc_converged)
     || outer_index+1 == cpl_overall_max_iterations)  // for FCT
   	{
         	for(std::size_t ndx = 0; ndx < a_pcs->ogs_WDC_vector.size(); ++ndx)
@@ -1644,7 +1646,6 @@ MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		}
   		break;
   	}
-
 
     //MW
     if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&

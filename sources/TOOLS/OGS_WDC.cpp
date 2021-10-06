@@ -103,11 +103,10 @@ int OGS_WDC::get_aquifer_mesh_nodes(const double& current_time,
 void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
 	// !!!!! parameterList must have been updated before (by calling update_measurement_mesh_nodes())
-	std::cout << "\tWDC create"
 #if defined(USE_MPI)
-				<< " - pcs: " << myrank
+	if(myrank == 0)
 #endif
-	<< '\n';
+	std::cout << "\tWDC create\n";
 
 	wellDoubletControl.reset(wdc::WellDoubletControl::create_wellDoubletControl(parameter_list.begin()->indicator,
 			well_shutdown_temperature_range,
@@ -140,11 +139,10 @@ void OGS_WDC::create_new_WDC(const wdc::WellDoubletControl::balancing_properties
 // also flow rates are updated if required
 void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancing_properties_t& balancing_properties)
 {
-	std::cout << "\tWDC - evaluate"
 #if defined(USE_MPI)
-				<< " - pcs: " << myrank
+	if(myrank == 0)
 #endif
-	<< '\n';
+	std::cout << "\tWDC - evaluate\n";
 
 	double target_value = parameter_list.begin()->target_value;
 
@@ -233,8 +231,13 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 				wdc_result.T_HE = balancing_properties.T_HE;
 				wdc_result.T_UA = balancing_properties.T_UA;
 
-				//if(!is_evaluated)
-				//std::cout << "\t\tWDC - Powerrate " << wdc_result.power_rate <<  " - Set flow rate: " << result << '\n';
+				if(!is_evaluated)
+				{
+#if defined(USE_MPI)
+					if(myrank == 0)
+#endif
+					std::cout << "\t\tWDC - Powerrate: " << wdc_result.power_rate <<  " (target: " << wdc_result.power_rate_target << ") - Set flow rate: " << result << '\n';
+				}
 				is_evaluated = true;
 			}
 			else
