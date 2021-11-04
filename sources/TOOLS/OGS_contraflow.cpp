@@ -17,7 +17,7 @@ bool OGS_contraflow::call_contraflow(const double& current_time, stru3::DVec T_s
 		throw std::runtime_error("ERROR in contraflow - Input list empty");
 	}
 
-	if(input_list.front().Q > 10e-10)
+	if(input_list.front().Q > 10e-20)
 	{
 		contraflow->calculate(input_list.front().Q, input_list.front().mode, input_list.front().var, T_s);
 		result = contraflow->get_result();
