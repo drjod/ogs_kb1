@@ -156,7 +156,7 @@ CSourceTerm::CSourceTerm() :
 
    variable_storage = false;
 
-   scaling_with_permeability = false;
+   scaling_mode = 0;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -761,10 +761,11 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$SCALING_WITH_PERMEABILITY") != std::string::npos) // JOD 2021-08-04
+	  if (line_string.find("$SCALING") != std::string::npos) // JODSH 2021-11-04
 	  {
-		  scaling_with_permeability = true;
-		  in.clear();
+          in.str(readNonBlankLineFromInputStream(*st_file));
+          in >> scaling_mode;  // 1: with permeability, 2: with permeability and viscosity
+          in.clear();
 		  continue;
 	  }
 	  //....................................................................
@@ -1855,7 +1856,7 @@ double AreaProjection(CEdge *edge, FiniteElement::PrimaryVariable primaryVariabl
 void EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
 std::vector<double>&node_value_vector, 
 FiniteElement::DistributionType dis_type, FiniteElement::PrimaryVariable prim_val, 
-bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability)
+bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
 {
    long i, j, k, l;
    long this_number_of_nodes;
@@ -2120,7 +2121,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, bool scaling_with_permeability)
    e_edges.resize(0);
 
    //////////////////////////////////////////////////////////////////////////
-   if(scaling_with_permeability)  // JOD 2021-08-05
+   if(scaling_mode == 1)  // JOD 2021-08-05
    {
 	   std::vector<double> scaling_vector(this_number_of_nodes, 0.);
 
@@ -4285,7 +4286,7 @@ const int ShiftInNodeVector)
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
 					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -4318,7 +4319,7 @@ const int ShiftInNodeVector)
 			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
 			 EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
 					 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
+					 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
 			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
 			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
 		 }
@@ -5156,7 +5157,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 					ply_nod_val_vector);
 		else EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector,
 				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
-				st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_with_permeability);
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
 	}
 
 	if (distype == FiniteElement::CRITICALDEPTH
