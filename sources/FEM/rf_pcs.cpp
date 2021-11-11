@@ -8372,6 +8372,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		std::vector<long> scaling_nodeNumbers;  // JODSH 2021-11-04
 		std::vector<double> scaling_nodeValues;
+		double scaling_total_source_term = 0; //  m3/s - summed up in for loop
 		double scaling_sum = 0;
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
@@ -8866,7 +8867,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
 		{
 			scaling_nodeNumbers.push_back(msh_node);
-			double scaling_factor = 0; value;
+			double scaling_factor = 0;
 
 			std::vector<size_t> elements_connected = m_msh->nod_vector[msh_node]->getConnectedElementIDs();
 			for (int i = 0; i < elements_connected.size(); ++i)
@@ -8890,10 +8891,10 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				scaling_factor += perm / visc;
 
 			}
-
-			scaling_factor *= value / elements_connected.size();
+			 
+			scaling_factor *=  cnodev->length / elements_connected.size();
 			scaling_sum += scaling_factor;
-
+			scaling_total_source_term += value; 
 			scaling_nodeValues.push_back(scaling_factor);
 			value = 0.;
 		}
@@ -9013,10 +9014,10 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			else
 				bc_eqs_index = m_msh->nod_vector[scaling_nodeNumbers[i]]->GetEquationIndex() + shift;
 
-			eqs_rhs[bc_eqs_index] += scaling_nodeValues[i] / scaling_sum;
-
+			eqs_rhs[bc_eqs_index] += scaling_total_source_term * scaling_nodeValues[i] / fabs(scaling_sum);
+			std::cout << i << "  " << bc_eqs_index << "   " << scaling_total_source_term * scaling_nodeValues[i] / scaling_sum << '\n';
 		}
-
+		//std::cout <<  "sum  "
 
 	}
 

@@ -5425,6 +5425,7 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->geo_node_number = nodes[i];
       m_nod_val->setProcessDistributionType (getProcessDistributionType());
       m_nod_val->node_value = node_values[i];
+      m_nod_val->length = (geo_node_value == 0)? 0 : node_values[i] / geo_node_value;
 
       // Added by CB;  removed by JOD 2015-11-19 
       //if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
