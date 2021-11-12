@@ -23,6 +23,7 @@
 
 
 #include "MSHEnums.h"
+#include "rf_mmp_new.h"
 
 namespace Math_Group
 { class SymMatrix;
@@ -301,6 +302,25 @@ private:
 	Matrix* Stiffness;
 	Vec* RHS;
 };
+
+void DomainIntegration(CRFProcess* m_pcs,
+	                       const std::vector<long> & nodes_in_dom,
+	                       std::vector<double> & node_value_vector);
+
+void FaceIntegration(MeshLib::CFEMesh* m_msh,
+                     std::vector<long> const & nodes_on_sfc,
+                     std::vector<double> & node_value_vector,
+					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+
+void EdgeIntegration(MeshLib::CFEMesh* m_msh,
+	                     const std::vector<long> & nodes_on_ply,
+	                     std::vector<double> & node_value_vector,
+			     FiniteElement::DistributionType dis_type,
+			     FiniteElement::PrimaryVariable prim_val,
+			     bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode=0);
+
+double AreaProjection(MeshLib::CEdge *edge, FiniteElement::PrimaryVariable primaryVariable);
+
 }                                                 // end namespace
 
 //=============================================
@@ -308,4 +328,7 @@ private:
 // Will be removed when new FEM is ready
 extern FiniteElement::CElement* elem_dm;
 //=============================================
+
+
+
 #endif

@@ -20,6 +20,8 @@
 #include "OGS_contraflow.h"
 #include <list>
 
+using namespace FiniteElement;
+
 class CNodeValue;
 class CGLPolyline;
 class CGLLine;
@@ -84,6 +86,7 @@ typedef struct
 	//double value_store[10][5000];
 	double** value_store;                 //[PCS_NUMBER_MAX*2]First ref no processes(two fields per process..time, value), second ref no values
 } NODE_HISTORY;
+
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
@@ -562,23 +565,7 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
-extern void DomainIntegration(CRFProcess* m_pcs,
-	                       const std::vector<long> & nodes_in_dom,
-	                       std::vector<double> & node_value_vector);
 
-extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
-                     std::vector<long> const & nodes_on_sfc,
-                     std::vector<double> & node_value_vector,
-					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
-	
-extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
-	                     const std::vector<long> & nodes_on_ply,
-	                     std::vector<double> & node_value_vector, 
-			     FiniteElement::DistributionType dis_type, 
-			     FiniteElement::PrimaryVariable prim_val, 
-			     bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode=0);
-
-
-double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
+//double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 
 #endif

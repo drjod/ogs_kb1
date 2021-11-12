@@ -21,6 +21,15 @@
 FiniteElement::CElement* elem_dm = NULL;
 //=============================================
 
+using FiniteElement::CElement;
+using MeshLib::CElem;
+using MeshLib::CEdge;
+using MeshLib::CNode;
+using Math_Group::vec;
+
+extern vector<CMediumProperties*>mmp_vector;
+
+
 namespace FiniteElement
 {
 /**************************************************************************
@@ -1624,6 +1633,706 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 
 }
 
+void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
+		std::vector<double>&node_value_vector, Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points)
+{
+   if (!msh)
+   {
+      std::cout
+         << "Warning in CSourceTerm::FaceIntegration: no MSH data, function doesn't function";
+      return;
+   }
 
+   long i, j, k, l;
+   long this_number_of_nodes;
+   int nfaces, nfn;
+   int nodesFace[8];
+   double nodesFVal[8];
+
+   bool Const = false;
+   if (disType == FiniteElement::CONSTANT
+		   || disType == FiniteElement::CONSTANT_NEUMANN
+		   || disType == FiniteElement::RECHARGE)	//MW
+      //	if (dis_type_name.find("CONSTANT") != std::string::npos)
+      Const = true;
+   //----------------------------------------------------------------------
+   // Interpolation of polygon values to nodes_on_sfc
+   if (!Const)                                    // Get node BC by interpolation with surface
+   {
+      int nPointsPly = 0;
+      double Area1, Area2;
+      double Tol = 1.0e-9;
+      bool Passed;
+      const int Size = (int) nodes_on_sfc.size();
+      double gC[3], p1[3], p2[3], vn[3], unit[3], NTri[3];
+
+      CGLPolyline* m_polyline = NULL;
+      //Surface *m_surface = NULL;
+      //m_surface = GEOGetSFCByName(geo_name);      //CC
+
+      // list<CGLPolyline*>::const_iterator p = m_surface->polyline_of_surface_list.begin();
+      std::vector<CGLPolyline*>::iterator p =
+         m_surface->polyline_of_surface_vector.begin();
+
+      for (j = 0; j < Size; j++)
+      {
+    	  double const*const pn (msh->nod_vector[nodes_on_sfc[j]]->getData());
+//         pn[0] = msh->nod_vector[nodes_on_sfc[j]]->X();
+//         pn[1] = msh->nod_vector[nodes_on_sfc[j]]->Y();
+//         pn[2] = msh->nod_vector[nodes_on_sfc[j]]->Z();
+         node_value_vector[j] = 0.0;
+         Passed = false;
+         // nodes close to first polyline
+         p = m_surface->polyline_of_surface_vector.begin();
+         while (p != m_surface->polyline_of_surface_vector.end())
+         {
+            m_polyline = *p;
+            // Grativity center of this polygon
+            for (i = 0; i < 3; i++)
+               gC[i] = 0.0;
+            vn[2] = 0.0;
+            nPointsPly = (int) m_polyline->point_vector.size();
+            if (m_polyline->point_vector.front() == m_polyline->point_vector.back())
+               nPointsPly -= 1;
+            for (i = 0; i < nPointsPly; i++)
+            {
+               gC[0] += m_polyline->point_vector[i]->x;
+               gC[1] += m_polyline->point_vector[i]->y;
+               gC[2] += m_polyline->point_vector[i]->z;
+
+               vn[2] += m_polyline->point_vector[i]->getPropert();
+            }
+            for (i = 0; i < 3; i++)
+               gC[i] /= (double) nPointsPly;
+            // BC value at center is an average of all point values of polygon
+            vn[2] /= (double) nPointsPly;
+
+            // Area of this polygon by the grativity center
+            for (i = 0; i < nPointsPly; i++)
+            {
+               p1[0] = m_polyline->point_vector[i]->x;
+               p1[1] = m_polyline->point_vector[i]->y;
+               p1[2] = m_polyline->point_vector[i]->z;
+               k = i + 1;
+               if (i == nPointsPly - 1)
+                  k = 0;
+               p2[0] = m_polyline->point_vector[k]->x;
+               p2[1] = m_polyline->point_vector[k]->y;
+               p2[2] = m_polyline->point_vector[k]->z;
+
+               vn[0] = m_polyline->point_vector[i]->getPropert();
+               vn[1] = m_polyline->point_vector[k]->getPropert();
+
+               Area1 = fabs(ComputeDetTri(p1, gC, p2));
+
+               Area2 = 0.0;
+               // Check if pn is in the triangle by points (p1, gC, p2)
+               Area2 = fabs(ComputeDetTri(p2, gC, pn));
+               unit[0] = fabs(ComputeDetTri(gC, p1, pn));
+               unit[1] = fabs(ComputeDetTri(p1, p2, pn));
+               Area2 += unit[0] + unit[1];
+               if (fabs(Area1 - Area2) < Tol)
+               {
+                  // Intopolation whin triangle (p1,p2,gC)
+                  // Shape function
+                  for (l = 0; l < 2; l++)
+                     unit[l] /= Area1;
+                  ShapeFunctionTri(NTri, unit);
+                  for (l = 0; l < 3; l++)
+                     node_value_vector[j] += vn[l] * NTri[l];
+                  Passed = true;
+                  break;
+               }
+
+            }
+            //
+            p++;
+            if (Passed)
+               break;
+         }                                        // while
+      }                                           //j
+   }
+
+   int Axisymm = 1;                               // ani-axisymmetry
+   //CFEMesh* msh = m_pcs->m_msh;
+   if (msh->isAxisymmetry())
+      Axisymm = -1;                               // Axisymmetry is true
+   CElem* elem = NULL;
+   CElem* face = new CElem(1);
+   CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
+   CNode* e_node = NULL;
+   CElem* e_nei = NULL;
+   //vec<CNode*> e_nodes(20);
+   // vec<CElem*> e_neis(6);
+
+   face->SetFace();
+   this_number_of_nodes = (long) nodes_on_sfc.size();
+   int nSize = (long) msh->nod_vector.size();
+   std::vector<long> G2L(nSize);
+   std::vector<double> NVal(this_number_of_nodes);
+
+   for (i = 0; i < nSize; i++)
+   {
+
+	   msh->nod_vector[i]->SetMark(false);
+      G2L[i] = -1;
+   }
+
+   for (i = 0; i < this_number_of_nodes; i++)
+   {
+      NVal[i] = 0.0;
+      k = nodes_on_sfc[i];
+      G2L[k] = i;
+   }
+
+   //----------------------------------------------------------------------
+   // NW 15.01.2010
+   // 1) search element faces on the surface
+   // 2) face integration
+
+
+   std::set<long> set_nodes_on_sfc;               //unique set of node id on the surface
+   for (i = 0; i < (long) nodes_on_sfc.size(); i++)
+   {
+      set_nodes_on_sfc.insert(nodes_on_sfc[i]);
+   }
+
+   //filtering elements: elements should have nodes on the surface
+   //Notice: node-elements relation has to be constructed beforehand
+   // CB THMBM
+   //this->getProcess()->CheckMarkedElement(); // CB added to remove bug with deactivated Subdomains
+   std::vector<long> vec_possible_elements;
+
+   std::vector<long> elements_at_geo;
+   std::vector<long> nodes_on_sfc2(nodes_on_sfc);
+
+   msh->GetConnectedElements(nodes_on_sfc2, elements_at_geo);
+
+
+   //init
+   for (i = 0; i < (long) msh->ele_vector.size(); i++)
+   {
+      msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
+   }
+
+   for (i = 0; i < this_number_of_nodes; i++)
+   {
+      k = nodes_on_sfc[i];
+      for (j = 0; j < (long) msh->nod_vector[k]->getConnectedElementIDs().size(); j++)
+      {
+         l = msh->nod_vector[k]->getConnectedElementIDs()[j];
+         if (msh->ele_vector[l]->selected == 0)
+            vec_possible_elements.push_back(l);
+         msh->ele_vector[l]->selected += 1;       // remember how many nodes of an element are on the surface
+      }
+   }
+
+   //for (i = 0; i < msh->ele_vector.size(); i++)
+	 //  std::cout << "----- " << msh->ele_vector[l]->selected << "\n";
+   //search elements & face integration
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+      const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
+      const size_t id_act_h_min = msh-> GetNodesNumber(false);
+      const size_t id_act_h_max = msh->getLargestActiveNodeID_Quadratic();
+#endif
+
+   int count;
+   double fac = 1.0;
+   for (i = 0; i < (long) vec_possible_elements.size(); i++)
+   {
+      elem = msh->ele_vector[vec_possible_elements[i]];
+      if (!elem->GetMark())
+         continue;
+      nfaces = elem->GetFacesNumber();
+      elem->SetOrder(msh->getOrder());
+      for (j = 0; j < nfaces; j++)
+      {
+         e_nei = elem->GetNeighbor(j);
+         nfn = elem->GetElementFaceNodes(j, nodesFace);
+         //1st check
+         if (elem->selected < nfn)
+            continue;
+
+         if(elem->GetDimension() != 3)
+            continue;
+
+         //2nd check: if all nodes of the face are on the surface
+         count = 0;
+         for (k = 0; k < nfn; k++)
+         {
+            e_node = elem->GetNode(nodesFace[k]);
+            if (set_nodes_on_sfc.count(e_node->GetIndex()) > 0)
+            {
+               count++;
+            }
+         }
+         if (count != nfn)
+            continue;
+         // face integration
+         for (k = 0; k < nfn; k++)
+         {
+            e_node = elem->GetNode(nodesFace[k]);
+            nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
+         }
+         fac = 1.0;
+                                                  // Not a surface face
+         if (elem->GetDimension() == e_nei->GetDimension())
+            fac = 0.5;
+         face->SetFace(elem, j);
+         face->SetOrder(msh->getOrder());
+         face->ComputeVolume();
+         fem->setOrder(msh->getOrder() + 1);
+         fem->ConfigElement(face, ele_gauss_points, true);
+         fem->FaceIntegration(nodesFVal);
+         for (k = 0; k < nfn; k++)
+         {
+            e_node = elem->GetNode(nodesFace[k]);
+
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+            if(     (e_node->GetIndex() < id_act_l_max)
+                ||  (    e_node->GetIndex() >= id_act_h_min
+			 &&  e_node->GetIndex() < id_act_h_max)
+             )
+#endif
+            NVal[G2L[e_node->GetIndex()]] += fac * nodesFVal[k];
+         }
+      }
+   }
+
+   for (i = 0; i < this_number_of_nodes; i++)
+      node_value_vector[i] = NVal[i];
+   for (i = 0; i < nSize; i++)
+      msh->nod_vector[i]->SetMark(true);
+
+   NVal.clear();
+   G2L.clear();
+   delete fem;
+   delete face;
+}
+
+/**************************************************************************
+ ROCKFLOW - Funktion: DomainIntegration
+ Task:  Translate distributed source term within elements into nodes value
+ for all kinds of element
+ Programming:
+ 08/2005 WW Re-Implementation
+ 09/2010 TF re structured some things
+ **************************************************************************/
+void DomainIntegration(CRFProcess* m_pcs, const std::vector<long>&nodes_in_dom,
+std::vector<double>&node_value_vector)
+{
+   CFEMesh* msh = m_pcs->m_msh;
+   double nodesFVal[8];
+
+   int Axisymm = 1;                               // ani-axisymmetry
+   if (msh->isAxisymmetry())
+      Axisymm = -1;                               // Axisymmetry is true
+   CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
+   vec<CNode*> e_nodes(20);
+
+   const size_t this_number_of_nodes (nodes_in_dom.size());
+   const size_t nSize (msh->nod_vector.size());
+   std::vector<long> G2L(nSize);
+   std::vector<double> NVal(this_number_of_nodes);
+
+   for (size_t i = 0; i < nSize; i++)
+   {
+      msh->nod_vector[i]->SetMark(false);
+      G2L[i] = -1;
+   }
+
+   for (size_t i = 0; i < this_number_of_nodes; i++)
+   {
+      NVal[i] = 0.0;
+      G2L[nodes_in_dom[i]] = i;
+   }
+
+   size_t count = 0;
+   for (size_t i = 0; i < msh->ele_vector.size(); i++)
+   {
+      CElem* elem (msh->ele_vector[i]);
+      if (!elem->GetMark())
+         continue;
+      elem->GetNodes(e_nodes);
+      size_t nn = elem->GetNodesNumber(msh->getOrder());
+      count = 0;
+      for (size_t j = 0; j < nn; j++)
+      {
+         for (size_t k = 0; k < this_number_of_nodes; k++)
+         {
+            if (*e_nodes[j] == *msh->nod_vector[nodes_in_dom[k]])
+            {
+               count++;
+               break;
+            }
+         }
+      }
+      if (count != nn)
+         continue;
+      for (size_t j = 0; j < nn; j++)
+         nodesFVal[j] = node_value_vector[G2L[e_nodes[j]->GetIndex()]];
+      fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, true);
+      fem->setOrder(msh->getOrder() + 1);
+      fem->FaceIntegration(nodesFVal);
+      for (size_t j = 0; j < nn; j++)
+         NVal[G2L[e_nodes[j]->GetIndex()]] += nodesFVal[j];
+   }
+
+   for (size_t i = 0; i < this_number_of_nodes; i++)
+      node_value_vector[i] = NVal[i];
+   for (size_t i = 0; i < nSize; i++)
+      msh->nod_vector[i]->SetMark(true);
+
+   NVal.clear();
+   G2L.clear();
+   e_nodes.resize(0);
+   delete fem;
+}
+
+void EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
+std::vector<double>&node_value_vector,
+FiniteElement::DistributionType dis_type, FiniteElement::PrimaryVariable prim_val,
+bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
+{
+   long i, j, k, l;
+   long this_number_of_nodes;
+   int elemsCnode;
+   int nedges, ii;
+   vec<CNode*> e_nodes(3);
+   vec<CEdge*> e_edges(12);
+
+   double Jac = 0.0;
+   double Weight = 0.0;
+   double eta = 0.0;
+   double v1, v2, radius = 0.0;
+   double Shfct[3];
+
+   double area_projection (1.0); //for projection of element areas for edges not parallel to the coordinate axes
+   bool Const = false;
+   if (dis_type == FiniteElement::CONSTANT || dis_type == FiniteElement::CONSTANT_NEUMANN)
+      Const = true;
+
+   CElem* elem = NULL;
+   CEdge* edge = NULL;
+   CNode* node = NULL;
+
+   int nSize = (long) msh->nod_vector.size();
+   this_number_of_nodes = (long) nodes_on_ply.size();
+   std::vector<long> G2L(nSize);
+   std::vector<double> NVal(this_number_of_nodes);
+
+// CB THMBM
+   // CB added to remove bug with deactivated Subdomains
+   //for(i=0;i<(long)pcs_vector.size();i++){
+   //  if(pcs_vector[i]->getProcessType()==this->getProcessType())
+   //  {
+   //    pcs_vector[i]->CheckMarkedElement();
+   //    break;
+   //  }
+   //}
+
+   // Unmakr edges.
+   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+      msh->edge_vector[i]->SetMark(false);
+   for (i = 0; i < nSize; i++)
+   {
+      msh->nod_vector[i]->SetMark(false);
+      G2L[i] = -1;
+   }
+
+   // Search edges on polyline
+   for (i = 0; i < this_number_of_nodes; i++)
+   {
+      NVal[i] = 0.0;
+      k = nodes_on_ply[i];
+      G2L[k] = i;
+      node = msh->nod_vector[k];
+      elemsCnode = (int) node->getConnectedElementIDs().size();
+
+      for (j = 0; j < elemsCnode; j++)
+      {
+         l = msh->nod_vector[k]->getConnectedElementIDs()[j];
+         elem = msh->ele_vector[l];
+         nedges = elem->GetEdgesNumber();
+         elem->GetEdges(e_edges);
+         for (ii = 0; ii < nedges; ii++)
+         {
+            edge = e_edges[ii];
+
+            if (edge->GetMark())
+               continue;
+            edge->GetNodes(e_nodes);
+            // Edge A
+            if (*node == *e_nodes[0])
+               e_nodes[0]->SetMark(true);
+            // Edge B
+            if (*node == *e_nodes[1])
+               e_nodes[1]->SetMark(true);
+            if (msh->getOrder())                  // Quadratic
+            {
+               if (*node == *e_nodes[2])
+                  e_nodes[2]->SetMark(true);
+            }
+            if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark())
+            {
+               if (msh->getOrder())
+               {
+                  if (e_nodes[2]->GetMark())
+                  {
+                     edge->SetMark(true);
+                  }
+               }
+               else
+               {
+            	   edge->SetMark(true);
+               }
+            }
+         } // e_edges
+      }  //
+   }
+
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+   const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
+   const size_t id_act_h_min =  msh->GetNodesNumber(false);
+   const size_t id_act_h_max =  msh->getLargestActiveNodeID_Quadratic();
+
+   struct loc_function
+   {
+      static bool isIDinRange( const size_t n_id, const size_t id_max0,
+                                   const size_t id_min1,  const size_t id_max1 )
+      {
+	return (n_id < id_max0) || (n_id >= id_min1 && n_id <  id_max1);
+      }
+   };
+#endif
+
+   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+   {
+	   edge = msh->edge_vector[i];
+	   if (!edge->GetMark())
+		   continue;
+	   edge->GetNodes(e_nodes);
+
+	   if (flag_is_bc)
+	   {
+		   area_projection=AreaProjection(edge, prim_val);
+
+	   }
+
+      if (msh->getOrder())                        // Quadradic shape functions
+      {
+         if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark()
+            && e_nodes[2]->GetMark())
+         {
+            Jac = 0.5 * edge->getLength()*area_projection;
+            v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
+            v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
+            if (Const && (!msh->isAxisymmetry() || flag_ignore_axisymmetry))
+            {
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+              if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
+#endif
+               NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1 / 3.0;
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	      if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
+#endif
+               NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1 / 3.0;
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	      if(loc_function::isIDinRange( e_nodes[2]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
+#endif
+               NVal[G2L[e_nodes[2]->GetIndex()]] += 4.0 * Jac * v1 / 3.0;
+
+            }
+            else
+            {
+               for (k = 0; k < 3; k++)            // Three nodes
+               {
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+                 if( !loc_function::isIDinRange(  e_nodes[k]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
+                    continue;
+#endif
+                  // Numerical integration
+                  for (l = 0; l < 3; l++)         // Gauss points
+                  {
+                     Weight = Jac * MXPGaussFkt(3, l);
+                     eta = MXPGaussPkt(3, l);
+                     ShapeFunctionLineHQ(Shfct, &eta);
+                     //Axisymmetical problem
+                     if (msh->isAxisymmetry())
+                     {
+                        radius = 0.0;
+                        for (ii = 0; ii < 3; ii++)
+                           radius += Shfct[ii] * e_nodes[ii]->getData()[0];
+                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
+                     }
+                     NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
+                        + eta * (v2 - v1)) * Shfct[k] * Weight;
+
+                  }
+
+               }
+            }
+         }
+      } else                                      // Linear shape functions
+      {
+         if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark())
+         {
+            Jac = 0.5 * edge->getLength()*area_projection;
+            v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
+            v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
+            if (!msh->isAxisymmetry()  && !flag_ignore_axisymmetry)
+            {
+               if (Const)
+               {
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	          if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max,
+                                            id_act_h_min, id_act_h_max))
+#endif
+                  NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1;
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	          if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max,
+                                            id_act_h_min, id_act_h_max))
+#endif
+                  NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1;
+               }
+               else
+               {
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	         if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max,
+                                            id_act_h_min, id_act_h_max))
+#endif
+                  NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * (2.0 * v1
+                     + v2) / 3.0;
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+	         if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max,
+                                                id_act_h_min, id_act_h_max))
+#endif
+                  NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * (v1 + 2.0
+                     * v2) / 3.0;
+               }
+            } else                                // Axisymmetry
+            {
+
+               for (k = 0; k < 2; k++)            // Three nodes
+               {
+#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
+                  if( !loc_function::isIDinRange( e_nodes[k]->GetIndex(), id_act_l_max,
+                                                  id_act_h_min, id_act_h_max) )
+                    continue;
+#endif
+                  // Numerical integration
+                  for (l = 0; l < 3; l++)         // Gauss points
+                  {
+                     Weight = Jac * MXPGaussFkt(3, l);
+                     eta = MXPGaussPkt(3, l);
+                     ShapeFunctionLine(Shfct, &eta);
+                     //Axisymmetical problem
+                     if (msh->isAxisymmetry() && !flag_ignore_axisymmetry)
+                     {
+                        radius = 0.0;
+                        for (ii = 0; ii < 2; ii++)
+                           radius += Shfct[ii] * e_nodes[ii]->getData()[0];
+                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
+                     }
+                     NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
+                        + eta * (v2 - v1)) * Shfct[k] * Weight;
+                  }
+               }
+            }                                     // End of is (!axi)
+         }
+      }
+   }
+   for (i = 0; i < this_number_of_nodes; i++)
+   {
+      node_value_vector[i] = NVal[i];
+      node = msh->nod_vector[nodes_on_ply[i]];
+   }
+   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+      msh->edge_vector[i]->SetMark(true);
+   for (i = 0; i < nSize; i++)
+      msh->nod_vector[i]->SetMark(true);
+   NVal.clear();
+   G2L.clear();
+   e_nodes.resize(0);
+   e_edges.resize(0);
+
+   //////////////////////////////////////////////////////////////////////////
+   if(scaling_mode == 1)  // JOD 2021-08-05
+   {
+	   std::vector<double> scaling_vector(this_number_of_nodes, 0.);
+
+	   for (i = 0; i < this_number_of_nodes; i++)
+	   {
+			 node = msh->nod_vector[nodes_on_ply[i]];
+			 int nelem = 0;
+
+			 for (j = 0; j < node->getConnectedElementIDs().size(); j++)
+			 {
+				elem = msh->ele_vector[node->getConnectedElementIDs()[j]];
+
+				std::vector<size_t> node_indices;
+				elem->getNodeIndices(node_indices);
+				//std::cout << "ndx: " << elem->GetPatchIndex() << std::endl;
+				int nnodes = 0;
+
+				for(size_t ndx=0; ndx<node_indices.size(); ndx++)
+				{
+					if(std::find(nodes_on_ply.begin(), nodes_on_ply.end(), node_indices[ndx]) != nodes_on_ply.end())
+						nnodes++;
+				}
+
+				if(nnodes == 2)
+				{
+					// take permeability first component (x-direction) for scaling
+					scaling_vector[i] += mmp_vector[elem->GetPatchIndex()]->permeability_tensor[0];
+					nelem++;
+				}
+
+			 }
+			 scaling_vector[i] /= nelem;
+	   }  // end for nodes
+
+	   double divisor= 0.;
+	   for(i=0;  i < this_number_of_nodes; i++)
+	   {
+		   divisor += scaling_vector[i] * node_value_vector[i];
+	   }
+	   divisor /= std::accumulate(node_value_vector.begin(),  node_value_vector.end(), 0.);  // divide by total st
+
+
+	   for (i = 0; i < this_number_of_nodes; i++)
+	   {
+		   node_value_vector[i] *= scaling_vector[i] / divisor;
+	   }
+   }  // end if scaling with permeability
+
+   //for (i = 0; i < this_number_of_nodes; i++)
+	 //  std::cout << i << ": " << node_value_vector[i] << std::endl;
+}
+
+double AreaProjection(MeshLib::CEdge *edge, FiniteElement::PrimaryVariable primaryVariable)
+{
+	double area_projection (0);
+//	const double epsilon (1.0e-8); //tolerance to decide whether projection is used
+	//compute edge normal vector
+	double edge_normal[3];//edge integration is 2 dimensional
+	double elemNormalVector[3];
+
+	elemNormalVector[0] = 0;
+	elemNormalVector[1] = 0;
+	elemNormalVector[2] = 1;
+
+	edge->SetNormalVector(elemNormalVector, edge_normal); // Attenzione! This only works if nodes are numbered counter-clockwise.
+	//TODO: distinguish coordinate systems!
+	//if coordinate axes are at an angle with edges
+//	if (fabs(edge_normal[0]) > epsilon && fabs(edge_normal[1]) > epsilon) {
+		if (primaryVariable == FiniteElement::DISPLACEMENT_X)
+			area_projection = edge_normal[0];
+		else if (primaryVariable == FiniteElement::DISPLACEMENT_Y)
+			area_projection = edge_normal[1];
+//	}
+
+	return area_projection;
+}
 
 }                                                 // end namespace FiniteElement

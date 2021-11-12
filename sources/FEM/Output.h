@@ -9,6 +9,7 @@
 #include "DistributionInfo.h"
 #include "GeoInfo.h"
 #include "ProcessInfo.h"
+#include "fem_ele.h"
 
 #include <iostream>
 #include <vector>
@@ -17,6 +18,8 @@
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 #include "mpi.h"
 #endif
+
+using namespace FiniteElement;
 
 namespace MeshLib
 {class CFEMesh;
