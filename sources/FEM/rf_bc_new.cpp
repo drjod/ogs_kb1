@@ -1233,7 +1233,17 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				{
 					if(bc->isConnected())   // JOD 2020-01-27
 					{
+						std::vector<double> ply_nod_val_vector;
 						bc->SetPolylineNodeVectorConnected(nodes_vector_cond);
+
+						if (m_msh->GetMaxElementDim() == 1)
+									FiniteElement::DomainIntegration(pcs, nodes_vector_cond,
+											ply_nod_val_vector);
+								else FiniteElement::EdgeIntegration(m_msh, nodes_vector_cond, ply_nod_val_vector,
+										bc->getProcessDistributionType(), bc->getProcessPrimaryVariable(),
+										true, false, 0);//
+										//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+
 					}
 
 					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT

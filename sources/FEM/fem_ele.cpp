@@ -6,6 +6,7 @@
 //#include "makros.h"
 //#include <iostream>
 #include "fem_ele_std.h"
+#include "fem_ele.h"
 #include <cfloat>
 /* Objekte */
 #include "rf_pcs.h" 

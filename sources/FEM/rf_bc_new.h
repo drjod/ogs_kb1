@@ -13,6 +13,7 @@
 //#include <string>
 //#include <vector>
 
+
 namespace FileIO
 {
 class BoundaryConditionIO;
@@ -25,6 +26,7 @@ class BoundaryConditionIO;
 #include "LinearFunctionData.h" // TF
 #include "ProcessInfo.h"                          // KR
 #include "Constrained.h"
+#include "geo_sfc.h"
 
 // GEOLib
 //#include "geo_ply.h"
@@ -331,4 +333,28 @@ extern CBoundaryCondition* BCGet(std::string);    //OK
 
 //ToDo
 extern void ScalingDirichletBoundaryConditions(const double factor);
+
+
+
+namespace FiniteElement
+{
+
+
+extern void DomainIntegration(CRFProcess* m_pcs,
+	                       const std::vector<long> & nodes_in_dom,
+	                       std::vector<double> & node_value_vector);
+
+extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
+                     std::vector<long> const & nodes_on_sfc,
+                     std::vector<double> & node_value_vector,
+					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+
+extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
+	                     const std::vector<long> & nodes_on_ply,
+	                     std::vector<double> & node_value_vector,
+			     FiniteElement::DistributionType dis_type,
+			     FiniteElement::PrimaryVariable prim_val,
+			     bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode);
+}
+
 #endif

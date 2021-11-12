@@ -20,13 +20,14 @@
 #include "OGS_contraflow.h"
 #include <list>
 
-using namespace FiniteElement;
+
 
 class CNodeValue;
 class CGLPolyline;
 class CGLLine;
 class Surface;
 class Polyline;
+
 
 namespace process                                 //WW
 {

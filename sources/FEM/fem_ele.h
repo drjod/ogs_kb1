@@ -24,6 +24,7 @@
 
 #include "MSHEnums.h"
 #include "rf_mmp_new.h"
+#include "geo_sfc.h"
 
 namespace Math_Group
 { class SymMatrix;
