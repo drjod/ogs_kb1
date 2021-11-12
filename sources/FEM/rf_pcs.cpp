@@ -8369,6 +8369,12 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		CElem* face = NULL;
 		ElementValue* gp_ele = NULL;
 		double val = 1.;
+
+		std::vector<long> scaling_nodeNumbers;  // JODSH 2021-11-04
+		std::vector<double> scaling_nodeValues;
+		double scaling_total_source_term = 0; //  m3/s - summed up in for loop
+		double scaling_sum = 0;
+
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> st_eqs_id;
 		vector<double> st_eqs_value;
@@ -8858,12 +8864,45 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
       }
 
 		//----------------------------------------------------------------------------------------
+		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
+		{
+			scaling_nodeNumbers.push_back(msh_node);
+			double scaling_factor = 0;
+
+			std::vector<size_t> elements_connected = m_msh->nod_vector[msh_node]->getConnectedElementIDs();
+			for (int i = 0; i < elements_connected.size(); ++i)
+			{
+				CElem* ele = m_msh->ele_vector[elements_connected[i]];
+				double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
+
+				CFluidProperties* mfp = MFPGet("LIQUID");
+				double prim_values[3];
+				CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+				double temp = 0;
+				for (int j = 0; j < ele->nodes_index.Size(); ++j)
+				{
+					temp += pcs_heat->GetNodeValue(ele->nodes_index[i], 1); // implizit
+				}
+				temp /= ele->nodes_index.Size();
+				prim_values[1] = temp;
+				
+				double visc = mfp->Viscosity(prim_values);  // usw with viscosity model 3
+
+				scaling_factor += perm / visc;
+
+			}
+			 
+			scaling_factor *=  cnodev->length / elements_connected.size();
+			scaling_sum += scaling_factor;
+			scaling_total_source_term += value; 
+			scaling_nodeValues.push_back(scaling_factor);
+			value = 0.;
+		}
 
 
 
-
-			//------------------------------------------------------------------
-			// EQS->RHS
+		//------------------------------------------------------------------
+		// EQS->RHS
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 
 		st_eqs_id.push_back(static_cast<int>(m_msh->nod_vector[msh_node]->GetEquationIndex() * dof_per_node + shift));
@@ -8965,6 +9004,21 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		    //eqs_new->AssembleRHS_PETSc();
 		  }
 #endif
+
+
+		for (int i = 0; i < scaling_nodeNumbers.size(); ++i)
+		{
+
+			if (rank > -1)
+				bc_eqs_index = scaling_nodeNumbers[i] + shift;
+			else
+				bc_eqs_index = m_msh->nod_vector[scaling_nodeNumbers[i]]->GetEquationIndex() + shift;
+
+			eqs_rhs[bc_eqs_index] += scaling_total_source_term * scaling_nodeValues[i] / fabs(scaling_sum);
+			std::cout << i << "  " << bc_eqs_index << "   " << scaling_total_source_term * scaling_nodeValues[i] / scaling_sum << '\n';
+		}
+		//std::cout <<  "sum  "
+
 	}
 
 #if !defined(USE_PETSC) && !defined(NEW_EQS)// || defined(other parallel libs)//03~04.3012.

@@ -35,6 +35,7 @@ class CNodeValue
       long geo_node_number;
       long msh_node_number;
       double node_value;
+      double length; // JODSH
       double node_area;
 
       //    int node_distype;
