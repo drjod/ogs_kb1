@@ -1284,7 +1284,7 @@ void Problem::Euler_TimeDiscretize()
 bool Problem::CouplingLoop()
 {
   int i, index, cpl_index;
-  double max_outer_error, max_inner_error, error;
+  double max_outer_error, max_inner_error; //, error;
   bool transient_bc = false;
   bool run_flag[max_processes];
   int outer_index, inner_index, inner_max; //, inner_min;
