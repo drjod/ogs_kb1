@@ -91,6 +91,8 @@ using Math_Group::vec;
 #define GRAVITY_CONSTANT 9.81
 #endif
 
+int scaling_node_group_running = 0;
+
 std::vector<CSourceTerm*> st_vector;
 std::list<CSourceTermGroup*> st_group_list;
 std::vector<std::string> analytical_processes;
@@ -157,6 +159,8 @@ CSourceTerm::CSourceTerm() :
    variable_storage = false;
 
    scaling_mode = 0;
+   scaling_verbosity = 0;
+   keep_values = false;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -704,7 +708,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  std::cout << "\tCarnot heat pump - File name: " << heat_pump_file_name <<  "\n";
 		  }
 		  else
-			  std::runtime_error("ERROR in heat pump specification");
+			  throw std::runtime_error("ERROR in heat pump specification");
 		  in.clear();
 
 		  bool logging = false;
@@ -763,10 +767,24 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$SCALING") != std::string::npos) // JODSH 2021-11-04
 	  {
-          in.str(readNonBlankLineFromInputStream(*st_file));
-          in >> scaling_mode;  // 1: with permeability, 2: with permeability and viscosity
-          in.clear();
-		  continue;
+         	in.str(readNonBlankLineFromInputStream(*st_file));
+          	in >> scaling_mode >> scaling_verbosity;  // 1: with permeability, 2: with permeability and viscosity
+	  	std::cout << "\tScaling mode " << scaling_mode;
+	 	if(scaling_mode == 0)
+			 std::cout << " - No scaling\n";
+	 	else if(scaling_mode == 1)
+			 std::cout << " - With horizontal permeability\n";
+	 	else if(scaling_mode == 2)
+		 	std::cout << " - With horizontal permeability and viscosity\n";
+	 	else
+			 throw std::runtime_error("Scaling mode not supported");
+
+                scaling_node_group = scaling_node_group_running;
+		scaling_node_group_running++;
+          	in.clear();
+
+
+	  	 continue;
 	  }
 	  //....................................................................
 	 	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
@@ -885,6 +903,14 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
       {
          in.clear();
          ignore_axisymmetry = true;
+         continue;
+      }
+      //....................................................................
+      if (line_string.find("$KEEP_VALUES") != std::string::npos)
+      {
+         in.clear();
+         keep_values = true;
+	  std::cout << "\tKeep values\n";
          continue;
       }
     /**/
@@ -2807,6 +2833,14 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 	    }
 
 		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
+		if(st->scaling_verbosity && st->scaling_mode == 1)
+		{
+			std::cout << "Scaling mode: " << st->scaling_mode << '\n';
+			for(long i; i < ply_nod_vector.size(); ++i)
+			{
+				std::cout << '\t' << ply_nod_vector[i] << ":\t" << ply_nod_val_vector[i] << '\n'; 
+			}
+		}
 
 		if (st->distribute_volume_flux)   // 5.3.07 JOD
 			DistributeVolumeFlux(st, ply_nod_vector, ply_nod_val_vector);
@@ -4054,6 +4088,7 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->node_value = node_values[i];
       m_nod_val->length = (geo_node_value == 0)? 0 : node_values[i] / geo_node_value;
 
+      m_nod_val->scaling_node_group = scaling_node_group;
       // Added by CB;  removed by JOD 2015-11-19 
       //if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
       //  m_nod_val->node_value *= geometry_area;

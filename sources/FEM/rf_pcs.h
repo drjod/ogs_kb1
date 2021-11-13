@@ -28,6 +28,7 @@
 #include "Eigen/Eigen"
 
 #include <vector>
+#include <map>
 
 #include "OGS_WDC.h"
 #include "OGS_contraflow.h"
@@ -207,6 +208,7 @@ class CRFProcess : public ProcessInfo
 {
 	//----------------------------------------------------------------------
 	// Properties
+
 private:
 	/**
 	 * _problem is a pointer to an instance of class Problem.
@@ -678,6 +680,7 @@ private:
 	//PCH
 	std::vector<std::string> ele_val_name_vector;
 public:
+	std::map<long, double> ST_values_kept;  // JOD 2021-11-12 to use them in BC
 	std::vector<double*> ele_val_vector;  //PCH
 	void SetElementValue(long,int,double); //PCH
 	double GetElementValue(size_t,int);     //PCH

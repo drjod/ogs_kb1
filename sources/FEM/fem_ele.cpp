@@ -2305,10 +2305,8 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
 	   {
 		   node_value_vector[i] *= scaling_vector[i] / divisor;
 	   }
-   }  // end if scaling with permeability
+   }  // end if scaling mode 1 (scaling with permeability)
 
-   //for (i = 0; i < this_number_of_nodes; i++)
-	 //  std::cout << i << ": " << node_value_vector[i] << std::endl;
 }
 
 double AreaProjection(MeshLib::CEdge *edge, FiniteElement::PrimaryVariable primaryVariable)

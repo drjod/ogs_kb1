@@ -13,6 +13,7 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <map>
 
 #include "display.h"
 #include "memory.h"
@@ -40,7 +41,7 @@ extern void remove_white_space(std::string*);
 #include "tools.h"
 //#include "rf_node.h"
 #include "rf_bc_new.h"
-//#include "rf_pcs.h"
+#include "rf_pcs.h"
 //#include "rf_fct.h"
 #include "rfmat_cp.h"
 //#include "geo_ply.h"
@@ -157,6 +158,8 @@ CBoundaryCondition::CBoundaryCondition() :
 	_isConstrainedBC = false;
 	_isSeepageBC = false;
 	is_conditionally_active = false;
+	average_mode = 0;
+	average_mode_verbosity = 0;
 
 	connected_geometry = false;  // JOD 2020-01-27
 	geoInfo_connected = new GeoInfo();
@@ -611,6 +614,22 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			  this->connected_geometry = true;
 			  in.clear();
 			  //continue;
+		  }
+		  //....................................................................
+		  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
+		  {
+			  in.str(readNonBlankLineFromInputStream(*bc_file));
+			  in >> average_mode >> average_mode_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
+			  std::cout << "\tAverage mode " << average_mode;
+			  if(average_mode == 0)
+				  std::cout << " - equal\n";
+			  else if(average_mode == 1)
+				  std::cout << " - With node area\n";
+			  else if(average_mode == 2)
+				  std::cout << " - With LIQUID_FLOW sink term (take care that values are kept)";
+			  else
+				  throw std::runtime_error("Average mode not supported");
+			  in.clear();
 		  }
 		  //....................................................................
 	}
@@ -1215,7 +1234,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				//YD/WW
 				m_node_value->pcs_pv_name = _pcs_pv_name;
 				m_node_value->msh_node_number_subst = msh_node_number_subst;
-        m_node_value->fct_name = bc->fct_name;
+				m_node_value->fct_name = bc->fct_name;
 				pcs->bc_node.push_back(bc); //WW
 				//WW
 				pcs->bc_node_value.push_back(m_node_value);
@@ -1226,6 +1245,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				//CC
 				m_polyline = GEOGetPLYByName(bc->geo_name);
 				std::vector<long> nodes_vector_cond;
+				std::vector<double> nodes_vector_cond_length;
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*> (bc->getGeoObj()));
 
@@ -1233,17 +1253,19 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				{
 					if(bc->isConnected())   // JOD 2020-01-27
 					{
-						std::vector<double> ply_nod_val_vector;
 						bc->SetPolylineNodeVectorConnected(nodes_vector_cond);
+						if(bc->average_mode == 1)
+						{
+							nodes_vector_cond_length.resize(nodes_vector_cond.size());
+							std::fill(nodes_vector_cond_length.begin(), nodes_vector_cond_length.end(), 1.);
 
-						if (m_msh->GetMaxElementDim() == 1)
-									FiniteElement::DomainIntegration(pcs, nodes_vector_cond,
-											ply_nod_val_vector);
-								else FiniteElement::EdgeIntegration(m_msh, nodes_vector_cond, ply_nod_val_vector,
-										bc->getProcessDistributionType(), bc->getProcessPrimaryVariable(),
-										true, false, 0);//
-										//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
-
+							if (m_msh->GetMaxElementDim() == 1)
+								FiniteElement::DomainIntegration(pcs, nodes_vector_cond, nodes_vector_cond_length);
+							else FiniteElement::EdgeIntegration(m_msh, nodes_vector_cond, nodes_vector_cond_length,
+											bc->getProcessDistributionType(), bc->getProcessPrimaryVariable(),
+											true, false, 0);//
+											//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+						}
 					}
 
 					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT
@@ -1278,7 +1300,11 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 							m_node_value->bc_node_copy_geom = bc->copy_geom;
 							m_node_value->bc_node_copy_geom_name = bc->copy_geom_name;
 							if(bc->isConnected())					// JOD 2020-01-27  // !!! node_value becomes offset
+							{
 								  m_node_value->msh_vector_conditional = nodes_vector_cond;
+								  m_node_value->msh_vector_conditional_length = nodes_vector_cond_length;
+
+							}
 							//WW
 							pcs->bc_node.push_back(bc);
 							//WW
@@ -1930,4 +1956,76 @@ void CBoundaryCondition::SurfaceInterpolation(CRFProcess* m_pcs,
 				break;
 		}                         // while
 	}                                     //j
+}
+
+/**************************************************************************
+   ROCKFLOW - Funktion:
+   Programming:
+   11/2021 JOD Implementation
+**************************************************************************/
+double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* m_pcs, const int& average_mode, const int& average_mode_verbosity)
+{
+	double value = 0.;
+	CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+	switch(average_mode)
+	{
+		case 0:  // average over node values
+			for(int i=0; i< msh_vector_conditional.size(); ++i)
+			{
+				value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1); // implicit
+				if(average_mode_verbosity)
+					std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << " x 1.\n";
+			}
+			value /= msh_vector_conditional.size();
+
+			break;
+		case 1:  // average over node values and weight with geometry area
+			for(int i=0; i< msh_vector_conditional.size(); ++i)
+			{
+				value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) *  // implicit
+						msh_vector_conditional_length[i];
+				if(average_mode_verbosity)
+					std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << " x " << 
+						msh_vector_conditional_length[i] << '\n';
+			}
+			value /= std::accumulate(msh_vector_conditional_length.begin(),
+					msh_vector_conditional_length.end(), 0.);
+			break;
+		case 2:   // average over node values and weight with liquid flow source / sink term
+			if(m_pcs_liquid)
+			{
+				double ST_values_total = 0.;
+				for(int i=0; i< msh_vector_conditional.size(); ++i)
+				{  // !!! LIQUID_FLOW has to keep source / sink term values
+					if(m_pcs_liquid->ST_values_kept.find(msh_vector_conditional[i]) != m_pcs_liquid->ST_values_kept.end())
+					{
+						const double ST_value = (m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]]< 0.)? 
+							- m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]] : 0.; // only sink terms, else 0.
+						ST_values_total += ST_value;
+						value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) * ST_value;
+				
+						if(average_mode_verbosity)
+							std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << 
+								" x " << ST_value << '\n';
+					}
+					else
+						throw std::runtime_error("BC: Did not keep LIQUID_FLOW source term");
+				}
+				value /= ST_values_total;
+			}
+			else
+				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");
+
+			break;
+		default:
+			throw std::runtime_error("Calc BC node value: average mode not supported");
+	}
+
+	if(average_mode_verbosity)
+		std::cout << "\t\tAverage: " << value << "\n";
+
+	value += node_value;  // !!! DIS_TYPE CONSTANT becomes offset
+
+	return value;
 }

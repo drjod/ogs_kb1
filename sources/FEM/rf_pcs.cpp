@@ -7375,14 +7375,12 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 				}
 
 				if(m_bc->isConnected())	// JOD 2020-01-27
-				{  // !!! DIS_TYPE CONSTANT becomes offset
-					double nodeValue = 0.;
-					for(int i=0; i< m_bc_node->msh_vector_conditional.size(); ++i)
-					{
-						nodeValue += GetNodeValue(m_bc_node->msh_vector_conditional[i], 1); // implicit
-					}
-					nodeValue /= m_bc_node->msh_vector_conditional.size();
-					bc_value = time_fac * fac * (nodeValue + m_bc_node->node_value);
+				{
+					if(m_bc->average_mode_verbosity)
+						std::cout << "\tNode: " << bc_msh_node << '\n'; 
+
+					bc_value = time_fac * fac * m_bc_node->calculateNodeValueFromConnectedNodes(this,
+							m_bc->get_average_mode(), m_bc->average_mode_verbosity);
 				}
 
 				if (m_bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)  // JOD 2020-7
@@ -8371,9 +8369,12 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		double val = 1.;
 
 		std::vector<long> scaling_nodeNumbers;  // JODSH 2021-11-04
+		std::vector<int> scaling_nodeNumbers_groupNumber; 
 		std::vector<double> scaling_nodeValues;
-		double scaling_total_source_term = 0; //  m3/s - summed up in for loop
+		std::map<int, double> scaling_total_source_term_vector; //  m3/s - summed up in for loop - key is scaling_nodes_group
 		double scaling_sum = 0;
+		int scaling_verbosity = 0;
+		ST_values_kept.clear();
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> st_eqs_id;
@@ -8866,27 +8867,32 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		//----------------------------------------------------------------------------------------
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
 		{
+			if(m_st->scaling_verbosity)
+				scaling_verbosity = m_st->scaling_verbosity;
+
 			scaling_nodeNumbers.push_back(msh_node);
+			scaling_nodeNumbers_groupNumber.push_back(m_st->GetScalingNodeGroup()); // to take the right total_source_term 
 			double scaling_factor = 0;
 
 			std::vector<size_t> elements_connected = m_msh->nod_vector[msh_node]->getConnectedElementIDs();
 			for (int i = 0; i < elements_connected.size(); ++i)
 			{
-				CElem* ele = m_msh->ele_vector[elements_connected[i]];
-				double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
+				const CElem* ele = m_msh->ele_vector[elements_connected[i]];
+				const double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
 
 				CFluidProperties* mfp = MFPGet("LIQUID");
 				double prim_values[3];
-				CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
-				double temp = 0;
+				const CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+				double temperature = 0;
+
 				for (int j = 0; j < ele->nodes_index.Size(); ++j)
 				{
-					temp += pcs_heat->GetNodeValue(ele->nodes_index[i], 1); // implizit
+					temperature += pcs_heat->GetNodeValue(ele->nodes_index[j], 1); // implizit
 				}
-				temp /= ele->nodes_index.Size();
-				prim_values[1] = temp;
+				temperature /= ele->nodes_index.Size();
+				prim_values[1] = temperature;
 				
-				double visc = mfp->Viscosity(prim_values);  // usw with viscosity model 3
+				const double visc = mfp->Viscosity(prim_values);  // use with viscosity model 3
 
 				scaling_factor += perm / visc;
 
@@ -8894,7 +8900,12 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			 
 			scaling_factor *=  cnodev->length / elements_connected.size();
 			scaling_sum += scaling_factor;
-			scaling_total_source_term += value; 
+
+		        if(scaling_total_source_term_vector.find(m_st->GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
+				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] += value;
+			else
+				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] = value;
+
 			scaling_nodeValues.push_back(scaling_factor);
 			value = 0.;
 		}
@@ -8920,6 +8931,14 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
 		
 #endif
+
+		if(m_st->keep_values && value != 0.)
+		{
+			if(ST_values_kept.find(bc_eqs_index) != ST_values_kept.end())
+					ST_values_kept[bc_eqs_index] = ST_values_kept[bc_eqs_index] + value;
+			else
+				ST_values_kept[bc_eqs_index] = value;
+		}
 
       // store transient st values for output
 		if (transient)
@@ -9006,18 +9025,31 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 
 
+		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
+
 		for (int i = 0; i < scaling_nodeNumbers.size(); ++i)
 		{
+			const double st_value = scaling_total_source_term_vector[scaling_nodeNumbers_groupNumber[i]] * scaling_nodeValues[i] / fabs(scaling_sum);
 
 			if (rank > -1)
 				bc_eqs_index = scaling_nodeNumbers[i] + shift;
 			else
 				bc_eqs_index = m_msh->nod_vector[scaling_nodeNumbers[i]]->GetEquationIndex() + shift;
 
-			eqs_rhs[bc_eqs_index] += scaling_total_source_term * scaling_nodeValues[i] / fabs(scaling_sum);
-			std::cout << i << "  " << bc_eqs_index << "   " << scaling_total_source_term * scaling_nodeValues[i] / scaling_sum << '\n';
+			eqs_rhs[bc_eqs_index] += st_value;
+
+			if(scaling_verbosity)
+				std::cout << "\t Scaled " << bc_eqs_index << ":\t" << st_value << '\n';
+
+			if(m_st->keep_values)
+			{
+				if(ST_values_kept.find(bc_eqs_index) != ST_values_kept.end())
+					ST_values_kept[bc_eqs_index] = ST_values_kept[bc_eqs_index] + st_value;
+				else
+					ST_values_kept[bc_eqs_index] = st_value;
+			}
+
 		}
-		//std::cout <<  "sum  "
 
 	}
 

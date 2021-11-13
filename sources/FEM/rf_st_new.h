@@ -107,6 +107,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	std::string well1_geometry_name_liquidBC;
 	std::string well2_geometry_name_liquidBC;
 	int scaling_mode; // JODSH 2021-11-04
+	int scaling_node_group;
 
 	OGS_WDC* ogs_WDC;  // pointer to vector entry in pcs
 	OGS_contraflow* ogs_contraflow;  // pointer to vector entry in pcs
@@ -293,6 +294,8 @@ public:
 
 	  bool storageRate_geometry;  // JOD 2018-02-22
 	  int GetScalingMode() { return scaling_mode; }
+	  int GetScalingNodeGroup() { return scaling_node_group; } 
+	  int scaling_verbosity;
 
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
@@ -378,6 +381,7 @@ private:                                          // TF, KR
 	StorageRate storageRate;
 	bool ignore_axisymmetry; // JOD 2018-08-15
 	bool assign_to_element_edge;  // JOD 2018-9-28
+	bool keep_values; // JOD-2021-11-12
 };
 
 class CSourceTermGroup

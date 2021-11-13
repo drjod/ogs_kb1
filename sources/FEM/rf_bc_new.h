@@ -51,14 +51,11 @@ class CBoundaryCondition :
 	bool connected_geometry;
 	std::string connected_geometry_name;
 	void SetPolylineNodeVectorConnected(std::vector<long>& ply_nod_vector_cond);
+	int average_mode;
 
 public:
+	int average_mode_verbosity;
 	bool isConnected() const { return connected_geometry; }
-//	CBoundaryCondition(ProcessInfo const& process_info,
-//			GeoInfo const& geo_info,
-//			DistributionInfo const& distribution_info,
-//			);
-
 
 	friend class CBoundaryConditionsGroup;
 	friend class FileIO::BoundaryConditionIO;
@@ -163,6 +160,8 @@ public:
 
 	std::vector<double> changingBC_z_vec;  // JOD 2020-7
 	std::vector<int> changingBC_curve_vec;
+	int get_average_mode() { return average_mode; }
+
 private:
 
 	std::vector<std::string> _PointsFCTNames;
@@ -236,9 +235,6 @@ private:
 	bool _isConstrainedBC;
 	std::vector<Constrained> _constrainedBC;
 	bool _isSeepageBC;
-
-
-
 };
 
 class CBoundaryConditionNode                      //OK raus
@@ -248,6 +244,7 @@ public:
 	long msh_node_number;
 	long msh_node_number_subst;           //WW
     std::vector<long>  msh_vector_conditional; // JOD 2020-01-27
+    std::vector<double>  msh_vector_conditional_length; // JOD 2021-11-12
 
 	double node_value;
 	double node_value_last_calc;
@@ -267,6 +264,7 @@ public:
 	// 25.08.2011. WW
 	void Read(std::istream& is);
 	void Write(std::ostream& os) const;
+	double calculateNodeValueFromConnectedNodes(CRFProcess*, const int&, const int&);
 
 private:
 	double _normal_vector[3];

@@ -65,6 +65,8 @@ class CNodeValue
       std::size_t getSTVectorGroup() const { return _st_vector_group; }
       void setSTVectorGroup(int group) { _st_vector_group = group; }
 
+      int scaling_node_group;
+
    private:
       FiniteElement::DistributionType _node_distype;
       std::size_t _st_vector_index;
