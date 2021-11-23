@@ -8368,12 +8368,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		ElementValue* gp_ele = NULL;
 		double val = 1.;
 
-		std::vector<long> scaling_nodeNumbers;  // JODSH 2021-11-04
-		std::vector<int> scaling_nodeNumbers_groupNumber; 
-		std::vector<double> scaling_nodeValues;
+		std::vector<scaling_type> scaling_vec;  // JOD 2021-11-21 to scale source terms with permeability, viscosity
 		std::map<int, double> scaling_total_source_term_vector; //  m3/s - summed up in for loop - key is scaling_nodes_group
 		double scaling_sum = 0;
-		int scaling_verbosity = 0;
 		ST_values_kept.clear();
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
@@ -8751,7 +8748,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 							interp_method = m_st->TimeInterpolation;
 
 					time_fac = GetCurveValue(curve, interp_method, aktuelle_zeit, &valid);
-					//cout << "step: " << this->Tim->step_current << " Time: " << aktuelle_zeit << " Laenge: " << this->Tim->this_stepsize << " Beginn: " << this->Tim->time_start << " Ende " << this->Tim->time_end << " Faktor: " << time_fac << "\n";
 					if (!valid)
 					{
 						cout << "\n!!! Time dependent curve is not found. Results are not guaranteed " << "\n";
@@ -8867,11 +8863,13 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		//----------------------------------------------------------------------------------------
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
 		{
-			if(m_st->scaling_verbosity)
-				scaling_verbosity = m_st->scaling_verbosity;
+			scaling_type scaling;
 
-			scaling_nodeNumbers.push_back(msh_node);
-			scaling_nodeNumbers_groupNumber.push_back(m_st->GetScalingNodeGroup()); // to take the right total_source_term 
+			scaling.node_number = msh_node;
+			scaling.group_number = m_st->GetScalingNodeGroup();
+			scaling.keep_value = m_st->keep_values;
+			scaling.verbosity = m_st->scaling_verbosity;
+
 			double scaling_factor = 0;
 
 			std::vector<size_t> elements_connected = m_msh->nod_vector[msh_node]->getConnectedElementIDs();
@@ -8895,7 +8893,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				const double visc = mfp->Viscosity(prim_values);  // use with viscosity model 3
 
 				scaling_factor += perm / visc;
-
 			}
 			 
 			scaling_factor *=  cnodev->length / elements_connected.size();
@@ -8906,7 +8903,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			else
 				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] = value;
 
-			scaling_nodeValues.push_back(scaling_factor);
+			scaling.node_value = scaling_factor;
+			scaling_vec.push_back(scaling);
+
 			value = 0.;
 		}
 
@@ -9027,21 +9026,21 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
 
-		for (int i = 0; i < scaling_nodeNumbers.size(); ++i)
+		for (int i = 0; i < scaling_vec.size(); ++i)
 		{
-			const double st_value = scaling_total_source_term_vector[scaling_nodeNumbers_groupNumber[i]] * scaling_nodeValues[i] / fabs(scaling_sum);
+			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value / fabs(scaling_sum);
 
 			if (rank > -1)
-				bc_eqs_index = scaling_nodeNumbers[i] + shift;
+				bc_eqs_index = scaling_vec[i].node_number + shift;
 			else
-				bc_eqs_index = m_msh->nod_vector[scaling_nodeNumbers[i]]->GetEquationIndex() + shift;
+				bc_eqs_index = m_msh->nod_vector[scaling_vec[i].node_number]->GetEquationIndex() + shift;
 
 			eqs_rhs[bc_eqs_index] += st_value;
 
-			if(scaling_verbosity)
+			if(scaling_vec[i].verbosity)
 				std::cout << "\t Scaled " << bc_eqs_index << ":\t" << st_value << '\n';
 
-			if(m_st->keep_values)
+			if(scaling_vec[i].keep_value)
 			{
 				if(ST_values_kept.find(bc_eqs_index) != ST_values_kept.end())
 					ST_values_kept[bc_eqs_index] = ST_values_kept[bc_eqs_index] + st_value;

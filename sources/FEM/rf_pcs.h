@@ -94,6 +94,15 @@ using MeshLib::CFEMesh;
 
 #define PCS_FILE_EXTENSION ".pcs"
 
+typedef struct  // JOD 2021-11-21 to scale source term with permeability, viscosity
+{
+	long node_number;
+	double node_value;
+	int group_number;
+	bool keep_value;
+	int verbosity;
+} scaling_type;
+
 typedef struct                                    /* Knotenwert-Informationen */
 {
 	char name[80];                        /* Name der Knotengroesse */

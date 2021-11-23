@@ -2000,8 +2000,7 @@ double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* 
 				{  // !!! LIQUID_FLOW has to keep source / sink term values
 					if(m_pcs_liquid->ST_values_kept.find(msh_vector_conditional[i]) != m_pcs_liquid->ST_values_kept.end())
 					{
-						const double ST_value = (m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]]< 0.)? 
-							- m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]] : 0.; // only sink terms, else 0.
+						const double ST_value = m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]];
 						ST_values_total += ST_value;
 						value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) * ST_value;
 				
