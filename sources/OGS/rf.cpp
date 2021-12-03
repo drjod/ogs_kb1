@@ -21,6 +21,7 @@
 #include "logger.h"
 Logger logger = Logger::get_instance();
 
+
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || \
         defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
 #include "par_ddc.h"
@@ -320,8 +321,8 @@ int main ( int argc, char* argv[] )
         ClockTimeVec[0]->PrintTimes();  //CB time
 	    DestroyClockTime();
       }
-	delete aproblem;  // ????? causes memory crash in one ATES example
-	//aproblem = NULL;
+	delete aproblem;
+	aproblem = NULL;
 
 #ifdef TESTTIME
 #if defined(USE_MPI)
@@ -332,21 +333,21 @@ int main ( int argc, char* argv[] )
 #endif
 	std::cout << "Simulation time: " << TGetTimer(0) << "s" << "\n";
 #endif
-	// Abspann ausgeben
-// --------- MPI Finalize ------------------
+	/* Abspann ausgeben */
+/*--------- MPI Finalize ------------------*/
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_KRC)
 	elapsed_time_mpi += MPI_Wtime(); // 12.09.2007 WW
-	std::cout << "\n *** PCS " << myrank << 
-		" - Total CPU time of parallel modeling: " << elapsed_time_mpi << std::endl;                                                                          //WW
+	std::cout << "\n *** Total CPU time of parallel modeling: " << elapsed_time_mpi <<
+	"\n";                                                                          //WW
 	// Count CPU time of post time loop WW
 	MPI_Finalize();
 #endif
-// --------- MPI Finalize ------------------
-// --------- LIS Finalize ------------------
+/*--------- MPI Finalize ------------------*/
+/*--------- LIS Finalize ------------------*/
 #ifdef LIS
 	lis_finalize();
 #endif
-// --------- LIS Finalize ------------------
+/*--------- LIS Finalize ------------------*/
 
 	free(dateiname);
 
@@ -363,5 +364,6 @@ int main ( int argc, char* argv[] )
 
    PetscFinalize();
 #endif
+
 	return 0;
 }

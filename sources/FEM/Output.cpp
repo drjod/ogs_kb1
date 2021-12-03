@@ -4331,6 +4331,8 @@ std::cout << "fffffffffff" << std::endl;
 **************************************************************************/
 void COutput::WriteTECNodePCONData(fstream &tec_file)
 {
+// removed by JOD due to warning
+/*
 	const size_t nName (_pcon_value_vector.size());
 	int nidx_dm[3];
 	std::vector<int> PconIndex(nName);
@@ -4384,6 +4386,7 @@ void COutput::WriteTECNodePCONData(fstream &tec_file)
 #endif
 		tec_file << "\n";
 	}
+*/
 }
 
 void COutput::checkConsistency ()

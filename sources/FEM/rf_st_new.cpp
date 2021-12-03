@@ -2843,7 +2843,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if(st->scaling_verbosity && st->scaling_mode == 1)
 		{
 			std::cout << "Scaling mode: " << st->scaling_mode << '\n';
-			for(long i; i < ply_nod_vector.size(); ++i)
+			for(long i=0; i < ply_nod_vector.size(); ++i)
 			{
 				std::cout << '\t' << ply_nod_vector[i] << ":\t" << ply_nod_val_vector[i] << '\n'; 
 			}

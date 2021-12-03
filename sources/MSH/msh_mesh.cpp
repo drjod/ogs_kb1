@@ -4504,7 +4504,7 @@ void CFEMesh::HydroSysMeshGenerator(string fname,
    brief Find the element by a point
    YS/WW 05/2012
 */
-size_t CFEMesh::FindElementByPoint(const double* xyz)
+int CFEMesh::FindElementByPoint(const double* xyz)
 {
    double x1[3], x2[3], x3[3], x4[3], x5[3], x6[3], x7[3], x8[3];
    double a, a_sub[12];

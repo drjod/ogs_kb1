@@ -7383,8 +7383,11 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 					if(m_bc->average_mode_verbosity)
 						std::cout << "\tNode: " << m_bc_node->msh_node_number << '\n'; 
 
+					bool flag_switch_off_BC = false;
 					bc_value = time_fac * fac * m_bc_node->calculateNodeValueFromConnectedNodes(this,
-							m_bc->get_average_mode(), m_bc->average_mode_verbosity);
+							m_bc->get_average_mode(), m_bc->average_mode_verbosity, flag_switch_off_BC);
+					if(flag_switch_off_BC)
+						continue;
 				}
 
 				if (m_bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)  // JOD 2020-7

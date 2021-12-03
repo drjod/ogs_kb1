@@ -264,7 +264,7 @@ public:
 	// 25.08.2011. WW
 	void Read(std::istream& is);
 	void Write(std::ostream& os) const;
-	double calculateNodeValueFromConnectedNodes(CRFProcess*, const int&, const int&);
+	double calculateNodeValueFromConnectedNodes(CRFProcess*, const int&, const int&, bool&);
 
 private:
 	double _normal_vector[3];

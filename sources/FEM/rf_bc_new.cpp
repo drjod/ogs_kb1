@@ -1979,7 +1979,7 @@ void CBoundaryCondition::SurfaceInterpolation(CRFProcess* m_pcs,
    Programming:
    11/2021 JOD Implementation
 **************************************************************************/
-double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* m_pcs, const int& average_mode, const int& average_mode_verbosity)
+double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* m_pcs, const int& average_mode, const int& average_mode_verbosity, bool& flag_switch_off_BC)
 {
 	double value = 0.;
 	CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
@@ -2029,6 +2029,13 @@ double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* 
 				}
 				if(ST_values_total != 0.)
 					value /= ST_values_total;
+				else
+				{
+					if(average_mode_verbosity)
+						std::cout << "\t\tNo BC\n";
+					flag_switch_off_BC = true;
+				}	
+
 			}
 			else
 				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");
@@ -2044,4 +2051,5 @@ double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* 
 	value += node_value;  // !!! DIS_TYPE CONSTANT becomes offset
 
 	return value;
+
 }
