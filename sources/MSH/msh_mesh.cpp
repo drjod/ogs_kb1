@@ -5,6 +5,7 @@
    08/2005 WW/OK Encapsulation from rf_ele_msh
    last modified
 **************************************************************************/
+
 #include <cfloat>
 #include <cmath>
 #include <climits>

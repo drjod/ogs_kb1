@@ -579,9 +579,12 @@ CRFProcess::~CRFProcess(void)
 **************************************************************************/
 void CRFProcess::AllocateMemGPoint()
 {
-	//	if (_pcs_type_name.find("FLOW") == 0)
-	//		return;
+        std::string pcs_type_name(convertProcessTypeToString(this->getProcessType()));
+	if (pcs_type_name.find("FLOW") == std::string::npos)
+			return;
+
 	const size_t mesh_ele_vector_size (m_msh->ele_vector.size());
+
 	for (size_t i = 0; i < mesh_ele_vector_size; i++)
 	{
 		ele_gp_value.push_back(new ElementValue(this, m_msh->ele_vector[i]));
@@ -1127,6 +1130,7 @@ void CRFProcess::Create()
 #endif
 	  }
 #endif
+
 }
 
 
@@ -7377,7 +7381,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 				if(m_bc->isConnected())	// JOD 2020-01-27
 				{
 					if(m_bc->average_mode_verbosity)
-						std::cout << "\tNode: " << bc_msh_node << '\n'; 
+						std::cout << "\tNode: " << m_bc_node->msh_node_number << '\n'; 
 
 					bc_value = time_fac * fac * m_bc_node->calculateNodeValueFromConnectedNodes(this,
 							m_bc->get_average_mode(), m_bc->average_mode_verbosity);
@@ -7857,6 +7861,8 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 				else
 #endif
 					bc_msh_node = m_bc_node->geo_node_number;
+
+
 				//------------------------------------------------------------WW
 				if(m_msh) //OK
 					//			if(!m_msh->nod_vector[bc_msh_node]->GetMark()) //WW
@@ -8370,7 +8376,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		std::vector<scaling_type> scaling_vec;  // JOD 2021-11-21 to scale source terms with permeability, viscosity
 		std::map<int, double> scaling_total_source_term_vector; //  m3/s - summed up in for loop - key is scaling_nodes_group
-		double scaling_sum = 0;
+		std::map<int, double> scaling_vec_sum;  // key is scaling_nodes_group
 		ST_values_kept.clear();
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
@@ -8865,14 +8871,17 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		{
 			scaling_type scaling;
 
-			scaling.node_number = msh_node;
+			scaling.node_number = cnodev->msh_node_number;
+#if defined(USE_MPI)
+			scaling.node_number_local = msh_node;
+#endif
 			scaling.group_number = m_st->GetScalingNodeGroup();
 			scaling.keep_value = m_st->keep_values;
 			scaling.verbosity = m_st->scaling_verbosity;
 
 			double scaling_factor = 0;
 
-			std::vector<size_t> elements_connected = m_msh->nod_vector[msh_node]->getConnectedElementIDs();
+			std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
 			for (int i = 0; i < elements_connected.size(); ++i)
 			{
 				const CElem* ele = m_msh->ele_vector[elements_connected[i]];
@@ -8896,7 +8905,11 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			}
 			 
 			scaling_factor *=  cnodev->length / elements_connected.size();
-			scaling_sum += scaling_factor;
+
+		        if(scaling_vec_sum.find(m_st->GetScalingNodeGroup()) != scaling_vec_sum.end())
+				scaling_vec_sum[m_st->GetScalingNodeGroup()] += scaling_factor;
+			else
+				scaling_vec_sum[m_st->GetScalingNodeGroup()] = scaling_factor;
 
 		        if(scaling_total_source_term_vector.find(m_st->GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
 				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] += value;
@@ -8906,7 +8919,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			scaling.node_value = scaling_factor;
 			scaling_vec.push_back(scaling);
 
-			value = 0.;
+			value = 0.;  // set bc separately below
 		}
 
 
@@ -8924,19 +8937,15 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		else
 			bc_eqs_index = m_msh->nod_vector[msh_node]->GetEquationIndex() + shift;
 		
-		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
-		//std::cout << value << '\n';
 		eqs_rhs[bc_eqs_index] += value;
-		//std::cout << eqs_rhs[bc_eqs_index] << '\n';
-		
 #endif
 
 		if(m_st->keep_values && value != 0.)
 		{
-			if(ST_values_kept.find(bc_eqs_index) != ST_values_kept.end())
-					ST_values_kept[bc_eqs_index] = ST_values_kept[bc_eqs_index] + value;
+			if(ST_values_kept.find(cnodev->msh_node_number) != ST_values_kept.end())
+					ST_values_kept[cnodev->msh_node_number] = ST_values_kept[cnodev->msh_node_number] + value;
 			else
-				ST_values_kept[bc_eqs_index] = value;
+				ST_values_kept[cnodev->msh_node_number] = value;
 		}
 
       // store transient st values for output
@@ -9025,30 +9034,87 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 
 		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
+		bool flag_keep_value = false;
 
 		for (int i = 0; i < scaling_vec.size(); ++i)
 		{
-			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value / fabs(scaling_sum);
+			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value / 
+							fabs(scaling_vec_sum[scaling_vec[i].group_number]);
 
-			if (rank > -1)
-				bc_eqs_index = scaling_vec[i].node_number + shift;
-			else
-				bc_eqs_index = m_msh->nod_vector[scaling_vec[i].node_number]->GetEquationIndex() + shift;
-
+#if defined (USE_MPI)
+			bc_eqs_index = scaling_vec[i].node_number_local;// + shift;
+#else
+			bc_eqs_index = m_msh->nod_vector[scaling_vec[i].node_number]->GetEquationIndex() + shift;
+#endif
 			eqs_rhs[bc_eqs_index] += st_value;
 
 			if(scaling_vec[i].verbosity)
-				std::cout << "\t Scaled " << bc_eqs_index << ":\t" << st_value << '\n';
+				std::cout << "\t Scaled " << scaling_vec[i].node_number << ":\t" << st_value << '\n';
 
 			if(scaling_vec[i].keep_value)
 			{
-				if(ST_values_kept.find(bc_eqs_index) != ST_values_kept.end())
-					ST_values_kept[bc_eqs_index] = ST_values_kept[bc_eqs_index] + st_value;
+				if(ST_values_kept.find(scaling_vec[i].node_number) != ST_values_kept.end())
+					ST_values_kept[scaling_vec[i].node_number] = ST_values_kept[scaling_vec[i].node_number] + st_value;
 				else
-					ST_values_kept[bc_eqs_index] = st_value;
+					ST_values_kept[scaling_vec[i].node_number] = st_value;
 			}
 
 		}
+
+#if defined(USE_MPI)
+				// JOD 2021-11-30
+		if(global_flag_keep_values)
+		{
+			// all processors gather, how many ST_values each processor kept 
+    			int size;
+    			MPI_Comm_size(MPI_COMM_WORLD, &size);
+    			int buffer[size];  //  to store number_of_values_kept of each processor
+			int number_of_values_kept = ST_values_kept.size();
+
+    			MPI_Allgather(&number_of_values_kept, 1, MPI_INT, buffer, 1, MPI_INT, MPI_COMM_WORLD);
+
+			// each processor sends its nodes and values to the others
+			for (std::map<long, double>::iterator it = ST_values_kept.begin(); it != ST_values_kept.end(); ++it)
+			{
+
+				long node_number = it->first;
+				double node_value = it->second;
+				for(int i=0; i<size; ++i)
+				{
+					if(i != rank)
+					{
+						MPI_Send(&node_number, 1, MPI_LONG, i, 0, MPI_COMM_WORLD);
+						MPI_Send(&node_value, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+					}
+				} 
+			}
+
+			// each processor receives and adds nodes and values to his map  
+			for(int i=0; i<size; ++i)
+			{
+				if(i != rank)
+				{
+					long node_number_new;
+					double node_value_new;
+					for(int j=0; j<buffer[i]; ++j)
+					{
+						MPI_Recv(&node_number_new, 1, MPI_LONG, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+						MPI_Recv(&node_value_new, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                               
+						if(ST_values_kept.find(node_number_new) != ST_values_kept.end())
+                                        		ST_values_kept[node_number_new] = ST_values_kept[node_number_new] + node_value_new;
+                                		else
+                                        		ST_values_kept[node_number_new] = node_value_new;
+
+					}
+				}
+			}
+		}
+
+		//for (std::map<long, double>::iterator it = ST_values_kept.begin(); it != ST_values_kept.end(); ++it) 
+    		//	std::cout << rank << ": " << it->first << ", " << it->second << std::endl;
+
+#endif
 
 	}
 

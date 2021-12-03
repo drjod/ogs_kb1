@@ -91,6 +91,10 @@ using Math_Group::vec;
 #define GRAVITY_CONSTANT 9.81
 #endif
 
+#if defined(USE_MPI)
+bool global_flag_keep_values = false;  // to keep ST values and make them consistent over all processors
+#endif
+
 int scaling_node_group_running = 0;
 
 std::vector<CSourceTerm*> st_vector;
@@ -910,6 +914,9 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
       {
          in.clear();
          keep_values = true;
+#if defined(USE_MPI)
+	  global_flag_keep_values = true;
+#endif
 	  std::cout << "\tKeep values\n";
          continue;
       }

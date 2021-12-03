@@ -51,6 +51,10 @@ extern void remove_white_space(std::string*);
 
 #include "BoundaryCondition.h"
 
+#if defined(USE_MPI)
+#include "par_ddc.h"
+#endif
+
 #ifndef _WIN32
 #include <cstdio>
 #include <cstdlib>
@@ -813,7 +817,19 @@ void CBoundaryCondition::SetPolylineNodeVectorConnected(std::vector<long>&ply_no
 				*(dynamic_cast<GEOLIB::Polyline const*>(geoInfo_connected->getGeoObj()))
 		      );
 
+	// to check  - JOD 2021-11-30
+	//CGLPolyline* m_polyline =  GEOGetPLYByName(geo_name);
+
+
+        //double msh_min_edge_length = m_msh->getMinEdgeLength();
+        //m_msh->setMinEdgeLength(m_polyline->epsilon);
+
+
+
 	m_msh->GetNODOnPLY(&ply_connected, ply_node_cond_ids, true);
+                                                
+	//m_msh->setMinEdgeLength(msh_min_edge_length);
+	
 	ply_nod_vector_cond.insert(ply_nod_vector_cond.begin(),
 		    		  ply_node_cond_ids.begin(), ply_node_cond_ids.end());
 
@@ -1973,6 +1989,7 @@ double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* 
 		case 0:  // average over node values
 			for(int i=0; i< msh_vector_conditional.size(); ++i)
 			{
+
 				value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1); // implicit
 				if(average_mode_verbosity)
 					std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << " x 1.\n";
@@ -2003,15 +2020,15 @@ double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* 
 						const double ST_value = m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]];
 						ST_values_total += ST_value;
 						value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) * ST_value;
-				
 						if(average_mode_verbosity)
 							std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << 
-								" x " << ST_value << '\n';
+								" with ST: " << ST_value << '\n';
 					}
 					else
 						throw std::runtime_error("BC: Did not keep LIQUID_FLOW source term");
 				}
-				value /= ST_values_total;
+				if(ST_values_total != 0.)
+					value /= ST_values_total;
 			}
 			else
 				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");

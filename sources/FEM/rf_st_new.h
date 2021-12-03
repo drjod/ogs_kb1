@@ -21,7 +21,6 @@
 #include <list>
 
 
-
 class CNodeValue;
 class CGLPolyline;
 class CGLLine;

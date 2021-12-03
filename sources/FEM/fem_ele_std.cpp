@@ -10176,6 +10176,7 @@ ElementValue::ElementValue(CRFProcess* m_pcs, CElem* ele) : pcs(m_pcs)
 	Velocity.resize(3, NGPoints);
 	Velocity = 0.0;
 	density = 0.;
+
 	// 15.3.2007 Multi-phase flow WW
 	if(pcs->type == 1212 || pcs->type == 1313 || m_pcs->type == 42)
 	{
@@ -10202,6 +10203,7 @@ ElementValue::ElementValue(CRFProcess* m_pcs, CElem* ele) : pcs(m_pcs)
 	// SB electric field
 	//_ctx_Gauss.resize(3,NGPoints);
 	//_ctx_Gauss = 0.0;
+
 }
 
 

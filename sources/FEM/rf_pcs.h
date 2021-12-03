@@ -8,6 +8,7 @@
 #ifndef rf_pcs_INC
 #define rf_pcs_INC
 
+
 #include <valarray>
 
 #include "makros.h"
@@ -97,6 +98,9 @@ using MeshLib::CFEMesh;
 typedef struct  // JOD 2021-11-21 to scale source term with permeability, viscosity
 {
 	long node_number;
+#if defined(USE_MPI)
+	long node_number_local;
+#endif
 	double node_value;
 	int group_number;
 	bool keep_value;
@@ -1214,7 +1218,10 @@ class REACT_BRNS;
 extern REACT_BRNS* m_vec_BRNS;
 #endif
 
+#if defined(USE_MPI)
+extern bool global_flag_keep_values;  // to keep ST values and make them consistent over all processors
+#endif
+
+
 extern bool hasAnyProcessDeactivatedSubdomains;   //NW
-
-
 #endif

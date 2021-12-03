@@ -1634,6 +1634,7 @@ bool Problem::CouplingLoop()
 
     } // end if WDC
 
+
   	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
   if (((converged && outer_index + 1 >= cpl_overall_min_iterations) 
 			  && wdc_converged)
