@@ -8837,10 +8837,10 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->ogs_WDC != nullptr)
 					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
-
+				  //----------------------------------------------------------------------------------------
 				  if(m_st->ogs_contraflow != nullptr)
 					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
-
+				  //----------------------------------------------------------------------------------------
 				  if(m_st->variable_storage)
 				  {
 					  CRFProcess* m_pcs_liquid;
@@ -8857,11 +8857,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 					   value = 0;
 				  }
+				  //----------------------------------------------------------------------------------------
 			  }
-
-
-
-
 				//-------------------------------------------------------------------
 				GetNODValue(value, cnodev, m_st);
 			}             // st_node.size()>0&&(long)st_node.size()>i
@@ -8872,56 +8869,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		//----------------------------------------------------------------------------------------
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
 		{
-			scaling_type scaling;
-
-			scaling.node_number = cnodev->msh_node_number;
-#if defined(USE_MPI)
-			scaling.node_number_local = msh_node;
-#endif
-			scaling.group_number = m_st->GetScalingNodeGroup();
-			scaling.keep_value = m_st->keep_values;
-			scaling.verbosity = m_st->scaling_verbosity;
-
-			double scaling_factor = 0;
-
-			std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
-			for (int i = 0; i < elements_connected.size(); ++i)
-			{
-				const CElem* ele = m_msh->ele_vector[elements_connected[i]];
-				const double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
-
-				CFluidProperties* mfp = MFPGet("LIQUID");
-				double prim_values[3];
-				const CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
-				double temperature = 0;
-
-				for (int j = 0; j < ele->nodes_index.Size(); ++j)
-				{
-					temperature += pcs_heat->GetNodeValue(ele->nodes_index[j], 1); // implizit
-				}
-				temperature /= ele->nodes_index.Size();
-				prim_values[1] = temperature;
-				
-				const double visc = mfp->Viscosity(prim_values);  // use with viscosity model 3
-
-				scaling_factor += perm / visc;
-			}
-			 
-			scaling_factor *=  cnodev->length / elements_connected.size();
-
-		        if(scaling_vec_sum.find(m_st->GetScalingNodeGroup()) != scaling_vec_sum.end())
-				scaling_vec_sum[m_st->GetScalingNodeGroup()] += scaling_factor;
-			else
-				scaling_vec_sum[m_st->GetScalingNodeGroup()] = scaling_factor;
-
-		        if(scaling_total_source_term_vector.find(m_st->GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
-				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] += value;
-			else
-				scaling_total_source_term_vector[m_st->GetScalingNodeGroup()] = value;
-
-			scaling.node_value = scaling_factor;
-			scaling_vec.push_back(scaling);
-
+			m_st->CalculateScalingForNode(cnodev, msh_node, m_msh, value,
+					scaling_vec, scaling_total_source_term_vector, scaling_vec_sum);
 			value = 0.;  // set bc separately below
 		}
 
@@ -9035,9 +8984,8 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		  }
 #endif
 
-
+		// set RHS for all nodes with scaling
 		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
-		bool flag_keep_value = false;
 
 		for (int i = 0; i < scaling_vec.size(); ++i)
 		{
@@ -9061,20 +9009,20 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				else
 					ST_values_kept[scaling_vec[i].node_number] = st_value;
 			}
-
 		}
 
 #if defined(USE_MPI)
 				// JOD 2021-11-30
+				// when ST values have to be kept, tell this all processors such that all have the values
 		if(global_flag_keep_values)
 		{
 			// all processors gather, how many ST_values each processor kept 
-    			int size;
-    			MPI_Comm_size(MPI_COMM_WORLD, &size);
-    			int buffer[size];  //  to store number_of_values_kept of each processor
+			int size;
+			MPI_Comm_size(MPI_COMM_WORLD, &size);
+			int buffer[size];  //  to store number_of_values_kept of each processor
 			int number_of_values_kept = ST_values_kept.size();
 
-    			MPI_Allgather(&number_of_values_kept, 1, MPI_INT, buffer, 1, MPI_INT, MPI_COMM_WORLD);
+			MPI_Allgather(&number_of_values_kept, 1, MPI_INT, buffer, 1, MPI_INT, MPI_COMM_WORLD);
 
 			// each processor sends its nodes and values to the others
 			for (std::map<long, double>::iterator it = ST_values_kept.begin(); it != ST_values_kept.end(); ++it)

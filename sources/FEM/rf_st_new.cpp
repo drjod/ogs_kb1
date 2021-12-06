@@ -920,8 +920,9 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  std::cout << "\tKeep values\n";
          continue;
       }
-    /**/
-   }                                              // end !new_keyword
+	  //....................................................................
+
+   } // end!new_keyword
    return position;
 }
 
@@ -5465,4 +5466,68 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 }
 
 
+// JOD 2021-12-06
+void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
+		const long& msh_node,  // of local processor in case of MPI
+		const CFEMesh* const m_msh, const double& value,
+		// the following are updated
+		std::vector<scaling_type>& scaling_vec,
+		std::map<int, double>& scaling_total_source_term_vector,
+		std::map<int, double>& scaling_vec_sum)
+{
+
+	scaling_type scaling;
+
+	scaling.node_number = cnodev->msh_node_number;
+#if defined(USE_MPI)
+	scaling.node_number_local = msh_node;
+#endif
+	scaling.group_number = GetScalingNodeGroup();
+	scaling.keep_value = keep_values;
+	scaling.verbosity = scaling_verbosity;
+
+	// calculate a scaling factor for the node
+	double scaling_factor = 0;
+	std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
+	for (long i = 0; i < elements_connected.size(); ++i)
+	{
+		// permeability
+		const CElem* ele = m_msh->ele_vector[elements_connected[i]];
+		const double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
+		// viscosity - dependent on temperature, nothing else
+		CFluidProperties* mfp = MFPGet("LIQUID");
+		const CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+		double temperature = 0;
+
+		const int number_of_nodes = ele->getNodeIndices().Size();
+		for (int j = 0; j < number_of_nodes; ++j)
+		{
+			temperature += pcs_heat->GetNodeValue(ele->GetNodeIndex(j), 1); // implizit
+		}
+		temperature /= number_of_nodes;
+
+		double prim_values[3];
+		prim_values[1] = temperature;
+
+		const double visc = mfp->Viscosity(prim_values);  // use with viscosity model 3
+		//
+		scaling_factor += perm / visc;
+	}
+
+	scaling_factor *=  cnodev->length / elements_connected.size();
+
+	// store the scaling_factor, increment the sum of scalin_factor and source term value for the group (same CSourceTerm instance)
+	if(scaling_vec_sum.find(GetScalingNodeGroup()) != scaling_vec_sum.end())
+		scaling_vec_sum[GetScalingNodeGroup()] += scaling_factor;
+	else
+		scaling_vec_sum[GetScalingNodeGroup()] = scaling_factor;
+
+		if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
+		scaling_total_source_term_vector[GetScalingNodeGroup()] += value;
+	else
+		scaling_total_source_term_vector[GetScalingNodeGroup()] = value;
+
+	scaling.node_value = scaling_factor;
+	scaling_vec.push_back(scaling);
+}
 

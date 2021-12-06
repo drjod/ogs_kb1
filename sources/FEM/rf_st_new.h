@@ -163,6 +163,9 @@ public:
 	void SetNodeValues(const std::vector<long> & nodes, const std::vector<long> & nodes_cond,
 	                   const std::vector<double> & node_values, int ShiftInNodeVector); // used only in sourcetermgroup
 
+	void CalculateScalingForNode(const CNodeValue* const, const long& msh_node, const CFEMesh* const, const double&,
+			std::vector<scaling_type>&c, std::map<int, double>&, std::map<int, double>&);
+
 	void SetNOD();
 
 	//23.02.2009. WW
@@ -263,7 +266,7 @@ public:
 	
 	int getTimeContrCurve() {return time_contr_curve; } //SB:02.2014 get bc ativity controlled curve
 	std::string getTimeContrFunction() {return time_contr_function; } //SB:02.2014 get bc ativity controlled curve
-  std::string getFunction() { return fct_name; } //SB:02.2014 get bc ativity controlled curve
+	std::string getFunction() { return fct_name; } //SB:02.2014 get bc ativity controlled curve
 
 	int getSubDomainIndex () const { return _sub_dom_idx; }
 
