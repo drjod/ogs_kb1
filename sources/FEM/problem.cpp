@@ -4500,18 +4500,18 @@ void GetHeterogeneousFields()
 
 			//WW file_path_base_ext = file_path + prop->permeability_file;
 			//WW
-			SetDistributedELEProperties(prop, prop->permeability_file, "PERMEABILITY");
-			// prop->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
+			SetDistributedELEProperties(prop, prop->permeability_file, "PERMEABILITY", i);
+			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 
 		//Set Permeability for Y and Z JOD 2020-3-20 from BW
 		if (prop->permeability_Y_file.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->permeability_Y_file, "PERMEABILITY_Y");
+			SetDistributedELEProperties(prop, prop->permeability_Y_file, "PERMEABILITY_Y", i);
 		}
 		if (prop->permeability_Z_file.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->permeability_Z_file, "PERMEABILITY_Z");
+			SetDistributedELEProperties(prop, prop->permeability_Z_file, "PERMEABILITY_Z", i);
 		}
 		//....................................................................
 		// For Porosity
@@ -4524,8 +4524,8 @@ void GetHeterogeneousFields()
 			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
 			// CB Removed bugs in this function
 			//m_mmp->
-			SetDistributedELEProperties(prop, prop->porosity_file, "POROSITY");
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
+			SetDistributedELEProperties(prop, prop->porosity_file, "POROSITY", i);
+			// m_mmp->WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//....................................................................
 		// GEOMETRY_AREA
@@ -4533,8 +4533,8 @@ void GetHeterogeneousFields()
 		{
 			file_path_base_ext = file_path + prop->geo_area_file;
 			//m_mmp->
-			SetDistributedELEProperties(prop, file_path_base_ext, "GEOMETRY_AREA");
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
+			SetDistributedELEProperties(prop, file_path_base_ext, "GEOMETRY_AREA", i);
+			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
 		//....................................................................
@@ -4549,12 +4549,12 @@ void GetHeterogeneousFields()
 
 		if(prop->file_name_conductivity.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->file_name_conductivity, "SOLID_HEAT_CONDUCTIVITY");
+			SetDistributedELEProperties(prop, prop->file_name_conductivity, "SOLID_HEAT_CONDUCTIVITY", i);
 		}
 
 		if(prop->file_name_capacity.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->file_name_capacity, "SOLID_SPECIFIC_HEAT_CAPACITY");
+			SetDistributedELEProperties(prop, prop->file_name_capacity, "SOLID_SPECIFIC_HEAT_CAPACITY", i);
 		}
 
 	}
@@ -4566,7 +4566,7 @@ void GetHeterogeneousFields()
    Programing:
    11/2005 OK Implementation
 **************************************************************************/
-void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name)
+void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name, const int& group)
 {
 	cout << "\tSetDistributedELEProperties: ";
 	cout << property_name << "\n";
@@ -4684,7 +4684,7 @@ void SetDistributedELEProperties(Properties* prop, const std::string& file_name,
 				for(i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
 				{
 					m_ele_geo = prop->getMesh()->ele_vector[i];
-					if(m_ele_geo->GetPatchIndex() != prop->getNumber())
+					if(m_ele_geo->GetPatchIndex() != group)
 						continue;
 
 					mat_vector_size = m_ele_geo->mat_vector.Size();
@@ -4725,10 +4725,8 @@ void SetDistributedELEProperties(Properties* prop, const std::string& file_name,
 				for(i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
 				{
 					m_ele_geo = prop->getMesh()->ele_vector[i];
-
-					int group = m_ele_geo->GetPatchIndex();
 					property_file >> ddummy >> property_value;
-					if (group == prop->getNumber()){				//BW: Only Write for this Material Group
+					if (group == m_ele_geo->GetPatchIndex()){				//BW: Only Write for this Material Group
 						mat_vector_size = m_ele_geo->mat_vector.Size();
 						if (mat_vector_size > 0)
 						{
@@ -4864,13 +4862,14 @@ void SetDistributedELEProperties(Properties* prop, const std::string& file_name,
    Programing:
    11/2005 OK Implementation
 **************************************************************************/
-void WriteTecplotDistributedProperties()
+void WriteTecplotDistributedProperties(const Properties* const prop)
 {
-/*	int j, k;
+	int j, k;
 	long i;
 	string element_type;
 	string m_string = "MAT";
 	double m_mat_prop_nod;
+	std::string name = "";
 	//----------------------------------------------------------------------
 	// Path
 	string path;
@@ -4878,11 +4877,11 @@ void WriteTecplotDistributedProperties()
 	// MSH
 	MeshLib::CNode* m_nod = NULL;
 	MeshLib::CElem* m_ele = NULL;
-	if (!_mesh)
+	if (!prop->getMesh())
 		return;
 	//--------------------------------------------------------------------
 	// File handling
-	string mat_file_name = path + name + "_" + _mesh->pcs_name + "_PROPERTIES"
+	string mat_file_name = path + name + "_" + prop->getMesh()->pcs_name + "_PROPERTIES"
 	                       + TEC_FILE_EXTENSION;
 	fstream mat_file(mat_file_name.data(), ios::trunc | ios::out);
 	mat_file.setf(ios::scientific, ios::floatfield);
@@ -4891,9 +4890,9 @@ void WriteTecplotDistributedProperties()
 		return;
 	mat_file.seekg(0L, ios::beg);
 	//--------------------------------------------------------------------
-	if ((long) _mesh->ele_vector.size() > 0)
+	if ((long) prop->getMesh()->ele_vector.size() > 0)
 	{
-		m_ele = _mesh->ele_vector[0];
+		m_ele = prop->getMesh()->ele_vector[0];
 		switch (m_ele->GetElementType())
 		{
 		case MshElemType::LINE:
@@ -4924,26 +4923,26 @@ void WriteTecplotDistributedProperties()
 	//--------------------------------------------------------------------
 	// Header
 	mat_file << "VARIABLES = X,Y,Z";
-	for (j = 0; j < (int) _mesh->mat_names_vector.size(); j++)
-		mat_file << "," << _mesh->mat_names_vector[j];
+	for (j = 0; j < (int)prop->getMesh()->mat_names_vector.size(); j++)
+		mat_file << "," << prop->getMesh()->mat_names_vector[j];
 	mat_file << "\n";
 	mat_file << "ZONE T = " << name << ", " << "N = "
-	         << (long) _mesh->nod_vector.size() << ", " << "E = "
-	         << (long) _mesh->ele_vector.size() << ", " << "F = FEPOINT" << ", "
+	         << (long) prop->getMesh()->nod_vector.size() << ", " << "E = "
+	         << (long) prop->getMesh()->ele_vector.size() << ", " << "F = FEPOINT" << ", "
 	         << "ET = " << element_type << "\n";
 	//--------------------------------------------------------------------
 	// Nodes
-	for (i = 0; i < (long) _mesh->nod_vector.size(); i++)
+	for (i = 0; i < (long) prop->getMesh()->nod_vector.size(); i++)
 	{
-		m_nod = _mesh->nod_vector[i];
+		m_nod = prop->getMesh()->nod_vector[i];
 		double const* const pnt (m_nod->getData());
 		mat_file << pnt[0] << " " << pnt[1] << " " << pnt[2];
-		for (size_t j = 0; j < _mesh->mat_names_vector.size(); j++)
+		for (size_t j = 0; j < prop->getMesh()->mat_names_vector.size(); j++)
 		{
 			m_mat_prop_nod = 0.0;
 			for (k = 0; k < (int) m_nod->getConnectedElementIDs().size(); k++)
 			{
-				m_ele = _mesh->ele_vector[m_nod->getConnectedElementIDs()[k]];
+				m_ele = prop->getMesh()->ele_vector[m_nod->getConnectedElementIDs()[k]];
 				m_mat_prop_nod += m_ele->mat_vector(j);
 			}
 			m_mat_prop_nod /= (int) m_nod->getConnectedElementIDs().size();
@@ -4953,9 +4952,9 @@ void WriteTecplotDistributedProperties()
 	}
 	//--------------------------------------------------------------------
 	// Elements
-	for (i = 0; i < (long) _mesh->ele_vector.size(); i++)
+	for (i = 0; i < (long) prop->getMesh()->ele_vector.size(); i++)
 	{
-		m_ele = _mesh->ele_vector[i];
+		m_ele = prop->getMesh()->ele_vector[i];
 		//OK if(m_ele->GetPatchIndex()==number) {
 		switch (m_ele->GetElementType())
 		{
@@ -5015,7 +5014,6 @@ void WriteTecplotDistributedProperties()
 			<< "\n";
 		}
 	}
-	*/
 }
 
 /**************************************************************************

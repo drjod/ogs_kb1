@@ -21,9 +21,9 @@ public:
 	std::string file_name_conductivity;	 // JOD 2021-12-16
 	std::string file_name_capacity;	 // JOD 2021-12-16
 
-	virtual int getNumber() {return -1;}
+	virtual int getNumber() const {return -1;}
 public:
-	MeshLib::CFEMesh* getMesh(void) { return _mesh; }
+	MeshLib::CFEMesh* getMesh(void) const { return _mesh; }
     void setMesh( MeshLib::CFEMesh* m_msh) { _mesh = m_msh; }
 };
 
