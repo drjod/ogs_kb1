@@ -2649,21 +2649,22 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 		break;
 	//....................................................................
 	case 22:
+		group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		m_msp = msp_vector[group];
+
 		int ndx;
-		for(ndx = 0; ndx < (int)getMesh()->mat_names_vector.size();++ndx)
-			if(getMesh()->mat_names_vector[ndx].compare(
+		for(ndx = 0; ndx < (int)m_msp->getMesh()->mat_names_vector.size();++ndx)
+			if(m_msp->getMesh()->mat_names_vector[ndx].compare(
 					   "SOLID_SPECIFIC_HEAT_CAPACITY") == 0)
 				break;
 		// end of getting the index---------------------------------------------------------
-		if(getMesh()->ele_vector[number]->mat_vector.Size() == 0)
+		if(m_msp->getMesh()->ele_vector[number]->mat_vector.Size() == 0)
 		{
 			throw std::runtime_error("No material");
 		}
 		else
-			specific_heat_capacity_solid = getMesh()->ele_vector[number]->mat_vector(ndx);
+			specific_heat_capacity_solid = m_msp->getMesh()->ele_vector[number]->mat_vector(ndx);
 
-		group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
-		m_msp = msp_vector[group];
 		density_solid = fabs(m_msp->Density());
 
 		if (FLOW)  // from case 1
