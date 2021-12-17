@@ -4566,7 +4566,7 @@ void GetHeterogeneousFields()
    Programing:
    11/2005 OK Implementation
 **************************************************************************/
-void SetDistributedELEProperties(Properties* prop, std::string file_name, std::string property_name)
+void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name)
 {
 	cout << "\tSetDistributedELEProperties: ";
 	cout << property_name << "\n";
@@ -4684,6 +4684,9 @@ void SetDistributedELEProperties(Properties* prop, std::string file_name, std::s
 				for(i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
 				{
 					m_ele_geo = prop->getMesh()->ele_vector[i];
+					if(m_ele_geo->GetPatchIndex() != prop->getNumber())
+						continue;
+
 					mat_vector_size = m_ele_geo->mat_vector.Size();
 					// CB Store old values as they are set to zero after resizing
 					for(j = 0; j < mat_vector_size; j++)

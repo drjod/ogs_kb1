@@ -168,7 +168,7 @@ class Problem
 extern bool MODCreate();                          //OK
 
 void GetHeterogeneousFields();
-void SetDistributedELEProperties(Properties*, std::string, std::string);
+void SetDistributedELEProperties(Properties*, const std::string&, const std::string&);
 void WriteTecplotDistributedProperties();
 
 long GetNearestHetVal2(long EleIndex,
