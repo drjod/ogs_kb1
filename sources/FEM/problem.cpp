@@ -4500,18 +4500,18 @@ void GetHeterogeneousFields()
 
 			//WW file_path_base_ext = file_path + prop->permeability_file;
 			//WW
-			SetDistributedELEProperties(prop, prop->permeability_file, "PERMEABILITY");
+			SetDistributedELEProperties(prop, prop->permeability_file, "PERMEABILITY", i);
 			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 
 		//Set Permeability for Y and Z JOD 2020-3-20 from BW
 		if (prop->permeability_Y_file.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->permeability_Y_file, "PERMEABILITY_Y");
+			SetDistributedELEProperties(prop, prop->permeability_Y_file, "PERMEABILITY_Y", i);
 		}
 		if (prop->permeability_Z_file.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->permeability_Z_file, "PERMEABILITY_Z");
+			SetDistributedELEProperties(prop, prop->permeability_Z_file, "PERMEABILITY_Z", i);
 		}
 		//....................................................................
 		// For Porosity
@@ -4524,7 +4524,7 @@ void GetHeterogeneousFields()
 			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
 			// CB Removed bugs in this function
 			//m_mmp->
-			SetDistributedELEProperties(prop, prop->porosity_file, "POROSITY");
+			SetDistributedELEProperties(prop, prop->porosity_file, "POROSITY", i);
 			// m_mmp->WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//....................................................................
@@ -4533,7 +4533,7 @@ void GetHeterogeneousFields()
 		{
 			file_path_base_ext = file_path + prop->geo_area_file;
 			//m_mmp->
-			SetDistributedELEProperties(prop, file_path_base_ext, "GEOMETRY_AREA");
+			SetDistributedELEProperties(prop, file_path_base_ext, "GEOMETRY_AREA", i);
 			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
 		}
 		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
@@ -4549,12 +4549,12 @@ void GetHeterogeneousFields()
 
 		if(prop->file_name_conductivity.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->file_name_conductivity, "SOLID_HEAT_CONDUCTIVITY");
+			SetDistributedELEProperties(prop, prop->file_name_conductivity, "SOLID_HEAT_CONDUCTIVITY", i);
 		}
 
 		if(prop->file_name_capacity.size() > 0)
 		{
-			SetDistributedELEProperties(prop, prop->file_name_capacity, "SOLID_SPECIFIC_HEAT_CAPACITY");
+			SetDistributedELEProperties(prop, prop->file_name_capacity, "SOLID_SPECIFIC_HEAT_CAPACITY", i);
 		}
 
 	}
@@ -4566,7 +4566,7 @@ void GetHeterogeneousFields()
    Programing:
    11/2005 OK Implementation
 **************************************************************************/
-void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name)
+void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name, const int &group)
 {
 	cout << "\tSetDistributedELEProperties: ";
 	cout << property_name << "\n";
@@ -4639,7 +4639,7 @@ void SetDistributedELEProperties(Properties* prop, const std::string& file_name,
 				return;
 			}
 			prop->setMesh(msh);
-			prop->getMesh()->mat_names_vector.push_back(property_name);
+			prop->getMesh()->mat_names_vector.push_back(property_name + std::to_string(group));
 			continue;
 		}
 		//....................................................................

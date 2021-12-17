@@ -1508,7 +1508,7 @@ void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, con
 		int ndx;
 		for(ndx = 0; ndx < (int)getMesh()->mat_names_vector.size();++ndx)
 			if(getMesh()->mat_names_vector[ndx].compare(
-					   "SOLID_HEAT_CONDUCTIVITY") == 0)
+					   "SOLID_HEAT_CONDUCTIVITY" + std::to_string(group)) == 0)
 				break;
 		// end of getting the index---------------------------------------------------------
 		if(getMesh()->ele_vector[index]->mat_vector.Size() == 0)

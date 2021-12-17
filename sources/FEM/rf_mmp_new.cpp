@@ -2649,13 +2649,11 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 		break;
 	//....................................................................
 	case 22:
-		group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
-		m_msp = msp_vector[group];
-
+		m_msp = msp_vector[this->number];
 		int ndx;
 		for(ndx = 0; ndx < (int)m_msp->getMesh()->mat_names_vector.size();++ndx)
 			if(m_msp->getMesh()->mat_names_vector[ndx].compare(
-					   "SOLID_SPECIFIC_HEAT_CAPACITY") == 0)
+					   "SOLID_SPECIFIC_HEAT_CAPACITY" + std::to_string(this->number)) == 0)
 				break;
 		// end of getting the index---------------------------------------------------------
 		if(m_msp->getMesh()->ele_vector[number]->mat_vector.Size() == 0)
@@ -3890,7 +3888,8 @@ double CMediumProperties::Porosity(long number,double theta)
 	if (porosity_model == 11)
 		for (por_index = 0; por_index
 		     < m_pcs->m_msh->mat_names_vector.size(); por_index++)
-			if (m_pcs->m_msh->mat_names_vector[por_index].compare("POROSITY")
+			if (m_pcs->m_msh->mat_names_vector[por_index].compare("POROSITY" +
+					std::to_string(number))
 			    == 0)
 				break;
 
@@ -4403,7 +4402,7 @@ double* CMediumProperties::PermeabilityTensor(long index)
 			for(perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
 			    perm_index++)
 				if(m_pcs->m_msh->mat_names_vector[perm_index].compare(
-				           "PERMEABILITY") == 0)
+				           "PERMEABILITY" + std::to_string(number)) == 0)
 					break;
 			// end of getting the index---------------------------------------------------------
 			if(_mesh->ele_vector[index]->mat_vector.Size() == 0)
@@ -4412,6 +4411,8 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				return tensor;
 			}
 			tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
+
+
 			//CMCD
 			//01.09.2011 WW.  int edx = m_pcs->GetElementValueIndex("PERMEABILITY");
 			//CMCD
@@ -4720,17 +4721,20 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				// get the index:-------------------------------------------------------------------
 				for (perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
 					perm_index++){
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY") == 0){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY" +
+							std::to_string(number)) == 0){
 						tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
 						tensor[1] = 0.0;
 						tensor[2] = 0.0;
 					}
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y") == 0){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y" +
+							std::to_string(number)) == 0){
 						tensor[3] = 0.0;
 						tensor[4] = _mesh->ele_vector[index]->mat_vector(perm_index);
 						tensor[5] = 0.0;
 					}
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z") == 0)	 {
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z" +
+							std::to_string(number)) == 0)	 {
 						tensor[6] = 0.0;
 						tensor[7] = 0.0;
 						tensor[8] = _mesh->ele_vector[index]->mat_vector(perm_index);
