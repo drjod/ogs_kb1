@@ -693,6 +693,8 @@ private:
 	//PCH
 	std::vector<std::string> ele_val_name_vector;
 public:
+	double calculateNodeValueFromConnectedNodes(const std::vector<long>&, const std::vector<double>&,
+			const int&, const int&, bool&);
 	std::map<long, double> ST_values_kept;  // JOD 2021-11-12 to use them in BC
 	std::vector<double*> ele_val_vector;  //PCH
 	void SetElementValue(long,int,double); //PCH
@@ -1040,7 +1042,6 @@ private:
 	// method to check on constrained boundary conditions
 	bool checkConstrainedBC(CBoundaryCondition const & bc, CBoundaryConditionNode const & bc_node, double & bc_value);
 	std::valarray<double> getNodeVelocityVector(const long node_id);
-
 };
 
 //========================================================================

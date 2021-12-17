@@ -61,6 +61,8 @@ using Math_Group::CSparseMatrix;
 //#include "problem.h"
 // For analytical source terms
 #include "rf_mfp_new.h"
+#include "rf_msp_new.h"
+#include "rf_mmp_new.h"
 #include "rf_node.h"
 #include "rfmat_cp.h"
 
@@ -165,6 +167,8 @@ CSourceTerm::CSourceTerm() :
    scaling_mode = 0;
    scaling_verbosity = 0;
    keep_values = false;
+   borehole_mode = 0;
+   average_mode = 0;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -622,7 +626,6 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
-		  this->connected_geometry = true;
 		  in.clear();
 		  continue;
 	  }
@@ -706,7 +709,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  {
 			  std::cout << "\tNo heat pump";
 		  }
-		  if(heat_pump_flag == 1)
+		  else if(heat_pump_flag == 1)
 		  {
 			  in >> heat_pump_file_name;
 			  std::cout << "\tCarnot heat pump - File name: " << heat_pump_file_name <<  "\n";
@@ -771,121 +774,120 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  //....................................................................
 	  if (line_string.find("$SCALING") != std::string::npos) // JODSH 2021-11-04
 	  {
-         	in.str(readNonBlankLineFromInputStream(*st_file));
-          	in >> scaling_mode >> scaling_verbosity;  // 1: with permeability, 2: with permeability and viscosity
-	  	std::cout << "\tScaling mode " << scaling_mode;
-	 	if(scaling_mode == 0)
-			 std::cout << " - No scaling\n";
-	 	else if(scaling_mode == 1)
-			 std::cout << " - With horizontal permeability\n";
-	 	else if(scaling_mode == 2)
-		 	std::cout << " - With horizontal permeability and viscosity\n";
-	 	else
-			 throw std::runtime_error("Scaling mode not supported");
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> scaling_mode >> scaling_verbosity;  // 1: with permeability, 2: with permeability and viscosity
+		  std::cout << "\tScaling mode " << scaling_mode;
+		  if(scaling_mode == 0)
+			  std::cout << " - No scaling\n";
+		  else if(scaling_mode == 1)
+			  std::cout << " - With horizontal permeability\n";
+		  else if(scaling_mode == 2)
+			  std::cout << " - With horizontal permeability and viscosity\n";
+		  else
+			  throw std::runtime_error("Scaling mode not supported");
 
-                scaling_node_group = scaling_node_group_running;
-		scaling_node_group_running++;
-          	in.clear();
+		  scaling_node_group = scaling_node_group_running;
+		  scaling_node_group_running++;
+		  in.clear();
 
-
-	  	 continue;
+		  continue;
 	  }
 	  //....................................................................
-	 	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
-	 	  {
-	 		  std::cout << "CONTRAFLOW_PIPES\n";
-	 		 int tmp0;
-	 		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
+	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
+	  {
+		  std::cout << "CONTRAFLOW_PIPES\n";
+		 int tmp0;
+		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
 
-	 		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
-	 		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
-	 		 in.clear();
+		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
+		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
+		 in.clear();
 
-			 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
-		 	 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
-		 	 in.clear();
+		 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
+		 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
+		 in.clear();
 
-	 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
-	 				 {	// pipe
-	 		 				tmp1,  // d_0_i
-	 		 				tmp2,  // d_0_o
-	 		 				tmp3,  // d_1_i
-	 		 				tmp4,  // d_1_o
-	 		 				tmp5,  // w
-	 		 				tmp6,  // lambda_0
-	 		 				tmp7  // lambda_1
-	 				 },
-					 {	// fluid
-							 tmp8,  // lambda
-							 tmp9,	// mu
-							 tmp10,	// c
-							 tmp11	// rho
-					 }
+		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
+				 {	// pipe
+						tmp1,  // d_0_i
+						tmp2,  // d_0_o
+						tmp3,  // d_1_i
+						tmp4,  // d_1_o
+						tmp5,  // w
+						tmp6,  // lambda_0
+						tmp7  // lambda_1
+				 },
+				 {	// fluid
+						 tmp8,  // lambda
+						 tmp9,	// mu
+						 tmp10,	// c
+						 tmp11	// rho
+				 }
 
-	 		 );
+		 );
 
-	 		 int numberOfSegments;
-	 		 in.str(readNonBlankLineFromInputStream(*st_file));
-	 		 in >> numberOfSegments;
-	 		 in.clear();
+		 int numberOfSegments;
+		 in.str(readNonBlankLineFromInputStream(*st_file));
+		 in >> numberOfSegments;
+		 in.clear();
 
-	 		 while(numberOfSegments--)  // no check if number is right
-	 		 {
-	 			  in.str(readNonBlankLineFromInputStream(*st_file));
-	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
-	 			  in.clear();
-	 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
-	 			  ogs_contraflow->add_segment_data_group
-	 			  ({
-	 				tmp0,  // N
-	 				tmp1,  // L
-	 				tmp2,  // D
-	 				tmp3  // lambda_g
-	 			  });
-	 		 }
-	 		ogs_contraflow->initialize();
+		 while(numberOfSegments--)  // no check if number is right
+		 {
+			  in.str(readNonBlankLineFromInputStream(*st_file));
+			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+			  in.clear();
+			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
+			  ogs_contraflow->add_segment_data_group
+			  ({
+				tmp0,  // N
+				tmp1,  // L
+				tmp2,  // D
+				tmp3  // lambda_g
+			  });
+		 }
+		ogs_contraflow->initialize();
 
 
-			 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
-			 {
-				 m_pcs->ogs_contraflow_vector.push_back(ogs_contraflow);
-			 }
-			 else
-				 throw std::runtime_error("No PCS for WellDoubletControl");
+		 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
+		 {
+			 m_pcs->ogs_contraflow_vector.push_back(ogs_contraflow);
+		 }
+		 else
+			 throw std::runtime_error("No PCS for WellDoubletControl");
 
-	 		 std::cout << "Set contraflow source term\n";
+		 std::cout << "Set contraflow source term\n";
 
-	 		 continue;
-	 	  }
-	 	  //....................................................................
-	 	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
-	 	  {
-	 		 std::cout << "CONTRAFLOW_INPUT\n";
-	 		  int numberOfInputSets;
+		 continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
+	  {
+		 std::cout << "CONTRAFLOW_INPUT\n";
+		  int numberOfInputSets;
 
-	 		  in.str(readNonBlankLineFromInputStream(*st_file));
-	 		  in >> numberOfInputSets;
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> numberOfInputSets;
 
-	 		  in.clear();
-	 		  while(numberOfInputSets--)  // no check if number is right
-	 		  {
-	 			  int tmp1;
-	 			  double tmp0, tmp2, tmp3;
+		  in.clear();
+		  while(numberOfInputSets--)  // no check if number is right
+		  {
+			  int tmp1;
+			  double tmp0, tmp2, tmp3;
 
-	 			  in.str(readNonBlankLineFromInputStream(*st_file));
-	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
-	 			  in.clear();
+			  in.str(readNonBlankLineFromInputStream(*st_file));
+			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+			  in.clear();
 
-	 			  ogs_contraflow->add_input_group
-	 			  (
-	 				tmp0,  // time
-					tmp1,	// mode 0: provide feed in temperature T_in, 1: provide temperature difference dT
-	 				tmp2,  // Q
-	 				tmp3  // T_in / dT
-	 			  );
-	 		  }
-	 		  continue;
-	 	  }
+			  ogs_contraflow->add_input_group
+			  (
+				tmp0,  // time
+				tmp1,	// mode 0: provide feed in temperature T_in, 1: provide temperature difference dT
+				tmp2,  // Q
+				tmp3  // T_in / dT
+			  );
+		  }
+		  continue;
+	  }
 	  //....................................................................
 	  if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
 	  {
@@ -920,6 +922,50 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  std::cout << "\tKeep values\n";
          continue;
       }
+      //....................................................................
+	  if (line_string.find("$BOREHOLE") != std::string::npos) // JOD 2021-12-06
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> borehole_mode;
+		  std::cout << "\tBorehole mode " << borehole_mode;
+
+		  switch(borehole_mode)
+		  {
+			  case 0:
+				  std::cout << " - Swithed off\n";
+				  break;
+			  case 1:
+				  in >> borehole.radius >> borehole.temperature >> borehole.verbosity;
+				  std::cout << " - Radius " << borehole.radius << ", Temperature: " << borehole.temperature << '\n';
+				  break;
+			  case 2:
+				  in >> borehole.radius >> borehole.verbosity;
+				  std::cout << " - Radius " << borehole.radius << '\n';
+				  break;
+
+			  default:
+				  throw std::runtime_error("Borehole mode not supported");
+		  }
+
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> average_mode >> average_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
+		  std::cout << "\tAverage mode " << average_mode;
+		  if(average_mode == 0)
+			  std::cout << " - equal\n";
+		  else if(average_mode == 1)
+			  std::cout << " - With node area\n";
+		  else if(average_mode == 2)
+			  std::cout << " - With LIQUID_FLOW sink term (take care that values are kept)";
+		  else
+			  throw std::runtime_error("Average mode not supported");
+		  in.clear();
+	  }
 	  //....................................................................
 
    } // end!new_keyword
@@ -2817,6 +2863,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		std::vector<long> ply_nod_vector;
 		std::vector<long> ply_nod_vector_cond;
 		std::vector<double> ply_nod_val_vector;
+		std::vector<double> ply_nod_vector_cond_length;
 
 		double min_edge_length (m_msh->getMinEdgeLength());
 		m_msh->setMinEdgeLength (old_ply->epsilon);
@@ -2857,9 +2904,24 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		st->st_node_ids.resize(ply_nod_vector.size());
 		st->st_node_ids = ply_nod_vector;
 
-		if (st->isConnected())   // JOD 10/2018
+		if (st->isConnectedGeometry())   // JOD 10/2018
+		{
 			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
+			  if(st->average_mode == 1)
+			  {
+				  CRFProcess* m_pcs(PCSGet(pcs_type_name));
 
+				  ply_nod_vector_cond_length.resize(ply_nod_vector_cond.size());
+				  std::fill(ply_nod_vector_cond_length.begin(), ply_nod_vector_cond_length.end(), 1.);
+
+				  if (m_msh->GetMaxElementDim() == 1)
+					  FiniteElement::DomainIntegration(m_pcs, ply_nod_vector_cond, ply_nod_vector_cond_length);
+				  else FiniteElement::EdgeIntegration(m_pcs->m_msh, ply_nod_vector_cond, ply_nod_vector_cond_length,
+						  	  	  st->getProcessDistributionType(), st->getProcessPrimaryVariable(),
+								  true, false, 0);//
+								//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+			  }
+		}
 		if (st->isConstrainedST())
 		{
 			for (std::size_t i(0); i < st->st_node_ids.size(); i++)
@@ -2993,7 +3055,63 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			std::copy (well2_mesh_node_values.begin(), well2_mesh_node_values.end(), std::back_inserter(ply_nod_val_vector));
 	   }
 
-		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ShiftInNodeVector);
+		if(st->borehole_mode)
+		{
+			const double heat_conductivity_fluid = mfp_vector[0]->HeatConductivity();
+			const CRFProcess* const m_pcs = pcs_vector[0];
+			const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+
+			for(int i=0; i < ply_nod_vector.size(); ++i)
+			{
+				std::vector<size_t> elements_connected = m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
+							ply_nod_vector, m_msh->ele_vector);
+
+				double heat_conductivity = 0.;
+				double radius = 0.;
+
+				int ele_type;
+				for (size_t j = 0; j < elements_connected.size(); ++j)
+				{
+					const CElem* ele = m_msh->ele_vector[elements_connected[j]];
+					const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
+
+					double heat_conductivity_solid[9];
+					msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
+					const double porosity = mmp_vector[group]->porosity_model_values[0];
+
+					heat_conductivity += porosity * heat_conductivity_fluid * (1-porosity) * heat_conductivity_solid[0];
+					radius += ele->GetHorizontalNodeDistance(m_msh->nod_vector[ply_nod_vector[i]]);
+
+					//std::cout << "\tcond; " << porosity * heat_conductivity_fluid * (1-porosity) * heat_conductivity_solid[0] << std::endl;
+					//std::cout << "\tradius; " << ele->GetHorizontalNodeDistance(m_msh->nod_vector[ply_nod_vector[i]]) << std::endl;
+					ele_type = ele->GetElementType();
+				}
+
+				heat_conductivity =3.;///= elements_connected.size();
+				radius /= elements_connected.size();
+				//radius = 1;
+
+				double radius_e;
+				std::cout <<  "ELe type: " <<ele_type << std::endl;
+				if(ele_type == 3) // hex
+					radius_e = 0.11271331774384821 * radius;  // peaceman
+				else if(ele_type == 6) // pris
+					radius_e = 0.20788 * radius;  // peaceman
+				//else
+				//	throw std::runtime_error("ELement type not supported in peaceman");
+				//sconst double radius_e = 0.20788 * radius;  // peaceman eclipse
+
+				//std::cout << "cond: " << heat_conductivity << std::endl;
+				//std::cout << "radius: " << radius << std::endl;
+				//std::cout << "radius_e: " << radius_e << std::endl;
+				//std::cout << "radius_w: " << st->borehole.radius << std::endl;
+				//std::cout << "Korrektur: " <<  std::log(radius_e / st->borehole.radius) << std::endl;
+
+				ply_nod_val_vector[i] *= 6.283185307179586 * heat_conductivity / std::log(radius_e / st->borehole.radius);
+			}
+		}  // end borehole_mode
+
+		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ply_nod_vector_cond_length, ShiftInNodeVector);
 	} // end polyline
 }
 
@@ -3016,7 +3134,7 @@ const int ShiftInNodeVector)
    nod_val->node_value = st->geo_node_value;
    nod_val->tim_type_name = st->tim_type_name;
 
-   if(st->isConnected()) // JOD 2018-02-20
+   if(st->isConnectedGeometry()) // JOD 2018-02-20
    {
 	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
 			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
@@ -3353,6 +3471,7 @@ void CSourceTermGroup::SetDMN(CSourceTerm *m_st, const int ShiftInNodeVector)
    std::vector<long> dmn_nod_vector;
    std::vector<double> dmn_nod_val_vector;
    std::vector<long> dmn_nod_vector_cond;
+   std::vector<double> dmn_nod_val_vector_cond;  // not used
 
    GEOGetNodesInMaterialDomain(m_msh, m_st->analytical_material_group,
       dmn_nod_vector, false);
@@ -3363,7 +3482,7 @@ void CSourceTermGroup::SetDMN(CSourceTerm *m_st, const int ShiftInNodeVector)
       dmn_nod_val_vector[i] = m_st->geo_node_value;
 
    m_st->SetNodeValues(dmn_nod_vector, dmn_nod_vector_cond,
-      dmn_nod_val_vector, ShiftInNodeVector);
+      dmn_nod_val_vector, dmn_nod_val_vector_cond, ShiftInNodeVector);
 
 }
 
@@ -3380,6 +3499,7 @@ void CSourceTermGroup::SetCOL(CSourceTerm *m_st, const int ShiftInNodeVector)
    std::vector<long> col_nod_vector;
    std::vector<double> col_nod_val_vector;
    std::vector<long> col_nod_vector_cond;
+   std::vector<double> col_nod_val_vector_cond;  // nod used
 
    long i = 0;
    if (m_st->geo_name == "BOTTOM")
@@ -3399,7 +3519,7 @@ void CSourceTermGroup::SetCOL(CSourceTerm *m_st, const int ShiftInNodeVector)
    m_st->SetSurfaceNodeVectorConditional(col_nod_vector, col_nod_vector_cond);
 
    m_st->SetNodeValues(col_nod_vector, col_nod_vector_cond,
-      col_nod_val_vector, ShiftInNodeVector);
+      col_nod_val_vector, col_nod_val_vector_cond, ShiftInNodeVector);
 
 }
 
@@ -3417,6 +3537,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
    std::vector<std::size_t> sfc_node_ids;
    std::vector<long> sfc_nod_vector_cond;
    std::vector<double> sfc_nod_val_vector;
+   std::vector<double> sfc_nod_val_vector_cond;  // not used
    Surface* m_sfc = NULL;
 
    m_sfc = GEOGetSFCByName(m_st->geo_name);       //CC
@@ -3446,7 +3567,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
             sfc_nod_vector_cond);
 // CB JOD MERGE //
 
-	  if (m_st->isConnected())   // JOD 2/2015
+	  if (m_st->isConnectedGeometry())   // JOD 2/2015
 		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
 
 	   if(m_st->hasThreshold()) // JOD 2018-03-7  - copyed from SetPnt
@@ -3582,7 +3703,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 	  }
 
       m_st->SetNodeValues(sfc_nod_vector, sfc_nod_vector_cond,
-         sfc_nod_val_vector, ShiftInNodeVector);
+         sfc_nod_val_vector, sfc_nod_val_vector_cond, ShiftInNodeVector);
 
    }                                              // end surface
 }
@@ -3600,18 +3721,20 @@ void CSourceTerm::SetNOD()
    std::vector<long> nod_vector;
    std::vector<long> nod_vector_cond;
    std::vector<double> nod_val_vector;
+   std::vector<double> nod_val_vector_cond;
    int ShiftInNodeVector;
 
    nod_vector.push_back(msh_node_number);
    nod_vector_cond.push_back(msh_node_number);
    nod_val_vector.push_back(geo_node_value);
+   nod_val_vector_cond.push_back(geo_node_value);
 
    /*nod_vector[0] = msh_node_number;
     nod_vector_cond[0] = msh_node_number;
     nod_val_vector[0] =geo_node_value;*/
    ShiftInNodeVector = 0;
 
-   SetNodeValues(nod_vector, nod_vector_cond, nod_val_vector,
+   SetNodeValues(nod_vector, nod_vector_cond, nod_val_vector, nod_val_vector_cond,
       ShiftInNodeVector);
 
 }
@@ -4069,11 +4192,10 @@ std::vector<long>&sfc_nod_vector_cond)
  last modification:
  **************************************************************************/
 void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vector<long>& nodes_cond,
-		const std::vector<double>&node_values, int ShiftInNodeVector)
+		const std::vector<double>& node_values, const std::vector<double>& nodes_cond_length, const int& ShiftInNodeVector)
 {
    CNodeValue *m_nod_val = NULL;
    size_t number_of_nodes (nodes.size());
-
 
    // Added by CB;  removed by JOD 2015-11-19 
    /*double geometry_area = 1.0;
@@ -4105,8 +4227,13 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->CurveIndex = CurveIndex;
 // CB JOD MERGE //
 	
-	  if (connected_geometry)						// JOD 2/2015
-		  m_nod_val->msh_node_number_conditional = nodes_cond[i];
+	  if (connected_geometry) // JOD 2/2015
+	  {
+		  m_nod_val->msh_node_number_conditional = nodes_cond[i];  // JOD 2021-12-10
+		  m_nod_val->msh_vector_conditional = nodes_cond;
+		  m_nod_val->msh_vector_conditional_length = nodes_cond_length;
+	  }
+
     /**/
 	  if (_coupled)                               // JOD 4.7.10
       {
@@ -5522,12 +5649,56 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 	else
 		scaling_vec_sum[GetScalingNodeGroup()] = scaling_factor;
 
-		if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
+	if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
 		scaling_total_source_term_vector[GetScalingNodeGroup()] += value;
 	else
 		scaling_total_source_term_vector[GetScalingNodeGroup()] = value;
 
 	scaling.node_value = scaling_factor;
 	scaling_vec.push_back(scaling);
+}
+
+// JOD 2021-12-06
+double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
+		const std::vector<long>& node_number_vec_cond, const std::vector<double>& node_length_vec_cond,
+		const int& average_mode, const int& average_verbosity)
+{
+	CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
+	if(m_pcs == NULL)
+		throw std::runtime_error("PCS unkonwn in CSfourceTerm::CalculateBorehole");
+	bool flag_switch_off = false;
+
+	switch(borehole_mode)
+	{
+		case 1:  // constant given value
+			//value *= borehole.temperature - m_pcs->GetNodeValue(node_number, 1);  // implicit
+			break;
+		case 2:
+			//value *= m_pcs->calculateNodeValueFromConnectedNodes(node_number_vec_cond,
+			//		node_length_vec_cond,  // placeholder
+			//		average_mode, average_verbosity, flag_switch_off) - m_pcs->GetNodeValue(node_number, 1);  // implicit
+
+
+			//std::cout << "T_BH: "<< m_pcs->calculateNodeValueFromConnectedNodes(node_number_vec_cond,
+			//		node_length_vec_cond,  // placeholder
+			//		average_mode, average_verbosity, flag_switch_off) << '\n';
+			// std::cout << "T_UG: " << m_pcs->GetNodeValue(node_number, 1) << '\n';
+			break;
+		default:
+			throw std::runtime_error("Borehole mode not supported");
+
+	}
+	if(flag_switch_off)  // average mode 2 (flow averaged) and currently no flow
+		value = 0.;
+
+	if(borehole.verbosity > 0)
+		std::cout << "\tBorehole node " << node_number << ":\t" << value << '\n';
+
+	   CSparseMatrix* A = NULL;
+	   A = m_pcs->get_eqs_new()->get_A();
+	   (*A)(node_number, node_number) += value;
+	//MXInc(node_number, node_number, value );
+
+	return value * borehole.temperature;
 }
 

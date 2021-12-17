@@ -21,6 +21,7 @@
 
 // PCSLib
 #include "rf_pcs.h"
+#include "prop.h"
 
 struct FluidVelocity  // JOD 2018-5-4
 {
@@ -34,7 +35,10 @@ namespace FiniteElement
 {class CFiniteElementStd;
 }
 using FiniteElement::CFiniteElementStd;
-class CMediumProperties
+
+
+
+class CMediumProperties : public Properties
 {
 public:
 	CFiniteElementStd* Fem_Ele_Std;
@@ -151,8 +155,6 @@ private:
 	double Porosity(long number,double theta); //CMCD 9/2004 GeoSys 4
 	                                           //CMCD 4/2005
 	void SetConstantELEarea(double area, int group);
-	//OK
-	void SetDistributedELEProperties(std::string);
 
 	void WriteTecplotDistributedProperties(); //OK
     double HeatTransferCoefficient(long number,double theta, CFiniteElementStd* assem); //NW
@@ -164,7 +166,7 @@ private:
 	 */
 	GEOLIB::GEOTYPE getGeoType() const { return _geo_type; }
 
-    CFEMesh* getMesh(void) { return _mesh; }
+
 
     FluidVelocity fluidVelocity;  // JOD 2018-5-4
 
@@ -178,7 +180,7 @@ public:
 	std::vector<std::string>pcs_name_vector;
 private:
 	std::vector<std::string> porosity_pcs_name_vector;
-	CFEMesh* _mesh; //OK
+
 
 	/**
 	 * attribute describes the type of the geometric entity the
@@ -187,11 +189,11 @@ private:
 	GEOLIB::GEOTYPE _geo_type;
 	FiniteElement::FrictionPhase _fric_phase;
 public:
+	int getNumber() { return number; }
 	//GEO
 	std::string geo_name;
 	std::vector<std::string>geo_name_vector; //OK
 	double geo_area;
-	std::string geo_area_file;            //OK
 
 	double density;
 	std::string name;
@@ -203,7 +205,6 @@ public:
 	double porosity;
 	double KC_porosity_initial;           // HS 11.2008
 	double KC_permeability_initial;       // HS 11.2008
-	std::string porosity_file;            //OK/MB
 	int tortuosity_model;
 	double tortuosity_model_values[10];
 	double tortuosity;
@@ -249,9 +250,6 @@ public:
 	double saturation_exponent[MAX_FLUID_PHASES];
 	double perm_saturation_value[MAX_FLUID_PHASES];
 	//
-	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file,BW: X Direction; taken by JOD 2020-3-20
-	std::string permeability_Y_file;        //SB //OK/MB string permeability_dis_type_file,BW: Y Direction
-	std::string permeability_Z_file;        //SB //OK/MB string permeability_dis_type_file,BW: Z Direction;
 	std::string tortuosity_file;          // PCH
 	bool entry_pressure_conversion;		//JT
 	int capillary_pressure_model;
@@ -349,19 +347,7 @@ extern bool MMPRead(std::string);
 extern void MMPDelete();
 extern CMediumProperties* MMPGet(const std::string&);
 extern void MMP2PCSRelation(CRFProcess*);
-extern void GetHeterogeneousFields();             //SB
-extern long GetNearestHetVal2(long EleIndex,
-                              CFEMesh* m_msh,
-                              std::vector <double> xvals,
-                              std::vector <double> yvals,
-                              std::vector <double> zvals,
-                              std::vector <double> mmpvals);
-double GetAverageHetVal2(long EleIndex,
-                         CFEMesh* m_msh,
-                         std::vector <double> xvals,
-                         std::vector <double> yvals,
-                         std::vector <double> zvals,
-                         std::vector <double> mmpvals);
+
 extern bool MMPExist(std::ifstream* mmp_file);    //OK
 extern bool MMPExist();                           //OK
 

@@ -163,7 +163,7 @@ CBoundaryCondition::CBoundaryCondition() :
 	_isSeepageBC = false;
 	is_conditionally_active = false;
 	average_mode = 0;
-	average_mode_verbosity = 0;
+	average_verbosity = 0;
 
 	connected_geometry = false;  // JOD 2020-01-27
 	geoInfo_connected = new GeoInfo();
@@ -623,7 +623,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 		  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
 		  {
 			  in.str(readNonBlankLineFromInputStream(*bc_file));
-			  in >> average_mode >> average_mode_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
+			  in >> average_mode >> average_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
 			  std::cout << "\tAverage mode " << average_mode;
 			  if(average_mode == 0)
 				  std::cout << " - equal\n";
@@ -1974,82 +1974,3 @@ void CBoundaryCondition::SurfaceInterpolation(CRFProcess* m_pcs,
 	}                                     //j
 }
 
-/**************************************************************************
-   ROCKFLOW - Funktion:
-   Programming:
-   11/2021 JOD Implementation
-**************************************************************************/
-double CBoundaryConditionNode::calculateNodeValueFromConnectedNodes(CRFProcess* m_pcs, const int& average_mode, const int& average_mode_verbosity, bool& flag_switch_off_BC)
-{
-	double value = 0.;
-	CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
-
-	switch(average_mode)
-	{
-		case 0:  // average over node values
-			for(int i=0; i< msh_vector_conditional.size(); ++i)
-			{
-
-				value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1); // implicit
-				if(average_mode_verbosity)
-					std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << " x 1.\n";
-			}
-			value /= msh_vector_conditional.size();
-
-			break;
-		case 1:  // average over node values and weight with geometry area
-			for(int i=0; i< msh_vector_conditional.size(); ++i)
-			{
-				value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) *  // implicit
-						msh_vector_conditional_length[i];
-				if(average_mode_verbosity)
-					std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << " x " << 
-						msh_vector_conditional_length[i] << '\n';
-			}
-			value /= std::accumulate(msh_vector_conditional_length.begin(),
-					msh_vector_conditional_length.end(), 0.);
-			break;
-		case 2:   // average over node values and weight with liquid flow source / sink term
-			if(m_pcs_liquid)
-			{
-				double ST_values_total = 0.;
-				for(int i=0; i< msh_vector_conditional.size(); ++i)
-				{  // !!! LIQUID_FLOW has to keep source / sink term values
-					if(m_pcs_liquid->ST_values_kept.find(msh_vector_conditional[i]) != m_pcs_liquid->ST_values_kept.end())
-					{
-						const double ST_value = m_pcs_liquid->ST_values_kept[msh_vector_conditional[i]];
-						ST_values_total += ST_value;
-						value += m_pcs->GetNodeValue(msh_vector_conditional[i], 1) * ST_value;
-						if(average_mode_verbosity)
-							std::cout << "\t\t\t" << msh_vector_conditional[i] << ": " << m_pcs->GetNodeValue(msh_vector_conditional[i], 1) << 
-								" with ST: " << ST_value << '\n';
-					}
-					else
-						throw std::runtime_error("BC: Did not keep LIQUID_FLOW source term");
-				}
-				if(ST_values_total != 0.)
-					value /= ST_values_total;
-				else
-				{
-					if(average_mode_verbosity)
-						std::cout << "\t\tNo BC\n";
-					flag_switch_off_BC = true;
-				}	
-
-			}
-			else
-				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");
-
-			break;
-		default:
-			throw std::runtime_error("Calc BC node value: average mode not supported");
-	}
-
-	if(average_mode_verbosity)
-		std::cout << "\t\tAverage: " << value << "\n";
-
-	value += node_value;  // !!! DIS_TYPE CONSTANT becomes offset
-
-	return value;
-
-}

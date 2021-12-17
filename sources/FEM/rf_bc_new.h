@@ -54,7 +54,7 @@ class CBoundaryCondition :
 	int average_mode;
 
 public:
-	int average_mode_verbosity;
+	int average_verbosity;
 	bool isConnected() const { return connected_geometry; }
 
 	friend class CBoundaryConditionsGroup;
@@ -264,7 +264,6 @@ public:
 	// 25.08.2011. WW
 	void Read(std::istream& is);
 	void Write(std::ostream& os) const;
-	double calculateNodeValueFromConnectedNodes(CRFProcess*, const int&, const int&, bool&);
 
 private:
 	double _normal_vector[3];
@@ -354,5 +353,6 @@ extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
 			     FiniteElement::PrimaryVariable prim_val,
 			     bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode);
 }
+
 
 #endif

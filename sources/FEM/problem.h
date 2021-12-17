@@ -11,12 +11,15 @@ class CRFProcess;
 
 // GEOLIB
 #include "GEOObjects.h"
+#include "msh_mesh.h"
 
 extern int logging;
 
+class Problem;
+//class CMediumProperties;
+class Properties;
 //---------------------------------------------------------------------
 //Pointers to member functions
-class Problem;
 typedef  double (Problem::*ProblemMemFn)(void);
 #define Call_Member_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 //---------------------------------------------------------------------
@@ -163,4 +166,22 @@ class Problem
 };
 
 extern bool MODCreate();                          //OK
+
+void GetHeterogeneousFields();
+void SetDistributedELEProperties(Properties*, std::string, std::string);
+void WriteTecplotDistributedProperties();
+
+long GetNearestHetVal2(long EleIndex,
+							MeshLib::CFEMesh* m_msh,
+                              std::vector <double> xvals,
+                              std::vector <double> yvals,
+                              std::vector <double> zvals,
+                              std::vector <double> mmpvals);
+double GetAverageHetVal2(long EleIndex,
+						MeshLib::CFEMesh* m_msh,
+                         std::vector <double> xvals,
+                         std::vector <double> yvals,
+                         std::vector <double> zvals,
+                         std::vector <double> mmpvals);
+
 #endif

@@ -49,6 +49,7 @@ set( HEADERS
 	Stiff_Bulirsch-Stoer.h
 	tools.h
 	vtk.h
+	prop.h
 )
 
 set( SOURCES

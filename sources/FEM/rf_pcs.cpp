@@ -7304,7 +7304,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						cout << "Warning in CRFProcess::IncorporateBoundaryConditions - no FCT data" << "\n";
 				}
          //................................................................
-				// copy values SB 09.2012
+				// copy values SB	 09.2012
 				if(m_bc_node->bc_node_copy_geom.length() > 0)
 				{
 					size_t geo_node_id;
@@ -7380,12 +7380,14 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 
 				if(m_bc->isConnected())	// JOD 2020-01-27
 				{
-					if(m_bc->average_mode_verbosity)
+					if(m_bc->average_verbosity)
 						std::cout << "\tNode: " << m_bc_node->msh_node_number << '\n'; 
 
 					bool flag_switch_off_BC = false;
-					bc_value = time_fac * fac * m_bc_node->calculateNodeValueFromConnectedNodes(this,
-							m_bc->get_average_mode(), m_bc->average_mode_verbosity, flag_switch_off_BC);
+					bc_value += time_fac * fac * calculateNodeValueFromConnectedNodes(
+							m_bc_node->msh_vector_conditional, m_bc_node->msh_vector_conditional_length,
+							m_bc->get_average_mode(), m_bc->average_verbosity, flag_switch_off_BC);
+					//  !!! DIS_TYPE CONSTANT becomes offset
 					if(flag_switch_off_BC)
 						continue;
 				}
@@ -8857,6 +8859,11 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 					   value = 0;
 				  }
+				  //----------------------------------------------------------------------------------------
+				  if(m_st->GetBoreholeMode() > 0)
+					  value = m_st->CalculateBorehole(value, cnodev->msh_node_number,
+							  	  cnodev->msh_vector_conditional, cnodev->msh_vector_conditional_length,
+								  m_st->average_mode, m_st->average_verbosity);
 				  //----------------------------------------------------------------------------------------
 			  }
 				//-------------------------------------------------------------------
@@ -17670,3 +17677,87 @@ void CRFProcess::set_BCNode(long bc_eqs_index, long bc_value)
 #endif
 #endif
 }
+
+
+/**************************************************************************
+   ROCKFLOW - Funktion:
+   Programming:
+   11/2021 JOD Implementation
+**************************************************************************/
+double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&  nodes_vector,
+	    const std::vector<double>&  length_vector,
+		const int& average_mode, const int& average_verbosity, bool& flag_switch_off)
+{
+	double value = 0.;
+	CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+	if (nodes_vector.empty())
+		throw std::runtime_error("Connected nodes are missing");
+
+	switch(average_mode)
+	{
+		case 0:  // average over node values
+			for(int i=0; i< nodes_vector.size(); ++i)
+			{
+
+				value += GetNodeValue(nodes_vector[i], 1); // implicit
+				if(average_verbosity)
+					std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) << " x 1.\n";
+			}
+			value /= nodes_vector.size();
+
+			break;
+		case 1:  // average over node values and weight with geometry area
+			for(int i=0; i< nodes_vector.size(); ++i)
+			{
+				value += GetNodeValue(nodes_vector[i], 1) *  // implicit
+						length_vector[i];
+				if(average_verbosity)
+					std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) << " x " <<
+					length_vector[i] << '\n';
+			}
+			value /= std::accumulate(length_vector.begin(), length_vector.end(), 0.);
+			break;
+		case 2:   // average over node values and weight with liquid flow source / sink term
+			if(m_pcs_liquid)
+			{
+				double ST_values_total = 0.;
+				for(int i=0; i< nodes_vector.size(); ++i)
+				{  // !!! LIQUID_FLOW has to keep source / sink term values
+					if(m_pcs_liquid->ST_values_kept.find(nodes_vector[i]) != m_pcs_liquid->ST_values_kept.end())
+					{
+						const double ST_value = m_pcs_liquid->ST_values_kept[nodes_vector[i]];
+						ST_values_total += ST_value;
+						value += GetNodeValue(nodes_vector[i], 1) * ST_value;
+						if(average_verbosity)
+							std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) <<
+								" with ST: " << ST_value << '\n';
+					}
+					else
+						throw std::runtime_error("BC: Did not keep LIQUID_FLOW source term");
+				}
+				if(ST_values_total != 0.)
+					value /= ST_values_total;
+				else
+				{
+					if(average_verbosity)
+						std::cout << "\t\tNo BC\n";
+					flag_switch_off = true;
+				}
+
+			}
+			else
+				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");
+
+			break;
+		default:
+			throw std::runtime_error("Calc BC node value: average mode not supported");
+	}
+
+	if(average_verbosity)
+		std::cout << "\t\tAverage: " << value << "\n";
+
+	return value;
+
+}
+

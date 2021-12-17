@@ -14,11 +14,14 @@
 #include <string>
 #include <vector>
 
+
 // MSHLib
 #include "msh_core.h"
 
 namespace MeshLib
 {
+class CElem;
+
 // Class definition
 class CNode : public CCore
 {
@@ -146,14 +149,17 @@ public:
 	{
 		return _connected_nodes;
 	}
-  size_t getNumConnectedElements() const
-  {
-     return _connected_elements.size();
-  }
-        size_t getNumConnectedNodes() const 
-        {
-	  return _connected_nodes.size();
-        }
+	size_t getNumConnectedElements() const
+	{
+		return _connected_elements.size();
+	}
+	size_t getNumConnectedNodes() const
+	{
+		return _connected_nodes.size();
+    }
+
+	std::vector<size_t> getConnectedElementOnPolyineIDs(std::vector<long> nod_vector, std::vector<CElem*> ele_vector) const;  // JOD 2021-12-08
+
 private:
 	double coordinate[3];
 	long eqs_index; // renumber

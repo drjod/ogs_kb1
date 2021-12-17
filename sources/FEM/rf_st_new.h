@@ -77,8 +77,6 @@ struct StorageRate
 	double inlet_totalArea, outlet_totalArea;
 };
 
-
-
 typedef struct
 {
 	std::vector<double> value_reference;
@@ -86,6 +84,14 @@ typedef struct
 	//double value_store[10][5000];
 	double** value_store;                 //[PCS_NUMBER_MAX*2]First ref no processes(two fields per process..time, value), second ref no values
 } NODE_HISTORY;
+
+struct borehole_type
+{
+	double temperature;
+	double radius;
+	int verbosity;
+};
+
 
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
@@ -115,6 +121,11 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	bool wdc_flag_extract_and_reinject;
 	bool variable_storage;
 
+	int average_mode;	// JOD 2020-12-10
+	int average_verbosity;
+	int average;
+	int borehole_mode;	// JOD 2020-12-07
+	borehole_type borehole;
 public:
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -124,8 +135,6 @@ public:
 	                        const GEOLIB::GEOObjects & geo_obj,
 	                        const std::string & unique_name);
 	void Write(std::fstream*);
-
-
 
 	void SetNOD2MSHNOD(std::vector<long> & nodes, std::vector<long> & conditional_nodes);
 
@@ -160,11 +169,11 @@ public:
 	        std::vector<double> const & nodes_as_interpol_points,
 	        std::vector<double>& node_values) const;
 
-	void SetNodeValues(const std::vector<long> & nodes, const std::vector<long> & nodes_cond,
-	                   const std::vector<double> & node_values, int ShiftInNodeVector); // used only in sourcetermgroup
+	void SetNodeValues(const std::vector<long> &, const std::vector<long> &, const std::vector<double>&,
+	                   const std::vector<double> &, const int&); // used only in sourcetermgroup
 
 	void CalculateScalingForNode(const CNodeValue* const, const long& msh_node, const CFEMesh* const, const double&,
-			std::vector<scaling_type>&c, std::map<int, double>&, std::map<int, double>&);
+			std::vector<scaling_type>&, std::map<int, double>&, std::map<int, double>&);
 
 	void SetNOD();
 
@@ -202,7 +211,8 @@ public:
 	bool no_surface_water_pressure, explicit_surface_water_pressure; // JOD 
 	
 	bool isCoupled () const { return _coupled; }
-	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
+	bool isConnected() const { return connected_geometry_mode > -1; }  // JOD 2/2015
+	bool isConnectedGeometry() const { return connected_geometry; }  // JOD 2021-12-10
 	bool hasThreshold() const { return threshold_geometry; }
 	bool calculatedFromStorageRate() const { return storageRate_geometry; }
 
@@ -299,6 +309,10 @@ public:
 	  int GetScalingNodeGroup() { return scaling_node_group; } 
 	  int scaling_verbosity;
 
+	  //double GetWellTemperature() { return well_temperature; }
+	  int GetBoreholeMode() { return borehole_mode; }
+	  double CalculateBorehole(double&, const long&, const std::vector<long>&, const std::vector<double>&, const int&, const int&);
+
 private:                                          // TF, KR
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,
@@ -344,8 +358,8 @@ private:                                          // TF, KR
 	double analytical_matrix_density;     // used only once in a global in rf_st_new
 	double factor;
 
-	  double transfer_coefficient; //TN - for DIS_TYPE TRANSFER_SURROUNDING
-	  double value_surrounding; //TN - for DIS_TYPE TRANSFER_SURROUNDING
+	double transfer_coefficient; //TN - for DIS_TYPE TRANSFER_SURROUNDING
+	double value_surrounding; //TN - for DIS_TYPE TRANSFER_SURROUNDING
 
 	std::string nodes_file;
 	int msh_node_number;
@@ -456,7 +470,7 @@ private:
 	                                      std::vector<size_t>& ply_nod_vector,
 	                                      std::vector<size_t>& ply_nod_vector_cond);
 
-      void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
+    void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
     		  const std::vector<long>& ply_nod_vector,
     		  std::vector<long>& ply_nod_vector_cond, std::vector<double>& ply_nod_val_vector);
 

@@ -13,6 +13,7 @@
 //#include <iostream>
 //#include <sstream>
 #include <cfloat>
+#include <stdexcept>
 
 // FEM-Makros
 #include "makros.h"
@@ -171,148 +172,225 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 		// subkeyword found
 		if(line_string.find("CAPACITY") != string::npos)
 		{
-			in_sd.str(GetLineFromFile1(msp_file));
-			in_sd >> Capacity_mode;
-			switch(Capacity_mode)
+			if(line_string.find("_DISTRIBUTION") != string::npos)
 			{
-			case 0:       //  = f(x)
-				in_sd >> Size;
-				in_sd.clear();
-				data_Capacity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
+				Capacity_mode = 22;
+
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> file_name_capacity;
+
+				std::cout << "\t\tHeat capacity distribution file name: " << file_name_capacity << '\n';
+
+				//------- from PERMEABILITY_DISTRIBUTION - to get path (equal in CONDUCTIVITY_DISTRIBUTION)
+				string file_name = file_name_capacity;
+				size_t indexChWin, indexChLinux; //WW
+				indexChWin = indexChLinux = 0;
+				std::string funfname;
+
+				indexChWin = FileName.find_last_of('\\');
+				indexChLinux = FileName.find_last_of('/');
+				if(indexChWin == string::npos && indexChLinux == std::string::npos)
+					funfname = file_name;
+				else if(indexChWin != string::npos)
 				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >> (*data_Capacity)(i,0) >> (*data_Capacity)(i,1);
-					in_sd.clear();
+					funfname = FileName.substr(0,indexChWin);
+					funfname = funfname + "\\" + file_name;
 				}
-				break;
-			case 1:       //  = const
-				data_Capacity = new Matrix(1);
-				in_sd >> (*data_Capacity)(0);
+				else if(indexChLinux != string::npos)
+				{
+					funfname = FileName.substr(0,indexChLinux);
+					funfname = funfname + "/" + file_name;
+				}
+				file_name_capacity = funfname;
+				//--------------------------------------
 				in_sd.clear();
-				break;
-			case 2:       // boiling model for rock. WW
-				// 0. Wet capacity
-				// 1. Dry capacity
-				// 2. Boiling temperature
-				// 3. Boiling temperature range
-				// 4. Latent of vaporization
-				data_Capacity = new Matrix(5);
-				for(i = 0; i < 5; i++)
-					in_sd >> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-			case 3:       // DECOVALEX THM1, Bentonite
-				in_sd.clear();
-				break;
-			case 4:
-				//0. Capacity at density 1
-				//1. Capacity at density 2
-				//2. density 1
-				//3. density 2
-				data_Capacity = new Matrix(5);
-				for(i=0; i<4; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-				// TES
-			case 5: //Capacity depending on solid conversion
-				//0. Capacity at lower_density_limit (reactive system property)
-				//1. Capacity at upper_density_limit (reactive system property)
-				data_Capacity = new Matrix(3);
-				for(i=0; i<2; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-			case 6: //Capacity depending on loading with adsorbate
-				//0. Capacity at desorbed state (lower density limit)
-				//1. Capacity of adsorbate
-				data_Capacity = new Matrix(3);
-				for(i=0; i<2; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
+			}
+			else
+			{
+
+					in_sd.str(GetLineFromFile1(msp_file));
+					in_sd >> Capacity_mode;
+					switch(Capacity_mode)
+					{
+					case 0:       //  = f(x)
+						in_sd >> Size;
+						in_sd.clear();
+						data_Capacity = new Matrix(Size, 2);
+						for(i = 0; i < Size; i++)
+						{
+							in_sd.str(GetLineFromFile1(msp_file));
+							in_sd >> (*data_Capacity)(i,0) >> (*data_Capacity)(i,1);
+							in_sd.clear();
+						}
+						break;
+					case 1:       //  = const
+						data_Capacity = new Matrix(1);
+						in_sd >> (*data_Capacity)(0);
+						in_sd.clear();
+						break;
+					case 2:       // boiling model for rock. WW
+						// 0. Wet capacity
+						// 1. Dry capacity
+						// 2. Boiling temperature
+						// 3. Boiling temperature range
+						// 4. Latent of vaporization
+						data_Capacity = new Matrix(5);
+						for(i = 0; i < 5; i++)
+							in_sd >> (*data_Capacity)(i);
+						in_sd.clear();
+						break;
+					case 3:       // DECOVALEX THM1, Bentonite
+						in_sd.clear();
+						break;
+					case 4:
+						//0. Capacity at density 1
+						//1. Capacity at density 2
+						//2. density 1
+						//3. density 2
+						data_Capacity = new Matrix(5);
+						for(i=0; i<4; i++)
+							in_sd>> (*data_Capacity)(i);
+						in_sd.clear();
+						break;
+						// TES
+					case 5: //Capacity depending on solid conversion
+						//0. Capacity at lower_density_limit (reactive system property)
+						//1. Capacity at upper_density_limit (reactive system property)
+						data_Capacity = new Matrix(3);
+						for(i=0; i<2; i++)
+							in_sd>> (*data_Capacity)(i);
+						in_sd.clear();
+						break;
+					case 6: //Capacity depending on loading with adsorbate
+						//0. Capacity at desorbed state (lower density limit)
+						//1. Capacity of adsorbate
+						data_Capacity = new Matrix(3);
+						for(i=0; i<2; i++)
+							in_sd>> (*data_Capacity)(i);
+						in_sd.clear();
+						break;
+					default:
+						throw std::runtime_error("Error when reading MSP-File: Capacity not supported");
+			}
+
 			}
 		}
-
 		//....................................................................
 		// subkeyword found
-		if(line_string.compare("CONDUCTIVITY") == 0)
+		if(line_string.find("CONDUCTIVITY")  != string::npos)
 		{
-			in_sd.str(GetLineFromFile1(msp_file));
-			in_sd >> Conductivity_mode;
-			switch(Conductivity_mode)
+			if(line_string.find("_DISTRIBUTION")  != string::npos)
 			{
-			case 0:       //  = f(T) //21.12.2009 WW
-				in_sd >> heat_conductivity_fct_number;
-				in_sd.clear();
-				/*in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
+				Conductivity_mode = 22;
+
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> file_name_conductivity;
+				std::cout << "\t\tHeat conductivity distribution file name: " << file_name_conductivity << '\n';
+
+				//------- from PERMEABILITY_DISTRIBUTION - to get path (equal in CAPACITY_DISTRIBUTION)
+				string file_name = file_name_conductivity;
+				size_t indexChWin, indexChLinux; //WW
+				indexChWin = indexChLinux = 0;
+				std::string funfname;
+
+				indexChWin = FileName.find_last_of('\\');
+				indexChLinux = FileName.find_last_of('/');
+				if(indexChWin == string::npos && indexChLinux == std::string::npos)
+					funfname = file_name;
+				else if(indexChWin != string::npos)
 				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
-				}*/
-				//WW
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 1:       //  = const
-				data_Conductivity = new Matrix(1);
-				in_sd >> (*data_Conductivity)(0);
-				in_sd.clear();
-				break;
-			case 2:       // boiling model for rock. WW
-				// 0. Wet conductivity
-				// 1. Dry conductivity
-				// 2. Boiling temperature
-				// 3. Boiling temperature range
-				data_Conductivity = new Matrix(4);
-				for(i = 0; i < 4; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 3:       // DECOVALEX THM1, Bentonite
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 30:       // another model for bentonite. WW
-				// 0. maximum conductivity
-				// 1. minimum conductivity
-				// 2. saturation
-				data_Conductivity = new Matrix(3);
-				for(i = 0; i < 3; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 4:       //  = f(S) //21.12.2009 WW
-				in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
+					funfname = FileName.substr(0,indexChWin);
+					funfname = funfname + "\\" + file_name;
 				}
-				break;
-			case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function 
-				in_sd >> T_0;
+				else if(indexChLinux != string::npos)
+				{
+					funfname = FileName.substr(0,indexChLinux);
+					funfname = funfname + "/" + file_name;
+				}
+				file_name_conductivity = funfname;
+				//--------------------------------------
 				in_sd.clear();
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
- 				conductivity_pcs_name_vector.push_back("SATURATION1");
-				break; 
 			}
-			in_sd.clear();
+			else
+			{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> Conductivity_mode;
+				switch(Conductivity_mode)
+				{
+				case 0:       //  = f(T) //21.12.2009 WW
+					in_sd >> heat_conductivity_fct_number;
+					in_sd.clear();
+					/*in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}*/
+					//WW
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 1:       //  = const
+					data_Conductivity = new Matrix(1);
+					in_sd >> (*data_Conductivity)(0);
+					in_sd.clear();
+					break;
+				case 2:       // boiling model for rock. WW
+					// 0. Wet conductivity
+					// 1. Dry conductivity
+					// 2. Boiling temperature
+					// 3. Boiling temperature range
+					data_Conductivity = new Matrix(4);
+					for(i = 0; i < 4; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 3:       // DECOVALEX THM1, Bentonite
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 30:       // another model for bentonite. WW
+					// 0. maximum conductivity
+					// 1. minimum conductivity
+					// 2. saturation
+					data_Conductivity = new Matrix(3);
+					for(i = 0; i < 3; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 4:       //  = f(S) //21.12.2009 WW
+					in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}
+					break;
+				case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function
+					in_sd >> T_0;
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					conductivity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				default:
+					throw std::runtime_error("Error when reading MSP-File: Conductivity not supported");
+				}
+				in_sd.clear();
+			}
+
 		}
 
 		//....................................................................
@@ -377,14 +455,10 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				}
 				break;
 			default:
-				cout <<
-				"Error in CSolidProperties::Read: no valid thermal conductivity tensor type"
-				     << "\n";
-				break;
+				throw std::runtime_error("Error in CSolidProperties::Read: no valid thermal conductivity tensor type");
 			}
 			in_sd.clear();
 		}
-
 		//....................................................................
 		// subkeyword found
 		if(line_string.find("$ELASTICITY") != string::npos)
@@ -1380,7 +1454,6 @@ double CSolidProperties::Heat_Conductivity(double refence)
 	switch(Conductivity_mode)
 	{
 	case 0:
-		int gueltig;
 		val = GetCurveValue(heat_conductivity_fct_number, 0, refence, &gueltig);
 		//val = CalulateValue(data_Conductivity, refence);
 		break;
@@ -1437,9 +1510,8 @@ double CSolidProperties::Heat_Conductivity(double refence)
    last modification:
    ToDo: geo_dimension
 **************************************************************************/
-void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, int group)
+void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, const int& group, const int& index)
 {
-	group = group;                        //OK411
 	//static double tensor[9];
 	double temperature = 0.0;
 	double saturation = 0.0;
@@ -1477,7 +1549,22 @@ void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, int
 		break;
 	case 5:                      
 		base_thermal_conductivity = GetMatrixValue(primary_variable[1],primary_variable[0]+T_0,name,&gueltig);  
-		break;  
+		break;
+	case 22:
+		// get the index:-------------------------------------------------------------------
+		int ndx;
+		for(ndx = 0; ndx < (int)getMesh()->mat_names_vector.size();++ndx)
+			if(getMesh()->mat_names_vector[ndx].compare(
+					   "SOLID_HEAT_CONDUCTIVITY") == 0)
+				break;
+		// end of getting the index---------------------------------------------------------
+		if(getMesh()->ele_vector[index]->mat_vector.Size() == 0)
+		{
+			throw std::runtime_error("No material");
+			return;
+		}
+		base_thermal_conductivity = getMesh()->ele_vector[index]->mat_vector(ndx);
+		break;
 	default:                              //Normal case
 		cout <<
 		"***Error in CSolidProperties::HeatConductivityTensor(): conductivity mode is not supported "

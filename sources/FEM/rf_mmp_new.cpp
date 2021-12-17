@@ -67,7 +67,7 @@ using FiniteElement::ElementValue_DM;
    last modification:
 **************************************************************************/
 CMediumProperties::CMediumProperties() :
-	geo_dimension(0), _mesh (NULL), _geo_type (GEOLIB::GEODOMAIN)
+	geo_dimension(0), _geo_type (GEOLIB::GEODOMAIN)
 {
 	name = "DEFAULT";
 	mode = 0;
@@ -1813,9 +1813,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			//WW
 			std::ifstream mmp_file(funfname.data(),std::ios::in);
 			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
+				throw std::runtime_error("Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file");
 			mmp_file.close();
 			permeability_model = 2;
 			in.clear();
@@ -2749,10 +2747,40 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 		                * MFPCalcFluidsHeatCapacity(assem);
 		break;
 	//....................................................................
+	case 22:
+		int ndx;
+		for(ndx = 0; ndx < (int)getMesh()->mat_names_vector.size();++ndx)
+			if(getMesh()->mat_names_vector[ndx].compare(
+					   "SOLID_SPECIFIC_HEAT_CAPACITY") == 0)
+				break;
+		// end of getting the index---------------------------------------------------------
+		if(getMesh()->ele_vector[number]->mat_vector.Size() == 0)
+		{
+			throw std::runtime_error("No material");
+		}
+		else
+			specific_heat_capacity_solid = getMesh()->ele_vector[number]->mat_vector(ndx);
+
+		group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		m_msp = msp_vector[group];
+		density_solid = fabs(m_msp->Density());
+
+		if (FLOW)  // from case 1
+		{
+			porosity = assem->MediaProp->Porosity(number, theta);
+			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
+		}
+		else
+		{
+			heat_capacity_fluids = 0.0;
+			porosity = 0.0;
+		}
+
+		heat_capacity = porosity * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid;
+		break;
+	//....................................................................
 	default:
-		std::cout
-		<< "Error in CMediumProperties::HeatCapacity: no valid material model"
-		<< "\n";
+		throw std::runtime_error("Error in CMediumProperties::HeatCapacity: no valid material model");
 		break;
 		//....................................................................
 	}
@@ -2882,7 +2910,7 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 
 	m_msp = msp_vector[group];
 	m_msp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
-	                              group); //MX
+	                              group, number); //MX
 
 	for (i = 0; i < dimen * dimen; i++)
 		heat_conductivity_tensor[i] *= (1.0 - porosity);
@@ -4476,7 +4504,11 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				           "PERMEABILITY") == 0)
 					break;
 			// end of getting the index---------------------------------------------------------
-
+			if(_mesh->ele_vector[index]->mat_vector.Size() == 0)
+			{
+				throw std::runtime_error("No material");
+				return tensor;
+			}
 			tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
 			//CMCD
 			//01.09.2011 WW.  int edx = m_pcs->GetElementValueIndex("PERMEABILITY");
@@ -5482,89 +5514,6 @@ void MMP2PCSRelation(CRFProcess* m_pcs)
 		}
 }
 
-/**************************************************************************
-   PCSLib-Function
-   Liest zu jedem Knoten einen Wert der Permeabilität ein.
-   Identifikation über Koordinaten
-   Programing:
-   10/2003     SB  First Version
-   01/2004     SB  2. Version
-   01/2005 OK Check MAT groups //OK41
-   06/2005 MB msh, loop over mmp groups
-   09/2005 MB EleClass
-   //SB/MB ? member function of CFEMesh / CMediumProperties
-   11/2005 OK GEOMETRY_AREA
-   04/2006 CMCD Constant area
-**************************************************************************/
-//MMPGetHeterogeneousFields
-void GetHeterogeneousFields()
-{
-	//OK411 int ok=0;
-	//OK411 char* name_file=NULL;
-	CMediumProperties* m_mmp = NULL;
-	//----------------------------------------------------------------------
-	// File handling
-	string file_path;
-	string file_path_base_ext;
-
-	//----------------------------------------------------------------------
-	// Tests
-	if(mmp_vector.size() == 0)
-		return;
-	//----------------------------------------------------------------------
-	//Schleife über alle Gruppen
-	for(int i = 0; i < (int)mmp_vector.size(); i++)
-	{
-		m_mmp = mmp_vector[i];
-		//....................................................................
-		// For Permeability
-		if(m_mmp->permeability_file.size() > 0)
-		{
-			//OK name_file = (char *) m_mmp->permeability_file.data();
-			//OK if(name_file != NULL)
-			//OK ok = FctReadHeterogeneousFields(name_file,m_mmp);
-
-			//WW file_path_base_ext = file_path + m_mmp->permeability_file;
-			//WW
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_file);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-
-		//Set Permeability for Y and Z JOD 2020-3-20 from BW
-		if (m_mmp->permeability_Y_file.size() > 0)
-		{
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Y_file);
-		}
-		if (m_mmp->permeability_Z_file.size() > 0)
-		{
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Z_file);
-		}
-		//....................................................................
-		// For Porosity
-		if(m_mmp->porosity_file.size() > 0)
-		{
-			//CB name_file = (char *) m_mmp->porosity_file.data();
-			//CB if(name_file != NULL)
-			//CB  ok = FctReadHeterogeneousFields(name_file,m_mmp);
-			//file_path_base_ext = file_path + m_mmp->porosity_file;
-			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
-			// CB Removed bugs in this function
-			m_mmp->SetDistributedELEProperties(m_mmp->porosity_file);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-		//....................................................................
-		// GEOMETRY_AREA
-		if(m_mmp->geo_area_file.size() > 0)
-		{
-			file_path_base_ext = file_path + m_mmp->geo_area_file;
-			m_mmp->SetDistributedELEProperties(file_path_base_ext);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
-		//....................................................................
-	}
-	//----------------------------------------------------------------------
-}
 
 /**************************************************************************
    PCSLib-Method:
@@ -5592,620 +5541,7 @@ void CMediumProperties::SetConstantELEarea(double area, int group)
 		}
 }
 
-/**************************************************************************
-   PCSLib-Method:
-   Programing:
-   11/2005 OK Implementation
-**************************************************************************/
-void CMediumProperties::SetDistributedELEProperties(string file_name)
-{
-	string line_string, line1;
-	string mmp_property_name;
-	string mmp_property_dis_type;
-	string mmp_property_mesh;
-	MeshLib::CElem* m_ele_geo = NULL;
-	bool element_area = false;
-	long i, j, ihet;
-	double mmp_property_value;
-	int mat_vector_size = 0;              // Init WW
-	double ddummy, conversion_factor = 1.0; //init WW
-	vector <double> xvals, yvals, zvals, mmpvals;
-	vector<double>temp_store;
-	int c_vals;
-	double x, y, z, mmpv;
-	std::stringstream in;
-	//CB
-	vector<double> garage;
-	int mat_vec_size = 0;
-	int por_index = 0;
-	int vol_bio_index = 0;
-	string outfile;
-	int k;
 
-	cout << " SetDistributedELEProperties: ";
-	//----------------------------------------------------------------------
-	// File handling
-	ifstream mmp_property_file(file_name.data(),ios::in);
-	if(!mmp_property_file.good())
-	{
-		cout <<
-		"Warning in CMediumProperties::SetDistributedELEProperties: no MMP property data"
-		     <<
-		"\n";
-		return;
-	}
-	mmp_property_file.clear();
-	mmp_property_file.seekg(0,ios::beg);
-	//----------------------------------------------------------------------
-	line_string = GetLineFromFile1(&mmp_property_file);
-	if(!(line_string.find("#MEDIUM_PROPERTIES_DISTRIBUTED") != string::npos))
-	{
-		cout << "Keyword #MEDIUM_PROPERTIES_DISTRIBUTED not found" << "\n";
-		return;
-	}
-	//----------------------------------------------------------------------
-	while(!mmp_property_file.eof())
-	{
-		line_string = GetLineFromFile1(&mmp_property_file);
-		if(line_string.find("STOP") != string::npos)
-			return;
-		if(line_string.empty())
-		{
-			cout <<
-			"Error in CMediumProperties::SetDistributedELEProperties - no enough data sets"
-			     << "\n";
-			return;
-		}
-		//....................................................................
-		if(line_string.find("$MSH_TYPE") != string::npos)
-		{
-			line_string = GetLineFromFile1(&mmp_property_file);
-			mmp_property_mesh = line_string;
-			_mesh = FEMGet(line_string);
-			if(!_mesh)
-			{
-				cout <<
-				"CMediumProperties::SetDistributedELEProperties: no MSH data" <<
-				"\n";
-				return;
-			}
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$MMP_TYPE") != string::npos)
-		{
-			element_area = false;
-			mmp_property_file >> mmp_property_name;
-			// cout << mmp_property_name << "\n";
-			// _mesh->mat_names_vector.push_back(mmp_property_name);
-			// JOD 2020-3-20 from BW - the same name entry does not save
-			bool existedname = false;
-			if (_mesh->mat_names_vector.size() == 0)
-			{
-				cout << " SetDistributedELEProperties: ";
-				cout << mmp_property_name << "\n";
-				_mesh->mat_names_vector.push_back(mmp_property_name);
-			}
-			else
-			{
-				for (unsigned int idx = 0; idx < _mesh->mat_names_vector.size(); idx++)
-					if (_mesh->mat_names_vector[idx].compare(mmp_property_name) == 0)
-						existedname = true;
-
-				if (existedname == false)
-				{
-					cout << " SetDistributedELEProperties: ";
-					cout << mmp_property_name << "\n";
-					_mesh->mat_names_vector.push_back(mmp_property_name);
-				}
-			}
-			if (mmp_property_name == "GEOMETRY_AREA")
-				element_area = true;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$DIS_TYPE") != string::npos)
-		{
-			mmp_property_file >> mmp_property_dis_type;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$CONVERSION_FACTOR") != string::npos)
-		{
-			mmp_property_file >> conversion_factor;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$DATA") != string::npos)
-		{
-			switch(mmp_property_dis_type[0])
-			{
-			case 'N':     // Next neighbour
-			case 'G':     // Geometric mean
-				// Read in all values given, store in vectors for x, y, z and value
-				i = 0;
-				while(i == 0)
-				{
-					line1 = GetLineFromFile1(&mmp_property_file);
-					if(line1.find("STOP") != string::npos)
-						break;
-					in.str((string)line1);
-					in >> x >> y >> z >> mmpv;
-					in.clear();
-					mmpv *= conversion_factor; // convert values
-					xvals.push_back(x);
-					yvals.push_back(y);
-					zvals.push_back(z);
-					mmpvals.push_back(mmpv);
-				}
-				// sort values to mesh
-				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-				{
-					m_ele_geo = _mesh->ele_vector[i];
-					mat_vector_size = m_ele_geo->mat_vector.Size();
-					// CB Store old values as they are set to zero after resizing
-					for(j = 0; j < mat_vector_size; j++)
-						garage.push_back(m_ele_geo->mat_vector(j));
-					m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-					// CB Refill old values as they were set to zero after resizing
-					for(j = 0; j < mat_vector_size; j++)
-						m_ele_geo->mat_vector(j) = garage[j];
-					garage.clear();
-					if(mmp_property_dis_type[0] == 'N')
-					{
-						// Search for all elements of the mesh, which is the nearest given value in the input file
-						// Return value ihet is the index of the het. val in the mmpval-vector
-						ihet = GetNearestHetVal2(i,
-						                         _mesh,
-						                         xvals,
-						                         yvals,
-						                         zvals,
-						                         mmpvals);
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmpvals[ihet];
-					}
-					if(mmp_property_dis_type[0] == 'G')
-					{
-						mmpv = GetAverageHetVal2(i,
-						                         _mesh,
-						                         xvals,
-						                         yvals,
-						                         zvals,
-						                         mmpvals);
-						m_ele_geo->mat_vector(mat_vector_size) = mmpv;
-					}
-				}
-				break;
-			case 'E':     // Element data modified by JOD 2020-3-20 according to BW
-				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-				{
-					m_ele_geo = _mesh->ele_vector[i];
-
-					int group = m_ele_geo->GetPatchIndex();
-					mmp_property_file >> ddummy >> mmp_property_value;
-					if (group == this->number){				//BW: Only Write for this Material Group					
-						mat_vector_size = m_ele_geo->mat_vector.Size();
-						if (mat_vector_size > 0)
-						{
-							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-								temp_store.push_back(m_ele_geo->mat_vector(
-								c_vals));
-							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-								m_ele_geo->mat_vector(c_vals) =
-								temp_store[c_vals];
-							m_ele_geo->mat_vector(mat_vector_size) =
-								mmp_property_value;
-							temp_store.clear();
-						}
-						else
-						{
-							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-							m_ele_geo->mat_vector(mat_vector_size) =
-								mmp_property_value;
-						}
-						if (element_area)
-							_mesh->ele_vector[i]->SetFluxArea(
-							mmp_property_value);
-						if (line_string.empty())
-						{
-							cout <<
-								"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
-								<< "\n";
-							return;
-						}
-					}
-					else
-						continue;
-				}
-				break;
-			default:
-				cout << " Unknown interpolation option for the values!" << "\n";
-				break;
-			}
-			continue;
-		}
-		//....................................................................
-	}
-	// CB now set VOL_MAT & VOL_BIO as heterogeneous values, if defined as model 2 and het Porosity
-	if( (mmp_property_name == "POROSITY") && (this->vol_bio_model == 2) )
-	{
-		_mesh->mat_names_vector.push_back("VOL_BIO");
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i]; // Get the element
-			mat_vec_size = m_ele_geo->mat_vector.Size();
-			// CB Store old values as they are set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				garage.push_back(m_ele_geo->mat_vector(j));
-			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
-			// CB Refill old values as they were set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				m_ele_geo->mat_vector(j) = garage[j];
-			garage.clear();
-			// Set the VOL_BIO value from mmp file input
-			m_ele_geo->mat_vector(mat_vec_size) = this->vol_bio;
-		}
-	}
-	if( (mmp_property_name == "POROSITY") && (this->vol_mat_model == 2) )
-	{
-		_mesh->mat_names_vector.push_back("VOL_MAT");
-		// Get the porosity index
-		for(por_index = 0; por_index < (int)_mesh->mat_names_vector.size(); por_index++)
-			if(_mesh->mat_names_vector[por_index].compare("POROSITY") == 0)
-				break;
-		// Get the vol_bio index
-		for(vol_bio_index = 0; vol_bio_index < (int)_mesh->mat_names_vector.size();
-		    vol_bio_index++)
-			if(_mesh->mat_names_vector[vol_bio_index].compare("VOL_BIO") == 0)
-				break;
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i]; // Get the element
-			mat_vec_size = m_ele_geo->mat_vector.Size();
-			// CB Store old values as they are set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				garage.push_back(m_ele_geo->mat_vector(j));
-			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
-			// CB Refill old values as they were set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				m_ele_geo->mat_vector(j) = garage[j];
-			garage.clear();
-			// Set the VOL_MAT value from (1-POROSITY-VOL_BIO)
-			m_ele_geo->mat_vector(mat_vec_size) = 1 -
-			                                      m_ele_geo->mat_vector(por_index) -
-			                                      m_ele_geo->mat_vector(vol_bio_index);
-		}
-	}
-	//----------------------------------------------------------------------
-	//Write sorted output file
-	//----------------------------------------------------------------------
-	// File handling
-
-	// CB
-	for(k = 0; k < (int)_mesh->mat_names_vector.size(); k++)
-	{
-		//file_name +="_sorted";
-		outfile = _mesh->mat_names_vector[k] + "_sorted";
-		ofstream mmp_property_file_out(outfile.data());
-		if(!mmp_property_file_out.good())
-		{
-			cout <<
-			"Warning in CMediumProperties::WriteDistributedELEProperties: no MMP property data file to write to"
-			     << "\n";
-			return;
-		}
-		mmp_property_file_out << "#MEDIUM_PROPERTIES_DISTRIBUTED" << "\n";
-		mmp_property_file_out << "$MSH_TYPE" << "\n" << "  " << mmp_property_mesh << "\n";
-		//mmp_property_file_out << "$MSH_TYPE" << "\n" << "  " << mmp_property_mesh << "\n";
-		//mmp_property_file_out << "$MMP_TYPE" << "\n" << "  " << "PERMEABILITY" << "\n";
-		mmp_property_file_out << "$MMP_TYPE" << "\n" << "  " <<
-		_mesh->mat_names_vector[k] << "\n";
-		mmp_property_file_out << "$DIS_TYPE" << "\n" << "  " << "ELEMENT" << "\n";
-		mmp_property_file_out << "$DATA" << "\n";
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i];
-			mmp_property_file_out << i << "  " << m_ele_geo->mat_vector(k) << "\n";
-		}
-		mmp_property_file_out << "#STOP" << "\n";
-		mmp_property_file_out.close();
-		//----------------------------------------------------------------------
-	}
-}
-
-/**************************************************************************
-   PCSLib-Method:
-   Programing:
-   11/2005 OK Implementation
-**************************************************************************/
-void CMediumProperties::WriteTecplotDistributedProperties()
-{
-	int j, k;
-	long i;
-	string element_type;
-	string m_string = "MAT";
-	double m_mat_prop_nod;
-	//----------------------------------------------------------------------
-	// Path
-	string path;
-	//--------------------------------------------------------------------
-	// MSH
-	MeshLib::CNode* m_nod = NULL;
-	MeshLib::CElem* m_ele = NULL;
-	if (!_mesh)
-		return;
-	//--------------------------------------------------------------------
-	// File handling
-	string mat_file_name = path + name + "_" + _mesh->pcs_name + "_PROPERTIES"
-	                       + TEC_FILE_EXTENSION;
-	fstream mat_file(mat_file_name.data(), ios::trunc | ios::out);
-	mat_file.setf(ios::scientific, ios::floatfield);
-	mat_file.precision(12);
-	if (!mat_file.good())
-		return;
-	mat_file.seekg(0L, ios::beg);
-	//--------------------------------------------------------------------
-	if ((long) _mesh->ele_vector.size() > 0)
-	{
-		m_ele = _mesh->ele_vector[0];
-		switch (m_ele->GetElementType())
-		{
-		case MshElemType::LINE:
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::QUAD:
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::HEXAHEDRON:
-			element_type = "BRICK";
-			break;
-		case MshElemType::TRIANGLE:
-			element_type = "TRIANGLE";
-			break;
-		case MshElemType::TETRAHEDRON:
-			element_type = "TETRAHEDRON";
-			break;
-		case MshElemType::PRISM:
-			element_type = "BRICK";
-			break;
-		default:
-			std::cerr
-			<<
-			"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
-			<< "\n";
-		}
-	}
-	//--------------------------------------------------------------------
-	// Header
-	mat_file << "VARIABLES = X,Y,Z";
-	for (j = 0; j < (int) _mesh->mat_names_vector.size(); j++)
-		mat_file << "," << _mesh->mat_names_vector[j];
-	mat_file << "\n";
-	mat_file << "ZONE T = " << name << ", " << "N = "
-	         << (long) _mesh->nod_vector.size() << ", " << "E = "
-	         << (long) _mesh->ele_vector.size() << ", " << "F = FEPOINT" << ", "
-	         << "ET = " << element_type << "\n";
-	//--------------------------------------------------------------------
-	// Nodes
-	for (i = 0; i < (long) _mesh->nod_vector.size(); i++)
-	{
-		m_nod = _mesh->nod_vector[i];
-		double const* const pnt (m_nod->getData());
-		mat_file << pnt[0] << " " << pnt[1] << " " << pnt[2];
-		for (size_t j = 0; j < _mesh->mat_names_vector.size(); j++)
-		{
-			m_mat_prop_nod = 0.0;
-			for (k = 0; k < (int) m_nod->getConnectedElementIDs().size(); k++)
-			{
-				m_ele = _mesh->ele_vector[m_nod->getConnectedElementIDs()[k]];
-				m_mat_prop_nod += m_ele->mat_vector(j);
-			}
-			m_mat_prop_nod /= (int) m_nod->getConnectedElementIDs().size();
-			mat_file << " " << m_mat_prop_nod;
-		}
-		mat_file << "\n";
-	}
-	//--------------------------------------------------------------------
-	// Elements
-	for (i = 0; i < (long) _mesh->ele_vector.size(); i++)
-	{
-		m_ele = _mesh->ele_vector[i];
-		//OK if(m_ele->GetPatchIndex()==number) {
-		switch (m_ele->GetElementType())
-		{
-		case MshElemType::LINE:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[0] + 1 << "\n";
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::QUAD:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << "\n";
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::HEXAHEDRON:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[4] + 1 << " "
-			         << m_ele->getNodeIndices()[5] + 1 << " "
-			         << m_ele->getNodeIndices()[6] + 1 << " "
-			         << m_ele->getNodeIndices()[7] + 1 << "\n";
-			element_type = "BRICK";
-			break;
-		case MshElemType::TRIANGLE:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << "\n";
-			element_type = "TRIANGLE";
-			break;
-		case MshElemType::TETRAHEDRON:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << "\n";
-			element_type = "TETRAHEDRON";
-			break;
-		case MshElemType::PRISM:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[4] + 1 << " "
-			         << m_ele->getNodeIndices()[5] + 1 << "\n";
-			element_type = "BRICK";
-			break;
-		default:
-			std::cerr
-			<<
-			"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
-			<< "\n";
-		}
-	}
-}
-
-/**************************************************************************
-   MSHLib-Method: GetNearestHetVal2
-   Task:
-   Programing:
-   0?/2004 SB Implementation
-   09/2005 MB EleClass
-   01/2006 SB ReImplementation with new concept by Olaf, moved here
-**************************************************************************/
-long GetNearestHetVal2(long EleIndex,
-                       CFEMesh* m_msh,
-                       vector <double> xvals,
-                       vector <double> yvals,
-                       vector <double> zvals,
-                       vector <double> mmpvals)
-{
-	(void)mmpvals;
-	long i, nextele, no_values;
-	double ex, ey, ez, dist, dist1; //WW , dist2;
-	double x, y, z;
-	MeshLib::CElem* m_ele = NULL;
-	no_values = (long) xvals.size();
-
-	x = 0.0;
-	y = 0.0;
-	z = 0.0;
-	dist = 10000000.0;                    //Startwert
-	//WW dist2 = 0.01;                                  // Abstand zwischen eingelesenen Knoten und Geometrieknoten-RF;
-	// Achtung, doppelbelegung möglich bei kleinen Gitterabständen
-	nextele = -1;
-
-	//Get element data
-	m_ele = m_msh->ele_vector[EleIndex];
-	double const* center (m_ele->GetGravityCenter());
-	x = center[0];
-	y = center[1];
-	z = center[2];
-
-	//Calculate distances
-	for(i = 0; i < no_values; i++)
-	{
-		ex = xvals[i];
-		ey = yvals[i];
-		ez = zvals[i];
-		dist1 = (ex - x) * (ex - x) + (ey - y) * (ey - y) + (ez - z) * (ez - z);
-		if(dist1 < dist)
-		{
-			dist = dist1;
-			nextele = i;
-		}
-	}
-
-	return nextele;
-}
-
-/**************************************************************************
-   MSHLib-Method: GetAverageHetVal2
-   Task:
-   Programing:
-   06/2005 MB Implementation
-   01/2006 SB Adapted to new structure
-**************************************************************************/
-double GetAverageHetVal2(long EleIndex,
-                         CFEMesh* m_msh,
-                         vector <double> xvals,
-                         vector <double> yvals,
-                         vector <double> zvals,
-                         vector <double> mmpvals)
-{
-	long i, j, ihet;
-	double average;
-	double xp[3],yp[3];
-	double value;
-	double NumberOfValues;
-	//WW double InvNumberOfValues;
-	CGLPoint* m_point = NULL;
-	MeshLib::CElem* m_ele = NULL;
-	long no_values = (long) xvals.size();
-
-	j = 0;                                //only for 1 value
-
-	//-----------------------------------------------------------------------
-	//Get element data
-	m_ele = m_msh->ele_vector[EleIndex];
-	for(j = 0; j < 3; j++)
-	{
-		double const* const pnt(m_ele->GetNode(j)->getData());
-		xp[j] = pnt[0];
-		yp[j] = pnt[1];
-		//zp[j] = 0.0;
-	}
-
-	//-----------------------------------------------------------------------
-	//Find data points in the element
-	NumberOfValues = 0;
-	//WW InvNumberOfValues = 0;
-	m_point = new CGLPoint;
-
-	average = -1;
-	value = 0;
-
-	for(i = 0; i < no_values; i++)
-		if(mmpvals[i] != -999999.0) //Data point not within an element yet
-		{
-			m_point->x = xvals[i];
-			m_point->y = yvals[i];
-			m_point->z = 0.0;
-
-			//....................................................................
-			//Calculate the product of values in element
-			//CC 10/05
-			if(m_point->IsInTriangleXYProjection(xp,yp))
-			{
-				value = value + zvals[i];
-				NumberOfValues++;
-				mmpvals[i] = -999999.0; //used as marker
-			}
-		}
-	//end for
-	//........................................................................
-	if(NumberOfValues == 0)               //if no data points in element --> get neares value
-	{
-		ihet = GetNearestHetVal2(EleIndex, m_msh, xvals, yvals, zvals, mmpvals);
-		if(ihet < 0)
-			DisplayMsgLn(" Error getting nearest het_value location");
-		else
-			average = mmpvals[ihet];
-	}
-	//........................................................................
-	else                                  //if data points in element --> Calculate arithmetic mean
-
-		average = value / NumberOfValues;
-	delete m_point;
-	return average;
-}
 
 /**************************************************************************
    FEMLib-Method:
@@ -8758,7 +8094,8 @@ double CMediumProperties::HeatTransferCoefficient(long number,double theta, CFin
             const int dimen = assem->pcs->m_msh->GetCoordinateFlag() / 10;
             for (int i=0; i <dimen*dimen; i++)
                 heat_conductivity_tensor[i] = 0.0;
-            assem->SolidProp->HeatConductivityTensor(dimen, heat_conductivity_tensor, assem->MeshElement->GetPatchIndex());
+            assem->SolidProp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
+            		assem->MeshElement->GetPatchIndex(), assem->MeshElement->GetIndex());
             const double lamda_s = heat_conductivity_tensor[0]; //assume isotropic
             val = 6.*(1-n)/dp*1./(1./h+dp/10.0/lamda_s); // confirmed with DLR people. typo in Schaube2011
         } 

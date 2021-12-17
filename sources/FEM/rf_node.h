@@ -47,8 +47,10 @@ class CNodeValue
       int CurveIndex;
       int conditional;
       //std::vector<double>history_value;
-      long msh_node_number_conditional;
-                                                  // JOD   st-coupling 4.7.10
+      long msh_node_number_conditional; // JOD   st-coupling 4.7.10
+      std::vector<long>  msh_vector_conditional; // JOD 2021-12-10
+      std::vector<double>  msh_vector_conditional_length; // JOD 2021-12-10
+
       std::vector<long> msh_node_numbers_averaging;
                                                   // JOD
       std::vector<double> msh_node_weights_averaging;

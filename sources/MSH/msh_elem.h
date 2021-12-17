@@ -27,6 +27,7 @@ class CRFProcess;
 
 namespace MeshLib
 {
+
 //------------------------------------------------------------------------
 // Class definition
 class CElem : public CCore
@@ -291,7 +292,7 @@ public:
 	int GetElementFaceNodes(int Face, int* FacesNode);
 	//------------------------------------------------------------------
 
-	// Neighbors
+	// NeighborsCFEMesh
 	void SetNeighbors(Math_Group::vec<CElem*>& ele_neighbors)
 	{
 		for (size_t i = 0; i < nfaces; i++)
@@ -365,6 +366,8 @@ public:
 
 	int GetExcavState() {return excavated; }    //WX:01.2011 get excavation state
 	void SetExcavState(const int ExcavState) {excavated = ExcavState; }   //WX:01.2011 set excavation state
+
+	double GetHorizontalNodeDistance(CNode*) const;  // JOD 2020-12-09
 private:
 	// Members
 	// ID
