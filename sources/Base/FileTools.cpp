@@ -76,16 +76,6 @@ bool HasCRInLineEnding(std::string const& strFilename)
 }
 
 
-inline char getDirSep()
-{
-#ifdef WIN32
-    return '\\';
-#else
-    return '/';
-#endif
-}
-
-
 std::string pathJoin(const std::string& path1, const std::string& path2)
 {
 	if (path1.empty()) return path2;

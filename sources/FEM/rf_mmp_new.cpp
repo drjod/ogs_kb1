@@ -13,6 +13,7 @@
 
 // FEMLib
 #include "tools.h"
+#include "FileTools.h"
 //#include "rf_pcs.h"
 //#include "femlib.h"
 extern double* GEOGetELEJacobianMatrix(long number,double* detjac);
@@ -1790,67 +1791,21 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		//subkeyword found
 		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos) // JOD 2020-3-20 from BW
 		{
+			permeability_model = 2;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_file;
 			string file_name = permeability_file;
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if(indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if(indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0,indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if(indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0,indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(),std::ios::in);
-			if (!mmp_file.good())
-				throw std::runtime_error("Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file");
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_file = pathDirname(FileName) +  getDirSep() + permeability_file;
 			in.clear();
 			continue;
 		}
 
 		if (line_string.find("$PERMEABILITY_YDISTRIBUTION") != std::string::npos)	// JOD 2020-3-20 from BW, Y direction
 		{
+			permeability_model = 2;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_Y_file;
-			string file_name = permeability_Y_file;
-			
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if (indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if (indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0, indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if (indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0, indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_Y_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(), std::ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_Y_file = pathDirname(FileName) +  getDirSep() + permeability_Y_file;
 			in.clear();
 			continue;
 		}
@@ -1858,34 +1813,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		{
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_Z_file;
-			string file_name = permeability_Z_file;
-			
-
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if (indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if (indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0, indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if (indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0, indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_Z_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(), std::ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_Z_file = pathDirname(FileName) +  getDirSep() + permeability_Z_file;
 			in.clear();
 			continue;
 		}
@@ -1896,37 +1824,10 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		//subkeyword found
 		if(line_string.find("$POROSITY_DISTRIBUTION") != std::string::npos)
 		{
+			porosity_model = 11;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> porosity_file;
-			string file_name = porosity_file;
-			//else{ //CB this is to get the correct path in case the exe is not run from within the project folder
-			//  pos = (int)FileName.find_last_of('\\', -1) + 1;
-			//  file_name = FileName.substr(0,pos) + porosity_file;
-			//}
-			//-------CB as above by WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if(indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if(indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0,indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if(indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0,indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			porosity_file = funfname;
-			//WW
-			ifstream mmp_file(funfname.data(),ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no POROSITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			porosity_model = 11;
+			porosity_file = pathDirname(FileName) +  getDirSep() + porosity_file;
 			in.clear();
 			continue;
 		}

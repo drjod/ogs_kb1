@@ -6,6 +6,8 @@
 #ifndef READER_H
 #define READER_H
 
+#include <string>
+
 namespace FileIO
 {
 
@@ -38,5 +40,6 @@ private:
 };
 
 } // namespace FileIO
+
 
 #endif // READER_H

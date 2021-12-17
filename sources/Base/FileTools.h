@@ -39,4 +39,13 @@ std::string pathJoin(const std::string& path1, const std::string& path2);
 /// returns the current process working directory
 std::string getCwd();
 
+inline char getDirSep()
+{
+#ifdef WIN32
+    return '\\';
+#else
+    return '/';
+#endif
+}
+
 #endif // FILETOOLS_H

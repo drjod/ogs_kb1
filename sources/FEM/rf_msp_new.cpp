@@ -30,6 +30,7 @@
 #include "StringTools.h"
 #include "files0.h"                               // GetLineFromFile1
 #include "tools.h"                                // GetLineFromFile
+#include "FileTools.h"
 
 using namespace std;
 
@@ -175,39 +176,14 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			if(line_string.find("_DISTRIBUTION") != string::npos)
 			{
 				Capacity_mode = 22;
-
 				in_sd.str(GetLineFromFile1(msp_file));
 				in_sd >> file_name_capacity;
-
 				std::cout << "\t\tHeat capacity distribution file name: " << file_name_capacity << '\n';
-
-				//------- from PERMEABILITY_DISTRIBUTION - to get path (equal in CONDUCTIVITY_DISTRIBUTION)
-				string file_name = file_name_capacity;
-				size_t indexChWin, indexChLinux; //WW
-				indexChWin = indexChLinux = 0;
-				std::string funfname;
-
-				indexChWin = FileName.find_last_of('\\');
-				indexChLinux = FileName.find_last_of('/');
-				if(indexChWin == string::npos && indexChLinux == std::string::npos)
-					funfname = file_name;
-				else if(indexChWin != string::npos)
-				{
-					funfname = FileName.substr(0,indexChWin);
-					funfname = funfname + "\\" + file_name;
-				}
-				else if(indexChLinux != string::npos)
-				{
-					funfname = FileName.substr(0,indexChLinux);
-					funfname = funfname + "/" + file_name;
-				}
-				file_name_capacity = funfname;
-				//--------------------------------------
+				file_name_capacity = pathDirname(FileName) +  getDirSep() + file_name_capacity;
 				in_sd.clear();
 			}
 			else
 			{
-
 					in_sd.str(GetLineFromFile1(msp_file));
 					in_sd >> Capacity_mode;
 					switch(Capacity_mode)
@@ -282,33 +258,10 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			if(line_string.find("_DISTRIBUTION")  != string::npos)
 			{
 				Conductivity_mode = 22;
-
 				in_sd.str(GetLineFromFile1(msp_file));
 				in_sd >> file_name_conductivity;
 				std::cout << "\t\tHeat conductivity distribution file name: " << file_name_conductivity << '\n';
-
-				//------- from PERMEABILITY_DISTRIBUTION - to get path (equal in CAPACITY_DISTRIBUTION)
-				string file_name = file_name_conductivity;
-				size_t indexChWin, indexChLinux; //WW
-				indexChWin = indexChLinux = 0;
-				std::string funfname;
-
-				indexChWin = FileName.find_last_of('\\');
-				indexChLinux = FileName.find_last_of('/');
-				if(indexChWin == string::npos && indexChLinux == std::string::npos)
-					funfname = file_name;
-				else if(indexChWin != string::npos)
-				{
-					funfname = FileName.substr(0,indexChWin);
-					funfname = funfname + "\\" + file_name;
-				}
-				else if(indexChLinux != string::npos)
-				{
-					funfname = FileName.substr(0,indexChLinux);
-					funfname = funfname + "/" + file_name;
-				}
-				file_name_conductivity = funfname;
-				//--------------------------------------
+				file_name_conductivity = pathDirname(FileName) +  getDirSep() + file_name_conductivity;
 				in_sd.clear();
 			}
 			else
