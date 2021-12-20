@@ -5694,10 +5694,13 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 	if(borehole.verbosity > 0)
 		std::cout << "\tBorehole node " << node_number << ":\t" << value << '\n';
 
-	   CSparseMatrix* A = NULL;
-	   A = m_pcs->get_eqs_new()->get_A();
-	   (*A)(node_number, node_number) += value;
-	//MXInc(node_number, node_number, value );
+#ifdef NEW_EQS
+	CSparseMatrix* A = NULL;
+	A = m_pcs->get_eqs_new()->get_A();
+	(*A)(node_number, node_number) += value;
+#else
+	MXInc(node_number, node_number, value );
+#endif
 
 	return value * borehole.temperature;
 }
