@@ -158,9 +158,9 @@ std::vector<size_t> CNode::getConnectedElementOnPolyineIDs(std::vector<long> nod
 {
 	std::vector<size_t> connected_elements_on_polyline;
 
-	for (size_t j = 0; j < _connected_elements.size(); ++j)
+	for (size_t i = 0; i < _connected_elements.size(); ++i)
 	{
-		CElem* ele = ele_vector[_connected_elements[j]];
+		CElem* ele = ele_vector[_connected_elements[i]];
 		std::vector<size_t> nodes_on_element;
 		ele->getNodeIndices(nodes_on_element);
 
@@ -171,7 +171,7 @@ std::vector<size_t> CNode::getConnectedElementOnPolyineIDs(std::vector<long> nod
 				number_of_common_nodes++;
 		}
 		if(number_of_common_nodes == 2)
-			connected_elements_on_polyline.push_back(_connected_elements[j]);
+			connected_elements_on_polyline.push_back(_connected_elements[i]);
 		else if(number_of_common_nodes > 2)
 			throw std::runtime_error("Error in CNode::getConnectedElementOnPolyineIDs");
 

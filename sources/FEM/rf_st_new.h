@@ -87,7 +87,7 @@ typedef struct
 
 struct borehole_type
 {
-	double temperature;
+	double value;
 	double radius;
 	int verbosity;
 };

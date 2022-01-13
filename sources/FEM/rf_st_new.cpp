@@ -935,8 +935,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 				  std::cout << " - Swithed off\n";
 				  break;
 			  case 1:
-				  in >> borehole.radius >> borehole.temperature >> borehole.verbosity;
-				  std::cout << " - Radius " << borehole.radius << ", Temperature: " << borehole.temperature << '\n';
+				  in >> borehole.radius >> borehole.value >> borehole.verbosity;
+				  std::cout << " - Radius " << borehole.radius << ", Value: " << borehole.value << '\n';
 				  break;
 			  case 2:
 				  in >> borehole.radius >> borehole.verbosity;
@@ -3057,46 +3057,64 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 		if(st->borehole_mode)
 		{
-			const double heat_conductivity_fluid = mfp_vector[0]->HeatConductivity();
-			const CRFProcess* const m_pcs = pcs_vector[0];
-			const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
-
-			for(int i=0; i < ply_nod_vector.size(); ++i)
+			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
-				std::vector<size_t> elements_connected = m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
-							ply_nod_vector, m_msh->ele_vector);
-
-				double heat_conductivity = 0.;
+				double factor = 0.;
 				double radius = 0.;
+				int ele_type = -1;
 
-				int ele_type;
+				std::vector<size_t> elements_connected = m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
+															ply_nod_vector, m_msh->ele_vector);
+
 				for (size_t j = 0; j < elements_connected.size(); ++j)
 				{
-					const CElem* ele = m_msh->ele_vector[elements_connected[j]];
-					const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
+					const int group = m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
 
-					double heat_conductivity_solid[9];
-					msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
-					const double porosity = mmp_vector[group]->porosity_model_values[0];
+					switch(st->getProcessType())
+					{
+						case  FiniteElement::LIQUID_FLOW:
 
-					heat_conductivity += porosity * heat_conductivity_fluid * (1-porosity) * heat_conductivity_solid[0];
-					radius += ele->GetHorizontalNodeDistance(m_msh->nod_vector[ply_nod_vector[i]]);
+							factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
+										mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+							break;
 
-					//std::cout << "\tcond; " << porosity * heat_conductivity_fluid * (1-porosity) * heat_conductivity_solid[0] << std::endl;
-					//std::cout << "\tradius; " << ele->GetHorizontalNodeDistance(m_msh->nod_vector[ply_nod_vector[i]]) << std::endl;
-					ele_type = ele->GetElementType();
+						case  FiniteElement::HEAT_TRANSPORT:
+						{
+							const int dimen = m_msh->GetCoordinateFlag() / 10;
+
+							double heat_conductivity_solid[9];
+							msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
+							const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
+
+							factor += porosity * mfp_vector[0]->HeatConductivity() + // 1st mfp instance is LIQUID
+									(1-porosity) * heat_conductivity_solid[0];  // one entry
+							break;
+						}
+						default:
+							throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
+					}
+
+					radius += m_msh->ele_vector[elements_connected[j]]->GetHorizontalNodeDistance(m_msh->nod_vector[ply_nod_vector[i]]);
+
+					if(ele_type == -1 )
+						ele_type = m_msh->ele_vector[elements_connected[j]]->GetElementType();
+					else if(ele_type != m_msh->ele_vector[elements_connected[j]]->GetElementType())
+						throw std::runtime_error("Error in Borehole ST - Element type changes around well");
 				}
 
-				heat_conductivity =3.;///= elements_connected.size();
+				factor *= 6.283185307179586 / elements_connected.size();
 				radius /= elements_connected.size();
-				//radius = 1;
+				/////
 
-				double radius_e;
-				std::cout <<  "ELe type: " <<ele_type << std::endl;
+				double radius_e;  // peaceman
+
 				if(ele_type == 3) // hex
-					radius_e = 0.11271331774384821 * radius;  // peaceman
+					radius_e = 0.11271331774384821 * radius;
 				else if(ele_type == 6) // pris
-					radius_e = 0.20788 * radius;  // peaceman
+					radius_e = 0.20788 * radius;
+				else
+					throw std::runtime_error("Error in Borehole ST - Element type not supported");
+
 				//else
 				//	throw std::runtime_error("ELement type not supported in peaceman");
 				//sconst double radius_e = 0.20788 * radius;  // peaceman eclipse
@@ -3107,7 +3125,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 				//std::cout << "radius_w: " << st->borehole.radius << std::endl;
 				//std::cout << "Korrektur: " <<  std::log(radius_e / st->borehole.radius) << std::endl;
 
-				ply_nod_val_vector[i] *= 6.283185307179586 * heat_conductivity / std::log(radius_e / st->borehole.radius);
+				ply_nod_val_vector[i] *=  factor / std::log(radius_e / st->borehole.radius);
 			}
 		}  // end borehole_mode
 
@@ -5666,7 +5684,8 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 	CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
 	if(m_pcs == NULL)
 		throw std::runtime_error("PCS unkonwn in CSfourceTerm::CalculateBorehole");
-	bool flag_switch_off = false;
+
+	/*bool flag_switch_off = false;
 
 	switch(borehole_mode)
 	{
@@ -5693,6 +5712,7 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 
 	if(borehole.verbosity > 0)
 		std::cout << "\tBorehole node " << node_number << ":\t" << value << '\n';
+	 */
 
 #ifdef NEW_EQS
 	CSparseMatrix* A = NULL;
@@ -5702,6 +5722,6 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 	MXInc(node_number, node_number, value );
 #endif
 
-	return value * borehole.temperature;
+	return value * borehole.value;
 }
 
