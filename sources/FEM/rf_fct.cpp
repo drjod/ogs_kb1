@@ -241,8 +241,8 @@ std::ios::pos_type CFunction::Read(std::ifstream* fct_file)
 				for(i = 0; i < (int)no_variable_names; i++) //OK411
 				{
 					line_stream >> variable_data[i];
-					variable_data_vector.push_back(variable_data);  // ????? not variable_name[i]?
 				}
+				variable_data_vector.push_back(variable_data);  // JOD 2022-01-24  - moved from for loop
 				line_stream.clear();
 			}
 		}
@@ -596,27 +596,26 @@ void FCTReadTIMData(std::string file_name_base)
    04/2006 CMCD Transient function
    last modification:
 **************************************************************************/
-double CFunction::GetValue(double point, bool* valid, int method)
+double CFunction::GetValue(const double& point, bool& valid, const int& method, const double& point2)
 {
-	long anz;
-	anz = (long)variable_data_vector.size();
+	long anz = (long)variable_data_vector.size();
 	if(anz == 0)
+	{
+		valid = false;
 		return 1.0;
-	*valid = true;
-	register long i;
-	long j;
-	double value = 1.0;
+	}
+	valid = true;
 	//----------------------------------------------------------------------
-	//
-	value = variable_data_vector[0][1];
+	// if not in range
+	double value = variable_data_vector[0][1];
 	if(point < variable_data_vector[0][0])
 	{
-		*valid = false;
+		valid = false;
 		return value;
 	}
 	if(point > variable_data_vector[anz - 1][0])
 	{
-		*valid = false;
+		valid = false;
 		return variable_data_vector[anz - 1][1];
 	}
 	//Check what type of function, continuous or transient
@@ -624,32 +623,99 @@ double CFunction::GetValue(double point, bool* valid, int method)
 	{
 		//----------------------------------------------------------------------
 		// Suchen der Stuetzstelle. Vorraussetzung: Zeitpunkte aufsteigend geordnet
-		i = 1l;
+		long i = 0l;  // zero needed for method 2
 		while(point > variable_data_vector[i][0])
-		{
 			i++;
-			switch (method)
-			{
+
+		switch (method)
+		{
 			case 0:       // Lineare Interpolation
 				value = variable_data_vector[i - 1][1] \
-				        + (variable_data_vector[i][1] -
-				           variable_data_vector[i - 1][1]) \
-				        / (variable_data_vector[i][0] -
-				           variable_data_vector[i - 1][0]) \
-				        * (point - variable_data_vector[i - 1][0]);
+						+ (variable_data_vector[i][1] -
+						   variable_data_vector[i - 1][1]) \
+						/ (variable_data_vector[i][0] -
+						   variable_data_vector[i - 1][0]) \
+						* (point - variable_data_vector[i - 1][0]);
 				break;
 			case 1:       // Piece wise constant. FS//WW
 				value = variable_data_vector[i - 1][1];
 				break;
+			case 2:       // for exact value - JOD 2022-02-24
+				value = variable_data_vector[i][1];
+				break;
+			case 3:  // 2D table - JOD 2022-02-24
+			{
+				size_t last = variable_names_vector.size()-1;
+				if(last < 2) // values in variable_names_vector start from second entry (index 1)
+				{
+					valid = false;
+					return 1.0;
+				}
+
+				double value0 /* point lower*/, value1 /* point higher*/;
+				//  if not in range
+				if( point2 < atof(variable_names_vector[1].c_str()))
+				{
+					valid = false;
+					return variable_data_vector[i - 1][1] \
+											+ (variable_data_vector[i][1] -
+											   variable_data_vector[i - 1][1]) \
+											/ (variable_data_vector[i][0] -
+											   variable_data_vector[i - 1][1]) \
+											* (point - variable_data_vector[i - 1][1]);
+				}
+				if( point2 > atof(variable_names_vector[last].c_str()))
+				{
+					valid = false;
+					return variable_data_vector[i - 1][last] \
+											+ (variable_data_vector[i][last] -
+											   variable_data_vector[i - 1][last]) \
+											/ (variable_data_vector[i][0] -
+											   variable_data_vector[i - 1][last]) \
+											* (point - variable_data_vector[i - 1][last]);
+				}
+
+				int j = 2;
+				while(point2 > atof(variable_names_vector[j].c_str()))
+					++j;
+
+				if(i == 0)
+				{
+					value0 = variable_data_vector[0][j-1];
+					value1 = variable_data_vector[0][j];
+				}
+				else
+				{
+					value0 = variable_data_vector[i - 1][j-1] \
+										+ (variable_data_vector[i][j-1] -
+										   variable_data_vector[i - 1][j-1]) \
+										/ (variable_data_vector[i][0] -
+										   variable_data_vector[i - 1][0]) \
+										* (point - variable_data_vector[i - 1][0]);
+
+					value1 = variable_data_vector[i - 1][j] \
+										+ (variable_data_vector[i][j] -
+										   variable_data_vector[i - 1][j]) \
+										/ (variable_data_vector[i][0] -
+										   variable_data_vector[i - 1][0]) \
+										* (point - variable_data_vector[i - 1][0]);
+				}
+
+				value = value0 + (value1 - value0) * (point2 - atof(variable_names_vector[j-1].c_str())) /
+						(atof(variable_names_vector[j].c_str())-atof(variable_names_vector[j-1].c_str()));
 			}
+				break;
+			default:
+				throw std::runtime_error("Error in fct: Method not supported");
 		}
+
 	}
 	if (dis_type_name == "TRANSIENT")
 	{
 		long index = 0;
 		long pp = 0;
 		long np = 0;
-		for (j = 0; j < anz; j += 2)
+		for (long j = 0; j < anz; j += 2)
 		{
 			double temp1 = variable_data_vector[j][0];
 			//OK      double temp2 = variable_data_vector[j][1];
@@ -664,11 +730,11 @@ double CFunction::GetValue(double point, bool* valid, int method)
 			        + (variable_data_vector[np][1] - variable_data_vector[pp][1]) \
 			        / (variable_data_vector[np][0] - variable_data_vector[pp][0]) \
 			        * (point - variable_data_vector[pp][0]);
-			*valid = true;
+			valid = true;
 		}
 		if (index % 2 == 0)
 		{
-			*valid = false;
+			valid = false;
 			return -1.0;
 		}
 	}

@@ -24,6 +24,7 @@
 #include "fem_ele_vec.h"
 #include "rf_msp_new.h"
 #include "rf_tim_new.h"
+#include "rf_fct.h"
 //#include "rf_mmp_new.h"
 #include "pcs_dm.h"
 
@@ -271,7 +272,7 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				switch(Conductivity_mode)
 				{
 				case 0:       //  = f(T) //21.12.2009 WW
-					in_sd >> heat_conductivity_fct_number;
+					in_sd >> heat_conductivity_curve_number;
 					in_sd.clear();
 					/*in_sd >> Size;
 					in_sd.clear();
@@ -338,6 +339,20 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
 					conductivity_pcs_name_vector.push_back("SATURATION1");
 					break;
+				case 6:		// f(T, S), Saturation S from table (over elments)  - JOD 2022-01-24
+				{
+					std::string fct_name;
+					in_sd >> fct_name;
+					fct_names.push_back(fct_name);
+					in_sd >> fct_name;  // conductivity over saturation for different temperatures
+					if(fct_name.length() > 0)  // to check
+						fct_names.push_back(fct_name);  // saturation over elements
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//conductivity_pcs_name_vector.push_back("SATURATION1");
+				}
+					break;
+
 				default:
 					throw std::runtime_error("Error when reading MSP-File: Conductivity not supported");
 				}
@@ -1407,7 +1422,7 @@ double CSolidProperties::Heat_Conductivity(double refence)
 	switch(Conductivity_mode)
 	{
 	case 0:
-		val = GetCurveValue(heat_conductivity_fct_number, 0, refence, &gueltig);
+		val = GetCurveValue(heat_conductivity_curve_number, 0, refence, &gueltig);
 		//val = CalulateValue(data_Conductivity, refence);
 		break;
 	case 1:
@@ -1448,7 +1463,9 @@ double CSolidProperties::Heat_Conductivity(double refence)
 	case 5:                               // DECOVALEX2015, TaskB2 JM            
 		CalPrimaryVariable(capacity_pcs_name_vector);
 		val = GetMatrixValue(primary_variable[0]+T_0,primary_variable[1],name,&gueltig);
-		break; 
+		break;
+	default:
+		throw std::runtime_error("ERROR in solid property: Heat conductivity model not implemented");
 	}
 	return val;
 }
@@ -1518,20 +1535,48 @@ void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, con
 		}
 		base_thermal_conductivity = getMesh()->ele_vector[index]->mat_vector(ndx);
 		break;
+	case 6: // JOD 2022-01-24
+	{
+		double saturation;
+		bool is_valid;
+		CFunction* m_fct = NULL;
+
+		if(fct_names.size() == 2)
+		{
+			m_fct = FCTGet(fct_names[1]);
+			if(m_fct) // get saturation from fct 1
+			{
+				saturation = m_fct->GetValue(double(index), is_valid, 2  /* given value */);
+				if(!is_valid)
+					throw std::runtime_error("ERROR in solid heat conductivity - No saturation for element");
+			}
+			else
+				throw std::runtime_error("ERROR in solid heat conductivity - No fct for element wise saturation");
+
+			m_fct = FCTGet(fct_names[0]);  // get heat conductivity from fct 0
+			if(m_fct) // get heat conductivity from fct 0
+			{
+					base_thermal_conductivity = m_fct->GetValue(saturation, is_valid, 3  /* 2D table */,
+							primary_variable[0] /* temperature */);
+					if(!is_valid)
+						throw std::runtime_error("ERROR in solid heat conductivity - No heat conductivity for element");
+			}
+			else
+				throw std::runtime_error("ERROR in solid heat conductivity - No fct for heat conductivity");
+		}
+		else
+			throw std::runtime_error("ERROR in solid heat conductivity - Two fct names required");
+	}
+		break;
 	default:                              //Normal case
-		cout <<
-		"***Error in CSolidProperties::HeatConductivityTensor(): conductivity mode is not supported "
-		     << "\n";
-		//base_thermal_conductivity = Heat_Conductivity();
+		throw std::runtime_error("Error in CSolidProperties::HeatConductivityTensor(): conductivity mode is not supported");
 	}
 
 	//--------------------------------------------------------------------
 	//Set unit tensor
 	//check
 	if (thermal_conductivity_tensor_type > 0 && dim != thermal_conductivity_tensor_dim)
-		cout <<
-		"***Error in CSolidProperties::HeatConductivityTensor(): problem dimension and the given tensor dimension are not same."
-		     << "\n";
+		throw std::runtime_error("Error in CSolidProperties::HeatConductivityTensor(): problem dimension and the given tensor dimension are not same.");
 	//reset
 	for(i = 0; i < 9; i++)
 		tensor[i] = 0.0;
@@ -8053,9 +8098,9 @@ double CSolidProperties::E_Function(int dim, const ElementValue_DM *ele_val, int
 			CalPrinStrDir(stress, prin_str, prin_dir, size);
 			return_value = GetCurveValue((int)E_Function_Model_Value[0], 0, prin_str[0], &valid);
 		}
+		break;
 	default :
 		return_value = 1.;
-		break;
 	}
 	return return_value;
 }

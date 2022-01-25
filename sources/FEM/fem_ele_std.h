@@ -92,7 +92,7 @@ public:
 	void CalcLumpedMassMCF();  //AKS
 	void CalcLumpedMassPSGLOBAL();        // PCH
 	// 3. Laplace matrix
-	void CalcLaplace();
+	void CalcLaplace(const bool& ignore_material=false);
 	void CalcLaplaceMCF();//AKS
 	// 4. Gravity term
 	void CalcGravity();
@@ -208,6 +208,7 @@ public:
 	//double Get_ctx_(long ele_index, int gaussp, int i_dim);
 
 	CMediumProperties* get_MediaProp() { return MediaProp; }
+	Matrix* get_Laplace() const { return Laplace; };
 private:
 	bool newton_raphson;                  //24.05.2007 WW
 	long index;

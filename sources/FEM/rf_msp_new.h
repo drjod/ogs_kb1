@@ -71,7 +71,8 @@ namespace SolidProp
 	Matrix* data_Plasticity;
 	Matrix* data_Creep;
 
-	int heat_conductivity_fct_number;  // JOD 2019-3-14
+	int heat_conductivity_curve_number;  // JOD 2019-3-14
+	std::vector<std::string> fct_names; // JOD 2022-01-24   for heat conductivity model 6
 	//
 	int Density_mode;
          //

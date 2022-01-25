@@ -4907,12 +4907,13 @@ void CFiniteElementStd::CalcContent()
    02/2007 WW Multi-phase
     03/2009 PCH PS_GLOBAL for Multiphase flow
  **************************************************************************/
-void CFiniteElementStd::CalcLaplace()
+void CFiniteElementStd::CalcLaplace(const bool& ignore_material)
 {
 	// ---- Gauss integral
 	int gp_r = 0, gp_s = 0, gp_t = 0;
 
 	size_t dof_n = 1; // TODO [CL] shouldn't that be equal to pcs->dof
+
 
 	// 03.03 2009 PCH
 	if(PcsType == EPT_MULTIPHASE_FLOW || PcsType == EPT_PSGLOBAL)
@@ -4926,6 +4927,14 @@ void CFiniteElementStd::CalcLaplace()
 	else if (PcsType == EPT_TES)
 	{
 		dof_n = 3;
+	}
+
+
+	if(ignore_material)
+	{
+		for(size_t i=0; i<nnodes; ++i)
+			for(size_t j=0; j<nnodes; ++j)
+				(*Laplace)(i, j) = 0.;
 	}
 
 	//----------------------------------------------------------------------
@@ -4961,19 +4970,35 @@ void CFiniteElementStd::CalcLaplace()
 			for (size_t jn = 0; jn < dof_n;  jn++)
 			{
 				// Material
-				if(dof_n == 1)
-					CalCoefLaplace(false,gp);
-				else if (dof_n == 2)
+				if(!ignore_material)
 				{
-					if (PcsType == EPT_MULTIPHASE_FLOW)
-						CalCoefLaplace2(false, ishd + jn);
-					else if (PcsType == EPT_PSGLOBAL)
-						CalCoefLaplacePSGLOBAL(false,ishd + jn);
+					if(dof_n == 1)
+						CalCoefLaplace(false,gp);
+					else if (dof_n == 2)
+					{
+						if (PcsType == EPT_MULTIPHASE_FLOW)
+							CalCoefLaplace2(false, ishd + jn);
+						else if (PcsType == EPT_PSGLOBAL)
+							CalCoefLaplacePSGLOBAL(false,ishd + jn);
+					}
+					else if (PcsType == EPT_THERMAL_NONEQUILIBRIUM)
+						CalCoefLaplaceTNEQ(ishd + jn);
+					else if (PcsType == EPT_TES)
+						CalCoefLaplaceTES(ishd + jn);
+					}
+				else
+				{
+					for(size_t i=0; i<dim; ++i)
+						for(size_t j=0; j<dim; ++j)
+						{
+							if(i==j)
+								mat[i*dim+j] = 1.;
+							else
+								mat[i*dim+j] = 0.;
+						}
+
 				}
-				else if (PcsType == EPT_THERMAL_NONEQUILIBRIUM)
-					CalCoefLaplaceTNEQ(ishd + jn);
-				else if (PcsType == EPT_TES)
-					CalCoefLaplaceTES(ishd + jn);
+
 				const int jsh = jn*nnodes;
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 				//---------------------------------------------------------
@@ -5012,17 +5037,17 @@ void CFiniteElementStd::CalcLaplace()
 							const int km = dim *k ;
 							for (size_t l=0; l<dim; l++)
 							{
-					 (*Laplace)(iish, jjsh) += fkt * dshapefct[ksh] \
-						 * mat[km + l] * dshapefct[l*nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[l]; // JOD 2015-11-20 LPVC
-                 } 
-              }
-           } // j: nodes
-		} // i: nodes	
+								 (*Laplace)(iish, jjsh) += fkt * dshapefct[ksh] \
+									 * mat[km + l] * dshapefct[l*nnodes + j] / MediaProp->ElementLengthMultiplyer_vector[l]; // JOD 2015-11-20 LPVC
+							}
+						}
+					} // j: nodes
+				} // i: nodes
 #endif    
 			}
 		}
 	} //	//TEST OUTPUT
-	// Laplace->Write();
+	//Laplace->Write();
 }
 /***************************************************************************
    FEMLib-Method:
@@ -9076,6 +9101,9 @@ void CFiniteElementStd::Config()
 			(*RHS)[i] = 0.0;
 	else
 		(*RHS) = 0.0;
+
+
+	return;
 	//----------------------------------------------------------------------
 	// Node value of the previous time step
 	int idx00 = idx0;                     //----------WW 05.01.07

@@ -586,6 +586,7 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
+void calculate_borehole(CSourceTerm*, const std::string, const long&, std::vector<long>, double&, double&);
 
 //double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 

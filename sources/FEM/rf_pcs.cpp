@@ -7122,7 +7122,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 			if(test_fct_name.length() > 0){
 				m_fct = FCTGet(test_fct_name);
 				if(m_fct)
-					val = m_fct->GetValue(aktuelle_zeit,&is_valid);
+					val = m_fct->GetValue(aktuelle_zeit, is_valid);
 				//std::cout << " val: " << val << "\n";
 				if(val < MKleinsteZahl){
 					//std::cout << " Omitting BC " << "\n";
@@ -7298,7 +7298,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 				{
 					m_fct = FCTGet(m_bc_node->fct_name);
 					if(m_fct)
-						time_fac = m_fct->GetValue(aktuelle_zeit,&is_valid);
+						time_fac = m_fct->GetValue(aktuelle_zeit, is_valid);
 					//if(!valid) continue;
 					else
 						cout << "Warning in CRFProcess::IncorporateBoundaryConditions - no FCT data" << "\n";
@@ -7632,7 +7632,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 		long bc_msh_node;
 		long bc_eqs_index, shift;
 		int interp_method = 0;
-		int curve, valid = 0;
+		int curve;
 		int idx0, idx1;
 		CBoundaryConditionNode* m_bc_node; //WW
 		CBoundaryCondition* m_bc; //WW
@@ -7641,7 +7641,8 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 #endif
 
 		CFunction* m_fct = NULL;  //OK
-		bool is_valid = false;    //OK
+		int valid; // for curve
+		bool is_valid = false;    //OK  - for fct
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> bc_eqs_id;
 		vector<double> bc_eqs_value;
@@ -7766,7 +7767,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						m_fct = FCTGet(m_bc_node->fct_name);
 						if(m_fct)
 							time_fac = m_fct->GetValue(aktuelle_zeit,
-							                           &is_valid);
+							                           is_valid);
 						//if(!valid) continue;
 						else
 							cout <<
@@ -7896,7 +7897,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						m_fct = FCTGet(m_bc_node->fct_name);
 						if(m_fct)
 							time_fac = m_fct->GetValue(aktuelle_zeit,
-							                           &is_valid);
+							                           is_valid);
 						//if(!valid) continue;
 						else
 							cout <<
@@ -8021,7 +8022,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 						m_fct = FCTGet(m_bc_node->fct_name);
 						if(m_fct)
 							time_fac = m_fct->GetValue(aktuelle_zeit,
-							                           &is_valid);
+							                           is_valid);
 						//if(!valid) continue;
 						else
 							cout <<
@@ -8394,7 +8395,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		int dim_space = 0;        //kg44 better define here and not in a loop!
 #endif
 		double vel[3];
-		bool is_valid;            //YD
+		bool is_valid;            //YD  - for fct
 		CFunction* m_fct = NULL;  //YD
 		long i;                   //, group_vector_length;
 		bool transient = false;
@@ -8787,7 +8788,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  {
 				  m_fct = FCTGet(test_fct_name);
 				  if (m_fct)
-					  val = m_fct->GetValue(aktuelle_zeit, &is_valid);
+					  val = m_fct->GetValue(aktuelle_zeit, is_valid);
 			  }
 			  if (val < MKleinsteZahl)
 			  {
@@ -8805,7 +8806,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 						{
 							m_fct = FCTGet(pcs_number);
 							if (m_fct)
-								time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid, m_st->getFunctionMethod());  //fct_method. WW
+								time_fac = m_fct->GetValue(aktuelle_zeit, is_valid, m_st->getFunctionMethod());  //fct_method. WW
 							else
 								cout <<	"Warning in CRFProcess::IncorporateSourceTerms - no FCT data" << "\n";
 						}
@@ -8814,7 +8815,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 					{
 						m_fct = FCTGet(m_st->getFunctionName());
 						if (m_fct){
-							time_fac = m_fct->GetValue(aktuelle_zeit, &is_valid);
+							time_fac = m_fct->GetValue(aktuelle_zeit, is_valid);
 							//std::cout << " Function name: " << m_st->getFunctionName() << "\n";
 						}
 						else
@@ -15685,7 +15686,7 @@ CRFProcess* PCSGetMass(size_t component_number)
 
 						CFunction* fct (FCTGet(bc->getPointsFCTNames()[i]));
 						if (fct)
-							t_fac = fct->GetValue(aktuelle_zeit, &valid);
+							t_fac = fct->GetValue(aktuelle_zeit, valid);
 						else
 							std::cout <<
 							"Warning in CBoundaryConditionsGroup - no FCT data"
