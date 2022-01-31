@@ -10,6 +10,7 @@
 #include "rf_fct.h"
 
 #include <cstdlib>
+#include <stdexcept>
 
 using namespace std;
 
@@ -645,6 +646,7 @@ double CFunction::GetValue(const double& point, bool& valid, const int& method, 
 				break;
 			case 3:  // 2D table - JOD 2022-02-24
 			{
+				// values in table must be increasing
 				size_t last = variable_names_vector.size()-1;
 				if(last < 2) // values in variable_names_vector start from second entry (index 1)
 				{

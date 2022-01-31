@@ -8828,7 +8828,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 			  if(value != 0)
 			  {   // only if not switched off
-				  if(m_st->isConnected())  // JOD 2/2015
+				  if(m_st->isConnectedGeometry())  // JOD 2/2015
 					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
 
 				  //--------------------------------------------------------------------
@@ -8900,7 +8900,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		eqs_rhs[bc_eqs_index] += value;
 #endif
 
-		if(m_st->keep_values && value != 0.)
+		if(m_st->keep_values)// && value != 0.)
 		{
 			if(ST_values_kept.find(cnodev->msh_node_number) != ST_values_kept.end())
 					ST_values_kept[cnodev->msh_node_number] = ST_values_kept[cnodev->msh_node_number] + value;
@@ -10445,7 +10445,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			break;
 		//
 		default:
-			ScreenMessage("ERROR: Invalid error method for Iteration or Coupling Node error.\n");
+			throw std::runtime_error("ERROR: Invalid error method for Iteration or Coupling Node error.\n");
 			return 0.0;
 		//
 		/*
@@ -17564,6 +17564,11 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 	switch (m_st->connected_geometry_mode)
 	{
+	  case -1:
+		  if(m_st->connected_geometry_verbose_level > 0)
+			  std::cout << "\t\tNo connection (mode -1)\n";
+		  // value = 0.; need value when peacman borehole with connected geometry
+		break;
   	  case 0 :  // NNNC symmetric
 		  if(m_st->connected_geometry_verbose_level > 0)
 			  std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";

@@ -125,8 +125,9 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int average_verbosity;
 	int average;
 	int borehole_mode;	// JOD 2020-12-07
-	borehole_type borehole;
+	borehole_type borehole_data;
 public:
+	borehole_type get_borehole_data() const { return borehole_data; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
 	~CSourceTerm();
@@ -211,7 +212,7 @@ public:
 	bool no_surface_water_pressure, explicit_surface_water_pressure; // JOD 
 	
 	bool isCoupled () const { return _coupled; }
-	bool isConnected() const { return connected_geometry_mode > -1; }  // JOD 2/2015
+	//bool isConnected() const { return connected_geometry_mode > -1; }  // JOD 2/2015
 	bool isConnectedGeometry() const { return connected_geometry; }  // JOD 2021-12-10
 	bool hasThreshold() const { return threshold_geometry; }
 	bool calculatedFromStorageRate() const { return storageRate_geometry; }
@@ -586,7 +587,8 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
-void calculate_borehole(CSourceTerm*, const std::string, const long&, std::vector<long>, double&, double&);
+void SetBorehole(const CSourceTerm* const, CRFProcess*,
+		const long&, const std::vector<size_t>&, double&, double&);
 
 //double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 

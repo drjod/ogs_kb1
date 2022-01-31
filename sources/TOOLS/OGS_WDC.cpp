@@ -200,7 +200,7 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 				if(fabs(parameter_list.begin()->powerrate) > 1.e-10)
 				{
 					result = ( fabs(balancing_properties.T_HE - balancing_properties.T_UA) > 1.e-10) ? 
-						fabs(parameter_list.begin()->powerrate) / ( (balancing_properties.T_HE - balancing_properties.T_UA) * 
+						fabs(parameter_list.begin()->powerrate) / ( (balancing_properties.T_HE - balancing_properties.T_UA) *
 							balancing_properties.volumetricHeatCapacity_HE ) : 
 						parameter_list.begin()->threshold_value;
 

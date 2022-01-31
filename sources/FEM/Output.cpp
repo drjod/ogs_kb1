@@ -5158,7 +5158,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 	CNode* e_node;
 	CElem *elem = NULL, *e_nei = NULL, *face = new CElem(1);
 	FiniteElement::CElement* element = new FiniteElement::CElement(Axisymm * m_pcs->m_msh->GetCoordinateFlag());
-	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
+	//CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
 	vector<long> nodes_on_geo, elements_at_geo;
 	set<long> set_nodes_on_geo;
 
@@ -5232,7 +5232,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 
 	delete element;
 	delete face;
-	delete fem;
+	//delete fem;
 
 	ElementValue* gp_ele = NULL;
 	if (ele_gp_flux.size() > 0)  // release memory

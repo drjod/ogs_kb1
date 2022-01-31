@@ -341,6 +341,7 @@ CElem::~CElem()
 	neighbors.resize(0);
 	mat_vector.resize(0);
 	edges_orientation.resize(0);
+	
 	owner = NULL;
 	if(transform_tensor)
 		delete transform_tensor;
@@ -513,7 +514,7 @@ void CElem:: SetFace(CElem* onwer, const int Face)
 			this->setElementProperties(MshElemType::TRIANGLE, true);
 		break;                           // 3-D pyramid element
 	default:
-		std::cerr << "CElem::SetFace MshElemType not handled" << "\n";
+		throw std::runtime_error("CElem::SetFace MshElemType not handled");
 	}
 
 	for(size_t i = 0; i < n; i++)
