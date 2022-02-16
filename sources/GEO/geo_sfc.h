@@ -53,6 +53,7 @@ public:
 	bool order;
 	bool createtins;
 	double center_point[3];
+        bool surface_at_model_surface = false;  //BW indicator whether the surface is at model surface or not 2022-01-13
 	//TIN
 	CTIN* TIN;
 	//point vector

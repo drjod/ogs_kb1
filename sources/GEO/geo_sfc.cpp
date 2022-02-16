@@ -1108,6 +1108,15 @@ std::ios::pos_type Surface::Read(std::ifstream* gli_file)
 			mat_group = strtol(line_string.data(), NULL, 0);
 		} // subkeyword found
 		  //....................................................................
+		if (line_string.find("$SURFACE_AT_MODEL_SURFACE") != std::string::npos) // subkeyword found
+                {       //  BW 2022-01-13
+                        gli_file->getline(line, MAX_ZEILEN);
+                        line_string = line;
+                        remove_white_space(&line_string);
+                        surface_at_model_surface = strtod(line_string.data(), NULL);
+                        continue;
+                }// subkeyword found
+		  //....................................................................
 		if (line_string.find("$POLYLINES") != string::npos) // subkeyword found
 			// int pos1 = 0, pos2 = 0;
 			while (ok_true)

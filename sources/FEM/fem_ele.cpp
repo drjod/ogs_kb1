@@ -1876,9 +1876,22 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
             nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
          }
          fac = 1.0;
-                                                  // Not a surface face
+	 // Not a surface face
+         //   if (elem->GetDimension() == e_nei->GetDimension())  // removed by BW
+         //     fac = 0.5;
+         // BW 10.01.2020 ->if the neighbour of this face is not at the surface of a model then the source term is half of that
+         // Add one more indicator for that
          if (elem->GetDimension() == e_nei->GetDimension())
-            fac = 0.5;
+             if (m_surface->surface_at_model_surface == true)
+                 fac = 1.0;
+             else
+             {
+                 fac = 0.5;
+                 std::cout
+                     << "Warning in CSourceTerm::FaceIntegration: Surface is inside the model domain, ST is multiplied with a factor of 0.5!"
+                     <<'\n';
+             }
+
          face->SetFace(elem, j);
          face->SetOrder(msh->getOrder());
          face->ComputeVolume();
