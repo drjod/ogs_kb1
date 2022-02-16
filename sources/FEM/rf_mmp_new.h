@@ -84,7 +84,12 @@ private:
 	//CMCD 9/2004 GeoSys 4
 	double PermeabilityPressureFunctionMethod4(long,double, double );
 	friend class CMediumPropertiesGroup;
+
+	bool velocity_given;  // JOD 2022-02-02
+	double velocity[3];
    public:
+	double* get_velocity() { return &velocity[0]; }
+	bool get_velocity_given() { return velocity_given; }
       //-------------------------------------------
       // Methods
       CMediumProperties(void);                    // constructor

@@ -157,9 +157,11 @@ std::ostream& operator<< (std::ostream &os, MeshLib::CNode const &node)
 std::vector<size_t> CNode::getConnectedElementOnPolyineIDs(std::vector<long> nod_vector, std::vector<MeshLib::CElem*> ele_vector) const
 {
 	std::vector<size_t> connected_elements_on_polyline;
+		//std::cout << "size:" << _connected_elements.size() << std::endl;
 
 	for (size_t i = 0; i < _connected_elements.size(); ++i)
 	{
+		//std::cout << "i:" << i << std::endl;
 		CElem* ele = ele_vector[_connected_elements[i]];
 		std::vector<size_t> nodes_on_element;
 		ele->getNodeIndices(nodes_on_element);

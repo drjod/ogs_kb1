@@ -168,6 +168,8 @@ public:
 	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
 	void WriteContraflow(double, int);  // JOD 2019-08-23
 	void WriteContraflowPolyline(double, int);  // JOD 2020-04-30
+	void WriteBoreholeData(const double&, const int&); // JOD-2022-02-15
+
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10

@@ -6047,3 +6047,55 @@ void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 
 	}  // end ogs_contraflow_vector
 }
+
+
+void COutput::WriteBoreholeData(const double& time_current, const int& time_step_number)
+{
+		std::string tec_file_name = file_base_name + "_"
+				 + std::string(convertProcessTypeToString(getProcessType()))
+				 + "_Borehole" + TEC_FILE_EXTENSION;
+		// open file
+		std::fstream tec_file;
+		if (aktueller_zeitschritt == 0)
+			tec_file.open(tec_file_name.data(), ios::out);
+		else
+			tec_file.open(tec_file_name.data(), ios::out | ios::app);
+
+		tec_file.setf(ios::scientific, ios::floatfield);
+		tec_file.precision(12);
+		if (!tec_file.good())
+		{
+			std::cout << "Warning - Could not open file for writing Borehole data\n";
+			return;
+		}
+		tec_file.seekg(0L, ios::beg);
+		#ifdef SUPERCOMPUTER
+			// kg44 buffer the output
+			char mybuffer [MY_IO_BUFSIZE * MY_IO_BUFSIZE];
+			tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
+			//
+		#endif
+
+
+		//--------------------------------------------------------------------
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "Time\tNode\tX\tY\tZ\tValue_BH\tValue_AQ\tFlux\n";
+		}
+		else
+		{
+ 			m_pcs = PCSGet(getProcessType());
+
+			for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept.begin(); it != m_pcs->Borehole_values_kept.end(); ++it)
+			{
+				const double value_BH = (it->second.coupling_type == 2)? it->second.value_BH : m_pcs->GetNodeValue(it->second.node_BH, 1);
+
+				tec_file << time_current << "\t" << it->first << "\t" <<
+					m_pcs->m_msh->nod_vector[it->first]->getData()[0] << "\t" <<
+                			m_pcs->m_msh->nod_vector[it->first]->getData()[1] << "\t" <<
+                			m_pcs->m_msh->nod_vector[it->first]->getData()[2] << "\t" <<
+					value_BH << "\t" <<
+					m_pcs->GetNodeValue(it->first, 1) << "\t" << it->second.factor * (value_BH - m_pcs->GetNodeValue(it->first, 1)) << "\n";
+			}
+		}
+}

@@ -303,6 +303,8 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 					m_out->WriteContraflow(time_current, time_step_number); // JOD 2019-08-23 JOD
 		else if (m_out->dat_type_name.compare("CONTRAFLOW_POLYLINE") == 0)
 					m_out->WriteContraflowPolyline(time_current, time_step_number); // JOD 2020-04-30 JOD
+		else if(m_out->dat_type_name.compare("BOREHOLE") == 0)
+					m_out->WriteBoreholeData(time_current, time_step_number);
 		// ELE values, only called if ele values are defined for output, 05/2012 BG
 		if (m_out->getElementValueVector().size() > 0)
 			m_out->CalcELEFluxes();

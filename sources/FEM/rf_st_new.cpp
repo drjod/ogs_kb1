@@ -16,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <numeric>
+#include <limits>
 #include <set>
 #include <stdexcept>
 
@@ -149,7 +150,7 @@ CSourceTerm::CSourceTerm() :
 
    connected_geometry = false;
    connected_geometry_verbose_level = 0;
-   connected_geometry_exchange_term = 0.0;
+   connected_geometry_exchange_term = 1.;  // value 1 used as default to use it with BOREHOLE
    connected_geometry_offset = 0.;
    connected_geometry_mode = -1;
    connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
@@ -169,8 +170,8 @@ CSourceTerm::CSourceTerm() :
    scaling_mode = 0;
    scaling_verbosity = 0;
    keep_values = false;
-   borehole_mode = 0;
-   average_mode = 0;
+   borehole_mode = -1;
+   average_mode = -1;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -925,31 +926,52 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
          continue;
       }
       //....................................................................
-	  if (line_string.find("$BOREHOLE") != std::string::npos) // JOD 2021-12-06
+	  if (line_string.find("$BOREHOLE") != std::string::npos && // JOD 2021-12-06
+			  line_string.find("GIVEN_VALUE") == std::string::npos)
 	  {
-		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> borehole_mode;
-		  std::cout << "\tBorehole mode " << borehole_mode;
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> borehole_mode;
+		std::cout << "\tBorehole mode " << borehole_mode;
 
-		  switch(borehole_mode)
-		  {
-			  case 0:
-				  std::cout << " - Switched off\n";
-				  break;
-			  case 1:
-				  in >> borehole_data.radius >> borehole_data.value >> borehole_data.verbosity;
-				  std::cout << " - Radius " << borehole_data.radius << ", Value: " << borehole_data.value << '\n';
-				  break;
-			  case 2:
-				  in >> borehole_data.radius >> borehole_data.verbosity;
-				  std::cout << " - Radius " << borehole_data.radius << '\n';
-				  break;
-			  default:
-				  throw std::runtime_error("Borehole mode not supported");
-		  }
+		switch(borehole_mode)
+		{
+			case -1:
+				std::cout << " - Switched off";
+				break;
+			case 0: // conductive - peaceman
+				// use the following :
+				// $CONNECT_PARAMETERS
+ 				//   1. 0  ; exchange coefficient (is 1. for borehole in mode 0),   verbosity level = 0, 1, 1
+				// $CONNECT_MODE
+				//  0   ; symmetric
+				in >> borehole_data.radius >> connected_geometry_verbose_level;
+				std::cout << " - Radius " << borehole_data.radius;
+				break;
+			case 1:  // advective (currently only heat) transport - with LIQUID_FLOW source / sink term
+				in >> connected_geometry_verbose_level;
+				break;
+			default:
+				throw std::runtime_error("Borehole mode not supported");
+		}
 
-		  in.clear();
-		  continue;
+		std::cout << '\n';
+		
+		connected_geometry = true;  // connected by NNNC (also if not used with $CONNECTED_GEOMETRY)
+		connected_geometry_mode = 0; // NNNC symmetric
+
+		in.clear();
+		continue;
+	  }
+      	  //....................................................................
+	  if (line_string.find("$BOREHOLE_GIVEN_VALUE") != std::string::npos) // JOD 2022-02-10
+	  {
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> borehole_data.value;
+		connected_geometry_couplingType = 2; // for source / sink term via RHS
+		in.clear();
+
+		std::cout << "\tBorehole given primary value: " << borehole_data.value << '\n';
+		continue;
 	  }
 	  //....................................................................
 	  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
@@ -2905,7 +2927,8 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		st->st_node_ids.resize(ply_nod_vector.size());
 		st->st_node_ids = ply_nod_vector;
 
-		if (st->isConnectedGeometry())   // JOD 10/2018
+		if (st->isConnectedGeometry() &&  // JOD 10/2018
+				st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
 		{
 			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
 			  if(st->average_mode == 1)
@@ -2922,7 +2945,43 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 								  true, false, 0);//
 								//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
 			  }
+			  else if(st->average_mode == -1)  // take nearest point
+			  {
+				CRFProcess* m_pcs(PCSGet(pcs_type_name));
+				std::vector<long> ply_nod_vector_cond_new;
+				for(std::size_t i = 0; i < ply_nod_vector.size(); ++i)
+				{
+			  		double distance_min = 1e10;
+					int j_nearest = -1;
+
+					for(std::size_t j = 0; j < ply_nod_vector_cond.size(); ++j)
+					{
+						const double distance_current = 
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->X() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->X()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->X() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->X()) +
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Y() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Y()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Y() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Y()) +
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Z() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Z()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Z() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Z());
+						if(distance_min > distance_current)
+						{
+							j_nearest = j;
+						       	distance_min = distance_current;	
+						}
+					}
+					ply_nod_vector_cond_new.push_back(ply_nod_vector_cond[j_nearest]);
+					// std::cout << "dis:" << distance_min << std::endl;
+				}				
+
+				ply_nod_vector_cond = ply_nod_vector_cond_new;
+
+				// for(std::size_t i = 0; i < ply_nod_vector.size(); ++i)
+				//	std::cout << ply_nod_vector[i] << "\t" << ply_nod_vector_cond_new[i] << std::endl;
+
+			  }
 		}
+		
+
 		if (st->isConstrainedST())
 		{
 			for (std::size_t i(0); i < st->st_node_ids.size(); i++)
@@ -3057,14 +3116,14 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		
 	   }
 
-		if(st->borehole_mode)
+		if(st->borehole_mode == 0)  // conductive with peaceman
 		{
 			double factor, radius_e;
 			CRFProcess* m_pcs(PCSGet(pcs_type_name));
 
 			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
-				SetBorehole(st, m_pcs, ply_nod_vector[i],
+				CalculatePeaceman(st, m_pcs, ply_nod_vector[i],
 						m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
 								ply_nod_vector, m_pcs->m_msh->ele_vector)
 						, factor, radius_e);
@@ -3095,7 +3154,8 @@ const int ShiftInNodeVector)
    nod_val->node_value = st->geo_node_value;
    nod_val->tim_type_name = st->tim_type_name;
 
-   if(st->isConnectedGeometry()) // JOD 2018-02-20
+   if(st->isConnectedGeometry() && // JOD 2018-02-20
+     st->getConnectedGeometryCouplingType() != 2)
    {
 	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
 			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
@@ -3347,11 +3407,11 @@ const int ShiftInNodeVector)
 	   }
    }
 
-	if(st->borehole_mode)
+	if(st->borehole_mode == 0)
 	{
 		double factor, radius_e;
 
-		SetBorehole(st, pcs, nod_val->geo_node_number,
+		CalculatePeaceman(st, pcs, nod_val->geo_node_number,
 			 pcs->m_msh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()
 				, factor, radius_e);
 
@@ -3540,7 +3600,8 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
             sfc_nod_vector_cond);
 // CB JOD MERGE //
 
-	  if (m_st->isConnectedGeometry())   // JOD 2/2015
+	  if (m_st->isConnectedGeometry() &&   // JOD 2/2015
+			  m_st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
 		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
 
 	   if(m_st->hasThreshold()) // JOD 2018-03-7  - copyed from SetPnt
@@ -4199,7 +4260,8 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->CurveIndex = CurveIndex;
 // CB JOD MERGE //
 	
-	  if (connected_geometry) // JOD 2/2015
+	  if (connected_geometry && // JOD 2/2015
+   			connected_geometry_couplingType != 2) // not borehole mit given primary variable
 	  {
 		  m_nod_val->msh_node_number_conditional = nodes_cond[i];  // JOD 2021-12-10
 		  m_nod_val->msh_vector_conditional = nodes_cond;
@@ -5160,13 +5222,43 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 {
 	// get data from input *.st
 
-	const double alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
+	double alpha;
+
+	if(m_st->GetBoreholeMode() == 1)  // advective heat transport
+	{
+		alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density(); // 1st mfp property for liquid !!!
+                                
+		if(m_st->getConnectedGeometryVerbosity() > 0)
+                	std::cout << "\t\tBorehole c_rho: " << mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
+
+               	CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+               	if(m_pcs_liquid->ST_values_kept.find(cnodev->msh_node_number) != m_pcs_liquid->ST_values_kept.end())
+               	{
+               		alpha *= m_pcs_liquid->ST_values_kept[cnodev->msh_node_number];
+
+                     	if(m_st->getConnectedGeometryVerbosity() > 0)
+                       		std::cout << " - Q_fluid: " << m_pcs_liquid->ST_values_kept[cnodev->msh_node_number] << '\n';
+                      
+                      	if(fabs(m_pcs_liquid->ST_values_kept[cnodev->msh_node_number]) < 1.e-10)  // switch off ST - no connection
+			{
+				alpha = 0.;
+			}
+             	}
+               	else
+                 	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
+	
+	}
+	else
+		alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
+
+
 	const double factor = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
 
 	// determine downwind node part I - select now msh_node_number obtained from input *.gli in SetST()   - nodes are fixed for modes 0, 1 - if mode 2, nodes will be rearranged according to velocity later on)
 
 	const long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE
-	const long FromNode = cnodev->msh_node_number_conditional;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY)
+	const long FromNode = (m_st->getConnectedGeometryCouplingType() != 2)? cnodev->msh_node_number_conditional : -1;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY)  or -1 if borehole with given primary variable
 
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
@@ -5630,8 +5722,9 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 	scaling_vec.push_back(scaling);
 }
 
+/*
 // JOD 2021-12-06
-double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
+double CSourceTerm::CalculateBorehole(double& value, const long& node_number, const long& node_number_cond,
 		const std::vector<long>& node_number_vec_cond, const std::vector<double>& node_length_vec_cond,
 		const int& average_mode, const int& average_verbosity)
 {
@@ -5639,19 +5732,73 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 	if(m_pcs == NULL)
 		throw std::runtime_error("PCS unkonwn in CSfourceTerm::CalculateBorehole");
 
-	double temperature;
+	double primary_value;
 	bool flag_switch_off = false;
 
 	switch(borehole_mode)
 	{
 		case 1:  // constant given value
-			temperature = borehole_data.value;
+			primary_value = borehole_data.value;
 			break;
 		case 2:
-			temperature = m_pcs->calculateNodeValueFromConnectedNodes(node_number_vec_cond,
+			if(average_mode == -1)
+			{
+				//primary_value = m_pcs->GetNodeValue(node_number_cond, 1);  // implicit
+				//std::cout << node_number << " " << node_number_cond << " " << value<<  '\n';
+#ifdef NEW_EQS
+		CSparseMatrix* A = NULL;
+		A = m_pcs->get_eqs_new()->get_A();
+		(*A)(node_number, node_number) += value;
+		(*A)(node_number, node_number_cond) -= value;
+
+		(*A)(node_number_cond, node_number_cond) += value;
+		(*A)(node_number_cond, node_number) -= value;
+#else
+		MXInc(node_number, node_number, value);
+		MXInc(node_number, node_number_cond, -value);
+
+		MXInc(node_number_cond, node_number_cond, value);
+		MXInc(node_number_cond, node_number, -value);
+#endif
+
+		return 0.;
+			}
+			else
+			{
+				primary_value = m_pcs->calculateNodeValueFromConnectedNodes(node_number_vec_cond,
 					node_length_vec_cond,  // placeholder
 					average_mode, average_verbosity, flag_switch_off);
+			}
 			break;
+		case 3:
+			{
+				const double c_rho = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density(); // 1st mfp property for liquid !!!
+				if(borehole_data.verbosity > 1)
+					std::cout << "\t\tBorehole c_rho: " << c_rho;
+
+				CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+				if(m_pcs_liquid->ST_values_kept.find(node_number) != m_pcs_liquid->ST_values_kept.end())
+                        	{
+                        		const double Q_fluid = m_pcs_liquid->ST_values_kept[node_number];
+					if(borehole_data.verbosity > 1)
+                       				std::cout << " - Q_fluid: " << Q_fluid << '\n';
+					
+					if(fabs(Q_fluid) < 1.e-10)
+						flag_switch_off = true;
+					else
+					{
+						value = c_rho * Q_fluid;  // geometry area considered in Q_fluid
+						primary_value = borehole_data.value;
+					}
+                        	}
+                        	else
+					throw std::runtime_error("Error in CalculateBorehole - No LIQUID_FLOW");
+			}
+			break;
+		case 4:
+
+
 		default:
 			throw std::runtime_error("Borehole mode not supported");
 
@@ -5662,7 +5809,7 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 		if(flag_switch_off)
 			std::cout << "\tBorehole node " << node_number << " - switched off \n";
 		else
-			std::cout << "\tBorehole node " << node_number << " - temperature: " << temperature << '\n';
+			std::cout << "\tBorehole node " << node_number << " - primary value: " << primary_value << '\n';
 	}
 
 	if(!flag_switch_off)
@@ -5672,22 +5819,23 @@ double CSourceTerm::CalculateBorehole(double& value, const long& node_number,
 		A = m_pcs->get_eqs_new()->get_A();
 		(*A)(node_number, node_number) += value;
 #else
-		MXInc(node_number, node_number, value );
+		MXInc(node_number, node_number, value);
 #endif
-
-		return value * temperature;
+		return value * primary_value;
 	}
-
-	return 0.;
+	else
+		return 0.;
 }
+*/
+
 
 // JOD 2022/2 Implementation
-void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& node_number,
+void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& node_number,
 		const std::vector<size_t>& elements_connected, double& factor, double& radius_e)
 {
 
 	CElem* face = new CElem(1);
-	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, 21);// 2D: X, Y,  m_pcs->m_msh->GetCoordinateFlag() // coord flag:
+	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, 21); // 2D: X, Y,  m_pcs->m_msh->GetCoordinateFlag() // coord flag:
 	face->SetFace();
 
 	double sum = 0.;
@@ -5696,6 +5844,7 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 
 	for (size_t j = 0; j < elements_connected.size(); ++j)
 	{
+		//std::cout << "j" << j << std::endl;
 		// for r_e
 		CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
 					//if (!elem->GetMark())   // !!! do not care about deactivation of elements
@@ -5723,8 +5872,6 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 				for (int l = 0; l < nfn; l++)
 				{
 					e_node = elem->GetNode(nodesFace[l]);
-					//	std::cout << i << " " << j << " " << k << " " << l <<  ": " << e_node->Z() << std::endl;
-
 					if(fabs(m_pcs->m_msh->nod_vector[node_number]->Z() - e_node->Z()) < 1.e-5)
 						counter++;
 				}
@@ -5753,10 +5900,10 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 		Math_Group::Matrix* laplace = fem->get_Laplace();
 
 
-		if(m_st->get_borehole_data().verbosity > 1)
+		if(m_st->getConnectedGeometryVerbosity() > 1)
 			laplace->Write();
 
-		CNode* wellNode = 0;
+		CNode* wellNode = NULL;
 		int well_ndx;
 		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
 			if(elem->GetNode(k)->GetEquationIndex() == node_number)
@@ -5774,11 +5921,11 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 				const double distance = std::sqrt(
 						(wellNode->X() - node->X()) * (wellNode->X() - node->X()) +
 						(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
-						//+
-						//(wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()));  // !!! mesh must be horizontal
+						// +
+						// (wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()));  // !!! mesh must be horizontal
 				const double entry = (*laplace)(well_ndx, k);
 
-				if(m_st->get_borehole_data().verbosity > 1)
+				if(m_st->getConnectedGeometryVerbosity() > 1)
 					std::cout << "\tNodes " << node_number << " "<< node->GetEquationIndex() << " with distance " <<  distance <<
 					" (" << well_ndx<< ", "<< k << "): " <<  entry << std::endl;
 
@@ -5790,8 +5937,6 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 			}
 		}
 
-
-		//delete fem; ?????
 		/////////////////////////////////////////////////////////////////
 		// factor
 		const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
@@ -5800,8 +5945,8 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 		{
 			case  FiniteElement::LIQUID_FLOW:
 
-				factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
-							mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+				factor += mmp_vector[group]->PermeabilityTensor(group)[0] *  // x-direction
+							mfp_vector[0]->Density() / mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
 				break;
 
 			case  FiniteElement::HEAT_TRANSPORT:
@@ -5826,7 +5971,7 @@ void SetBorehole(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& n
 	factor *= 6.283185307179586 / elements_connected.size();
 	radius_e = std::exp( (sum_ln - 6.283185307179586) / sum  ) ;  // peaceman
 
-	if(m_st->get_borehole_data().verbosity)
+	if(m_st->getConnectedGeometryVerbosity())
 		std::cout << "\tPeaceman r_e: " << radius_e << std::endl;
 
 	delete face;

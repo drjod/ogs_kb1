@@ -151,6 +151,7 @@ CMediumProperties::CMediumProperties() :
 
 	volumetric_heat_capacity = -1.;
 	heat_conductivity = -1.;
+	velocity_given = false;
 }
 
 /**************************************************************************
@@ -1987,6 +1988,16 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  {
 		  in.str(GetLineFromFile1(mmp_file));
 		  in >> heat_conductivity;
+		  in.clear();
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
+	  //subkeyword found
+	  if(line_string.find("$VELOCITY") != std::string::npos)  // JOD 2022-02-02
+	  {
+		  velocity_given = true;
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> velocity[0] >> velocity[1] >> velocity[2];
 		  in.clear();
 		  continue;
 	  }

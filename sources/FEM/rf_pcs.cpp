@@ -39,6 +39,7 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <math.h>
 
 #include "isnan.h"
 #include "display.h"
@@ -1079,7 +1080,9 @@ void CRFProcess::Create()
 	if (type != 55)                       //Not for fluid momentum. WW
 	{
 		if (Memory_Type != 0)
+		{
 			AllocateLocalMatrixMemory();
+		}
 		if(type == 4 || type / 10 == 4)
 		{
 			// Set initialization function
@@ -8829,8 +8832,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  if(value != 0)
 			  {   // only if not switched off
 				  if(m_st->isConnectedGeometry())  // JOD 2/2015
-					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable());
-
+				  {
+					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable()); // ?????
+				  }
 				  //--------------------------------------------------------------------
 				  if(m_st->storageRate.apply == true)
 					  value = m_st->CalculateFromStorageRate(value, cnodev);
@@ -8861,18 +8865,19 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 					   value = 0;
 				  }
 				  //----------------------------------------------------------------------------------------
-				  if(m_st->GetBoreholeMode() > 0)
-					  value = m_st->CalculateBorehole(value, cnodev->msh_node_number,
-							  	  cnodev->msh_vector_conditional, cnodev->msh_vector_conditional_length,
-								  m_st->average_mode, m_st->average_verbosity);
+				  //if(m_st->GetBoreholeMode() > 0)
+				//	  value = m_st->CalculateBorehole(value, cnodev->msh_node_number, cnodev->msh_node_number_conditional,
+				//			  	  cnodev->msh_vector_conditional, cnodev->msh_vector_conditional_length,
+				//				  m_st->average_mode, m_st->average_verbosity);
 				  //----------------------------------------------------------------------------------------
-			  }
+			  }  // end if value != 0
 				//-------------------------------------------------------------------
 				GetNODValue(value, cnodev, m_st);
 			}             // st_node.size()>0&&(long)st_node.size()>i
       else {
         std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
       }
+
 
 		//----------------------------------------------------------------------------------------
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
@@ -8882,6 +8887,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			value = 0.;  // set bc separately below
 		}
 
+		//std::cout << "val: " << value << std::endl;
 
 
 		//------------------------------------------------------------------
@@ -17557,54 +17563,99 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 	// get an element
 	nodes.clear();
-	nodes.push_back(FromNode); // just take one of the nodes to get an element 
+	nodes.push_back(ToNode); // just take one of the nodes to get an element 
 	m_msh->GetConnectedElements(nodes, elements_at_node);
 	CElem *elem = m_msh->ele_vector[elements_at_node[0]]; // to get to fem_ele_std
+	if(elem == NULL)
+		throw std::runtime_error("ERROR in CRFProcess::IncorporateNodeConnectionSourceTerms: Did not get element");
+
 	fem->ConfigElement(elem, m_num->ele_gauss_points, false);
 
-	switch (m_st->connected_geometry_mode)
+	switch (m_st->getConnectedGeometryMode())
 	{
 	  case -1:
 		  if(m_st->connected_geometry_verbose_level > 0)
 			  std::cout << "\t\tNo connection (mode -1)\n";
-		  // value = 0.; need value when peacman borehole with connected geometry
 		break;
-  	  case 0 :  // NNNC symmetric
+  	  case 0:  // NNNC symmetric
 		  if(m_st->connected_geometry_verbose_level > 0)
-			  std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  {
+			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << factor << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+			  else
+			  	std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  }
 
-  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   			  throw std::runtime_error("Error - Node connection not supported");
-  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
-			  fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
-			  value = 0.;
+			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+			value = 0.;
+				
+			Borehole_values_kept[ToNode] = { factor, FromNode,  // for output
+					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
+					m_msh->nod_vector[ToNode]->getData()[0], 
+					m_msh->nod_vector[ToNode]->getData()[1], 
+					m_msh->nod_vector[ToNode]->getData()[2]};
   		  }
+  		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+		  {
+			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+			value = factor * m_st->GetBoreholeData().value;
+
+			Borehole_values_kept[ToNode] = { factor, std::numeric_limits<long>::quiet_NaN(),  // for output
+					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
+					m_msh->nod_vector[ToNode]->getData()[0], 
+					m_msh->nod_vector[ToNode]->getData()[1], 
+					m_msh->nod_vector[ToNode]->getData()[2]};
+		  }
   		  else
   			throw std::runtime_error("Error - Node connection not supported");
 		  break;
-
 	  case 1 : // NNNC non-symmetric - downstream fixed
 		  if(m_st->connected_geometry_verbose_level > 0)
-			  std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  {
+			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << factor << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+			  else
+			  	std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  }
 
-  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   		  {
-  			  value = factor * GetNodeValue(FromNode, 1);  // implicit
+  			  value = factor * GetNodeValue(FromNode, 1);  // implicit  ?????
   		  }
-  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
 			  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
 			  value = 0.;
+			
+			  Borehole_values_kept[ToNode] = { factor, FromNode,  // for output 
+					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
+					m_msh->nod_vector[ToNode]->getData()[0], 
+					m_msh->nod_vector[ToNode]->getData()[1], 
+					m_msh->nod_vector[ToNode]->getData()[2]};
+  		  }
+  		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+  		  {
+			fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
+			value = factor * m_st->GetBoreholeData().value;
+
+			Borehole_values_kept[ToNode] = { factor, std::numeric_limits<long>::quiet_NaN(),  // forputput
+					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
+					m_msh->nod_vector[ToNode]->getData()[0], 
+					m_msh->nod_vector[ToNode]->getData()[1], 
+					m_msh->nod_vector[ToNode]->getData()[2]};
   		  }
   		  else
   			  throw std::runtime_error("Error - Node connection not supported");
 		  break;
 
 	  case 2 : // NNNC variable - dependent on velocity in reference element
-  		  if(m_st->connected_geometry_couplingType == 0)  // via RHS
+  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   			  throw std::runtime_error("Error - Node connection not supported");
-  		  else if(m_st->connected_geometry_couplingType == 1)  // via matrix
+  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
 				velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
 				velocity_ref[1] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(1, 0);
@@ -17617,6 +17668,8 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 					{
 						if (m_st->connected_geometry_verbose_level > 0)
 							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+		  				if(m_st->connected_geometry_verbose_level > 1)
+			  				std::cout << "\t\t\tFlux: " << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 
 						fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
 					}
@@ -17624,6 +17677,8 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 					{
 						if (m_st->connected_geometry_verbose_level > 0)
 							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
+		  				if(m_st->connected_geometry_verbose_level > 1)
+			  				std::cout << "\t\t\tFlux: " << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 
 						fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
 					}
@@ -17632,11 +17687,17 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				else  // symmetric
 				{
 					if (m_st->connected_geometry_verbose_level > 0)
+					{
 						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
-
+					}
+		  			if(m_st->connected_geometry_verbose_level > 1)
+					{
+			  			std::cout << "\t\t\tFlux" << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+					}
 					fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
 				}
-				value = 0.;
+
+			  	value = 0.;
   		  }
   		  else
   			throw std::runtime_error("Error - Node connection not supported");
@@ -17644,7 +17705,6 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 	  default :
 		  throw std::runtime_error("Node connection mode not supported");
 	}
-
 }
 
 
@@ -17740,7 +17800,7 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 								" with ST: " << ST_value << '\n';
 					}
 					else
-						throw std::runtime_error("BC: Did not keep LIQUID_FLOW source term");
+						throw std::runtime_error("calculateNodeValueFromConnectedNodes: Did not keep LIQUID_FLOW source term");
 				}
 				if(ST_values_total != 0.)
 					value /= ST_values_total;
@@ -17753,11 +17813,11 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 
 			}
 			else
-				throw std::runtime_error("Calc BC node value: LIQUID_FLOW not found");
+				throw std::runtime_error("calculateNodeValueFromConnectedNodes: LIQUID_FLOW not found");
 
 			break;
 		default:
-			throw std::runtime_error("Calc BC node value: average mode not supported");
+			throw std::runtime_error("calculateNodeValueFromConnectedNodes: average mode not supported");
 	}
 
 	if(average_verbosity)

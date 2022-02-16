@@ -89,7 +89,6 @@ struct borehole_type
 {
 	double value;
 	double radius;
-	int verbosity;
 };
 
 
@@ -214,6 +213,9 @@ public:
 	bool isCoupled () const { return _coupled; }
 	//bool isConnected() const { return connected_geometry_mode > -1; }  // JOD 2/2015
 	bool isConnectedGeometry() const { return connected_geometry; }  // JOD 2021-12-10
+	int getConnectedGeometryCouplingType() const { return connected_geometry_couplingType; }  // JOD 2021-12-10
+	int getConnectedGeometryMode() const { return connected_geometry_mode; }
+	int  getConnectedGeometryVerbosity() const { return connected_geometry_verbose_level; }
 	bool hasThreshold() const { return threshold_geometry; }
 	bool calculatedFromStorageRate() const { return storageRate_geometry; }
 
@@ -295,8 +297,6 @@ public:
 	  int connected_geometry_verbose_level;
 	  double connected_geometry_exchange_term;  // leakance
 	  double connected_geometry_offset;   // not used
-	  int connected_geometry_mode;
-	  int connected_geometry_couplingType;
 	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
 	  double connected_geometry_minimum_velocity_abs;    //                      
 	  double connected_geometry_reference_direction[3];  //
@@ -312,9 +312,12 @@ public:
 
 	  //double GetWellTemperature() { return well_temperature; }
 	  int GetBoreholeMode() { return borehole_mode; }
-	  double CalculateBorehole(double&, const long&, const std::vector<long>&, const std::vector<double>&, const int&, const int&);
+	  borehole_type GetBoreholeData() { return borehole_data; }
+	  // double CalculateBorehole(double&, const long&, const long&, const std::vector<long>&, const std::vector<double>&, const int&, const int&);
 
 private:                                          // TF, KR
+	int connected_geometry_mode;
+	int connected_geometry_couplingType;
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,
 	                 const GEOLIB::GEOObjects& geo_obj,
@@ -587,7 +590,7 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
-void SetBorehole(const CSourceTerm* const, CRFProcess*,
+void CalculatePeaceman(const CSourceTerm* const, CRFProcess*,
 		const long&, const std::vector<size_t>&, double&, double&);
 
 //double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);

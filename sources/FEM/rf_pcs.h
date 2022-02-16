@@ -107,6 +107,18 @@ typedef struct  // JOD 2021-11-21 to scale source term with permeability, viscos
 	int verbosity;
 } scaling_type;
 
+typedef struct  // JOD - 2022-02-15 for borehole outout
+{
+	double factor;
+	long node_BH;     // used if coupling_type is not 2
+	double value_BH;  // used if coupling_type is 2
+	int coupling_type; // 0: matrix, 1: RHS, 2: given value (value_BH)
+	double X;
+	double Y;
+	double Z;
+
+} borehole_values_type;
+
 typedef struct                                    /* Knotenwert-Informationen */
 {
 	char name[80];                        /* Name der Knotengroesse */
@@ -693,8 +705,10 @@ private:
 	//PCH
 	std::vector<std::string> ele_val_name_vector;
 public:
+	//std::map<long, borehole_values_type> GetBoreholeValues() { return Borehole_values_kept; }
 	double calculateNodeValueFromConnectedNodes(const std::vector<long>&, const std::vector<double>&,
 			const int&, const int&, bool&);
+	std::map<long, borehole_values_type> Borehole_values_kept;  // JOD 2022-02-15 for borehole output
 	std::map<long, double> ST_values_kept;  // JOD 2021-11-12 to use them in BC
 	std::vector<double*> ele_val_vector;  //PCH
 	void SetElementValue(long,int,double); //PCH
@@ -1225,4 +1239,6 @@ extern bool global_flag_keep_values;  // to keep ST values and make them consist
 
 
 extern bool hasAnyProcessDeactivatedSubdomains;   //NW
+
+
 #endif

@@ -5350,19 +5350,28 @@ void CFiniteElementStd::CalcAdvection()
 		//---------------------------------------------------------
         mat_factor = CalCoefAdvection(); // this should be called after calculating shape functions. NW
 		//Velocity
-        if(MediaProp->fluidVelocity.type != 0)
-        {
-        	vel[0] = mat_factor * MediaProp->fluidVelocity.x;
-        	vel[1] = mat_factor * MediaProp->fluidVelocity.y;
-        	vel[2] = mat_factor * MediaProp->fluidVelocity.z;
-        }
-        else
-        {
-        	vel[0] = mat_factor * gp_ele->Velocity(0, gp);
-        	vel[1] = mat_factor * gp_ele->Velocity(1, gp);
-        	vel[2] = mat_factor * gp_ele->Velocity(2, gp);
-        }
-
+	if(MediaProp->get_velocity_given())	
+	{
+		vel[0] = mat_factor * MediaProp->get_velocity()[0];
+		vel[1] = mat_factor * MediaProp->get_velocity()[1];
+		vel[2] = mat_factor * MediaProp->get_velocity()[2];
+		// std::cout << "Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << '\n';
+	}
+	else
+	{
+	       	if(MediaProp->fluidVelocity.type != 0)
+	       	{
+       	 		vel[0] = mat_factor * MediaProp->fluidVelocity.x;
+       	 		vel[1] = mat_factor * MediaProp->fluidVelocity.y;
+       	 		vel[2] = mat_factor * MediaProp->fluidVelocity.z;
+       	 	}
+       	 	else
+       	 	{
+       	 		vel[0] = mat_factor * gp_ele->Velocity(0, gp);
+       	 		vel[1] = mat_factor * gp_ele->Velocity(1, gp);
+       	 		vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+       	 	}
+	}
         // CB _ctx_ : modify v if _ctx_ flux needs to be included
         //if(_ctx_){
         //  vel[0] -= porosity * gp_ele->_ctx_Gauss(0,gp);
@@ -12175,23 +12184,26 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #if defined(USE_MPI)
 	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
 	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
-	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(From)) -= factor;
+	if(From != -1)  // not given value, otherwise RHS
+		(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(From)) -= factor;
 #else
 	CSparseMatrix* A = pcs->eqs_new->A;
 	(*A)(To, To) += factor;
-	(*A)(To, From) -= factor;
+	if(From != -1)  // not given value, otherwise RHS
+		(*A)(To, From) -= factor;
 #endif
 
 #else
 
 	MXInc(To, To, factor ); // ToNode on diagonal
-	MXInc(To, From, -factor); //
+	if(From != -1)  // not given value, otherwise RHS
+		MXInc(To, From, -factor); //
 
 #endif	
 #endif
 	/////////
 
-	if (symmetric == true)
+	if (symmetric == true && From != -1)
 	{        // ADD UWIND
 #if defined(USE_PETSC) 
 		// TODO
@@ -12205,7 +12217,6 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 		(*A)(From, To) -= factor;
 #endif
 #else
-
 		MXInc(From, From, factor);
 		MXInc(From, To, -factor);
 #endif	
