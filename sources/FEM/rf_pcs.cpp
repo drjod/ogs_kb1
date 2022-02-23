@@ -8829,7 +8829,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				value *= time_fac * fac;
 
 
-			  if(value != 0)
+			  //if(value != 0)
 			  {   // only if not switched off
 				  if(m_st->isConnectedGeometry())  // JOD 2/2015
 				  {
@@ -17554,7 +17554,7 @@ mode 0: symmetric
 **************************************************************************/
 
 void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, const long& ToNode,
-		const double& factor, CSourceTerm* m_st, double& value)
+		const double& alpha_value, CSourceTerm* m_st, double& value)
 {
 
 	double velocity_ref[3];
@@ -17581,19 +17581,19 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 		  if(m_st->connected_geometry_verbose_level > 0)
 		  {
 			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << factor << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
 			  else
-			  	std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+			  	std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 		  }
 
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   			  throw std::runtime_error("Error - Node connection not supported");
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
-			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
 			value = 0.;
 				
-			Borehole_values_kept[ToNode] = { factor, FromNode,  // for output
+			Borehole_values_kept[ToNode] = { alpha_value, FromNode,  // for output
 					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
 					m_msh->nod_vector[ToNode]->getData()[0], 
 					m_msh->nod_vector[ToNode]->getData()[1], 
@@ -17601,10 +17601,10 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
   		  }
   		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
 		  {
-			fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
-			value = factor * m_st->GetBoreholeData().value;
+			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+			value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
 
-			Borehole_values_kept[ToNode] = { factor, std::numeric_limits<long>::quiet_NaN(),  // for output
+			Borehole_values_kept[ToNode] = { alpha_value, std::numeric_limits<long>::quiet_NaN(),  // for output
 					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
 					m_msh->nod_vector[ToNode]->getData()[0], 
 					m_msh->nod_vector[ToNode]->getData()[1], 
@@ -17617,21 +17617,21 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 		  if(m_st->connected_geometry_verbose_level > 0)
 		  {
 			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << factor << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
 			  else
-			  	std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+			  	std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 		  }
 
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   		  {
-  			  value = factor * GetNodeValue(FromNode, 1);  // implicit  ?????
+  			  value = alpha_value * GetNodeValue(FromNode, 1);  // implicit  ?????
   		  }
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
-			  fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
+			  fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, false);
 			  value = 0.;
 			
-			  Borehole_values_kept[ToNode] = { factor, FromNode,  // for output 
+			  Borehole_values_kept[ToNode] = { alpha_value, FromNode,  // for output 
 					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
 					m_msh->nod_vector[ToNode]->getData()[0], 
 					m_msh->nod_vector[ToNode]->getData()[1], 
@@ -17639,10 +17639,10 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
   		  }
   		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
   		  {
-			fem->IncorporateNodeConnection(FromNode, ToNode, factor, false);
-			value = factor * m_st->GetBoreholeData().value;
+			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, false);
+			value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
 
-			Borehole_values_kept[ToNode] = { factor, std::numeric_limits<long>::quiet_NaN(),  // forputput
+			Borehole_values_kept[ToNode] = { alpha_value, std::numeric_limits<long>::quiet_NaN(),  // forputput
 					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
 					m_msh->nod_vector[ToNode]->getData()[0], 
 					m_msh->nod_vector[ToNode]->getData()[1], 
@@ -17667,20 +17667,20 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 					if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
 					{
 						if (m_st->connected_geometry_verbose_level > 0)
-							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 		  				if(m_st->connected_geometry_verbose_level > 1)
-			  				std::cout << "\t\t\tFlux: " << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+			  				std::cout << "\t\t\tFlux: " << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 
-						fem->IncorporateNodeConnection(FromNode, ToNode, factor, false); // non-symmetric in direction of n_ref
+						fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, false); // non-symmetric in direction of n_ref
 					}
 					else            // swap nodes
 					{
 						if (m_st->connected_geometry_verbose_level > 0)
-							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << factor << "\n";
+							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << alpha_value << "\n";
 		  				if(m_st->connected_geometry_verbose_level > 1)
-			  				std::cout << "\t\t\tFlux: " << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+			  				std::cout << "\t\t\tFlux: " << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 
-						fem->IncorporateNodeConnection(ToNode, FromNode, factor, false); // non-symmetric in direction of -n_ref
+						fem->IncorporateNodeConnection(ToNode, FromNode, alpha_value, false); // non-symmetric in direction of -n_ref
 					}
 
 				}
@@ -17688,13 +17688,13 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				{
 					if (m_st->connected_geometry_verbose_level > 0)
 					{
-						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << factor << "\n";
+						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 					}
 		  			if(m_st->connected_geometry_verbose_level > 1)
 					{
-			  			std::cout << "\t\t\tFlux" << factor * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+			  			std::cout << "\t\t\tFlux" << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 					}
-					fem->IncorporateNodeConnection(FromNode, ToNode, factor, true);
+					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
 				}
 
 			  	value = 0.;

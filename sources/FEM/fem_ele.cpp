@@ -768,7 +768,7 @@ void CElement::SetGaussPoint(const int gp, int& gp_r, int& gp_s, int& gp_t)
 			SamplePointPyramid8(gp, unit);  //SamplePointPyramid13(gp, unit);
 		return;
 	default:
-		std::cerr << "CElement::SetGaussPoint invalid mesh element type given" << "\n";
+		throw std::runtime_error("CElement::SetGaussPoint invalid mesh element type given");
 	}
 }
 /***************************************************************************
@@ -824,7 +824,7 @@ double CElement::GetGaussData(int gp, int& gp_r, int& gp_s, int& gp_t)
 		fkt *= unit[3];           // Weights
 		break;
 	default:
-		std::cerr << "CElement::GetGaussData invalid mesh element type given" << "\n";
+		throw std::runtime_error("CElement::GetGaussData invalid mesh element type given");
 	}
 	return fkt;
 }
@@ -881,8 +881,7 @@ void CElement::FaceIntegration(double* NodeVal)
 			fkt = 0.25* det* MXPGaussFkt(nGauss, gp_r) * MXPGaussFkt(nGauss, gp_s);
 			break;
 		default:
-			std::cerr << "CElement::FaceIntegration element type not handled" <<
-			"\n";
+			throw std::runtime_error("CElement::FaceIntegration element type not handled");
 		}
 
 		ComputeShapefct(Order);
@@ -1104,8 +1103,7 @@ int CElement::GetLocalIndex(const int gp_r, const int gp_s, int gp_t)
 		}
 		break;
 	default:
-		std::cerr << "CElement::GetLocalIndex invalid mesh element type given"
-		          << "\n";
+		throw std::runtime_error("CElement::GetLocalIndex invalid mesh element type given");
 	}
 	return LoIndex;
 }
@@ -1610,8 +1608,7 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 			fkt = 0.25* det* MXPGaussFkt(nGauss, gp_r) * MXPGaussFkt(nGauss, gp_s);
 			break;
 		default:
-			std::cerr << "CElement::FaceIntegration element type not handled" <<
-				"\n";
+			throw std::runtime_error("CElement::FaceIntegration element type not handled");
 		}
 
 		fkt *= factor; // factor= 0.5 if face in domain; 1 if face at somain boundary
@@ -1639,11 +1636,10 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
 {
    if (!msh)
    {
-      std::cout
-         << "Warning in CSourceTerm::FaceIntegration: no MSH data, function doesn't function";
-      return;
+      throw std::runtime_error("Warning in FaceIntegration: no MSH data, function doesn't function");
    }
 
+   std::cout << "\tFace integration\n";
    long i, j, k, l;
    long this_number_of_nodes;
    int nfaces, nfn;
@@ -1752,7 +1748,7 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
                break;
          }                                        // while
       }                                           //j
-   }
+   }  // end !Const
 
    int Axisymm = 1;                               // ani-axisymmetry
    //CFEMesh* msh = m_pcs->m_msh;
@@ -1882,13 +1878,11 @@ void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
          // BW 10.01.2020 ->if the neighbour of this face is not at the surface of a model then the source term is half of that
          // Add one more indicator for that
          if (elem->GetDimension() == e_nei->GetDimension())
-             if (m_surface->surface_at_model_surface == true)
-                 fac = 1.0;
-             else
+             if (!m_surface->surface_at_model_surface)
              {
                  fac = 0.5;
                  std::cout
-                     << "Warning in CSourceTerm::FaceIntegration: Surface is inside the model domain, ST is multiplied with a factor of 0.5!"
+                     << "\t\t\tWarning in FaceIntegration: Surface is inside the model domain, area is multiplied with 0.5 and is calculated twice! (this line has to appear twice for each node)"
                      <<'\n';
              }
 
@@ -1937,6 +1931,8 @@ std::vector<double>&node_value_vector)
 {
    CFEMesh* msh = m_pcs->m_msh;
    double nodesFVal[8];
+
+   std::cout << "\tDomain integration\n";
 
    int Axisymm = 1;                               // ani-axisymmetry
    if (msh->isAxisymmetry())

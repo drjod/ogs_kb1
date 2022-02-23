@@ -126,6 +126,7 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int borehole_mode;	// JOD 2020-12-07
 	borehole_type borehole_data;
 public:
+	int verbosity;  // JOD 2022-02-23 
 	borehole_type get_borehole_data() const { return borehole_data; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
@@ -594,5 +595,7 @@ void CalculatePeaceman(const CSourceTerm* const, CRFProcess*,
 		const long&, const std::vector<size_t>&, double&, double&);
 
 //double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
+
+
 
 #endif

@@ -6086,16 +6086,21 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 		{
  			m_pcs = PCSGet(getProcessType());
 
-			for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept.begin(); it != m_pcs->Borehole_values_kept.end(); ++it)
+			if(m_pcs)
 			{
-				const double value_BH = (it->second.coupling_type == 2)? it->second.value_BH : m_pcs->GetNodeValue(it->second.node_BH, 1);
+				for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept.begin(); it != m_pcs->Borehole_values_kept.end(); ++it)
+				{
+					const double value_BH = (it->second.coupling_type == 2)? it->second.value_BH : m_pcs->GetNodeValue(it->second.node_BH, 1);
 
-				tec_file << time_current << "\t" << it->first << "\t" <<
-					m_pcs->m_msh->nod_vector[it->first]->getData()[0] << "\t" <<
-                			m_pcs->m_msh->nod_vector[it->first]->getData()[1] << "\t" <<
-                			m_pcs->m_msh->nod_vector[it->first]->getData()[2] << "\t" <<
-					value_BH << "\t" <<
-					m_pcs->GetNodeValue(it->first, 1) << "\t" << it->second.factor * (value_BH - m_pcs->GetNodeValue(it->first, 1)) << "\n";
+					tec_file << time_current << "\t" << it->first << "\t" <<
+						m_pcs->m_msh->nod_vector[it->first]->getData()[0] << "\t" <<
+                				m_pcs->m_msh->nod_vector[it->first]->getData()[1] << "\t" <<
+                				m_pcs->m_msh->nod_vector[it->first]->getData()[2] << "\t" <<
+						value_BH << "\t" <<
+						m_pcs->GetNodeValue(it->first, 1) << "\t" << it->second.factor * (value_BH - m_pcs->GetNodeValue(it->first, 1)) << "\n";
+				}
 			}
+			else
+				throw std::runtime_error("pcs not found for borehole output");
 		}
 }
