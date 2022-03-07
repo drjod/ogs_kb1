@@ -6053,7 +6053,7 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 {
 		std::string tec_file_name = file_base_name + "_"
 				 + std::string(convertProcessTypeToString(getProcessType()))
-				 + "_Borehole" + TEC_FILE_EXTENSION;
+				 + "_Borehole_" + geo_name + TEC_FILE_EXTENSION;
 		// open file
 		std::fstream tec_file;
 		if (aktueller_zeitschritt == 0)
@@ -6080,7 +6080,7 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 		//--------------------------------------------------------------------
 		if (aktueller_zeitschritt == 0)
 		{
-			tec_file << "Time\tNode\tX\tY\tZ\tValue_BH\tValue_AQ\tFlux\n";
+			tec_file << "Time\tNode\tX\tY\tZ\tValue_BH\tValue_AQ\tExchange_coefficient\n";
 		}
 		else
 		{
@@ -6088,7 +6088,7 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 
 			if(m_pcs)
 			{
-				for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept.begin(); it != m_pcs->Borehole_values_kept.end(); ++it)
+				for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept[geo_name].begin(); it != m_pcs->Borehole_values_kept[geo_name].end(); ++it)
 				{
 					const double value_BH = (it->second.coupling_type == 2)? it->second.value_BH : m_pcs->GetNodeValue(it->second.node_BH, 1);
 
@@ -6097,7 +6097,7 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
                 				m_pcs->m_msh->nod_vector[it->first]->getData()[1] << "\t" <<
                 				m_pcs->m_msh->nod_vector[it->first]->getData()[2] << "\t" <<
 						value_BH << "\t" <<
-						m_pcs->GetNodeValue(it->first, 1) << "\t" << it->second.factor * (value_BH - m_pcs->GetNodeValue(it->first, 1)) << "\n";
+						m_pcs->GetNodeValue(it->first, 1) << "\t" << it->second.factor << "\n";
 				}
 			}
 			else

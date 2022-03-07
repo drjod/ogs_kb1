@@ -5308,7 +5308,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 						std::cout << "\t\t\tNode " << cnodev->msh_node_number << " with pressure " << 
 						m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1) << " connected to\n\t\t\tnode " << 
 				      		cnodev->msh_node_number_conditional << " with pressure " << 
-				      		m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << "\n\t\t\t\tQ_fluid: " << fluid_flux << '\n';
+				      		m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << '\n';
 				}
 				else
         	        		throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - Factor for LIQUID_FLOW not kept");
@@ -5317,7 +5317,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
         	        	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
 			
 		}
-		else
+		else  // not coupled to LIQUID_FLOW - source / sink term used with $KEEP_VALUES
 		{
                		CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
 
@@ -5341,12 +5341,15 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 		alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
 
 
-	const double alpha_value = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
+	double alpha_value = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
 
 	// determine downwind node part I - select now msh_node_number obtained from input *.gli in SetST()   - nodes are fixed for modes 0, 1 - if mode 2, nodes will be rearranged according to velocity later on)
 
-	const long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE
-	const long FromNode = (m_st->getConnectedGeometryCouplingType() != 2)? cnodev->msh_node_number_conditional : -1;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY)  or -1 if borehole with given primary variable
+	const long ToNode = (alpha_value > 0) ?  cnodev->msh_node_number : cnodev->msh_node_number_conditional;
+	long FromNode = (alpha_value > 0) ? cnodev->msh_node_number_conditional : cnodev->msh_node_number; 
+
+	if(m_st->getConnectedGeometryCouplingType() == 2) // borehole with given primary variable
+		FromNode = -1;
 
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
@@ -5961,8 +5964,8 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 		{
 			case  FiniteElement::LIQUID_FLOW:
 
-				factor += mmp_vector[group]->PermeabilityTensor(group)[0] *  // x-direction
-							mfp_vector[0]->Density() / mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+				factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
+							mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
 				break;
 
 			case  FiniteElement::HEAT_TRANSPORT:

@@ -12151,7 +12151,6 @@ Programming:
 void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric)
 {
 
-
 #if defined(USE_PETSC)   // JOD 2015-12-7 alias WW
 	petsc_group::PETScLinearSolver *eqs = pcs->eqs_new;
 
@@ -12184,7 +12183,7 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #if defined(USE_MPI)
 	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
 	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
-	if(From != -1)  // not given value, otherwise RHS
+	if(From != -1)
 		(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(From)) -= factor;
 #else
 	CSparseMatrix* A = pcs->eqs_new->A;

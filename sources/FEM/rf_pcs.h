@@ -708,7 +708,7 @@ public:
 	//std::map<long, borehole_values_type> GetBoreholeValues() { return Borehole_values_kept; }
 	double calculateNodeValueFromConnectedNodes(const std::vector<long>&, const std::vector<double>&,
 			const int&, const int&, bool&);
-	std::map<long, borehole_values_type> Borehole_values_kept;  // JOD 2022-02-15 for borehole output
+	std::map<std::string, std::map<long, borehole_values_type> > Borehole_values_kept;  // JOD 2022-02-15 for borehole output
 	std::map<long, double> ST_values_kept;  // JOD 2021-11-12 to use them in BC
 	std::map<long, double> ST_factor_kept;  // JOD 2022-02-17 to use in HEAT_TRANSPORT source term peaceman factor from LIQUID_FLOW
 	std::vector<double*> ele_val_vector;  //PCH
