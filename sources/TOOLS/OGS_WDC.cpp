@@ -199,6 +199,7 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 
 				if(fabs(parameter_list.begin()->powerrate) > 1.e-10)
 				{
+					/*
 					result = ( fabs(balancing_properties.T_HE - balancing_properties.T_UA) > 1.e-10) ? 
 						fabs(parameter_list.begin()->powerrate) / ( (balancing_properties.T_HE - balancing_properties.T_UA) *
 							balancing_properties.volumetricHeatCapacity_HE ) : 
@@ -209,6 +210,21 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 						result = parameter_list.begin()->threshold_value;
 						wdc_result.power_rate  = fabs(result) * 
 							(balancing_properties.T_HE - balancing_properties.T_UA) *  balancing_properties.volumetricHeatCapacity_HE;
+					}
+					else
+						wdc_result.power_rate = parameter_list.begin()->powerrate;
+						*/
+					// JOD 2022-03-10
+					result = ( fabs(parameter_list.begin()->target_value - balancing_properties.T_UA) > 1.e-10) ?
+											fabs(parameter_list.begin()->powerrate) / ( (parameter_list.begin()->target_value - balancing_properties.T_UA) *
+												balancing_properties.volumetricHeatCapacity_HE ) :
+											parameter_list.begin()->threshold_value;
+
+					if (fabs(result) > fabs(parameter_list.begin()->threshold_value) - 1.e-10)
+					{
+						result = parameter_list.begin()->threshold_value;
+						wdc_result.power_rate  = fabs(result) *
+							(parameter_list.begin()->target_value - balancing_properties.T_UA) *  balancing_properties.volumetricHeatCapacity_HE;
 					}
 					else
 						wdc_result.power_rate = parameter_list.begin()->powerrate;
@@ -228,7 +244,7 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 				wdc_result.scheme_ID = 3;
 				wdc_result.flow_rate = result;
 				wdc_result.power_rate_target = parameter_list.begin()->powerrate;
-				wdc_result.T_HE = balancing_properties.T_HE;
+				wdc_result.T_HE = parameter_list.begin()->target_value;//balancing_properties.T_HE;
 				wdc_result.T_UA = balancing_properties.T_UA;
 
 				if(!is_evaluated)
