@@ -1714,6 +1714,15 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in.clear();
 			continue;
 		}
+		//------------------------------------------------------------------------
+		//subkeyword found
+		if(line_string.find("$HEAT_CONDUCTIVITY") != std::string::npos)
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> heat_conductivity;
+			in.clear();
+			continue;
+		}
 		//subkeyword found
 		if(line_string.find("$DIFFUSION") != std::string::npos)
 		{
@@ -1979,15 +1988,6 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  {
 		  in.str(GetLineFromFile1(mmp_file));
 		  in >> volumetric_heat_capacity;
-		  in.clear();
-		  continue;
-	  }
-	  //------------------------------------------------------------------------
-	  //subkeyword found
-	  if(line_string.find("$HEAT_CONDUCTIVITY") != std::string::npos)  // JOD 2021-5-21
-	  {
-		  in.str(GetLineFromFile1(mmp_file));
-		  in >> heat_conductivity;
 		  in.clear();
 		  continue;
 	  }
@@ -2721,7 +2721,7 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 //   double *tensor = NULL;
 	//double a, b, Pc, T, Mw, rhow, rho_gw,rho_ga,rho_g, p_gw, mat_fac_w, mat_fac_g, A, B,H_vap, dp_gw, dPc, dA, dB, dT, q,Tc=647.3,expfactor;
 	double a, b, rhow, rho_gw,rho_ga,rho_g, p_gw, mat_fac_w, mat_fac_g, A, B,H_vap, dp_gw, dPc,
-	       dA, dB, dT, q;
+		   dA, dB, dT, q;
 	// TF unused variable - comment fix compile warning
 //   double Tc=647.3;
 	double expfactor;
@@ -2734,99 +2734,113 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 	//  int heat_capacity_model = 0;
 	CFluidProperties* m_mfp;              //WW
 	// long group = Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
-	m_mfp = Fem_Ele_Std->FluidProp;       //WW
 
-	//if (Fem_Ele_Std->PcsType==S)     // Multi-phase WW
-	//{
-	///*m_mfp = mfp_vector[0];
-	//eos_arg[0] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal0);
-	//eos_arg[1] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_t0);
-	//eos_arg[2] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_X0);
-	//heat_conductivity_fluids = m_mfp->HeatConductivity(eos_arg);*/
-	//}
-	//else
-//	{
-		for (size_t ii = 0; ii < pcs_vector.size(); ii++)
-			//		if (pcs_vector[ii]->pcs_type_name.find("FLOW") != string::npos) TF
-			if (isFlowProcess (pcs_vector[ii]->getProcessType ()))
-				FLOW = true;
-		if (FLOW)                 //WW
-		{
-			if (Fem_Ele_Std->cpl_pcs->type == 1212) // Multi-phase WW
-			{
-				double PG = Fem_Ele_Std->interpolate(
-				        Fem_Ele_Std->NodalValC1); // Capillary pressure
-				double
-				        Sw =
-				        Fem_Ele_Std->MediaProp->SaturationCapillaryPressureFunction(PG);
-				//
-				m_mfp = mfp_vector[0];
-				heat_conductivity_fluids = Sw * m_mfp->HeatConductivity();
-				m_mfp = mfp_vector[1];
-				heat_conductivity_fluids += (1.0 - Sw)
-				                            * m_mfp->HeatConductivity();
-			}
-			else
-			{
-				if (Fem_Ele_Std->FluidProp->density_model == 14
-				    && Fem_Ele_Std->MediaProp->heat_diffusion_model
-				    == 1 && Fem_Ele_Std->cpl_pcs)
-				{
-					dens_arg[0] = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalValC1); //Pressure
-					dens_arg[1] = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalVal1) + 273.15; //Temperature
-					dens_arg[2] = Fem_Ele_Std->Index; //ELE index
-					heat_conductivity_fluids
-					        = Fem_Ele_Std->FluidProp->HeatConductivity(
-					        dens_arg);
-				}
-				else
-					heat_conductivity_fluids
-					        = Fem_Ele_Std->FluidProp->HeatConductivity();
-				Sw = 1;
+	if(heat_conductivity == -1)  // not given as mmp-property
+	{
+		m_mfp = Fem_Ele_Std->FluidProp;       //WW
 
-				if (Fem_Ele_Std->cpl_pcs->type != 1)
+		//if (Fem_Ele_Std->PcsType==S)     // Multi-phase WW
+		//{
+		///*m_mfp = mfp_vector[0];
+		//eos_arg[0] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal0);
+		//eos_arg[1] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_t0);
+		//eos_arg[2] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_X0);
+		//heat_conductivity_fluids = m_mfp->HeatConductivity(eos_arg);*/
+		//}
+		//else
+	//	{
+			for (size_t ii = 0; ii < pcs_vector.size(); ii++)
+				//		if (pcs_vector[ii]->pcs_type_name.find("FLOW") != string::npos) TF
+				if (isFlowProcess (pcs_vector[ii]->getProcessType ()))
+					FLOW = true;
+			if (FLOW)                 //WW
+			{
+				if (Fem_Ele_Std->cpl_pcs->type == 1212) // Multi-phase WW
 				{
 					double PG = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalValC1); // Capillary pressure
-
-					if (PG < 0.0)
+							Fem_Ele_Std->NodalValC1); // Capillary pressure
+					double
+							Sw =
+							Fem_Ele_Std->MediaProp->SaturationCapillaryPressureFunction(PG);
+					//
+					m_mfp = mfp_vector[0];
+					heat_conductivity_fluids = Sw * m_mfp->HeatConductivity();
+					m_mfp = mfp_vector[1];
+					heat_conductivity_fluids += (1.0 - Sw)
+												* m_mfp->HeatConductivity();
+				}
+				else
+				{
+					if (Fem_Ele_Std->FluidProp->density_model == 14
+						&& Fem_Ele_Std->MediaProp->heat_diffusion_model
+						== 1 && Fem_Ele_Std->cpl_pcs)
 					{
-						Sw
-						        = Fem_Ele_Std->MediaProp->
-						          SaturationCapillaryPressureFunction(-PG);
-						heat_conductivity_fluids *= Sw;
-						if (Fem_Ele_Std->GasProp != 0)
-							heat_conductivity_fluids
-							        += (1. - Sw)
-							           * Fem_Ele_Std->GasProp->
-							           HeatConductivity();
+						dens_arg[0] = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalValC1); //Pressure
+						dens_arg[1] = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalVal1) + 273.15; //Temperature
+						dens_arg[2] = Fem_Ele_Std->Index; //ELE index
+						heat_conductivity_fluids
+								= Fem_Ele_Std->FluidProp->HeatConductivity(
+								dens_arg);
+					}
+					else
+						heat_conductivity_fluids
+								= Fem_Ele_Std->FluidProp->HeatConductivity();
+					Sw = 1;
+
+					if (Fem_Ele_Std->cpl_pcs->type != 1)
+					{
+						double PG = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalValC1); // Capillary pressure
+
+						if (PG < 0.0)
+						{
+							Sw
+									= Fem_Ele_Std->MediaProp->
+									  SaturationCapillaryPressureFunction(-PG);
+							heat_conductivity_fluids *= Sw;
+							if (Fem_Ele_Std->GasProp != 0)
+								heat_conductivity_fluids
+										+= (1. - Sw)
+										   * Fem_Ele_Std->GasProp->
+										   HeatConductivity();
+						}
 					}
 				}
 			}
-		}
-		else
-		{
-			heat_conductivity_fluids = 0.0;
-			porosity = 0.0;
-		}
-//}
+			else
+			{
+				heat_conductivity_fluids = 0.0;
+				porosity = 0.0;
+			}
+	//}
 
-	dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
-	int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+		int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
 
-	for (i = 0; i < dimen * dimen; i++)   //MX
-		heat_conductivity_tensor[i] = 0.0;
+		for (i = 0; i < dimen * dimen; i++)   //MX
+			heat_conductivity_tensor[i] = 0.0;
 
-	m_msp = msp_vector[group];
-	m_msp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
-	                              group, number); //MX
+		m_msp = msp_vector[group];
+		m_msp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
+									  group, number); //MX
 
-	for (i = 0; i < dimen * dimen; i++)
-		heat_conductivity_tensor[i] *= (1.0 - porosity);
-	for (i = 0; i < dimen; i++)
+		for (i = 0; i < dimen * dimen; i++)
+			heat_conductivity_tensor[i] *= (1.0 - porosity);
+		for (i = 0; i < dimen; i++)
 		heat_conductivity_tensor[i * dimen + i] += porosity * heat_conductivity_fluids;
+
+	}
+	else
+	{	// given as mmp-property - JOD 2022-03-12
+		dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+		for (i = 0; i < dimen * dimen; i++)
+			heat_conductivity_tensor[i] = 0.0;
+		for (i = 0; i < dimen; i++)
+			heat_conductivity_tensor[i * dimen + i] = heat_conductivity;
+	}
+
 
 	if(evaporation == 647)
 	{

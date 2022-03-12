@@ -1732,6 +1732,7 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 		else
 		{
 			val = MediaProp->volumetric_heat_capacity;
+			//std::cout << "heat cap: " << val << "\n";
 		}
 		val /= time_unit_factor;
 		break;
@@ -2545,9 +2546,11 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 
 		}
 		else
-		{
+		{	// JOD 2022-03-12
+			tensor = MediaProp->HeatDispersionTensorNew(ip);
+
 			for(size_t i = 0; i < dim * dim; i++)
-				mat[i] = MediaProp->heat_conductivity;
+				mat[i] = tensor[i];
 		}
 		break;
 	case EPT_MASS_TRANSPORT:                               // Mass transport
