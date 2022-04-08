@@ -7384,7 +7384,11 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 				if(m_bc->isConnected())	// JOD 2020-01-27
 				{
 					if(m_bc->average_verbosity)
-						std::cout << "\tNode: " << m_bc_node->msh_node_number << '\n'; 
+						std::cout << "\tNode: " << m_bc_node->msh_node_number <<
+						" (x: " << m_msh->nod_vector[m_bc_node->msh_node_number]->getData()[0] <<
+						", y: " << m_msh->nod_vector[m_bc_node->msh_node_number]->getData()[1] <<
+						", z: " << m_msh->nod_vector[m_bc_node->msh_node_number]->getData()[2] <<
+						")\n";
 
 					bool flag_switch_off_BC = false;
 					bc_value += time_fac * fac * calculateNodeValueFromConnectedNodes(
@@ -9015,7 +9019,11 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			eqs_rhs[bc_eqs_index] += st_value;
 
 			if(scaling_vec[i].verbosity)
-				std::cout << "\t Scaled " << scaling_vec[i].node_number << ":\t" << st_value << '\n';
+				std::cout << "\t Scaled " << scaling_vec[i].node_number <<
+				" (x: " << m_msh->nod_vector[scaling_vec[i].node_number]->getData()[0] <<
+				", y: " << m_msh->nod_vector[scaling_vec[i].node_number]->getData()[1] <<
+				", z: " << m_msh->nod_vector[scaling_vec[i].node_number]->getData()[2]<<
+				"): " << st_value << '\n';
 
 			if(scaling_vec[i].keep_value)
 			{
@@ -17807,7 +17815,11 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 
 				value += GetNodeValue(nodes_vector[i], 1); // implicit
 				if(average_verbosity)
-					std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) << " x 1.\n";
+					std::cout << "\t\t\t" << nodes_vector[i] <<
+					" (x: " << m_msh->nod_vector[nodes_vector[i]]->getData()[0] <<
+					", y: " << m_msh->nod_vector[nodes_vector[i]]->getData()[1] <<
+					", z: " << m_msh->nod_vector[nodes_vector[i]]->getData()[2]<<
+					"): " << GetNodeValue(nodes_vector[i], 1) << " x 1.\n";
 			}
 			value /= nodes_vector.size();
 
@@ -17818,7 +17830,10 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 				value += GetNodeValue(nodes_vector[i], 1) *  // implicit
 						length_vector[i];
 				if(average_verbosity)
-					std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) << " x " <<
+					std::cout << "\t\t\t" << nodes_vector[i] << " (x:" << m_msh->nod_vector[nodes_vector[i]]->getData()[0] <<
+					", y: " << m_msh->nod_vector[nodes_vector[i]]->getData()[1] <<
+					", z: " << m_msh->nod_vector[nodes_vector[i]]->getData()[2]<<
+					"): " << GetNodeValue(nodes_vector[i], 1) << " x " <<
 					length_vector[i] << '\n';
 			}
 			value /= std::accumulate(length_vector.begin(), length_vector.end(), 0.);
@@ -17835,7 +17850,11 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 						ST_values_total += ST_value;
 						value += GetNodeValue(nodes_vector[i], 1) * ST_value;
 						if(average_verbosity)
-							std::cout << "\t\t\t" << nodes_vector[i] << ": " << GetNodeValue(nodes_vector[i], 1) <<
+							std::cout << "\t\t\t" << nodes_vector[i] <<
+							" (x: " << m_msh->nod_vector[nodes_vector[i]]->getData()[0] <<
+							", y: " << m_msh->nod_vector[nodes_vector[i]]->getData()[1] <<
+							", z: " << m_msh->nod_vector[nodes_vector[i]]->getData()[2]<<
+							"): " << GetNodeValue(nodes_vector[i], 1) <<
 								" with ST: " << ST_value << '\n';
 					}
 					else

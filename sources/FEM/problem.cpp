@@ -3356,7 +3356,6 @@ inline double Problem::HeatTransport()
 	CRFProcess* m_pcs = total_processes[8];
     if (ClockTimeVec.size()>0)
     ClockTimeVec[0]->StartTime(); // SB time
-    std::cout.flush();
 	if(!m_pcs->selected)
 		return error;             //12.12.2008 WW
    //CB This is a cheat to map a 2D horizontal heat pump distribution on a vertical model
