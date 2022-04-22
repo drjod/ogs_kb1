@@ -4539,8 +4539,9 @@ void GetHeterogeneousFields()
 		//....................................................................
 		//....................................................................
 		//....................................................................
-		prop = msp_vector[i];
-		if(prop == NULL)
+		if(msp_vector.size() > i)
+			prop = msp_vector[i];
+		else
 		{
 			throw std::runtime_error("MSP Instance missing in Problem::GetHeterogeneousFields()");
 			return;
