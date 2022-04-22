@@ -17595,7 +17595,15 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 			  else
 			  	std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 		  }
-
+		  if(m_st->connected_geometry_verbose_level > 1)
+		  {		
+			std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
+				"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+		  }
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   			  throw std::runtime_error("Error - Node connection not supported");
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
@@ -17646,6 +17654,15 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << falpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
 			  else
 			  	std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
+		  }
+		  if(m_st->connected_geometry_verbose_level > 1)
+		  {		
+			std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
+				"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
+				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
 		  }
 
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
@@ -17716,8 +17733,16 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 						if (m_st->connected_geometry_verbose_level > 0)
 							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 		  				if(m_st->connected_geometry_verbose_level > 1)
-			  				std::cout << "\t\t\tFlux: " << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+						{
+							std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << "\n\t\t\t\t" << 
+								m_msh->nod_vector[FromNode]->getData()[1] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
+								"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << "\n\t\t\t\t" << 
+								m_msh->nod_vector[ToNode]->getData()[1] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
 
+			  				std::cout << "\t\t\tFlux: " << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+						}
 						fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, false); // non-symmetric in direction of n_ref
 					}
 					else            // swap nodes
@@ -17725,8 +17750,15 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 						if (m_st->connected_geometry_verbose_level > 0)
 							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << alpha_value << "\n";
 		  				if(m_st->connected_geometry_verbose_level > 1)
+						{
+							std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
+								"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
+								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
 			  				std::cout << "\t\t\tFlux: " << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
-
+						}
 						fem->IncorporateNodeConnection(ToNode, FromNode, alpha_value, false); // non-symmetric in direction of -n_ref
 					}
 
@@ -17739,6 +17771,12 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 					}
 		  			if(m_st->connected_geometry_verbose_level > 1)
 					{
+						std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
+							"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
+							"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
+							"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
+							"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
+							"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
 			  			std::cout << "\t\t\tFlux" << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
 					}
 					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
