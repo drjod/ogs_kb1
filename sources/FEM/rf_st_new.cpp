@@ -5840,8 +5840,8 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 					//	continue;
 		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
 		{
-                        if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
-                        {
+			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
+			{
 				if(take_elements_below)
 				{
 					neglect_element = true;
@@ -5849,10 +5849,10 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 				}
 				else
 					take_elements_above = true;
-                        }
+				}
 
-                        if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() < m_pcs->m_msh->nod_vector[node_number]->Z() - 1e-5)
-                        {
+			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() < m_pcs->m_msh->nod_vector[node_number]->Z() - 1e-5)
+			{
 				if(take_elements_above)
 				{
 					neglect_element = true;
@@ -5860,7 +5860,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 				}
 				else
 					take_elements_below = true;
-                        }
+            }
 		}
 
 		if(neglect_element)

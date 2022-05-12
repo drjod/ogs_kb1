@@ -2496,7 +2496,14 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	case EPT_HEAT_TRANSPORT:                               // heat transport
 		if(MediaProp->heat_conductivity == -1)
 		{
-			if(SolidProp->GetConductModel() == 2) // Boiling model. DECOVALEX THM2
+			if(SolidProp->GetConductModel() == 1)
+			{
+				TG = interpolate(NodalVal1);
+				tensor = MediaProp->HeatDispersionTensorNew(ip);
+				for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = tensor[i];
+			}
+			else if(SolidProp->GetConductModel() == 2) // Boiling model. DECOVALEX THM2
 			{
 				TG = interpolate(NodalVal1);
 				for(size_t i = 0; i < dim * dim; i++)
@@ -2529,14 +2536,64 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				for(size_t i = 0; i < dim; i++)
 					mat[i * dim + i] = mat_fac;*/
 			}
-			//WW        else if(SolidProp->GetCapacityModel()==1 && MediaProp->heat_diffusion_model == 273){
-			else if(SolidProp->GetConductModel() == 1)
+			else if (SolidProp->GetConductModel() == 7) // heat conductivity value including ice part
 			{
-				TG = interpolate(NodalVal1);
-				tensor = MediaProp->HeatDispersionTensorNew(ip);
-				for(size_t i = 0; i < dim * dim; i++)
-					mat[i] = tensor[i];
-			}
+				TG = interpolate(NodalVal1); // ground temperature
+				//if(this->MeshElement->GetIndex()<5)
+				//std::cout << "Elementindex: " << this->MeshElement->GetIndex() << "; T: " << TG << "\n";
+				// get heat conductivity including the ice part
+				const double lambda_solid = SolidProp->Heat_Conductivity(0);
+				const double lambda_ice = SolidProp->Heat_Conductivity(1);
+				//lambda_water = SolidProp->Heat_Conductivity(2);
+				// get the porosity
+				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+				// get the freezing model parameter
+				const double sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
+				double phi_i;
+
+				if (TG > SolidProp->melting_temperature)
+						phi_i = 0.0;
+				else if (TG < SolidProp->freezing_temperature)
+						phi_i = 1.0;
+				else
+				{
+						//Tempeature interval T - TL
+						TG -= SolidProp->melting_temperature;
+						//TG = -1.0;
+
+						// get the volume fraction of ice
+						phi_i = MediaProp->CalcIceVolFrac(TG, sigmoid_coeff);
+
+				}
+				//MediaProp->Ice_Fraction = phi_i;
+				//if (this->MeshElement->GetIndex() < 5)
+				//std:cout << "Elementindex: " << this->MeshElement->GetIndex() << "; phi_i: " << phi_i<<"\n";
+				// output the element value if ICE Faction
+				this->pcs->SetElementValue(this->MeshElement->GetIndex(), pcs->GetElementValueIndex("PHI_I"), phi_i);
+
+				//Update with the squar root rule BW 05.2021
+				if (SolidProp->ice_conductivity_model == 1)//volumetric mean
+				{
+						mat_fac = lambda_solid * (1 - poro) + lambda_ice * phi_i * poro + FluidProp->HeatConductivity() * poro * (1.0 - phi_i);
+
+						// fluid, i.e. water heat conductivity
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
+				}
+				else if (SolidProp->ice_conductivity_model == 2)//power)
+				{
+						mat_fac = pow(lambda_solid, (1 - poro)) * pow(lambda_ice, (phi_i * poro)) * pow(FluidProp->HeatConductivity(), poro * (1.0 - phi_i));
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
+				}
+				else if (SolidProp->ice_conductivity_model == 3)//squarroot)
+				{
+						mat_fac = pow((sqrt(lambda_solid) * (1 - poro) + sqrt(lambda_ice) * (phi_i * poro) + sqrt(FluidProp->HeatConductivity()) * poro * (1.0 - phi_i)), 2);
+
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
+				}
+			}  // end SolidProp->GetConductModel() == 7
 			else
 			{
 				tensor = MediaProp->HeatConductivityTensor(Index);
@@ -2544,7 +2601,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 					mat[i] = tensor[i];  //mat[i*dim+i] = tensor[i];
 			}
 
-		}
+		}  // end heat_conductivity == -1
 		else
 		{	// JOD 2022-03-12
 			tensor = MediaProp->HeatDispersionTensorNew(ip);
@@ -12077,7 +12134,7 @@ Programming:
 double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liquid, double *z_coord,
 		const bool& flag_volumeCalculation, 
 		const double& threshold_lower, const double& threshold_upper, 
-		const bool& variable_storage)
+		const bool& variable_storage, const bool& flag_latent_heat)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
@@ -12123,16 +12180,56 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 		const double factor = fkt *  MediaProp->ElementVolumeMultiplyer;
 
 		double content_increment = Gauss_val;
-		if(!flag_volumeCalculation)
-			content_increment *= CalCoefMass(PcsType);
 
-		if( variable_storage && (PcsType == EPT_HEAT_TRANSPORT || PcsType == EPT_MASS_TRANSPORT))
+		if (flag_latent_heat == true)  // BW 2022-05-12
 		{
-			double content_increment_liquid = Gauss_val * Gauss_val_liquid;
-			if(!flag_volumeCalculation)
-				content_increment_liquid *= CalCoefMass(EPT_LIQUID_FLOW);
+			// get the freezing model parameter
+			const double sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
+			double phi_i;
 
-			content_increment += content_increment_liquid;
+			if (Gauss_val > SolidProp->melting_temperature)
+			{
+				phi_i = 0.0;
+				content_increment = 0.0;
+			}
+			else if (Gauss_val < SolidProp->freezing_temperature)
+			{
+				phi_i = 1.0;
+				content_increment = 0.0;
+			}
+			else
+			{
+				//Temperature interval T - TL
+				const double TG = Gauss_val - SolidProp->melting_temperature;
+
+				// get the volume fraction of ice
+				phi_i = MediaProp->CalcIceVolFrac(TG, sigmoid_coeff);
+			}
+
+			// get the porosity
+			const double poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+			// get latent heat
+			const double latent_heat = SolidProp->getlatentheat();
+			// get ice density
+			const double ice_density = fabs(SolidProp->Density(1.0));
+			//content
+			content_increment = ice_density * phi_i * latent_heat * poro;
+			//content_increment = CalCoefMass(true, flag_latent_heat);
+		}
+		else
+		{
+			if(!flag_volumeCalculation)
+				content_increment *= CalCoefMass(PcsType);
+
+			if( variable_storage && (PcsType == EPT_HEAT_TRANSPORT || PcsType == EPT_MASS_TRANSPORT))
+			{
+				double content_increment_liquid = Gauss_val * Gauss_val_liquid;
+				if(!flag_volumeCalculation)
+					content_increment_liquid *= CalCoefMass(EPT_LIQUID_FLOW);
+
+				content_increment += content_increment_liquid;
+			}
+
 		}
 
 		content += factor * content_increment;

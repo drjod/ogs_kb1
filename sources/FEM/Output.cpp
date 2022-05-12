@@ -404,11 +404,12 @@ ios::pos_type COutput::Read(std::ifstream& in_str,
 		if (line_string.find("$DAT_TYPE") != string::npos)
 		{
 			in_str >> dat_type_name;
-			if (dat_type_name == "CONTENT") // JOD 2/2015
+			if (dat_type_name == "CONTENT" // JOD 2/2015
+					|| dat_type_name == "LATENT_HEAT") // BW 2022-05-12
 			{
 				in_str >> mmp_index;
 			}
-			if (dat_type_name == "VOLUME") // JOD 2020-1-16
+			else if (dat_type_name == "VOLUME") // JOD 2020-1-16
 			{
 						flag_volumeCalculation = true;  // flag for volume calculation
 						in_str >> mmp_index >> domainIntegration_lowerThreshold >> domainIntegration_upperThreshold; // JOD 2020-1-15
@@ -1442,15 +1443,20 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 			tec_file << ",\"VELOCITY1_X\",\"VELOCITY1_Y\",\"VELOCITY1_Z\"";
 			break;
 		}
-	}
 
-	for (size_t i = 0; i < _ele_value_vector.size(); i++)
 		if (_ele_value_vector[i].find("DENSITY1") != string::npos)
 		{
 			tec_file << ",\"DENSITY1\"";
 			break;
 		}
 
+        if (_ele_value_vector[i].find("PHI_I") != string::npos)  // BW 2022-05-12
+        {
+                tec_file << ",\"Ice_Fraction\"";
+                break;
+        }
+
+	}
 	tec_file << "\n";
 	// Write Header II: zone
 	tec_file << "ZONE T=\"";
@@ -2022,6 +2028,8 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
 			}
 			if (mmp_value_vector[j].compare("POROSITY") == 0)
 				tec_file << m_mmp->Porosity(i, 1) << " ";
+            //if (mmp_value_vector[j].compare("PHI_I") == 0)
+            //      tec_file << m_mmp->Ice_Fraction << " ";
 			if (mmp_value_vector[j].compare("MATERIAL_GROUP") == 0)
 				tec_file << group << " ";
 
@@ -6104,3 +6112,104 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 				throw std::runtime_error("pcs not found for borehole output");
 		}
 }
+
+
+/**************************************************************************
+OpenGeoSys - Funktion
+Task:   Writes Latent Heat for specific mmp_index in file only for HEAT_TRANSPORT
+Use:    $DAT_TYPE
+CONTENT mmp_index
+Programing:
+04/2022 BW copy from WriteContent and modified accordingly
+**************************************************************************/
+
+void COutput::WriteLatentHeat(double time_current, int time_step_number)  // BW 2022-05-12 merged
+{
+        CFEMesh* m_msh = NULL;
+        m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
+        CRFProcess* m_pcs = NULL;
+        double factor = 1.;
+        if (_nod_value_vector.size() > 0)
+                m_pcs = PCSGet(_nod_value_vector[0], true);
+        else
+                m_pcs = PCSGet(getProcessType());
+        bool output = false;
+
+        bool flag_latent_heat = true;
+
+        //--------------------------------------------------------------------
+        /*if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+                factor = 6.283185307; // 2 Pi
+        else
+                factor = 1.;*/
+                // File handling
+        string tec_file_name;
+
+        tec_file_name = file_base_name + "_" + convertProcessTypeToString(getProcessType());
+        if (_nod_value_vector.size() > 0)
+                tec_file_name += "_" + _nod_value_vector[0];
+        //if (mmp_index == -2)
+        //{
+        //      stringstream ss; ss << "_VOLUME_" << domainIntegration_lowerThreshold << "_" << domainIntegration_upperThreshold;
+        //      tec_file_name += ss.str();
+        //}
+        //else
+        //{
+                tec_file_name += "_LatentHeat";
+        //}
+
+        if (mmp_index >= 0)
+        {
+                stringstream ss; ss << mmp_index;
+                tec_file_name += ss.str();
+        }
+
+
+#if defined(USE_PETSC)  // JOD 2015-11-18
+        tec_file_name += "_" + mrank_str;
+#endif
+
+        tec_file_name += ".txt";
+
+        if (!_new_file_opened)
+                remove(tec_file_name.c_str());
+
+        fstream tec_file(tec_file_name.data(), ios::app | ios::out);
+        tec_file.setf(ios::scientific, ios::floatfield);
+        tec_file.precision(12);
+        if (!tec_file.good()) return;
+        tec_file.seekg(0L, ios::beg);
+
+        if (!_new_file_opened)
+                tec_file << "\"TIME\"                   \"Latent Heat\"" << "\n";
+        else
+        {
+                if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
+                        output = true;
+
+                for (size_t j = 0; j < time_vector.size(); j++)
+                        if ((fabs(time_current - time_vector[j])) < MKleinsteZahl)
+                                output = true;
+
+                if (output == true)
+                {
+                        tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(
+                        		mmp_index, flag_volumeCalculation,
+                                domainIntegration_lowerThreshold,
+                                domainIntegration_upperThreshold,
+                                _nod_value_vector, variable_storage, flag_latent_heat)
+                                << "\n";
+                        cout << "Data output: " << convertProcessTypeToString(getProcessType());
+                        if (_nod_value_vector.size() == 1)
+                                cout << " " << _nod_value_vector[0];
+                        cout << " TOTAL_CONTENT " << mmp_index << endl;
+                }
+        }
+
+        flag_latent_heat = false;
+        _new_file_opened = true;
+        tec_file.close();
+
+}
+
+

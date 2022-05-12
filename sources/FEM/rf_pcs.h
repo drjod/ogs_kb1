@@ -658,7 +658,8 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
-	double AccumulateContent(const int&, const bool&, const double&, const double&, std::vector<std::string>, const bool&); // JOD 2/2015
+	double AccumulateContent(const int&, const bool&, const double&,
+			const double&, std::vector<std::string>, const bool&, const bool& flag_Latent_heat=false); // JOD 2/2015
 	void IncorporateNodeConnectionSourceTerms(const long&, const long&, const double&, CSourceTerm*, double& value); // JOD 2/2015
 
 	// MSH
@@ -953,6 +954,7 @@ public:
 	void CalcSecondaryVariablesPSGLOBAL(); // PCH
 	void CalcSecondaryVariablesDensity();                                                  // PCH
 	void CalcSecondaryVariablesViscosity(); // JOD 2016-1-11
+	void CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction  merged 2022-05-12
 	double GetCapillaryPressureOnNodeByNeighobringElementPatches(int nodeIdx,
 	                                                             int meanOption,
 	                                                             double Sw);
