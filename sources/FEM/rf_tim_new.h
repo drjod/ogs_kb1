@@ -29,10 +29,22 @@ class CRFProcess;                                 //21.08.2008. WW
 class CTimeDiscretization
 {
 private:
+	double h_min;
+	double h_max;
+	double hacc;
+	double erracc;
+	double dynamic_control_tolerance[DOF_NUMBER_MAX+1];	//JT2012
+	std::string dynamic_control_error_method;			//JT2012
+	int dynamic_time_buffer;							//JT2012
+	double dynamic_minimum_suggestion;				    //JT2012
+	double dynamic_failure_threshold;					//JT2012
+	bool pay_no_mind_to_output;  // JOD 2015-11-26
+	std::vector<double> critical_time;
+	//End of data section for PI Time control ------------------------
+	friend bool IsSynCron();              //WW
 	double safty_coe;
 	double dt_sum;                        // 17.09.2007 WW
-	// For PI time step control. Aug-Nov.2008. by WW
-	//Begin of data section for PI Time control ------------------------
+	double correction_factor;  // JOD 2022-05-13 for REPEAT_IF_NOT_CONVERGED
 public:                                           //OK
 	double this_stepsize;
 	double relative_error;
@@ -45,24 +57,8 @@ public:                                           //OK
 	double max_accepted_timestep; //SB
 	double fac_max_accepted_timestep; //SB
 	double last_time_simulated; //SB
-private:
-	double h_min;
-	double h_max;
-	double hacc;
-	double erracc;
-	double dynamic_control_tolerance[DOF_NUMBER_MAX+1];	//JT2012
-	std::string dynamic_control_error_method;			//JT2012
-	int dynamic_time_buffer;							//JT2012
-	double dynamic_minimum_suggestion;				    //JT2012
-	double dynamic_failure_threshold;					//JT2012
-	bool pay_no_mind_to_output;  // JOD 2015-11-26
-public:                                           //OK
 	int PI_tsize_ctrl_type;
-private:
-	std::vector<double> critical_time;
-	//End of data section for PI Time control ------------------------
-	friend bool IsSynCron();              //WW
-public:
+
 	std::string file_base_name;
 	// TIM
 	std::vector<double>time_step_vector;
@@ -117,7 +113,7 @@ public:
 	double nonlinear_iteration_error;     //OK/YD
 	//WW double max_adaptive_factor; // kg44
 	//WW double max_adaptive_concentration_change; // kg44
-public:
+
 	CTimeDiscretization(void);
 	//21.08.2008. WW
 	CTimeDiscretization(const CTimeDiscretization& a_tim, std::string pcsname);

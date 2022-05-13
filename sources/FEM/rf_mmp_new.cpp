@@ -149,9 +149,9 @@ CMediumProperties::CMediumProperties() :
 
 	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
 
-	volumetric_heat_capacity = -1.;
 	heat_conductivity = -1.;
 	velocity_given = false;
+	volumetric_heat_capacity_model = -1;
 }
 
 /**************************************************************************
@@ -1948,9 +1948,44 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  if(line_string.find("$VOLUMETRIC_HEAT_CAPACITY") != std::string::npos)  // JOD 2021-5-21
 	  {
 		  in.str(GetLineFromFile1(mmp_file));
-		  in >> volumetric_heat_capacity;
+		  in >> volumetric_heat_capacity_model;
+		  std::cout << "\tVolumetric heat capacity: ";
+		  switch(volumetric_heat_capacity_model)  // JOD 2022-05-13
+		  {
+		  	  case 0:  // CURVE - dependent on temperature
+		  		  in >> volumetric_heat_capacity_curve_number;
+		  		  std::cout << "Curve " << volumetric_heat_capacity_curve_number << '\n';
+		  		  break;
+		  	  case 1:  // constant value
+		  		  in >> volumetric_heat_capacity;
+		  		  std::cout << volumetric_heat_capacity << '\n';
+		  		  break;
+		  	  default:
+		  		  throw std::runtime_error("VOLUMETRIC_HEAT_CAPACITY model not supported");
+		  }
 		  in.clear();
 		  continue;
+		  /*
+		  switch(capillary_pressure_model)
+		  			{
+		  			case 0:       // k=f(Se)
+		  				in >> capillary_pressure_values[0]; // curve
+		  				in >> capillary_pressure_values[1]; // Slr
+		  				in >> capillary_pressure_values[2]; // Slmax
+		  				//
+		  				// JT: Check for old version format.
+		  				if(capillary_pressure_values[2] < 0.0){
+		  					capillary_pressure_values[1] = residual_saturation[0];	// old version uses relative permeabilty values for this
+		  					capillary_pressure_values[2] = maximum_saturation[0];	// old version uses relative permeabilty values for this
+		  					old_format = true;
+		  				}
+		  				break;
+		  			case 1:       // const
+		  				in >> capillary_pressure_values[0]; // the constant Pc value
+		  				//
+
+		  				 */
+
 	  }
 	  //------------------------------------------------------------------------
 	  //subkeyword found
@@ -8108,7 +8143,7 @@ Task: calculate the volume fraction of ice based on temperatuer
 Programing:
 2022 BW from (HS  02/2015)
 **************************************************************************/
-double CMediumProperties::CalcIceVolFrac(double T_in_dC, double freezing_sigmoid_coeff) //BW merged 2022-05-12
+double CMediumProperties::CalcIceVolFrac(double T_in_dC, double freezing_sigmoid_coeff) const //BW merged 2022-05-12
 {
     double phi_i = 0.0;
 
@@ -8129,7 +8164,7 @@ double CMediumProperties::CalcIceVolFrac(double T_in_dC, double freezing_sigmoid
 //}
 
 //BW 07.2019 - merged 2022-05-12
-double CMediumProperties::Calcsigmoidderive(double T_in_dC, double freezing_sigmoid_coeff)
+double CMediumProperties::Calcsigmoidderive(double T_in_dC, double freezing_sigmoid_coeff) const
 {
         double sigmoid_derive = 0.0;
 
@@ -8149,3 +8184,26 @@ double CMediumProperties::Calcsigmoidderive(double T_in_dC, double freezing_sigm
 //      return sigmoid_derive;
 //}
 
+double CMediumProperties::VolumetricHeatCapacity(const double& temperature) const  // JOD 2022-05-13
+{
+	double value;
+
+	switch(volumetric_heat_capacity_model)
+	{
+		case 0:  // CURVE - dependent on temperature
+		{
+			int gueltig;
+			value = GetCurveValue(volumetric_heat_capacity_curve_number, 0, temperature, &gueltig);
+			//if(!gueltig)  threshold value if outside range
+			//	std::cout << "WARNING in VolumetricHeatCapacity: Value from curve not valid\n";
+		}
+			break;
+		case 1:  // const
+			value = volumetric_heat_capacity;
+			break;
+		default:
+			throw std::runtime_error("VolumetricHeatCapacity model not supported");
+	}
+
+	return value;
+}

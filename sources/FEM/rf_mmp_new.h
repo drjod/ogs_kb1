@@ -41,8 +41,6 @@ using FiniteElement::CFiniteElementStd;
 
 class CMediumProperties : public Properties
 {
-	public:
-		CFiniteElementStd* Fem_Ele_Std;
 	private:
 		//WW
 		friend class FiniteElement::CFiniteElementStd;
@@ -88,115 +86,24 @@ class CMediumProperties : public Properties
 
 		bool velocity_given;  // JOD 2022-02-02
 		double velocity[3];
-	public:
-		double* get_velocity() { return &velocity[0]; }
-		bool get_velocity_given() { return velocity_given; }
-		//-------------------------------------------
-		// Methods
-		CMediumProperties(void);                    // constructor
-		~CMediumProperties(void);                   // destructor
-		CMediumProperties* Get(std::string);
-		CMediumProperties* GetDB(std::string);
-		CMediumProperties* GetByGroupNumber(int);
-		void Set(std::string,std::string,double);
-		void SetDB(std::string,std::string,double);
-		int GetPropertyType(std::string);
-		std::ios::pos_type Read(std::ifstream*);
-		void Write(std::fstream*);
-		void WriteTecplot(std::string);
-		double* PermeabilityTensor(long index);
-		//CMCD 9/2004 GeoSys 4
-		double Porosity(FiniteElement::CElement* assem = NULL);
-		//CMCD 9/2004 GeoSys 4
-		double TortuosityFunction(long number,
-	                          double* gp,
-	                          double theta,
-	                          CFiniteElementStd* assem = NULL);
-		//CMCD 9/2004 GeoSys 4
-		double NonlinearFlowFunction(long number, int gp, double theta, CFiniteElementStd* assem=NULL);
-		//CMCD 9/2004 GeoSys 4
-		double PermeabilityPressureFunction(long index,double* gp,double theta);
-		//CMCD 9/2004 GeoSys 4
-		double PermeabilityPorosityFunction(long index,double* gp,double theta);
-		double PermeabilityFunctionPressure(long index, double PG2); //WX:  05.2010
-		double PermeabilityFunctionStrain(long index, int nnodes, CFiniteElementStd* h_fem); //WX
-		double PermeabilityFunctionEffStress(long index, int nnodes, CFiniteElementStd *h_fem);//AS:08.2012
-		double StorageFunctionEffStress(long index, int nnodes, CFiniteElementStd *h_fem);//AS 08.2012
-		double PorosityVolStrain(long index, double val0, CFiniteElementStd* assem); //WX: 03.2011
-		double KozenyCarman(double k0 /*old permeability*/,
-							double n0 /*old porosity*/,
-							double n /*new porosity*/); //HS: 11.2008
-		double KozenyCarman_normalized(double k0 /*old permeability*/,
-									   double n0 /*old porosity*/,
-									   double n /*new porosity*/); //HS: 11.2008
-		//WW
-		double KozenyCarmanNew(double k_init, double n_init, double n_t); //AB
-		double VermaPruess(double k_init, double n_init, double n_t);     //AB
-		void CalStressPermeabilityFactor(double* kfac, const double T = 273.0);
-		//WW
-		void CalStressPermeabilityFactor2(double* kfac, const double T = 273.0);
-		//WW
-		void CalStressPermeabilityFactor3(double* kfac);
-		void CalStressPermeabilityFactor3_Coef(); //WW
-		void CalStressPermeabilityFactor4(double* kfac, double);
-		//CMCD 9/2004 GeoSys 4
-		double StorageFunction(long number,double* gp,double theta);
-		double HeatCapacity(long number,double theta, bool flag_calcContent=false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 Please update changes
-		double CalcIceVolFrac(double T_in_dC, double freezing_sigmoid_coeff); // remove porosity BW 05.2021, merged 2022-05-12
-		double Calcsigmoidderive(double T_in_dC, double phi_i); // BW 05.2021, merged 2022-05-12
-		double* HeatConductivityTensor(int number); //MX
-		double* HeatDispersionTensorNew(int ip); //CMCD
-		double* MassDispersionTensorNew(int ip, int phase); //CMCD, SB, BG
-		double* DispersionTensorMCF(int ip, int PCSIndex, int CIndex, double* variables = NULL);
-		//OK
-		double Density(long number,double* gp,double theta);
-		// Capillary pressure functions
-		double CapillaryPressureFunction(const double wetting_saturation);
-		double PressureSaturationDependency(double wetting_saturation, bool invert);
-		//JT: No longer used // double SaturationPressureDependency(const double capillary_pressure, bool allow_zero = false);
-		double SaturationCapillaryPressureFunction(const double capillary_pressure);
-		//WW
-		double PermeabilitySaturationFunction(const double wetting_saturation, int phase);
-		double GetEffectiveSaturationForPerm(const double wetting_saturation, int phase); // JT
-		//MX 1/2005
-		double PorosityVolumetricChemicalReaction(long);
-		double Porosity(long number,double theta); //CMCD 9/2004 GeoSys 4
-												   //CMCD 4/2005
-		void SetConstantELEarea(double area, int group);
-
-		void WriteTecplotDistributedProperties(); //OK
-		double HeatTransferCoefficient(long number,double theta, CFiniteElementStd* assem); //NW
-		double ParticleDiameter();
-		unsigned GetGeoDimension(void ){ return geo_dimension; }
-		/**
-		 * the type of the geometric entity, the material property is assigned to
-		 * @return a value of the enum GEOLIB::GEOTYPE
-		 */
-		GEOLIB::GEOTYPE getGeoType() const { return _geo_type; }
-
-
-
-		FluidVelocity fluidVelocity;  // JOD 2018-5-4
-
-		double volumetric_heat_capacity, heat_conductivity; // JOD 2021-5-21
-		// Properties
-	private:
 		// PCS
 		std::string pcs_type_name;            //YD
-	public:
-		CRFProcess* m_pcs;                    //OK
-		std::vector<std::string>pcs_name_vector;
-	private:
 		std::vector<std::string> porosity_pcs_name_vector;
-
-
 		/**
 		 * attribute describes the type of the geometric entity the
 		 * material property is assigned to
 		 */
 		GEOLIB::GEOTYPE _geo_type;
 		FiniteElement::FrictionPhase _fric_phase;
+		FluidVelocity fluidVelocity;  // JOD 2018-5-4
+
+		int volumetric_heat_capacity_model;  // JOD 2022-05-13
+		int volumetric_heat_capacity_curve_number;
+		double volumetric_heat_capacity, heat_conductivity; // JOD 2021-5-21
 	public:
+		CFiniteElementStd* Fem_Ele_Std;
+		CRFProcess* m_pcs;                    //OK
+		std::vector<std::string>pcs_name_vector;
 		int getNumber() { return number; }
 		//GEO
 		std::string geo_name;
@@ -322,6 +229,92 @@ class CMediumProperties : public Properties
 		double graindiameter;
 		double hydraulicrad;
 		double betaexpo;
+
+		double* get_velocity() { return &velocity[0]; }
+		bool get_velocity_given() { return velocity_given; }
+		//-------------------------------------------
+		// Methods
+		CMediumProperties(void);                    // constructor
+		~CMediumProperties(void);                   // destructor
+		CMediumProperties* Get(std::string);
+		CMediumProperties* GetDB(std::string);
+		CMediumProperties* GetByGroupNumber(int);
+		void Set(std::string,std::string,double);
+		void SetDB(std::string,std::string,double);
+		int GetPropertyType(std::string);
+		std::ios::pos_type Read(std::ifstream*);
+		void Write(std::fstream*);
+		void WriteTecplot(std::string);
+		double* PermeabilityTensor(long index);
+		//CMCD 9/2004 GeoSys 4
+		double Porosity(FiniteElement::CElement* assem = NULL);
+		//CMCD 9/2004 GeoSys 4
+		double TortuosityFunction(long number,
+	                          double* gp,
+	                          double theta,
+	                          CFiniteElementStd* assem = NULL);
+		//CMCD 9/2004 GeoSys 4
+		double NonlinearFlowFunction(long number, int gp, double theta, CFiniteElementStd* assem=NULL);
+		//CMCD 9/2004 GeoSys 4
+		double PermeabilityPressureFunction(long index,double* gp,double theta);
+		//CMCD 9/2004 GeoSys 4
+		double PermeabilityPorosityFunction(long index,double* gp,double theta);
+		double PermeabilityFunctionPressure(long index, double PG2); //WX:  05.2010
+		double PermeabilityFunctionStrain(long index, int nnodes, CFiniteElementStd* h_fem); //WX
+		double PermeabilityFunctionEffStress(long index, int nnodes, CFiniteElementStd *h_fem);//AS:08.2012
+		double StorageFunctionEffStress(long index, int nnodes, CFiniteElementStd *h_fem);//AS 08.2012
+		double PorosityVolStrain(long index, double val0, CFiniteElementStd* assem); //WX: 03.2011
+		double KozenyCarman(double k0 /*old permeability*/,
+							double n0 /*old porosity*/,
+							double n /*new porosity*/); //HS: 11.2008
+		double KozenyCarman_normalized(double k0 /*old permeability*/,
+									   double n0 /*old porosity*/,
+									   double n /*new porosity*/); //HS: 11.2008
+		//WW
+		double KozenyCarmanNew(double k_init, double n_init, double n_t); //AB
+		double VermaPruess(double k_init, double n_init, double n_t);     //AB
+		void CalStressPermeabilityFactor(double* kfac, const double T = 273.0);
+		//WW
+		void CalStressPermeabilityFactor2(double* kfac, const double T = 273.0);
+		//WW
+		void CalStressPermeabilityFactor3(double* kfac);
+		void CalStressPermeabilityFactor3_Coef(); //WW
+		void CalStressPermeabilityFactor4(double* kfac, double);
+		//CMCD 9/2004 GeoSys 4
+		double StorageFunction(long number,double* gp,double theta);
+		double HeatCapacity(long number,double theta, bool flag_calcContent=false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 Please update changes
+		double CalcIceVolFrac(double T_in_dC, double freezing_sigmoid_coeff) const; // remove porosity BW 05.2021, merged 2022-05-12
+		double Calcsigmoidderive(double T_in_dC, double phi_i) const; // BW 05.2021, merged 2022-05-12
+		double* HeatConductivityTensor(int number); //MX
+		double* HeatDispersionTensorNew(int ip); //CMCD
+		double* MassDispersionTensorNew(int ip, int phase); //CMCD, SB, BG
+		double* DispersionTensorMCF(int ip, int PCSIndex, int CIndex, double* variables = NULL);
+		//OK
+		double Density(long number,double* gp,double theta);
+		// Capillary pressure functions
+		double CapillaryPressureFunction(const double wetting_saturation);
+		double PressureSaturationDependency(double wetting_saturation, bool invert);
+		//JT: No longer used // double SaturationPressureDependency(const double capillary_pressure, bool allow_zero = false);
+		double SaturationCapillaryPressureFunction(const double capillary_pressure);
+		//WW
+		double PermeabilitySaturationFunction(const double wetting_saturation, int phase);
+		double GetEffectiveSaturationForPerm(const double wetting_saturation, int phase); // JT
+		//MX 1/2005
+		double PorosityVolumetricChemicalReaction(long);
+		double Porosity(long number,double theta); //CMCD 9/2004 GeoSys 4
+												   //CMCD 4/2005
+		double VolumetricHeatCapacity(const double&) const;
+		void SetConstantELEarea(double area, int group);
+
+		void WriteTecplotDistributedProperties(); //OK
+		double HeatTransferCoefficient(long number,double theta, CFiniteElementStd* assem); //NW
+		double ParticleDiameter();
+		unsigned GetGeoDimension(void ){ return geo_dimension; }
+		/**
+		 * the type of the geometric entity, the material property is assigned to
+		 * @return a value of the enum GEOLIB::GEOTYPE
+		 */
+		GEOLIB::GEOTYPE getGeoType() const { return _geo_type; }
 };
 
 class CMediumPropertiesGroup                      //YD

@@ -1203,7 +1203,7 @@ void Problem::Euler_TimeDiscretize()
 			for(i=0; i<(int)active_process_index.size(); i++)
 			{
 				m_tim = total_processes[active_process_index[i]]->Tim;
-				if(!m_tim->time_active)
+				if(m_tim == NULL || !m_tim->time_active)
 					continue;
 				m_tim->rejected_step_count++;
 				m_tim->last_active_time -= dt;

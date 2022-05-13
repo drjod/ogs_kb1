@@ -91,6 +91,7 @@ CTimeDiscretization::CTimeDiscretization(void)
 	last_time_step_length = 0;
 	dampening = 0;
 	pay_no_mind_to_output = false; // JOD 2014-11-26
+	correction_factor = 1.;
 
 }
 
@@ -589,11 +590,15 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 							dampening = strtod(line_string.data(),NULL);
 							line.clear();
 						}
+						else if (line_string.find("REDUCE_IF_NOT_CONVERGED") != std::string::npos) // JOD 2022-05-13
+						{
+							*tim_file >> line_string;
+							correction_factor = strtod(line_string.data(),NULL);  // no effect if value 1. (default)
+							line.clear();
+						}
 						else
 						{
-							std::cout << "ERROR: Unrecognized keyword in .tim file: " << line.str() << "\n";
-							std::cout << " You may want to check line endings (carriage return)." << "\n";
-							exit(1);
+							throw std::runtime_error("ERROR: Unrecognized keyword in .tim file - You may want to check line endings (carriage return).");
 						}
 					} // end of while loop adaptive
 				// end of if "SELF_ADAPTIVE"
@@ -822,7 +827,13 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
     		}
     		else if(time_control_type == TimeControlType::SELF_ADAPTIVE)
     		{
-			time_step_length = SelfAdaptiveTimeControl();
+    			if(repeat)
+    			{
+    				time_step_length *= correction_factor;
+    				std::cout << "Time step corrected to: " << time_step_length << '\n';
+    			}
+    			else
+    				time_step_length = SelfAdaptiveTimeControl();
     		}
 	}
 	else if(time_control_type == TimeControlType::STABLE_ERROR_ADAPTIVE)
@@ -890,6 +901,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	if(time_step_length < min_time_step)
 	{ // Default value of min_time_step is DBL_EPSILON, unless entered otherwise in the .tim read
 		time_step_length = min_time_step;
+		std::cout << "Time step corrected to minimum value: " << min_time_step << '\n';
 	}
 	// JT: the recommended time step, before critical alteration (for dt control)
 	//     otherwise the critical time will govern time change, rather than primary variable rates.

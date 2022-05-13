@@ -1724,15 +1724,14 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 		break;
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
-		if(MediaProp->volumetric_heat_capacity == -1.)
+		TG = interpolate(NodalVal1);
+		if(MediaProp->volumetric_heat_capacity_model == -1)
 		{
-			TG = interpolate(NodalVal1);
 			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		}
 		else
 		{
-			val = MediaProp->volumetric_heat_capacity;
-			//std::cout << "heat cap: " << val << "\n";
+			val = MediaProp->VolumetricHeatCapacity(TG);
 		}
 		val /= time_unit_factor;
 		break;
