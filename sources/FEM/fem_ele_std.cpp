@@ -3795,8 +3795,6 @@ void CFiniteElementStd::CalcMass()
 		}
 	}
 
-	ElementValue* gp_ele = ele_gp_value[Index]; //NW
-
 	//----------------------------------------------------------------------
 	//======================================================================
 	// Loop over Gauss points
@@ -3827,7 +3825,7 @@ void CFiniteElementStd::CalcMass()
 		mat_fac *= MediaProp->ElementVolumeMultiplyer;
 		// Calculate mass matrix
 		if(PcsType == EPT_TWOPHASE_FLOW)
-		  {
+		{
 		    // upwinding: addiere SUPG-Summanden auf shapefct entsprechend Fkt. Mphi2D_SPG
 		    if(pcs->m_num->ele_upwind_method > 0)
 		      UpwindSummandMass(gp, gp_r, gp_s, gp_t, alpha, summand);
@@ -3843,14 +3841,13 @@ void CFiniteElementStd::CalcMass()
 #else
 		    for(i = 0; i < nnodes; i++)
 		      for(j = 0; j < nnodes; j++)
-			// bei CT: phi * omega; phi beinh. uw-fakt.
-			(*Mass)(i, j) += mat_fac *
-			  (shapefct[i] + summand[i]) * shapefct[j];
+		    	  // bei CT: phi * omega; phi beinh. uw-fakt.
+		    	  (*Mass)(i, j) += mat_fac * (shapefct[i] + summand[i]) * shapefct[j];
 #endif
 		    //TEST OUTPUT
-		  }
+		}
 		else
-		  {
+		{
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 			for (i = 0; i < act_nodes; i++)
 			{
@@ -3863,40 +3860,48 @@ void CFiniteElementStd::CalcMass()
 #else
 		    for (i = 0; i < nnodes; i++)
 		      for (j = 0; j < nnodes; j++)
-			{
+		      {
 			  //NW
-			  if (pcs->m_num->ele_supg_method == 0)
-			    if(j > i)
-			      continue;
-			  (*Mass)(i,j) += mat_fac * shapefct[i] * shapefct[j];
-			}
+		    	  if (pcs->m_num->ele_supg_method == 0)
+		    		  if(j > i)
+		    			  continue;
+		    	  (*Mass)(i,j) += mat_fac * shapefct[i] * shapefct[j];
+		      }
 #endif
 		    if (pcs->m_num->ele_supg_method > 0) //NW
-		      {
-			vel[0] = gp_ele->Velocity(0, gp);
-			vel[1] = gp_ele->Velocity(1, gp);
-			vel[2] = gp_ele->Velocity(2, gp);
+		    {
+		    	if(ele_gp_value.size()>0 )  // FLOW process exists
+		    	{
+		    		const ElementValue *const gp_ele = ele_gp_value[Index]; //NW
+
+		    		vel[0] = gp_ele->Velocity(0, gp);
+		    		vel[1] = gp_ele->Velocity(1, gp);
+		    		vel[2] = gp_ele->Velocity(2, gp);
+		    	}
+		    	else
+		    	{
+		    		vel[0] = vel[1] = vel[2] = 0.;
+		    	}
+		    	double tau = 0;
+		    	CalcSUPGWeightingFunction(vel, gp, tau, weight_func);
 			
-			double tau = 0;
-			CalcSUPGWeightingFunction(vel, gp, tau, weight_func);
-			
-			// tau*({v}[dN])^T*[N]
+		    	// tau*({v}[dN])^T*[N]
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
-			for (i = 0; i < act_nodes; i++)
-			{
-			    const int ia = local_idx[i];
-			    for (j = 0; j <  nnodes; j++)
-			    {
-			    	(*Mass)(ia, j) += mat_fac * tau * weight_func[ia] * shapefct[j];
-			    }
-			}
+				for (i = 0; i < act_nodes; i++)
+				{
+					const int ia = local_idx[i];
+					for (j = 0; j <  nnodes; j++)
+					{
+						(*Mass)(ia, j) += mat_fac * tau * weight_func[ia] * shapefct[j];
+					}
+				}
 #else
-			for (i = 0; i < nnodes; i++)
-			  for (j = 0; j < nnodes; j++)
-			    (*Mass)(i, j) += mat_fac * tau * weight_func[i] * shapefct[j];
+				for (i = 0; i < nnodes; i++)
+				  for (j = 0; j < nnodes; j++)
+					(*Mass)(i, j) += mat_fac * tau * weight_func[i] * shapefct[j];
 #endif
-		      }
-		  }            //end else
+		    } // end SUPG
+		} //end PcsType != EPT_TWOPHASE_FLOW
 	}   // loop gauss points
 	
 	//WW/CB //NW

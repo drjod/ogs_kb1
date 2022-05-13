@@ -357,16 +357,6 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					capacity_pcs_name_vector.push_back("TEMPERATURE1");
 					capacity_pcs_name_vector.push_back("SATURATION1");
 					break;
-				case 30:       // another model for bentonite. WW
-					// 0. maximum conductivity
-					// 1. minimum conductivity
-					// 2. saturation
-					data_Conductivity = new Matrix(3);
-					for(i = 0; i < 3; i++)
-						in_sd >> (*data_Conductivity)(i);
-					in_sd.clear();
-					capacity_pcs_name_vector.push_back("SATURATION1");
-					break;
 				case 4:       //  = f(S) //21.12.2009 WW
 					in_sd >> Size;
 					in_sd.clear();
@@ -398,6 +388,23 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
 					//conductivity_pcs_name_vector.push_back("SATURATION1");
 				}
+	            case 7:       //  thermal conductivity soil and ice merged from BW 2022-05-12
+	                data_Conductivity = new Matrix(3);
+	                in_sd >> (*data_Conductivity)(0); // soild lambda
+	                in_sd >> (*data_Conductivity)(1); // ice lambda
+	                in_sd >> (*data_Conductivity)(2); // water lambda
+	                in_sd.clear();
+	                break;
+				case 30:       // another model for bentonite. WW
+					// 0. maximum conductivity
+					// 1. minimum conductivity
+					// 2. saturation
+					data_Conductivity = new Matrix(3);
+					for(i = 0; i < 3; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
 					break;
 
 				default:
