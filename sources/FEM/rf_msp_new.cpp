@@ -144,33 +144,34 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 		{
 			in_sd.str(GetLineFromFile1(msp_file));
 			in_sd >> Density_mode;
-			if(Density_mode == 0) // rho = f(x)
+			switch(Density_mode)
 			{
-				in_sd >> Size;
-				in_sd.clear();
-				data_Density = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >> (*data_Density)(i,0) >> (*data_Density)(i,1);
+				case 0: // rho = f(x)
+					in_sd >> Size;
 					in_sd.clear();
-				}
+					data_Density = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >> (*data_Density)(i,0) >> (*data_Density)(i,1);
+						in_sd.clear();
+					}
+					break;
+				case 1: // rho = const
+					data_Density = new Matrix(1);
+					in_sd >> (*data_Density)(0);
+					in_sd.clear();
+					break;
+				case 7: // this is a model for soil + ice  from BW 2022-05-16
+					// rho1 = soil density, rho2 = ice density
+					data_Density = new Matrix(2);
+					in_sd >> (*data_Density)(0); // soil density
+					in_sd >> (*data_Density)(1); // ice density
+					in_sd.clear();
+					break;
+				default:
+					throw std::runtime_error("Error when reading MSP-File: Density mode not supported");
 			}
-			else if(Density_mode == 1) // rho = const
-			{
-				data_Density = new Matrix(1);
-				in_sd >> (*data_Density)(0);
-				in_sd.clear();
-			}
-			else if (Density_mode == 6) // this is a model for soil + ice  from BW 2022-05-16
-			{
-				// rho1 = soil density, rho2 = ice density
-				data_Density = new Matrix(2);
-				in_sd >> (*data_Density)(0); // soil density
-				in_sd >> (*data_Density)(1); // ice density
-				in_sd.clear();
-			}
-
 		}
 		//....................................................................
 		if(line_string.find("$THERMAL") != string::npos)
@@ -1286,17 +1287,25 @@ double CSolidProperties::CalulateValue
    Programing:
    08/2004 WW Implementation
 **************************************************************************/
-double CSolidProperties::Density(double refence )
+double CSolidProperties::Density(const double& refence) const
 {
 	double val = 0.0;
 	switch(Density_mode)
 	{
-	case 0:
-		val = CalulateValue(data_Density, refence);
-		break;
-	case 1:
-		val = (*data_Density)(0);
-		break;
+		case 0:
+			val = CalulateValue(data_Density, refence);
+			break;
+		case 1:
+			val = (*data_Density)(0);
+			break;
+		case 7: // Freezing model TYZ  from BW 2022-05-16
+			if (refence == 0.0)
+				val = (*data_Density)(0);
+			else
+				val = (*data_Density)(1);
+			break;
+		default:
+			throw std::runtime_error("Density model not supported");
 	}
 	return val;
 }
@@ -1312,7 +1321,7 @@ void CSolidProperties::NullDensity()
    Programing:
    08/2004 WW Implementation
    **************************************************************************/
-double CSolidProperties::Heat_Capacity(double refence)
+double CSolidProperties::Heat_Capacity(const double& refence) const
 {
 	double val = 0.0;
 	switch(Capacity_mode)
@@ -1342,9 +1351,16 @@ double CSolidProperties::Heat_Capacity(double refence)
 		val = lower_solid_density_limit/refence * ((*data_Capacity)(0) + C * (*data_Capacity)(1));
 	}
 		break;
-	default:
-		val = (*data_Capacity)(0);
+	case 7: //Freezing model - TYZ from BW 2022-05-16
+		if (refence == 0.0)
+				val = (*data_Capacity)(0); // soil heat capacity 0
+		else
+				val = (*data_Capacity)(1); // ice heat capacity 1
 		break;
+	default:
+		//val = (*data_Capacity)(0);
+		//break;
+		throw std::runtime_error("Heat capacity model not supported");
 	}
 	return val;
 }

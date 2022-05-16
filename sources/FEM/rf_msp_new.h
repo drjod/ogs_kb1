@@ -225,9 +225,9 @@ namespace SolidProp
 		// Access to data
 		//-------------------------------------------------------------
 		// 1. Density
-		double Density(double refence = 0.0);
+		double Density(const double& refence = 0.0) const;
 		// 2. Thermal
-		double Heat_Capacity(double refence = 0.0);
+		double Heat_Capacity(const double& refence = 0.0) const;
 		// Boiling model
 		double Heat_Capacity(double temperature, double porosity, double Sat);
 		int GetCapacityModel() const {return Capacity_mode;}
