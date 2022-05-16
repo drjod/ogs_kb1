@@ -2714,7 +2714,7 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 				// Calculate the volume fraction of ice
 				phi_i = CalcIceVolFrac(T_diff, sigmoid_coeff);
 				// calculate the derivative of the sigmoid function
-				sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
+				//sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
 				// calculate the second derivative of the sigmoid function
 				//sigmoid_second_derivative = Calcsigmoidsecondderive(T1, T_diff, sigmoid_coeff); //BW
 			}
@@ -2724,9 +2724,11 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 			//      heat_capacity = (1.0 - porosity) *specific_heat_capacity_solid* density_solid + phi_i * specific_heat_capacity_ice * density_ice;
 			//else
 			//05.2022 BW add the first term
-			heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
-				   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
-			heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
+			////////////////
+			//heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+			//	   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
+			//heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
+			////////////////
 			//heat_capacity += T1 * porosity * (heat_capacity_fluids - specific_heat_capacity_ice * density_ice) * sigmoid_derivative;
 
 			//heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
@@ -2736,7 +2738,7 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 			//              + phi_i * specific_heat_capacity_ice * density_ice + porosity * assem->FluidProp->Density() * sigmoid_derivative * latent_heat ;
 
 			//04.2022 BW to calculate heat content without the part of latent heat, which will be evaluated seperately
-			if (flag_calcContent == true)
+			//if (flag_calcContent == true)
 			{
 				   heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
 						   + porosity * phi_i * specific_heat_capacity_ice * density_ice;

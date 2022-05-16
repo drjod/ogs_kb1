@@ -2552,7 +2552,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 
 				if (TG > SolidProp->melting_temperature)
 						phi_i = 0.0;
-				else if (TG < SolidProp->freezing_temperature)
+				else if (TG < SolidProp->freezing_temperature)  //?????
 						phi_i = 1.0;
 				else
 				{
@@ -2573,34 +2573,34 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				//Update with the squar root rule BW 05.2021
 				if (SolidProp->ice_conductivity_model == 1)//volumetric mean
 				{
-						mat_fac = lambda_solid * (1 - poro) + lambda_ice * phi_i * poro + FluidProp->HeatConductivity() * poro * (1.0 - phi_i);
+						mat_fac = lambda_solid * (1 - poro) + lambda_ice * phi_i * poro +
+								FluidProp->HeatConductivity() * poro * (1.0 - phi_i);
 
-						// fluid, i.e. water heat conductivity
-						for (size_t i = 0; i < dim; i++)
-								mat[i * dim + i] = mat_fac;
 				}
 				else if (SolidProp->ice_conductivity_model == 2)//power)
 				{
-						mat_fac = pow(lambda_solid, (1 - poro)) * pow(lambda_ice, (phi_i * poro)) * pow(FluidProp->HeatConductivity(), poro * (1.0 - phi_i));
-						for (size_t i = 0; i < dim; i++)
-								mat[i * dim + i] = mat_fac;
+						mat_fac = pow(lambda_solid, (1 - poro)) * pow(lambda_ice, (phi_i * poro)) *
+								pow(FluidProp->HeatConductivity(), poro * (1.0 - phi_i));
 				}
-				else if (SolidProp->ice_conductivity_model == 3)//squarroot)
+				else if (SolidProp->ice_conductivity_model == 3)//squareroot)
 				{
-						mat_fac = pow((sqrt(lambda_solid) * (1 - poro) + sqrt(lambda_ice) * (phi_i * poro) + sqrt(FluidProp->HeatConductivity()) * poro * (1.0 - phi_i)), 2);
-
-						for (size_t i = 0; i < dim; i++)
-								mat[i * dim + i] = mat_fac;
+						mat_fac = pow((sqrt(lambda_solid) * (1 - poro) + sqrt(lambda_ice) * (phi_i * poro) +
+								sqrt(FluidProp->HeatConductivity()) * poro * (1.0 - phi_i)), 2);
 				}
+				else
+					throw std::runtime_error("Ice conductivity model not supported");
+
+				for (size_t i = 0; i < dim; i++)
+						mat[i * dim + i] = mat_fac;
 			}  // end SolidProp->GetConductModel() == 7
 			else
-			{
+			{ // other heat conductivity model
 				tensor = MediaProp->HeatConductivityTensor(Index);
 				for(size_t i = 0; i < dim * dim; i++)
 					mat[i] = tensor[i];  //mat[i*dim+i] = tensor[i];
 			}
 
-		}  // end heat_conductivity == -1
+		}  // end mmp heat_conductivity == -1
 		else
 		{	// JOD 2022-03-12
 			tensor = MediaProp->HeatDispersionTensorNew(ip);
