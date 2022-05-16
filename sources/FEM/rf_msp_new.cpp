@@ -162,7 +162,7 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				in_sd >> (*data_Density)(0);
 				in_sd.clear();
 			}
-			else if (Density_mode == 6) // this is a model for soil + ice  from BW 2022-05-16
+			else if (Density_mofde == 6) // this is a model for soil + ice  from BW 2022-05-16
 			{
 				// rho1 = soil density, rho2 = ice density
 				data_Density = new Matrix(2);
@@ -257,8 +257,8 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 							break;
 						case 7:  // soil and ice heat capacity, BW 2022-05-12
 							data_Capacity = new Matrix(2);
-							in_sd >> (*data_Capacity)(0);
-							in_sd >> (*data_Capacity)(1);
+							in_sd >> (*data_Capacity)(0);  // soil
+							in_sd >> (*data_Capacity)(1);  // ice
 							in_sd.clear();
 							break;
 						default:
