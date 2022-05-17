@@ -2738,11 +2738,13 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 			//              + phi_i * specific_heat_capacity_ice * density_ice + porosity * assem->FluidProp->Density() * sigmoid_derivative * latent_heat ;
 
 			//04.2022 BW to calculate heat content without the part of latent heat, which will be evaluated seperately
-			//if (flag_calcContent == true)
-			{
-				   heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+
+			heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
 						   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
-				   //std::cout << "heat capacity: " << heat_capacity << '\n';
+
+			if (!flag_calcContent)
+			{
+				heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
 			}
 			break;
 		}
