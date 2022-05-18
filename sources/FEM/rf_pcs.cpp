@@ -11935,6 +11935,9 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
         ndx_temperature = GetNodeValueIndex("TEMPERATURE1");
         ndx_phi = GetNodeValueIndex("PHI_I");
 
+        if(ndx_temperature < 0 || ndx_phi < 0)
+        	return;  // not HEAT_TRANSPORT
+
         for (int nodeIdx = 0; nodeIdx < (long)m_msh->GetNodesNumber(false); nodeIdx++)
         {
 			nodeval_phi = 0.0;
