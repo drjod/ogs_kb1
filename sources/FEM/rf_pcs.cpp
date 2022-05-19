@@ -9593,12 +9593,13 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			//{
 				CalcSecondaryVariablesDensity();
 				CalcSecondaryVariablesViscosity();  // JOD 2016-1-11
-				CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction - merged 2022-05-12
+			//	CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction - merged 2022-05-12
 			//}
 			break;
 		case FiniteElement::HEAT_TRANSPORT: // BW 25.03.2020 for the outputing the right density at this time step based on the current T, this is needed.
 			CalcSecondaryVariablesDensity();
 			CalcSecondaryVariablesViscosity(); 
+			CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction - merged 2022-05-12
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
 			break;
