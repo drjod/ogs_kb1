@@ -404,6 +404,7 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 	                in_sd >> (*data_Conductivity)(1); // ice lambda
 	                in_sd >> (*data_Conductivity)(2); // water lambda
 	                in_sd.clear();
+	                conductivity_pcs_name_vector.push_back("TEMPERATURE1");
 	                break;
 				case 30:       // another model for bentonite. WW
 					// 0. maximum conductivity
