@@ -1506,6 +1506,17 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in.clear();
 			continue;
 		}
+		
+		//------------------------------------------------------------------------
+		//12.7 ICE_CORRECTING_FACTOR 05.2022 BW
+		//------------------------------------------------------------------------
+
+		//subkeyword found
+		if (line_string.find("$ICE_CORRECTING_FACTOR") != std::string::npos)
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> ice_correcting_factor;
+		}
 
 		//....................................................................
 		//subkeyword found
