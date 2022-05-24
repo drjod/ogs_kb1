@@ -2225,6 +2225,10 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	CFiniteElementStd *h_fem;
 	h_fem = this;
 	double fac_perm = 1.0;
+	double lambda_solid, lambda_ice, lambda_water; // heat conductivity of solid, ice and water
+	double phi_i; // ice volume fraction
+	double sigmoid_coeff; // freezing model coefficient
+	double kf_correcting_factor_ice = 0.0;
 
 
 	// For nodal value interpolation
@@ -2306,6 +2310,63 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 			for(size_t i = 0; i < dim; i++)
 				tensor[i * dim + i] *= w[i];
 		}
+	//Add correcting factor to the permeability due to the ice formation in the pore space BW 05/2022
+	if (MediaProp->ice_correcting_factor > 0.0)
+	{
+
+
+		TG = interpolate(NodalValC1); // ground temperature Liquid flow, which one is TEMPERAURE1
+
+
+		// get the porosity
+		poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+
+
+		// get the freezing model parameter
+		sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
+
+
+		if (TG > SolidProp->melting_temperature)
+			phi_i = 0.0;
+		//else if (TG < SolidProp->freezing_temperature)
+		//	phi_i = 1.0;
+		else
+		{
+			//Tempeature interval T - TL
+			TG = TG - SolidProp->melting_temperature;
+			//TG = -1.0;
+
+			// get the volume fraction of ice
+			phi_i = MediaProp->CalcIceVolFrac(TG, sigmoid_coeff);
+
+
+		}
+
+
+
+		kf_correcting_factor_ice = pow(10, -MediaProp->ice_correcting_factor * phi_i * poro);
+
+		/*if (phi_i > 0.0 && phi_i < 1.0)
+			{
+			std::cout << "Temperaure: " << TG << '\n';
+			std::cout << "Porosity: " << poro << '\n';
+			std::cout << "Ice fraction: " << phi_i << '\n';
+			std::cout << "Given Correcting_Factor: " << MediaProp->ice_correcting_factor << '\n';
+			std::cout << "kf_Correcting_Factor: " << kf_correcting_factor_ice << '\n';
+			}*/
+
+			//if (MediaProp->ice_correcting_factor < 1e-2)
+				//MeshElement->MarkingAll(false);
+			//	MediaProp->ice_correcting_factor = 1e-2;
+			//else
+			//{
+				//MeshElement->MarkingAll(true);
+		for (size_t i = 0; i < dim * dim; i++)
+			tensor[i] *= kf_correcting_factor_ice;
+			//}
+
+
+	}
 		for(size_t i = 0; i < dim * dim; i++)
 			mat[i] = tensor[i] / mat_fac * perm_effstress;//AS:perm. dependent eff stress.
 
