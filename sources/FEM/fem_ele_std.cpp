@@ -9237,7 +9237,7 @@ void CFiniteElementStd::Config()
 		(*RHS) = 0.0;
 
 
-	return;
+	//return; //This line makes the NodelVal1 wrong, please double check why you add the return here BW 05/2022
 	//----------------------------------------------------------------------
 	// Node value of the previous time step
 	int idx00 = idx0;                     //----------WW 05.01.07
