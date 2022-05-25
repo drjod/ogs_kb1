@@ -1635,25 +1635,35 @@ bool Problem::CouplingLoop()
     } // end if WDC
 
 
-  	//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
-  if (((converged && outer_index + 1 >= cpl_overall_min_iterations) 
-			  && wdc_converged)
-    || outer_index+1 == cpl_overall_max_iterations)  // for FCT
-  	{
-        	for(std::size_t ndx = 0; ndx < a_pcs->ogs_WDC_vector.size(); ++ndx)
+  //I add this for not accepted due to not converged BW 05.2022 ->JOD, please revise
+		if (!converged && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
 		{
-			if(a_pcs->ogs_WDC_vector[ndx])
-        			a_pcs->ogs_WDC_vector[ndx]->discard(aktuelle_zeit, ndx, a_pcs);  // !!! to recreate WDC in next time step
+			accept = false;
+			break;
 		}
-  		break;
-  	}
 
-    //MW
-    if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
-    {
-      accept = false;
-      break;
-    }
+		//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
+		if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
+			&& wdc_converged)
+			|| outer_index + 1 == cpl_overall_max_iterations)  // for FCT, why here is ||?? BW 05.2022
+		{
+			for (std::size_t ndx = 0; ndx < a_pcs->ogs_WDC_vector.size(); ++ndx)
+			{
+				if (a_pcs->ogs_WDC_vector[ndx])
+					a_pcs->ogs_WDC_vector[ndx]->discard(aktuelle_zeit, ndx, a_pcs);  // !!! to recreate WDC in next time step
+			}
+			break; // I would remove this, because if the maixmum iteration has been reached, 
+			//it will also enter here, and then skip the following lines, BW 05.2022 or ??
+		}
+
+
+		//MW
+		// here if the FCT is not used, max_outer_error will be always zero, should give a warning !!! BW 05.2022
+		if (max_outer_error > 1 && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
+		{
+			accept = false;
+			break;
+		}
 
 }
 
