@@ -73,7 +73,7 @@ class CMediumProperties : public Properties
 		unsigned geo_dimension;
 		unsigned geo_inclination; //inclination of domain/sub domain from horizontal anticloclwise: AKS
 		int permeability_stress_mode;
-		double ice_correcting_factor = 0.0; //water freezing correction on permeability 05.2021 BW
+		double ice_correcting_factor = 0.0; //water freezing correction on permeability 05.2022 BW
 		//
 		//CMCD 9/2004 GeoSys 4
 		double PermeabilityPressureFunctionMethod1(long,double );

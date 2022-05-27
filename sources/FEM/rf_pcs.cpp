@@ -9599,6 +9599,11 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		case FiniteElement::HEAT_TRANSPORT: // BW 25.03.2020 for the outputing the right density at this time step based on the current T, this is needed.
 			CalcSecondaryVariablesDensity();
 			CalcSecondaryVariablesViscosity(); 
+			CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction - merged 2022-05-12
+			break;
+		case FiniteElement::HEAT_TRANSPORT: // BW 25.03.2020 for the outputing the right density at this time step based on the current T, this is needed.
+			CalcSecondaryVariablesDensity();
+			CalcSecondaryVariablesViscosity(); 
 			CalcSecondaryVariablesIcefraction(); // Ice Fraction
 			break;
 		case FiniteElement::GROUNDWATER_FLOW:
@@ -11798,14 +11803,13 @@ Programming:
 	
 	//BW 24.03.2020: update for two fluids option -> JOD, please revise whether this is a good way for this
 	for (int i = 0; i < mfp_vector.size(); i++)
-		for (int j = 0; j < mmp_vector.size();j++)
-		{
-			if (mfp_vector[i]->name == "LIQUID"+mmp_vector[j]->dependent_fluid_name)
-			{
-				m_mfp = mfp_vector[i];
-				break;
-			}
+    {
+        if (mfp_vector[i]->name == "LIQUID")
+	    {
+		   m_mfp = mfp_vector[i];
+		   break;
 		}
+	}
 
 	/*	for (int i = 0; i < mfp_vector.size(); i++)
     {
@@ -11915,79 +11919,6 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 	else
 		std::cout << "ERROR in CalcSecondaryVariablesViscosity() - No LIQUID" << "\n";
 }
-
-/*************************************************************************
-GeoSys-FEM Function:
-Task: Ice fraction from temperature at node to calculate
-Programming:
-06/2021 BW
-
-**************************************************************************/
-void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
-{
-        CSolidProperties* m_msp = NULL;
-        CElem* thisEle;
-        CNode* thisNode;
-        CMediumProperties* m_mmp = NULL;
-        double nodeval_T, nodeval_phi, sigmoid_coeff, sum_phi_i = 0.0;
-        int ndx_temperature, NumOfNeighborElements, eleIdx, matgrp;
-        int ndx_phi;
-
-        ndx_temperature = GetNodeValueIndex("TEMPERATURE1");
-        ndx_phi = GetNodeValueIndex("PHI_I");
-
-        for (int nodeIdx = 0; nodeIdx < (long)m_msh->GetNodesNumber(false); nodeIdx++)
-        {
-			nodeval_phi = 0.0;
-			sum_phi_i = 0.0;
-
-			thisNode = m_msh->nod_vector[nodeIdx];
-			NumOfNeighborElements = (int)thisNode->getConnectedElementIDs().size();
-
-			for (int i = 0; i < NumOfNeighborElements; ++i)
-			{
-				 nodeval_T = GetNodeValue(nodeIdx, ndx_temperature);
-
-				 eleIdx = thisNode->getConnectedElementIDs()[i];
-				 thisEle = m_msh->ele_vector[eleIdx];
-				 matgrp = thisEle->GetPatchIndex();
-				 m_msp = msp_vector[matgrp];
-				 m_mmp= mmp_vector[matgrp];
-
-				 sigmoid_coeff = m_msp->getFreezingSigmoidCoeff();
-
-				 if (m_msp->GetConductModel() == 7)
-				 {
-					 if (nodeval_T > m_msp->melting_temperature)
-						 nodeval_phi = 0.0;
-					 //else if (nodeval_T < m_msp->freezing_temperature)
-					//	 nodeval_phi = 1.0;
-					 else
-					 {
-						 //Tempeature interval T - TL
-						 nodeval_T = nodeval_T - m_msp->melting_temperature;
-						 //TG = -1.0;
-
-						 // get the volume fraction of ice
-						 nodeval_phi = m_mmp->CalcIceVolFrac(nodeval_T, sigmoid_coeff);
-					 }
-				 }
-				 else
-					 nodeval_phi = 0.0;
-
-				 //std::cout << "NodelVal: " << nodeval_phi << "\n";
-
-				sum_phi_i += nodeval_phi;
-			}
-			nodeval_phi = sum_phi_i / (double)NumOfNeighborElements;
-			//std::cout << "SUM: " << sum_phi_i << "\n";
-			//std::cout << "NodelVal: " << nodeval_phi << "\n";
-
-			SetNodeValue(nodeIdx, ndx_phi, nodeval_phi);
-        }
-}
-
-
 /**************************************************************************
    FEMLib-Method:
    Task: Calculate saturation on node by averaging the patches of the
