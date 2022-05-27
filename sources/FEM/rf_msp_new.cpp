@@ -403,8 +403,9 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 	                in_sd >> (*data_Conductivity)(0); // soild lambda
 	                in_sd >> (*data_Conductivity)(1); // ice lambda
 	                in_sd >> (*data_Conductivity)(2); // water lambda
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//capacity_pcs_name_vector.push_back("TEMPERATURE1");
 	                in_sd.clear();
-	                conductivity_pcs_name_vector.push_back("TEMPERATURE1");
 	                break;
 				case 30:       // another model for bentonite. WW
 					// 0. maximum conductivity
@@ -416,8 +417,6 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					in_sd.clear();
 					capacity_pcs_name_vector.push_back("SATURATION1");
 					break;
-					break;
-
 				default:
 					throw std::runtime_error("Error when reading MSP-File: Conductivity not supported");
 				}
@@ -1293,20 +1292,18 @@ double CSolidProperties::Density(const double& refence) const
 	double val = 0.0;
 	switch(Density_mode)
 	{
-		case 0:
-			val = CalulateValue(data_Density, refence);
-			break;
-		case 1:
+	case 0:
+		val = CalulateValue(data_Density, refence);
+		break;
+	case 1:
+		val = (*data_Density)(0);
+		break;
+	case 7:                // Freezing model TYZ  from BW 2022-05-16
+		if (refence == 0.0)
 			val = (*data_Density)(0);
-			break;
-		case 7: // Freezing model TYZ  from BW 2022-05-16
-			if (refence == 0.0)
-				val = (*data_Density)(0);
-			else
-				val = (*data_Density)(1);
-			break;
-		default:
-			throw std::runtime_error("Density model not supported");
+		else
+			val = (*data_Density)(1);
+		break;
 	}
 	return val;
 }
@@ -1354,14 +1351,13 @@ double CSolidProperties::Heat_Capacity(const double& refence) const
 		break;
 	case 7: //Freezing model - TYZ from BW 2022-05-16
 		if (refence == 0.0)
-				val = (*data_Capacity)(0); // soil heat capacity 0
+			val = (*data_Capacity)(0);//soil heat capacity 0
 		else
-				val = (*data_Capacity)(1); // ice heat capacity 1
+			val = (*data_Capacity)(1);//ice heat capacity 1
 		break;
 	default:
-		//val = (*data_Capacity)(0);
-		//break;
-		throw std::runtime_error("Heat capacity model not supported");
+		val = (*data_Capacity)(0);
+		break;
 	}
 	return val;
 }

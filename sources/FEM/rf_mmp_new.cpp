@@ -1480,7 +1480,6 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in.clear();
 			continue;
 		}
-		
 		//------------------------------------------------------------------------
 		//12.7 ICE_CORRECTING_FACTOR 05.2022 BW
 		//------------------------------------------------------------------------
@@ -1491,7 +1490,6 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in.str(GetLineFromFile1(mmp_file));
 			in >> ice_correcting_factor;
 		}
-
 		//....................................................................
 		//subkeyword found
 		if(line_string.find("$CAPILLARY_PRESSURE") != std::string::npos)
@@ -2682,7 +2680,10 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 
 			// Locate MMP index for the part that water freezes
 			const int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		    //group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
 			m_msp = msp_vector[group];
+			//if(m_pcs->m_msh->ele_vector[number]->GetIndex() == 64)
+				//std::cout << " Element: " << m_pcs->m_msh->ele_vector[number]->GetIndex();
 
 			// Get Specific heat capapcity for the solid phase and the ice give in the *.msp
 			const double specific_heat_capacity_solid = m_msp->Heat_Capacity(0.0);
@@ -2705,19 +2706,21 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 
 			// get interpolated current temperature in Kelvin
 			T1 = assem->interpolate(assem->NodalVal1);
+
 			double sigmoid_derivative;
+
 			if (T1 > m_msp->getmeltingtemperature())
 			{
 				  phi_i = 0.0;
 				  sigmoid_derivative = 0.0;
 				  //sigmoid_second_derivative = 0.0;
 			}
-			else if (T1 < m_msp->getfreezingtemperature())
-			{
-				  phi_i = 1.0;
-				  sigmoid_derivative = 0.0;
-				  //sigmoid_second_derivative = 0.0;
-			}
+			//else if (T1 < m_msp->getfreezingtemperature())
+			//{
+			//	  phi_i = 1.0;
+			//	  sigmoid_derivative = 0.0;
+			//	  //sigmoid_second_derivative = 0.0;
+			//}
 			else
 			{
 				//Temperature interval T - TL
@@ -2725,37 +2728,28 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 				// Calculate the volume fraction of ice
 				phi_i = CalcIceVolFrac(T_diff, sigmoid_coeff);
 				// calculate the derivative of the sigmoid function
-				//sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
+				sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
 				// calculate the second derivative of the sigmoid function
 				//sigmoid_second_derivative = Calcsigmoidsecondderive(T1, T_diff, sigmoid_coeff); //BW
 			}
-
-			// Cp and latent heat based on the freezing model
-			//if (T1 < -2.0 * sigmoid_coeff) //Ts =  2*sigmoid_coeff * -1.0
-			//      heat_capacity = (1.0 - porosity) *specific_heat_capacity_solid* density_solid + phi_i * specific_heat_capacity_ice * density_ice;
-			//else
+			//if (m_pcs->m_msh->ele_vector[number]->GetIndex() == 64)
+			//std::cout << " Temperature: " << T1 <<'\n';
+			
 			//05.2022 BW add the first term
-			////////////////
-			//heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
-			//	   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
-			//heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
-			////////////////
-			//heat_capacity += T1 * porosity * (heat_capacity_fluids - specific_heat_capacity_ice * density_ice) * sigmoid_derivative;
-
-			//heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
-			//      + porosity * phi_i * specific_heat_capacity_ice * density_ice + porosity * density_ice * sigmoid_derivative * latent_heat;
+			heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+				   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
+			heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
+		
 			//05.2021 BW, compared to the code from SHEMAT, this is updated with the  rho_fluid*Latentheat
 			//      heat_capacity = porosity *(1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid
 			//              + phi_i * specific_heat_capacity_ice * density_ice + porosity * assem->FluidProp->Density() * sigmoid_derivative * latent_heat ;
 
 			//04.2022 BW to calculate heat content without the part of latent heat, which will be evaluated seperately
-
-			heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
-						   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
-
-			if (!flag_calcContent)
+			if (flag_calcContent == true)
 			{
-				heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
+				   heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+						   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
+				   //std::cout << " PHI_I: " << phi_i << "heat capacity: " << heat_capacity << '\n';
 			}
 			break;
 		}

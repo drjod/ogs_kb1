@@ -11798,14 +11798,13 @@ Programming:
 	
 	//BW 24.03.2020: update for two fluids option -> JOD, please revise whether this is a good way for this
 	for (int i = 0; i < mfp_vector.size(); i++)
-		for (int j = 0; j < mmp_vector.size();j++)
-		{
-			if (mfp_vector[i]->name == "LIQUID"+mmp_vector[j]->dependent_fluid_name)
-			{
-				m_mfp = mfp_vector[i];
-				break;
-			}
+    {
+        if (mfp_vector[i]->name == "LIQUID")
+	    {
+		   m_mfp = mfp_vector[i];
+		   break;
 		}
+	}
 
 	/*	for (int i = 0; i < mfp_vector.size(); i++)
     {
@@ -11936,9 +11935,6 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
         ndx_temperature = GetNodeValueIndex("TEMPERATURE1");
         ndx_phi = GetNodeValueIndex("PHI_I");
 
-        if(ndx_temperature < 0 || ndx_phi < 0)
-        	return;  // not HEAT_TRANSPORT
-
         for (int nodeIdx = 0; nodeIdx < (long)m_msh->GetNodesNumber(false); nodeIdx++)
         {
 			nodeval_phi = 0.0;
@@ -11963,8 +11959,8 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
 				 {
 					 if (nodeval_T > m_msp->melting_temperature)
 						 nodeval_phi = 0.0;
-					 else if (nodeval_T < m_msp->freezing_temperature)
-						 nodeval_phi = 1.0;
+					 //else if (nodeval_T < m_msp->freezing_temperature)
+					//	 nodeval_phi = 1.0;
 					 else
 					 {
 						 //Tempeature interval T - TL
