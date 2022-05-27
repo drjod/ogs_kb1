@@ -1080,9 +1080,9 @@ void Problem::Euler_TimeDiscretize()
 	if (mrank == 0)
 	{
 #endif
-	aktuelle_zeit = current_time;
-	if(!flag_block_output_of_initial_values)
-		OUTData(current_time,aktueller_zeitschritt,true);
+		aktuelle_zeit = current_time;
+		if (!flag_block_output_of_initial_values)
+			OUTData(current_time, aktueller_zeitschritt, true);
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
 	}
 #endif
@@ -1105,7 +1105,9 @@ void Problem::Euler_TimeDiscretize()
 	//std::fstream fout("timer.txt", std::ofstream::out | std::ios::app);
 	//FancyTimer<std::fstream> timer("Coupling loop: ", fout);
 	double previous_rejected_dt = .0;
-	while(end_time > current_time)
+	logger.delete_file();
+
+	while (end_time > current_time)
 	{
 		// Get time step
 		dt = dt_rec = DBL_MAX;
@@ -1121,6 +1123,9 @@ void Problem::Euler_TimeDiscretize()
 			ScreenMessage("Stop this simulation. New time step size is same as the rejected one.\n");
 			break;
 		}
+
+		if (dt < DBL_EPSILON)  // JOD 2021-08-02 used when reaching time_end with adaptive time stepping
+			return;
 
 		SetTimeActiveProcesses(); // JT2012: Activate or deactivate processes with independent time stepping
 //
@@ -1138,13 +1143,14 @@ void Problem::Euler_TimeDiscretize()
 		if (mrank == 0)
 		{
 #endif
-		std::cout << "\n\n#############################################################\n";
-		std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
-		current_time << "|  Time step size: " << dt << "\n";
-		if(dt_rec > dt){
-      double diff = dt_rec - dt;
-      std::cout << "This time step size was modified by " << diff << " to match a critical time!" << "\n";
-		}
+			std::cout << "\n\n#############################################################\n";
+			std::cout << "Time step: " << aktueller_zeitschritt << "|  Time: " <<
+				current_time << "|  Time step size: " << dt << "\n";
+			logger.info<1>("Time step:", aktueller_zeitschritt, "- Time:", current_time, "- Step size", dt);
+			if (dt_rec > dt) {
+				double diff = dt_rec - dt;
+				std::cout << "This time step size was modified by " << diff << " to match a critical time!" << "\n";
+			}
 #if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS) || defined(USE_MPI_KRC) 
 		}
 #endif
@@ -1166,14 +1172,9 @@ void Problem::Euler_TimeDiscretize()
 				else // JT: Make sure we printout on last time step
 					force_output = true;
 #if defined(USE_MPI) || defined(USE_MPI_KRC) 
-				if(myrank == 0)
-				{
+				if (myrank == 0)
 #endif
-					//
-				OUTData(current_time, aktueller_zeitschritt, force_output);
-#if defined(USE_MPI) || defined(USE_MPI_KRC) 
-				}
-#endif
+					OUTData(current_time, aktueller_zeitschritt, force_output);
 			}
 			accepted_times++;
 			for (i = 0; i < (int)active_process_index.size(); i++)
@@ -1204,7 +1205,7 @@ void Problem::Euler_TimeDiscretize()
 			for (i = 0; i < (int)active_process_index.size(); i++)
 			{
 				m_tim = total_processes[active_process_index[i]]->Tim;
-				if(!m_tim->time_active)
+				if (m_tim == NULL || !m_tim->time_active)
 					continue;
 				m_tim->rejected_step_count++;
 				m_tim->last_active_time -= dt;
@@ -1234,6 +1235,9 @@ void Problem::Euler_TimeDiscretize()
 		//		// executing only one time step for profiling
 		//		current_time = end_time;
 	}
+
+
+
 #if defined(USE_PETSC) ||defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)  || defined(USE_MPI_KRC) 
 	if (mrank == 0)
 	{
@@ -1281,202 +1285,203 @@ void Problem::Euler_TimeDiscretize()
    -------------------------------------------------------------------------*/
 bool Problem::CouplingLoop()
 {
-  int i, index, cpl_index;
-  double max_outer_error, max_inner_error, error;
-  bool transient_bc = false;
-  bool run_flag[max_processes];
-  int outer_index, inner_index, inner_max; //, inner_min;
-  //
-  CRFProcess* a_pcs = NULL;
-  CRFProcess* b_pcs = NULL;
-  CRFProcess* m_pcs2 = NULL;
-  double delta = 0.0;
-  int max_delta_index = -1;
-  CTimeDiscretization* m_tim = NULL;
-  //
-  print_result = false;
-  int acounter = 0;
-  //
-  for (i = 0; i < (int)pcs_vector.size(); i++)
-  {
-    pcs_vector[i]->UpdateTransientBC();
-    if (pcs_vector[i]->bc_transient_index.size() != 0)
-      transient_bc = true;
-  }
-  if (transient_bc)
-    pcs_vector[0]->WriteBC();
+	int i, index, cpl_index;
+	double max_outer_error, max_inner_error; //, error;
+	bool transient_bc = false;
+	bool run_flag[max_processes];
+	int outer_index, inner_index, inner_max; //, inner_min;
+	//
+	CRFProcess* a_pcs = NULL;
+	CRFProcess* b_pcs = NULL;
+	CRFProcess* m_pcs2 = NULL;
+	double delta = 0.0;
+	int max_delta_index = -1;
+	CTimeDiscretization* m_tim = NULL;
+	//
+	print_result = false;
+	int acounter = 0;
+	//
+	for (i = 0; i < (int)pcs_vector.size(); i++)
+	{
+		pcs_vector[i]->UpdateTransientBC();
+		if (pcs_vector[i]->bc_transient_index.size() != 0)
+			transient_bc = true;
+	}
+	if (transient_bc)
+		pcs_vector[0]->WriteBC();
 
-  for (i = 0; i < (int)total_processes.size(); i++)
-  {
-    if (active_processes[i] && total_processes[i]->selected)
-    {
-      exe_flag[i] = true;
-      m_tim = total_processes[i]->Tim;
-      total_processes[i]->SetDefaultTimeStepAccepted();
-      acounter++;
-      m_tim->step_current++;
-      // reset
-      total_processes[i]->iter_nlin_max = 0;
-      total_processes[i]->iter_lin_max = 0;
-    }
-    else
-    {   //21.05.2010.  WW
-      if (total_processes[i] && total_processes[i]->tim_type == TimType::STEADY)
-      {
-        acounter++;
-        m_tim = total_processes[i]->Tim;
-        m_tim->step_current++; //NW increment needed to get correct time step length in CTimeDiscretization::CalcTimeStep()
-      }
-      exe_flag[i] = false;
-    }
-  }
-  int num_processes = (int)active_process_index.size();
-  //
-  // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-  for (i = 0; i < (int)total_processes.size(); i++)
-  {
-    run_flag[i] = exe_flag[i];
-  }
-  //if (m_tim->step_current == 1)
-  //{
-  for (i = 0; i < num_processes; i++)
-  {
-    index = active_process_index[i];
-    total_processes[index]->first_coupling_iteration = true;
-  }
-  //}
-  //else // KB0714: Hardcoding Prozessaustausch Liquid flow und Deformation
-  //{
-  //	for (i = 0; i < num_processes; i++){
-  //		if (i == 0)
-  //		{
-  //			index = 12;
-  //			active_process_index[i] = index;
-  //			total_processes[index]->first_coupling_iteration = true;
-  //		}
-  //		if (i == 1)
-  //		{
-  //			index = 6;
-  //			active_process_index[i] = index;
-  //			total_processes[index]->first_coupling_iteration = true;
-  //		}
-  //	}
-  //}
-  //
-  // To do
-  //SB->WW I do not understand this condition, why switch off output?
-  //WW Reason:
-  /// Make output when all defined processes are activated.
-  //JT->WW->SB:  I agree with SB. Just b/c one process is deactivated doesn't mean we don't want output for the others.
-  //if(acounter == num_processes)
-  print_result = true;
-  //
-  bool accept = true;
-  max_outer_error = 0.0;
-  for (outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
-  {
-    // JT: All active processes must run on the overall loop. Strange this wasn't the case before.
-    for (i = 0; i < num_processes; i++)
-    {
-      index = active_process_index[i];
-      run_flag[index] = exe_flag[index];
-    }
-    for (i = 0; i < num_processes; i++)
-    {
-      index = active_process_index[i];
-      m_tim = total_processes[index]->Tim;
-      if (!m_tim->time_active) run_flag[index] = false;
-    }
-    /*	// Debug output //SB
-      std::cout << " -- Coupling Loop --" << "\n";
-      for(i=0; i<num_processes; i++){
-      index = active_process_index[i];
-      m_tim = total_processes[index]->Tim;
-      std::cout << " index: " << std::cout.width(4) <<  index << " :  run_flag[]: " << std::boolalpha << run_flag[index] ;
-      std::cout << " , exe_flag[]: " << std::boolalpha << exe_flag[index] <<  "\n";
-      } // end output SB  */
+	for (i = 0; i < (int)total_processes.size(); i++)
+	{
+		if (active_processes[i] && total_processes[i]->selected)
+		{
+			exe_flag[i] = true;
+			m_tim = total_processes[i]->Tim;
+			total_processes[i]->SetDefaultTimeStepAccepted();
+			acounter++;
+			m_tim->step_current++;
+			// reset
+			total_processes[i]->iter_nlin_max = 0;
+			total_processes[i]->iter_lin_max = 0;
+		}
+		else
+		{   //21.05.2010.  WW
+			if (total_processes[i] && total_processes[i]->tim_type == TimType::STEADY)
+			{
+				acounter++;
+				m_tim = total_processes[i]->Tim;
+				m_tim->step_current++; //NW increment needed to get correct time step length in CTimeDiscretization::CalcTimeStep()
+			}
+			exe_flag[i] = false;
+		}
+	}
+	int num_processes = (int)active_process_index.size();
+	//
+	// JT: All active processes must run on the overall loop. Strange this wasn't the case before.
+	for (i = 0; i < (int)total_processes.size(); i++)
+	{
+		run_flag[i] = exe_flag[i];
+	}
+	//if (m_tim->step_current == 1)
+	//{
+	for (i = 0; i < num_processes; i++)
+	{
+		index = active_process_index[i];
+		total_processes[index]->first_coupling_iteration = true;
+	}
+	//}
+	//else // KB0714: Hardcoding Prozessaustausch Liquid flow und Deformation
+	//{
+	//	for (i = 0; i < num_processes; i++){
+	//		if (i == 0)
+	//		{
+	//			index = 12;
+	//			active_process_index[i] = index;
+	//			total_processes[index]->first_coupling_iteration = true;
+	//		}
+	//		if (i == 1)
+	//		{
+	//			index = 6;
+	//			active_process_index[i] = index;
+	//			total_processes[index]->first_coupling_iteration = true;
+	//		}
+	//	}
+	//}
+	//
+	// To do
+	//SB->WW I do not understand this condition, why switch off output?
+	//WW Reason:
+	/// Make output when all defined processes are activated.
+	//JT->WW->SB:  I agree with SB. Just b/c one process is deactivated doesn't mean we don't want output for the others.
+	//if(acounter == num_processes)
+	print_result = true;
+	//
+	bool accept = true;
+	max_outer_error = 0.0;
+	for (outer_index = 0; outer_index < cpl_overall_max_iterations; outer_index++)
+	{
+		logger.info<1>("Coupling loop:", outer_index, "/", cpl_overall_max_iterations);
+		// JT: All active processes must run on the overall loop. Strange this wasn't the case before.
+		for (i = 0; i < num_processes; i++)
+		{
+			index = active_process_index[i];
+			run_flag[index] = exe_flag[index];
+		}
+		for (i = 0; i < num_processes; i++)
+		{
+			index = active_process_index[i];
+			m_tim = total_processes[index]->Tim;
+			if (!m_tim->time_active) run_flag[index] = false;
+		}
+		/*	// Debug output //SB
+		  std::cout << " -- Coupling Loop --" << "\n";
+		  for(i=0; i<num_processes; i++){
+		  index = active_process_index[i];
+		  m_tim = total_processes[index]->Tim;
+		  std::cout << " index: " << std::cout.width(4) <<  index << " :  run_flag[]: " << std::boolalpha << run_flag[index] ;
+		  std::cout << " , exe_flag[]: " << std::boolalpha << exe_flag[index] <<  "\n";
+		  } // end output SB  */
 
-    max_outer_error = 0.0; //NW reset error for each iteration
-    bool converged = true;
-    for (i = 0; i < num_processes; i++)
-    {
-      index = active_process_index[i];
-      if (!run_flag[index]) continue; //JT: may have been turned off after an inner loop!
-      cpl_index = coupled_process_index[index];
-      //
-      // PERFORM AN INNER COUPLING
-      // ---------------------------------------
-      if (cpl_index >= 0 && run_flag[cpl_index])
-      {
-        a_pcs = total_processes[index];
-        b_pcs = total_processes[cpl_index];
-        //
-        inner_max = a_pcs->m_num->cpl_max_iterations;
-        //				inner_min = a_pcs->m_num->cpl_min_iterations; // variable set but never used
-        //
-        a_pcs->iter_outer_cpl = outer_index;
-        b_pcs->iter_outer_cpl = outer_index;
-        //
-        max_inner_error = 0.0;
-        for (inner_index = 0; inner_index < a_pcs->m_num->cpl_max_iterations; inner_index++)
-        {
-          a_pcs->iter_inner_cpl = inner_index;
-          b_pcs->iter_inner_cpl = inner_index;
-          //
-          // FIRST PROCESS
-          loop_process_number = i;
-          if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
-          //					 error = Call_Member_FN(this, active_processes[index])();
-          Call_Member_FN(this, active_processes[index])();
-          if (!a_pcs->TimeStepAccept())
-          {
-            accept = false;
-            break;
-          }
-          //
-          // COUPLED PROCESS
-          loop_process_number = i + 1;
-          if (b_pcs->first_coupling_iteration) PreCouplingLoop(b_pcs);
-          //					 error = Call_Member_FN(this, active_processes[cpl_index])();
-          Call_Member_FN(this, active_processes[cpl_index])();
-          if (!b_pcs->TimeStepAccept())
-          {
-            accept = false;
-            break;
-          }
-          //
-          // Check for break criteria
-          max_inner_error = MMax(a_pcs->cpl_max_relative_error, b_pcs->cpl_max_relative_error);
-          a_pcs->first_coupling_iteration = false; // No longer true (JT: these are important, and are also used elswhere).
-          b_pcs->first_coupling_iteration = false; // No longer true.
-          //
-          // Store the outer loop error
-          if (inner_index == 0)
-            max_outer_error = MMax(max_outer_error, max_inner_error);
-          //
-          std::cout << "\n======================================================\n";
-          std::cout << "Inner coupling loop " << inner_index + 1 << "/" << inner_max << " complete." << "\n";
-          std::cout << "Max coupling error (relative to tolerance): " << max_inner_error << "\n";
-          std::cout << "======================================================\n";
-          //
-          // Coupling convergence criteria (use loop minimum from a_pcs because this is where the coupled process was called)
-          if (max_inner_error <= 1.0 && inner_index + 2 > a_pcs->m_num->cpl_min_iterations) // JT: error is relative to the tolerance.
-            break;
-        }  // end for inner_index
-        run_flag[cpl_index] = false; // JT: CRUCIAL!!
-      }  // end if (cpl_index >= 0 && run_flag[cpl_index])
-      else
-      {
-        // PERFORM AN OUTER COUPLING
-        // ---------------------------------------
-        a_pcs = total_processes[index];
-        a_pcs->iter_outer_cpl = outer_index;
-        a_pcs->iter_inner_cpl = 0;
-        //
-        loop_process_number = i;
-        if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
-        //				error = Call_Member_FN(this, active_processes[index])(); // TF: error set, but never used
-        Call_Member_FN(this, active_processes[index])();
+		max_outer_error = 0.0; //NW reset error for each iteration
+		bool converged = true;
+		for (i = 0; i < num_processes; i++)
+		{
+			index = active_process_index[i];
+			if (!run_flag[index]) continue; //JT: may have been turned off after an inner loop!
+			cpl_index = coupled_process_index[index];
+			//
+			// PERFORM AN INNER COUPLING
+			// ---------------------------------------
+			if (cpl_index >= 0 && run_flag[cpl_index])
+			{
+				a_pcs = total_processes[index];
+				b_pcs = total_processes[cpl_index];
+				//
+				inner_max = a_pcs->m_num->cpl_max_iterations;
+				//				inner_min = a_pcs->m_num->cpl_min_iterations; // variable set but never used
+				//
+				a_pcs->iter_outer_cpl = outer_index;
+				b_pcs->iter_outer_cpl = outer_index;
+				//
+				max_inner_error = 0.0;
+				for (inner_index = 0; inner_index < a_pcs->m_num->cpl_max_iterations; inner_index++)
+				{
+					a_pcs->iter_inner_cpl = inner_index;
+					b_pcs->iter_inner_cpl = inner_index;
+					//
+					// FIRST PROCESS
+					loop_process_number = i;
+					if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
+					//					 error = Call_Member_FN(this, active_processes[index])();
+					Call_Member_FN(this, active_processes[index])();
+					if (!a_pcs->TimeStepAccept())
+					{
+						accept = false;
+						break;
+					}
+					//
+					// COUPLED PROCESS
+					loop_process_number = i + 1;
+					if (b_pcs->first_coupling_iteration) PreCouplingLoop(b_pcs);
+					//					 error = Call_Member_FN(this, active_processes[cpl_index])();
+					Call_Member_FN(this, active_processes[cpl_index])();
+					if (!b_pcs->TimeStepAccept())
+					{
+						accept = false;
+						break;
+					}
+					//
+					// Check for break criteria
+					max_inner_error = MMax(a_pcs->cpl_max_relative_error, b_pcs->cpl_max_relative_error);
+					a_pcs->first_coupling_iteration = false; // No longer true (JT: these are important, and are also used elswhere).
+					b_pcs->first_coupling_iteration = false; // No longer true.
+					//
+					// Store the outer loop error
+					if (inner_index == 0)
+						max_outer_error = MMax(max_outer_error, max_inner_error);
+					//
+					std::cout << "\n======================================================\n";
+					std::cout << "Inner coupling loop " << inner_index + 1 << "/" << inner_max << " complete." << "\n";
+					std::cout << "Max coupling error (relative to tolerance): " << max_inner_error << "\n";
+					std::cout << "======================================================\n";
+					//
+					// Coupling convergence criteria (use loop minimum from a_pcs because this is where the coupled process was called)
+					if (max_inner_error <= 1.0 && inner_index + 2 > a_pcs->m_num->cpl_min_iterations) // JT: error is relative to the tolerance.
+						break;
+				}  // end for inner_index
+				run_flag[cpl_index] = false; // JT: CRUCIAL!!
+			}  // end if (cpl_index >= 0 && run_flag[cpl_index])
+			else
+			{
+				// PERFORM AN OUTER COUPLING
+				// ---------------------------------------
+				a_pcs = total_processes[index];
+				a_pcs->iter_outer_cpl = outer_index;
+				a_pcs->iter_inner_cpl = 0;
+				//
+				loop_process_number = i;
+				if (a_pcs->first_coupling_iteration) PreCouplingLoop(a_pcs);
+
+				Call_Member_FN(this, active_processes[index])();
 
 				for (int ii = 0; ii < a_pcs->pcs_number_of_primary_nvals; ii++)
 				{	// there is only one coupling error for each process (although multiphase flow has two errors)
@@ -1569,32 +1574,74 @@ bool Problem::CouplingLoop()
 		// Coupling convergence criteria
 		//max_outer_error=0.;
 
-    bool wdc_converged = true;
-    if(a_pcs->ogs_WDC_vector.size() != 0)
-    {
+		int wdc_converged = 1;
 
-    	for(auto& ogs_wdc: a_pcs->ogs_WDC_vector)
-    	{
-    		ogs_wdc->set_unevaluated();
+		if (a_pcs->ogs_WDC_vector.size() != 0)
+		{
 
-    		if(!ogs_wdc->get_WellDoubletControl()->converged())
-    			//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
-    			//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
-    			//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
-    		{
-				wdc_converged = false;  // do not break since all wdc must be set unevaluated
-    		}
-    	}
+			for (auto& ogs_wdc : a_pcs->ogs_WDC_vector)
+			{
+				ogs_wdc->set_unevaluated(); // set unevaluted after HEAT_TRANSPORT calculation
 
-    	if(wdc_converged)
-    	{
-    		std::cout << "\tWDC converged\n";
-    		for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
-    			std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
-				<< a_pcs->ogs_WDC_vector[i]->get_extremum(a_pcs, 1, a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger) << '\n';
-    			  //  << a_pcs->GetNodeValue(a_pcs->ogs_WDC_vector[i].get_doublet_mesh_nodes().heatExchanger[0], 1) << '\n';
-    	}
-    }
+
+				if (ogs_wdc->get_WellDoubletControl() && !ogs_wdc->get_WellDoubletControl()->converged())
+					//ogs_wdc.get_extremum(a_pcs, 1, ogs_wdc.get_doublet_mesh_nodes().heatExchanger),
+					//a_pcs->GetNodeValue(ogs_wdc.get_doublet_mesh_nodes().heatExchanger[0], 1),
+					//a_pcs->m_num->cpl_error_tolerance[0]))  // only ENORM and ERNORM
+				{
+					wdc_converged = 0;  // do not break since all wdc must be set unevaluated
+				}
+			}
+
+
+
+#if defined (USE_MPI) 
+			int world_size;
+			MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+			int* rbuf;
+			rbuf = (int*)malloc(world_size * sizeof(int));
+
+			MPI_Gather(&wdc_converged, 1, MPI_INT, rbuf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+			if (myrank == 0)
+			{
+				for (int i = 0; i < world_size; ++i)
+					if (rbuf[i] == 0)
+						wdc_converged = 0;
+			}
+
+			MPI_Bcast(&wdc_converged, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+			free(rbuf);
+#endif
+
+			if (wdc_converged)
+			{
+				//Logger(std::string("WDC converged"));
+#if defined(USE_MPI)
+				if (myrank == 0)
+#endif	
+					std::cout << "\tWDC converged\n";
+				//for(int i=0; i<a_pcs->ogs_WDC_vector.size(); ++i)
+			//{
+			//	if(a_pcs->ogs_WDC_vector[i])
+			//	{
+				//		std::cout << "\t\tTemperature at WDC " << i << " heat_exchanger: "
+			//			<< a_pcs->GetWeightedAverageNodeValue(a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger,
+			//    				a_pcs->ogs_WDC_vector[i]->get_doublet_mesh_nodes().heatExchanger_area_fraction, 1) << '\n';
+			//
+			//	}
+			//}
+			}
+
+		} // end if WDC
+
+		//I add this for not accepted due to not converged BW 05.2022 ->JOD, please revise
+		if (!converged && outer_index + 1 == cpl_overall_max_iterations && cpl_overall_max_iterations > 1)	//m_tim->step_current>1 &&
+		{
+			accept = false;
+			break;
+		}
 
 		//if ((max_outer_error <= 1.0 && outer_index + 1 >= cpl_overall_min_iterations)
 		if (((converged && outer_index + 1 >= cpl_overall_min_iterations)
@@ -1619,19 +1666,21 @@ bool Problem::CouplingLoop()
 			break;
 		}
 
+	}
 
-  }
-    if (accept){
-      if (cp_vec.size() > 0){
-        //for (i = 0; i < num_processes; i++){
-        //	index = active_process_index[i];
-        //	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
-        //}
-        PostMassTrasport();
-      }
-    }
-	
+	if (accept) {
+		if (cp_vec.size() > 0) {
+			//for (i = 0; i < num_processes; i++){
+			//	index = active_process_index[i];
+			//	total_processes[index]->Tim->time_AdaptiveKRC = aktuelle_zeit - total_processes[index]->Tim->last_time_simulated;
+			//}
+			PostMassTrasport();
+		}
+	}
 	//
+	if (!accept)
+		logger.warning("Not accepted");
+
 	return accept;
 }
 
@@ -1770,8 +1819,11 @@ void Problem::PostCouplingLoop()
 			m_pcs->CopyTimestepNODValues();
 			m_pcs->CopyTimestepELEValues();
 		}
-	}
-// WW
+
+		//Secondary variables should be calculated after update the results, BW: 25.03.2020
+		m_pcs->CalcSecondaryVariables();
+}
+	// WW
 #if !defined(USE_PETSC) && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 	//#ifndef NEW_EQS                                //WW. 07.11.2008
 	if (total_processes[1])
@@ -3313,10 +3365,9 @@ inline double Problem::HeatTransport()
 {
 	double error = 1.0e+8;
 	CRFProcess* m_pcs = total_processes[8];
-    if (ClockTimeVec.size()>0)
-    ClockTimeVec[0]->StartTime(); // SB time
-    std::cout.flush();
-	if(!m_pcs->selected)
+	if (ClockTimeVec.size() > 0)
+		ClockTimeVec[0]->StartTime(); // SB time
+	if (!m_pcs->selected)
 		return error;             //12.12.2008 WW
    //CB This is a cheat to map a 2D horizontal heat pump distribution on a vertical model
 	if (REACTINT_vec.size() > 0)
@@ -4414,6 +4465,702 @@ bool MODCreate()
 	else
 		return true;
 }
+
+/**************************************************************************
+   PCSLib-Function
+   Liest zu jedem Knoten einen Wert der Permeabilität ein.
+   Identifikation über Koordinaten
+   Programing:
+   10/2003     SB  First Version
+   01/2004     SB  2. Version
+   01/2005 OK Check MAT groups //OK41
+   06/2005 MB msh, loop over mmp groups
+   09/2005 MB EleClass
+   //SB/MB ? member function of CFEMesh / CMediumProperties
+   11/2005 OK GEOMETRY_AREA
+   04/2006 CMCD Constant area
+   12/2021 JOD extension to msp (heat conductivity, capacity)
+**************************************************************************/
+void GetHeterogeneousFields()
+{
+	//OK411 int ok=0;
+	//OK411 char* name_file=NULL;
+	Properties* prop = NULL;
+	//----------------------------------------------------------------------
+	// File handling
+	string file_path;
+	string file_path_base_ext;
+
+	//----------------------------------------------------------------------
+	// Tests
+	if (mmp_vector.size() == 0)
+		return;
+	//----------------------------------------------------------------------
+	//Schleife über alle Gruppen
+	for (int i = 0; i < (int)mmp_vector.size(); i++)
+	{
+		prop = mmp_vector[i];
+		//....................................................................
+		// For Permeability
+		if (prop->permeability_file.size() > 0)
+		{
+			//OK name_file = (char *) prop->permeability_file.data();
+			//OK if(name_file != NULL)
+			//OK ok = FctReadHeterogeneousFields(name_file,prop);
+
+			//WW file_path_base_ext = file_path + prop->permeability_file;
+			//WW
+			SetDistributedELEProperties(prop, prop->permeability_file, "PERMEABILITY", i);
+			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
+		}
+
+		//Set Permeability for Y and Z JOD 2020-3-20 from BW
+		if (prop->permeability_Y_file.size() > 0)
+		{
+			SetDistributedELEProperties(prop, prop->permeability_Y_file, "PERMEABILITY_Y", i);
+		}
+		if (prop->permeability_Z_file.size() > 0)
+		{
+			SetDistributedELEProperties(prop, prop->permeability_Z_file, "PERMEABILITY_Z", i);
+		}
+		//....................................................................
+		// For Porosity
+		if (prop->porosity_file.size() > 0)
+		{
+			//CB name_file = (char *) prop->porosity_file.data();
+			//CB if(name_file != NULL)
+			//CB  ok = FctReadHeterogeneousFields(name_file,m_mmp);
+			//file_path_base_ext = file_path + m_mmp->porosity_file;
+			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
+			// CB Removed bugs in this function
+			//m_mmp->
+			SetDistributedELEProperties(prop, prop->porosity_file, "POROSITY", i);
+			// m_mmp->WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
+		}
+		//....................................................................
+		// GEOMETRY_AREA
+		if (prop->geo_area_file.size() > 0)
+		{
+			file_path_base_ext = file_path + prop->geo_area_file;
+			//m_mmp->
+			SetDistributedELEProperties(prop, file_path_base_ext, "GEOMETRY_AREA", i);
+			// WriteTecplotDistributedProperties(prop); // removed by JOD 2020.3.20 as suggested by BW
+		}
+		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
+		//....................................................................
+		//....................................................................
+		//....................................................................
+		if (msp_vector.size() > i)
+			prop = msp_vector[i];
+		else
+		{
+			throw std::runtime_error("MSP Instance missing in Problem::GetHeterogeneousFields()");
+			return;
+		}
+
+		if (prop->file_name_conductivity.size() > 0)
+		{
+			SetDistributedELEProperties(prop, prop->file_name_conductivity, "SOLID_HEAT_CONDUCTIVITY", i);
+		}
+
+		if (prop->file_name_capacity.size() > 0)
+		{
+			SetDistributedELEProperties(prop, prop->file_name_capacity, "SOLID_SPECIFIC_HEAT_CAPACITY", i);
+		}
+
+	}
+	//----------------------------------------------------------------------
+}
+
+/**************************************************************************
+   PCSLib-Method:
+   Programing:
+   11/2005 OK Implementation
+**************************************************************************/
+void SetDistributedELEProperties(Properties* prop, const std::string& file_name, const std::string& property_name, const int& group)
+{
+	cout << "\tSetDistributedELEProperties: ";
+	cout << property_name << "\n";
+
+	bool element_area = (property_name == "GEOMETRY_AREA") ? true : false;
+
+	string line_string, line1;
+	string property_dis_type;
+	string property_mesh;
+	MeshLib::CElem* m_ele_geo = NULL;
+	long i, j, ihet;
+	double property_value;
+	int mat_vector_size = 0;              // Init WW
+	double ddummy, conversion_factor = 1.0; //init WW
+	vector <double> xvals, yvals, zvals, mmpvals;
+	vector<double>temp_store;
+	int c_vals;
+	double x, y, z, mmpv;
+	std::stringstream in;
+	//CB
+	vector<double> garage;
+	int mat_vec_size = 0;
+	int por_index = 0;
+	int vol_bio_index = 0;
+	string outfile;
+	int k;
+	bool stop_reached = false;  // JOD 2021-12-16
+
+	//MeshLib::CFEMesh* _mesh;
+
+	cout << " SetDistributedELEProperties: ";
+	//----------------------------------------------------------------------
+	// File handling
+	ifstream property_file(file_name.data(), ios::in);
+	if (!property_file.good())
+	{
+		throw std::runtime_error("Warning in CMediumProperties::SetDistributedELEProperties: no property data");
+		return;
+	}
+	property_file.clear();
+	property_file.seekg(0, ios::beg);
+	//----------------------------------------------------------------------
+	line_string = GetLineFromFile1(&property_file);
+	if (!(line_string.find("#PROPERTIES_DISTRIBUTED") != string::npos) &&
+		!(line_string.find("#MEDIUM_PROPERTIES_DISTRIBUTED") != string::npos)) // to support legacy input files
+	{
+		throw std::runtime_error("Keyword #MEDIUM_PROPERTIES_DISTRIBUTED not found");
+		return;
+	}
+	//----------------------------------------------------------------------
+	while (!property_file.eof())
+	{
+		line_string = GetLineFromFile1(&property_file);
+		if (line_string.find("STOP") != string::npos || stop_reached)
+			return;
+		if (line_string.empty())
+		{
+			throw std::runtime_error("Error in CMediumProperties::SetDistributedELEProperties - no enough data sets");
+			return;
+		}
+		//....................................................................
+		if (line_string.find("$MSH_TYPE") != string::npos)
+		{
+			line_string = GetLineFromFile1(&property_file);
+			property_mesh = line_string;
+			CFEMesh* msh = FEMGet(line_string);
+			if (!msh)
+			{
+				throw std::runtime_error("CMediumProperties::SetDistributedELEProperties: no MSH data");
+				return;
+			}
+			prop->setMesh(msh);
+			prop->getMesh()->mat_names_vector.push_back(property_name + std::to_string(group));
+			continue;
+		}
+		//....................................................................
+		if (line_string.find("$DIS_TYPE") != string::npos)
+		{
+			property_file >> property_dis_type;
+			continue;
+		}
+		//....................................................................
+		if (line_string.find("$CONVERSION_FACTOR") != string::npos)
+		{
+			property_file >> conversion_factor;
+			continue;
+		}
+		//....................................................................
+		if (line_string.find("$DATA") != string::npos)
+		{
+			switch (property_dis_type[0])
+			{
+			case 'N':     // Next neighbour
+			case 'G':     // Geometric mean
+				// Read in all values given, store in vectors for x, y, z and value
+				i = 0;
+				while (i == 0)
+				{
+					line1 = GetLineFromFile1(&property_file);
+					if (line1.find("STOP") != string::npos)
+					{
+						stop_reached = true;
+						break;
+					}
+					in.str((string)line1);
+					in >> x >> y >> z >> mmpv;
+					in.clear();
+					mmpv *= conversion_factor; // convert values
+					xvals.push_back(x);
+					yvals.push_back(y);
+					zvals.push_back(z);
+					mmpvals.push_back(mmpv);
+				}
+				// sort values to mesh
+				for (i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+				{
+					m_ele_geo = prop->getMesh()->ele_vector[i];
+					//if(m_ele_geo->GetPatchIndex() != group)  // JOD: always write since mat_names_vector is set
+					//	continue;
+
+					mat_vector_size = m_ele_geo->mat_vector.Size();
+					// CB Store old values as they are set to zero after resizing
+					for (j = 0; j < mat_vector_size; j++)
+						garage.push_back(m_ele_geo->mat_vector(j));
+					m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+					// CB Refill old values as they were set to zero after resizing
+					for (j = 0; j < mat_vector_size; j++)
+						m_ele_geo->mat_vector(j) = garage[j];
+					garage.clear();
+					if (property_dis_type[0] == 'N')
+					{
+						// Search for all elements of the mesh, which is the nearest given value in the input file
+						// Return value ihet is the index of the het. val in the mmpval-vector
+						ihet = GetNearestHetVal2(i,
+							prop->getMesh(),
+							xvals,
+							yvals,
+							zvals,
+							mmpvals);
+						m_ele_geo->mat_vector(mat_vector_size) =
+							mmpvals[ihet];
+					}
+					if (property_dis_type[0] == 'G')
+					{
+						mmpv = GetAverageHetVal2(i,
+							prop->getMesh(),
+							xvals,
+							yvals,
+							zvals,
+							mmpvals);
+						m_ele_geo->mat_vector(mat_vector_size) = mmpv;
+					}
+				}
+				break;
+			case 'E':     // Element data modified by JOD 2020-3-20 according to BW
+				for (i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+				{
+					m_ele_geo = prop->getMesh()->ele_vector[i];
+					property_file >> ddummy >> property_value;
+					//if (group == m_ele_geo->GetPatchIndex()) // JOD: always write since mat_names_vector is set
+					{				//BW: Only Write for this Material Group
+						mat_vector_size = m_ele_geo->mat_vector.Size();
+						if (mat_vector_size > 0)
+						{
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								temp_store.push_back(m_ele_geo->mat_vector(
+									c_vals));
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
+								m_ele_geo->mat_vector(c_vals) =
+								temp_store[c_vals];
+							m_ele_geo->mat_vector(mat_vector_size) =
+								property_value;
+							temp_store.clear();
+						}
+						else
+						{
+							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
+							m_ele_geo->mat_vector(mat_vector_size) =
+								property_value;
+						}
+						if (element_area)
+							prop->getMesh()->ele_vector[i]->SetFluxArea(
+								property_value);
+						if (line_string.empty())
+						{
+							throw std::runtime_error("Error in CMediumProperties::SetDistributedELEProperties - not enough data sets");
+							return;
+						}
+					}  // end if group
+				}
+				break;
+			default:
+				throw std::runtime_error(" Unknown interpolation option for the values!");
+				break;
+			}
+			continue;
+		}
+		//....................................................................
+	}
+
+	// 2021-12-16 removed by JOD
+	// CB now set VOL_MAT & VOL_BIO as heterogeneous values, if defined as model 2 and het Porosity
+	/*if( (mmp_property_name == "POROSITY") && (prop->vol_bio_model == 2) )
+	{
+		prop->getMesh()->mat_names_vector.push_back("VOL_BIO");
+		for(i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+		{
+			m_ele_geo = prop->getMesh()->ele_vector[i]; // Get the element
+			mat_vec_size = m_ele_geo->mat_vector.Size();
+			// CB Store old values as they are set to zero after resizing
+			for(j = 0; j < mat_vec_size; j++)
+				garage.push_back(m_ele_geo->mat_vector(j));
+			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
+			// CB Refill old values as they were set to zero after resizing
+			for(j = 0; j < mat_vec_size; j++)
+				m_ele_geo->mat_vector(j) = garage[j];
+			garage.clear();
+			// Set the VOL_BIO value from mmp file input
+			m_ele_geo->mat_vector(mat_vec_size) = prop->vol_bio;
+		}
+	}
+	if( (mmp_property_name == "POROSITY") && (prop->vol_mat_model == 2) )
+	{
+		prop->getMesh()->mat_names_vector.push_back("VOL_MAT");
+		// Get the porosity index
+		for(por_index = 0; por_index < (int)prop->getMesh()->mat_names_vector.size(); por_index++)
+			if(prop->getMesh()->mat_names_vector[por_index].compare("POROSITY") == 0)
+				break;
+		// Get the vol_bio index
+		for(vol_bio_index = 0; vol_bio_index < (int)prop->getMesh()->mat_names_vector.size();
+			vol_bio_index++)
+			if(prop->getMesh()->mat_names_vector[vol_bio_index].compare("VOL_BIO") == 0)
+				break;
+		for(i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+		{
+			m_ele_geo = prop->getMesh()->ele_vector[i]; // Get the element
+			mat_vec_size = m_ele_geo->mat_vector.Size();
+			// CB Store old values as they are set to zero after resizing
+			for(j = 0; j < mat_vec_size; j++)
+				garage.push_back(m_ele_geo->mat_vector(j));
+			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
+			// CB Refill old values as they were set to zero after resizing
+			for(j = 0; j < mat_vec_size; j++)
+				m_ele_geo->mat_vector(j) = garage[j];
+			garage.clear();
+			// Set the VOL_MAT value from (1-POROSITY-VOL_BIO)
+			m_ele_geo->mat_vector(mat_vec_size) = 1 -
+												  m_ele_geo->mat_vector(por_index) -
+												  m_ele_geo->mat_vector(vol_bio_index);
+		}
+	}
+
+	*/
+	//----------------------------------------------------------------------
+	//Write sorted output file
+	//----------------------------------------------------------------------
+	// File handling
+
+	// CB
+	for (k = 0; k < (int)prop->getMesh()->mat_names_vector.size(); k++)
+	{
+		//file_name +="_sorted";
+		outfile = prop->getMesh()->mat_names_vector[k] + "_sorted";
+		ofstream property_file_out(outfile.data());
+		if (!property_file_out.good())
+		{
+			throw std::runtime_error("Warning in CMediumProperties::WriteDistributedELEProperties: no MMP property data file to write to");
+			return;
+		}
+		property_file_out << "#MEDIUM_PROPERTIES_DISTRIBUTED" << "\n";
+		property_file_out << "$MSH_TYPE" << "\n" << "  " << property_mesh << "\n";
+		//property_file_out << "$MSH_TYPE" << "\n" << "  " << property_mesh << "\n";
+		//property_file_out << "$MMP_TYPE" << "\n" << "  " << "PERMEABILITY" << "\n";
+		property_file_out << "$MMP_TYPE" << "\n" << "  " <<
+			prop->getMesh()->mat_names_vector[k] << "\n";
+		property_file_out << "$DIS_TYPE" << "\n" << "  " << "ELEMENT" << "\n";
+		property_file_out << "$DATA" << "\n";
+		for (i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+		{
+			m_ele_geo = prop->getMesh()->ele_vector[i];
+			property_file_out << i << "  " << m_ele_geo->mat_vector(k) << "\n";
+		}
+		property_file_out << "#STOP" << "\n";
+		property_file_out.close();
+		//----------------------------------------------------------------------
+	}
+}
+
+/**************************************************************************
+   PCSLib-Method:
+   Programing:
+   11/2005 OK Implementation
+**************************************************************************/
+void WriteTecplotDistributedProperties(const Properties* const prop)
+{
+	int j, k;
+	long i;
+	string element_type;
+	string m_string = "MAT";
+	double m_mat_prop_nod;
+	std::string name = "";
+	//----------------------------------------------------------------------
+	// Path
+	string path;
+	//--------------------------------------------------------------------
+	// MSH
+	MeshLib::CNode* m_nod = NULL;
+	MeshLib::CElem* m_ele = NULL;
+	if (!prop->getMesh())
+		return;
+	//--------------------------------------------------------------------
+	// File handling
+	string mat_file_name = path + name + "_" + prop->getMesh()->pcs_name + "_PROPERTIES"
+		+ TEC_FILE_EXTENSION;
+	fstream mat_file(mat_file_name.data(), ios::trunc | ios::out);
+	mat_file.setf(ios::scientific, ios::floatfield);
+	mat_file.precision(12);
+	if (!mat_file.good())
+		return;
+	mat_file.seekg(0L, ios::beg);
+	//--------------------------------------------------------------------
+	if ((long)prop->getMesh()->ele_vector.size() > 0)
+	{
+		m_ele = prop->getMesh()->ele_vector[0];
+		switch (m_ele->GetElementType())
+		{
+		case MshElemType::LINE:
+			element_type = "QUADRILATERAL";
+			break;
+		case MshElemType::QUAD:
+			element_type = "QUADRILATERAL";
+			break;
+		case MshElemType::HEXAHEDRON:
+			element_type = "BRICK";
+			break;
+		case MshElemType::TRIANGLE:
+			element_type = "TRIANGLE";
+			break;
+		case MshElemType::TETRAHEDRON:
+			element_type = "TETRAHEDRON";
+			break;
+		case MshElemType::PRISM:
+			element_type = "BRICK";
+			break;
+		default:
+			std::cerr
+				<<
+				"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
+				<< "\n";
+		}
+	}
+	//--------------------------------------------------------------------
+	// Header
+	mat_file << "VARIABLES = X,Y,Z";
+	for (j = 0; j < (int)prop->getMesh()->mat_names_vector.size(); j++)
+		mat_file << "," << prop->getMesh()->mat_names_vector[j];
+	mat_file << "\n";
+	mat_file << "ZONE T = " << name << ", " << "N = "
+		<< (long)prop->getMesh()->nod_vector.size() << ", " << "E = "
+		<< (long)prop->getMesh()->ele_vector.size() << ", " << "F = FEPOINT" << ", "
+		<< "ET = " << element_type << "\n";
+	//--------------------------------------------------------------------
+	// Nodes
+	for (i = 0; i < (long)prop->getMesh()->nod_vector.size(); i++)
+	{
+		m_nod = prop->getMesh()->nod_vector[i];
+		double const* const pnt(m_nod->getData());
+		mat_file << pnt[0] << " " << pnt[1] << " " << pnt[2];
+		for (size_t j = 0; j < prop->getMesh()->mat_names_vector.size(); j++)
+		{
+			m_mat_prop_nod = 0.0;
+			for (k = 0; k < (int)m_nod->getConnectedElementIDs().size(); k++)
+			{
+				m_ele = prop->getMesh()->ele_vector[m_nod->getConnectedElementIDs()[k]];
+				m_mat_prop_nod += m_ele->mat_vector(j);
+			}
+			m_mat_prop_nod /= (int)m_nod->getConnectedElementIDs().size();
+			mat_file << " " << m_mat_prop_nod;
+		}
+		mat_file << "\n";
+	}
+	//--------------------------------------------------------------------
+	// Elements
+	for (i = 0; i < (long)prop->getMesh()->ele_vector.size(); i++)
+	{
+		m_ele = prop->getMesh()->ele_vector[i];
+		//OK if(m_ele->GetPatchIndex()==number) {
+		switch (m_ele->GetElementType())
+		{
+		case MshElemType::LINE:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[0] + 1 << "\n";
+			element_type = "QUADRILATERAL";
+			break;
+		case MshElemType::QUAD:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[2] + 1 << " "
+				<< m_ele->getNodeIndices()[3] + 1 << "\n";
+			element_type = "QUADRILATERAL";
+			break;
+		case MshElemType::HEXAHEDRON:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[2] + 1 << " "
+				<< m_ele->getNodeIndices()[3] + 1 << " "
+				<< m_ele->getNodeIndices()[4] + 1 << " "
+				<< m_ele->getNodeIndices()[5] + 1 << " "
+				<< m_ele->getNodeIndices()[6] + 1 << " "
+				<< m_ele->getNodeIndices()[7] + 1 << "\n";
+			element_type = "BRICK";
+			break;
+		case MshElemType::TRIANGLE:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[2] + 1 << "\n";
+			element_type = "TRIANGLE";
+			break;
+		case MshElemType::TETRAHEDRON:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[2] + 1 << " "
+				<< m_ele->getNodeIndices()[3] + 1 << "\n";
+			element_type = "TETRAHEDRON";
+			break;
+		case MshElemType::PRISM:
+			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[0] + 1 << " "
+				<< m_ele->getNodeIndices()[1] + 1 << " "
+				<< m_ele->getNodeIndices()[2] + 1 << " "
+				<< m_ele->getNodeIndices()[3] + 1 << " "
+				<< m_ele->getNodeIndices()[3] + 1 << " "
+				<< m_ele->getNodeIndices()[4] + 1 << " "
+				<< m_ele->getNodeIndices()[5] + 1 << "\n";
+			element_type = "BRICK";
+			break;
+		default:
+			std::cerr
+				<<
+				"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
+				<< "\n";
+		}
+	}
+}
+
+/**************************************************************************
+   MSHLib-Method: GetNearestHetVal2
+   Task:
+   Programing:
+   0?/2004 SB Implementation
+   09/2005 MB EleClass
+   01/2006 SB ReImplementation with new concept by Olaf, moved here
+**************************************************************************/
+long GetNearestHetVal2(long EleIndex,
+	CFEMesh* m_msh,
+	vector <double> xvals,
+	vector <double> yvals,
+	vector <double> zvals,
+	vector <double> mmpvals)
+{
+	(void)mmpvals;
+	long i, nextele, no_values;
+	double ex, ey, ez, dist, dist1; //WW , dist2;
+	double x, y, z;
+	MeshLib::CElem* m_ele = NULL;
+	no_values = (long)xvals.size();
+
+	x = 0.0;
+	y = 0.0;
+	z = 0.0;
+	dist = 10000000.0;                    //Startwert
+	//WW dist2 = 0.01;                                  // Abstand zwischen eingelesenen Knoten und Geometrieknoten-RF;
+	// Achtung, doppelbelegung möglich bei kleinen Gitterabständen
+	nextele = -1;
+
+	//Get element data
+	m_ele = m_msh->ele_vector[EleIndex];
+	double const* center(m_ele->GetGravityCenter());
+	x = center[0];
+	y = center[1];
+	z = center[2];
+
+	//Calculate distances
+	for (i = 0; i < no_values; i++)
+	{
+		ex = xvals[i];
+		ey = yvals[i];
+		ez = zvals[i];
+		dist1 = (ex - x) * (ex - x) + (ey - y) * (ey - y) + (ez - z) * (ez - z);
+		if (dist1 < dist)
+		{
+			dist = dist1;
+			nextele = i;
+		}
+	}
+
+	return nextele;
+}
+
+/**************************************************************************
+   MSHLib-Method: GetAverageHetVal2
+   Task:
+   Programing:
+   06/2005 MB Implementation
+   01/2006 SB Adapted to new structure
+**************************************************************************/
+double GetAverageHetVal2(long EleIndex,
+	CFEMesh* m_msh,
+	vector <double> xvals,
+	vector <double> yvals,
+	vector <double> zvals,
+	vector <double> mmpvals)
+{
+	long i, j, ihet;
+	double average;
+	double xp[3], yp[3];
+	double value;
+	double NumberOfValues;
+	//WW double InvNumberOfValues;
+	CGLPoint* m_point = NULL;
+	MeshLib::CElem* m_ele = NULL;
+	long no_values = (long)xvals.size();
+
+	j = 0;                                //only for 1 value
+
+	//-----------------------------------------------------------------------
+	//Get element data
+	m_ele = m_msh->ele_vector[EleIndex];
+	for (j = 0; j < 3; j++)
+	{
+		double const* const pnt(m_ele->GetNode(j)->getData());
+		xp[j] = pnt[0];
+		yp[j] = pnt[1];
+		//zp[j] = 0.0;
+	}
+
+	//-----------------------------------------------------------------------
+	//Find data points in the element
+	NumberOfValues = 0;
+	//WW InvNumberOfValues = 0;
+	m_point = new CGLPoint;
+
+	average = -1;
+	value = 0;
+
+	for (i = 0; i < no_values; i++)
+		if (mmpvals[i] != -999999.0) //Data point not within an element yet
+		{
+			m_point->x = xvals[i];
+			m_point->y = yvals[i];
+			m_point->z = 0.0;
+
+			//....................................................................
+			//Calculate the product of values in element
+			//CC 10/05
+			if (m_point->IsInTriangleXYProjection(xp, yp))
+			{
+				value = value + zvals[i];
+				NumberOfValues++;
+				mmpvals[i] = -999999.0; //used as marker
+			}
+		}
+	//end for
+	//........................................................................
+	if (NumberOfValues == 0)               //if no data points in element --> get neares value
+	{
+		ihet = GetNearestHetVal2(EleIndex, m_msh, xvals, yvals, zvals, mmpvals);
+		if (ihet < 0)
+			DisplayMsgLn(" Error getting nearest het_value location");
+		else
+			average = mmpvals[ihet];
+	}
+	//........................................................................
+	else                                  //if data points in element --> Calculate arithmetic mean
+
+		average = value / NumberOfValues;
+	delete m_point;
+	return average;
+}
+
 
 #ifdef BRNS
 

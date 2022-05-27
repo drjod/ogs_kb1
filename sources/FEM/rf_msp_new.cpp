@@ -172,15 +172,6 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				default:
 					throw std::runtime_error("Error when reading MSP-File: Density mode not supported");
 			}
-			else if (Density_mode == 7) // this is a model for soil + ice  from BW 2022-05-16
-			{
-				// rho1 = soil density, rho2 = ice density
-				data_Density = new Matrix(2);
-				in_sd >> (*data_Density)(0); // soil density
-				in_sd >> (*data_Density)(1); // ice density
-				in_sd.clear();
-			}
-
 		}
 		//....................................................................
 		if(line_string.find("$THERMAL") != string::npos)
@@ -288,83 +279,149 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 
 		//....................................................................
 		// subkeyword found
-		if(line_string.compare("CONDUCTIVITY") == 0)
+		if (line_string.find("FREEZING_SIGMOID_COEFFICENT") != string::npos) // BW 2022-05-12
 		{
 			in_sd.str(GetLineFromFile1(msp_file));
-			in_sd >> Conductivity_mode;
-			switch(Conductivity_mode)
-			{
-			case 0:       //  = f(T) //21.12.2009 WW
-				in_sd >> heat_conductivity_fct_number;
-				in_sd.clear();
-				/*in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
-				}*/
-				//WW
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 1:       //  = const
-				data_Conductivity = new Matrix(1);
-				in_sd >> (*data_Conductivity)(0);
-				in_sd.clear();
-				break;
-			case 2:       // boiling model for rock. WW
-				// 0. Wet conductivity
-				// 1. Dry conductivity
-				// 2. Boiling temperature
-				// 3. Boiling temperature range
-				data_Conductivity = new Matrix(4);
-				for(i = 0; i < 4; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 3:       // DECOVALEX THM1, Bentonite
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 30:       // another model for bentonite. WW
-				// 0. maximum conductivity
-				// 1. minimum conductivity
-				// 2. saturation
-				data_Conductivity = new Matrix(3);
-				for(i = 0; i < 3; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 4:       //  = f(S) //21.12.2009 WW
-				in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
-				}
-				break;
-			case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function 
-				in_sd >> T_0;
-				in_sd.clear();
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
- 				conductivity_pcs_name_vector.push_back("SATURATION1");
-				break; 
-			}
+			in_sd >> freezing_sigmoid_coeff; // sigmoid coefficient for freezing unitless
 			in_sd.clear();
 		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("ICE_CONDUCTIVIY_MODEL") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> ice_conductivity_model; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("MELTING_TEMPERATURE") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> melting_temperature; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("FREEZING_TEMPERATURE") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> freezing_temperature; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if(line_string.find("CONDUCTIVITY")  != string::npos)
+		{
+			if(line_string.find("_DISTRIBUTION")  != string::npos)
+			{
+				Conductivity_mode = 22;
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> file_name_conductivity;
+				std::cout << "\t\tHeat conductivity distribution file name: " << file_name_conductivity << '\n';
+				file_name_conductivity = pathDirname(FileName) +  getDirSep() + file_name_conductivity;
+				in_sd.clear();
+			}
+			else
+			{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> Conductivity_mode;
+				switch(Conductivity_mode)
+				{
+				case 0:       //  = f(T) //21.12.2009 WW
+					in_sd >> heat_conductivity_curve_number;
+					in_sd.clear();
+					/*in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}*/
+					//WW
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 1:       //  = const
+					data_Conductivity = new Matrix(1);
+					in_sd >> (*data_Conductivity)(0);
+					in_sd.clear();
+					break;
+				case 2:       // boiling model for rock. WW
+					// 0. Wet conductivity
+					// 1. Dry conductivity
+					// 2. Boiling temperature
+					// 3. Boiling temperature range
+					data_Conductivity = new Matrix(4);
+					for(i = 0; i < 4; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 3:       // DECOVALEX THM1, Bentonite
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 4:       //  = f(S) //21.12.2009 WW
+					in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}
+					break;
+				case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function
+					in_sd >> T_0;
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					conductivity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 6:		// f(T, S), Saturation S from table (over elments)  - JOD 2022-01-24
+				{
+					std::string fct_name;
+					in_sd >> fct_name;
+					fct_names.push_back(fct_name);
+					in_sd >> fct_name;  // conductivity over saturation for different temperatures
+					if(fct_name.length() > 0)  // to check
+						fct_names.push_back(fct_name);  // saturation over elements
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//conductivity_pcs_name_vector.push_back("SATURATION1");
+				}
+	            case 7:       //  thermal conductivity soil and ice merged from BW 2022-05-12
+	                data_Conductivity = new Matrix(3);
+	                in_sd >> (*data_Conductivity)(0); // soild lambda
+	                in_sd >> (*data_Conductivity)(1); // ice lambda
+	                in_sd >> (*data_Conductivity)(2); // water lambda
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//capacity_pcs_name_vector.push_back("TEMPERATURE1");
+	                in_sd.clear();
+	                break;
+				case 30:       // another model for bentonite. WW
+					// 0. maximum conductivity
+					// 1. minimum conductivity
+					// 2. saturation
+					data_Conductivity = new Matrix(3);
+					for(i = 0; i < 3; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				default:
+					throw std::runtime_error("Error when reading MSP-File: Conductivity not supported");
+				}
+				in_sd.clear();
+			}
 
 		}
 
@@ -1230,7 +1287,7 @@ double CSolidProperties::CalulateValue
    Programing:
    08/2004 WW Implementation
 **************************************************************************/
-double CSolidProperties::Density(double refence )
+double CSolidProperties::Density(const double& refence) const
 {
 	double val = 0.0;
 	switch(Density_mode)
@@ -1240,6 +1297,12 @@ double CSolidProperties::Density(double refence )
 		break;
 	case 1:
 		val = (*data_Density)(0);
+		break;
+	case 7:                // Freezing model TYZ  from BW 2022-05-16
+		if (refence == 0.0)
+			val = (*data_Density)(0);
+		else
+			val = (*data_Density)(1);
 		break;
 	}
 	return val;
@@ -1286,13 +1349,15 @@ double CSolidProperties::Heat_Capacity(const double& refence) const
 		val = lower_solid_density_limit/refence * ((*data_Capacity)(0) + C * (*data_Capacity)(1));
 	}
 		break;
+	case 7: //Freezing model - TYZ from BW 2022-05-16
+		if (refence == 0.0)
+			val = (*data_Capacity)(0);//soil heat capacity 0
+		else
+			val = (*data_Capacity)(1);//ice heat capacity 1
+		break;
 	default:
 		val = (*data_Capacity)(0);
 		break;
-	default:
-		//val = (*data_Capacity)(0);
-		//break;
-		throw std::runtime_error("Heat capacity model not supported");
 	}
 	return val;
 }
