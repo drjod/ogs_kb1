@@ -882,6 +882,8 @@ int Linear_EQS::Solver()
 	case 13:
 		return GMRES();
 		break;
+	default:
+		throw std::runtime_error("Solver not supported");
 	}
 	return -1;
 }

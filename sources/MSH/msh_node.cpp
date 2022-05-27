@@ -8,9 +8,12 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <stdexcept>
 
 // MSHLib
 #include "msh_node.h"
+#include "msh_elem.h"
 
 //========================================================================
 namespace MeshLib
@@ -150,4 +153,32 @@ std::ostream& operator<< (std::ostream &os, MeshLib::CNode const &node)
 	return os;
 }
 
-}                                                 // namespace MeshLib
+// JOD 2021-12-09
+std::vector<size_t> CNode::getConnectedElementOnPolyineIDs(std::vector<long> nod_vector, std::vector<MeshLib::CElem*> ele_vector) const
+{
+	std::vector<size_t> connected_elements_on_polyline;
+		//std::cout << "size:" << _connected_elements.size() << std::endl;
+
+	for (size_t i = 0; i < _connected_elements.size(); ++i)
+	{
+		//std::cout << "i:" << i << std::endl;
+		CElem* ele = ele_vector[_connected_elements[i]];
+		std::vector<size_t> nodes_on_element;
+		ele->getNodeIndices(nodes_on_element);
+
+		int number_of_common_nodes = 0;
+		for(size_t j=0; j< nodes_on_element.size(); ++j)
+		{
+			if ( std::find(nod_vector.begin(), nod_vector.end(), nodes_on_element[j]) != nod_vector.end())  // is node on polyline?
+				number_of_common_nodes++;
+		}
+		if(number_of_common_nodes == 2)
+			connected_elements_on_polyline.push_back(_connected_elements[i]);
+		else if(number_of_common_nodes > 2)
+			throw std::runtime_error("Error in CNode::getConnectedElementOnPolyineIDs");
+
+	}
+	return connected_elements_on_polyline;
+}
+
+} // namespace MeshLib

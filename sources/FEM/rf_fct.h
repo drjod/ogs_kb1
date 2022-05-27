@@ -24,7 +24,7 @@ public:
 	std::ios::pos_type Read(std::ifstream*);
 	void Write(std::fstream*);
 	// add int method. WW
-	double GetValue(double point, bool* valid, int method = 0);
+	double GetValue(const double& point, bool& valid, const int& method = 0, const double& point2 = 0.);
 public:
 	std::string type_name;
 	std::string geo_name;

@@ -184,6 +184,7 @@ const std::list<std::string> getAllPrimaryVariableNames();
 	RECHARGE_DIRECT,
 	FUNCTION,
 	GRADIENT,                             // IC
+	CHANGING_GRADIENT,					  // BC with curves
 	BOUNDED,                              // IC
 	GREEN_AMPT,                           // ST
 	RESTART,                              // IC

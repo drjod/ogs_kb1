@@ -31,6 +31,8 @@ void DisplayStartMsg ( void )
 	int i, pad_len;
 	char buf[128];
 
+	char version[] = OGS_VERSION;
+
 	printf("\n");
 	printf("     ####################################################\n");
 	printf("     #                                                  #\n");
@@ -42,9 +44,10 @@ void DisplayStartMsg ( void )
 	printf("     #   #   #  #   #  #   #       #   #   #   #    #   #\n");
 	printf("     #    ###    ###    ###        #    #  ####     #   #\n");
 	printf("     #                                                  #\n");
-	printf("     ####################################################\n");
-
-	printf("\n          File name (without extension): ");
+	printf("     #                                                  #\n");
+	printf("     ####################################################\n\n");
+	printf("     %s\n\n", version);
+	printf("     File name (without extension): ");
 }
 
 /**************************************************************************/

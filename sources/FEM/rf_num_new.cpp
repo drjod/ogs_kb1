@@ -23,6 +23,12 @@
 //#undef SEEK_CUR
 #endif
 
+
+
+#include "logger.h"
+extern bool flag_block_output_of_initial_values;
+
+
 // C++ STL
 #include <cfloat>
 #include <cmath>
@@ -53,6 +59,8 @@ using namespace std;
 
 extern std::ios::pos_type GetNextSubKeyword(ifstream* file,string* line, bool* keyword);
 extern size_t max_dim;                            //OK411 todo
+
+
 
 //==========================================================================
 vector<CNumerics*>num_vector;
@@ -188,7 +196,8 @@ bool NUMRead(string file_base_name)
 	num_file.seekg(0L,ios::beg);
 	//========================================================================
 	// Keyword loop
-  std::cout << "NUMRead" << "\n" << std::flush;
+	std::cout << "NUMRead" << "\n" << std::flush;
+
 	while (!num_file.eof())
 	{
 		num_file.getline(line,MAX_ZEILE);
@@ -199,6 +208,21 @@ bool NUMRead(string file_base_name)
 		if(line_string.find("$OVERALL_COUPLING") != string::npos){
 			overall_coupling_exists = true; // JT: for error checking
 		}
+
+		if(line_string.find("$LOGGING") != string::npos){
+			num_file.getline(line,MAX_ZEILE);
+			line_string = line;
+			std::stringstream ss;
+			ss << line_string;
+			logger.set_verbosity(std::stoi(line_string));
+		}
+		if (line_string.find("$TESPY_GEOSTORAGE") != string::npos)  // JOD 2020-05-08
+		{
+			flag_block_output_of_initial_values = true;  // no output for step 0
+			std::cout << "\tAppend data (File not deleted)\n";
+			logger.block_deletion();
+		}
+
 		//----------------------------------------------------------------------
 		// keyword found
 		if(line_string.find("#NUMERICS") != string::npos)

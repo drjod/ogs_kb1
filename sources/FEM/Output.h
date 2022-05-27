@@ -9,6 +9,7 @@
 #include "DistributionInfo.h"
 #include "GeoInfo.h"
 #include "ProcessInfo.h"
+#include "fem_ele.h"
 
 #include <iostream>
 #include <vector>
@@ -17,6 +18,8 @@
 #if defined(USE_PETSC) || defined(USE_MPI) //|| defined(other parallel libs)//03.3012. WW
 #include "mpi.h"
 #endif
+
+using namespace FiniteElement;
 
 namespace MeshLib
 {class CFEMesh;
@@ -45,6 +48,7 @@ public:
 	std::vector<double> DistribedBC;
 	std::string dis_type;
 
+	bool variable_storage;
 	/**
 	 * scaling factor for values
 	 * @param amplifier - a double value for scaling data
@@ -119,7 +123,7 @@ public:
 	void WriteTECElementData(std::fstream&, int);
 	void WriteTECBLOCKData(std::fstream&); // BW
 	double NODWritePLYDataTEC(int); 
-	void NODWritePNTDataTEC(double, int);
+	void NODWritePNTDataTEC(int);
 	void ELEWriteDOMDataTEC();
 	void WriteELEValuesTECHeader(std::fstream&);
 	void WriteELEValuesTECData(std::fstream&);
@@ -127,7 +131,8 @@ public:
 	void WriteBLOCKValuesTECHeader(std::fstream&);
 	void WriteBLOCKValuesTECData(std::fstream&);
 	void NODWriteSFCDataTEC(int);
-	void NODWriteSFCAverageDataTEC(double, int); //OK
+	void NODWriteSFCAverageDataTEC(int);
+	void NODWritePLYAverageDataTEC(int); //JOD 2020-4-27
 	void WriteRFO();                      //OK
 	void WriteRFOHeader(std::fstream&);   //OK
 	void WriteRFONodes(std::fstream&);    //OK
@@ -160,8 +165,12 @@ public:
 
 	void WriteTotalFlux(double, int);	// JOD 11/2014 
 	void WriteContent(double, int);     // JOD 2/2015
+	void WriteLatentHeat(double, int);     // BW 2022-05-12
 	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
 	void WriteContraflow(double, int);  // JOD 2019-08-23
+	void WriteContraflowPolyline(double, int);  // JOD 2020-04-30
+	void WriteBoreholeData(const double&, const int&); // JOD-2022-02-15
+
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10
 	void CalculateTotalFlux(std::vector<double>&, std::vector<double>&); // JOD 2014-11-10
@@ -237,7 +246,8 @@ private:
 	std::vector<double> time_vector;
 	double _time;
 
-	int mmp_index; // JOD 2/2015  : -2 volume calculation (flag)
+	int mmp_index; // JOD 2/2015
+	bool flag_volumeCalculation;
 	double domainIntegration_lowerThreshold, domainIntegration_upperThreshold;  // JOD 2020-1-15
 	/**
 	 * the position in the global vector out_vector, used only in NODWritePLYDataTEC

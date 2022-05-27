@@ -185,7 +185,7 @@ public:
 	std::vector<int> density_model_mat,density_model_idx;
 
 	// TF 11/2011 - used only in read- and write-method
-	int density_curve_number, viscosity_curve_number; // JOD 2014-11-10
+	int density_curve_number, viscosity_curve_number, specificHeatCapacity_curve_number; // JOD 2014-11-10
 	
 	// Viscosity
 	int viscosity_model;
@@ -319,7 +319,7 @@ extern void MFPWrite(std::string);
 #define MFP_FILE_EXTENSION ".mfp"
 //WW extern double MFPCalcVapourPressure(double);
 //WW
-extern double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem = NULL);
+extern double MFPCalcFluidsHeatCapacity(bool flag_calcContent = false, CFiniteElementStd* assem = NULL); // BW: 23.03.2020 please update changes
 extern double MFPCalcFluidsHeatConductivity(long index,
                                             double* gp,
                                             double theta,

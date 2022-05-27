@@ -659,7 +659,7 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
   CRFProcess* m_pcs = NULL;
   double *Concentration;  // concentration of all result
   double *nod_HKF_logK, *nod_SAC, *nod_KIN_logK;
-  double *CAPtimes;  
+  double *CAPtimes = NULL;  
   int nHKF = 0, nKIN = 0;
   int nComponents;
   std::vector<int> ranknodelistvec;

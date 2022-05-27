@@ -341,6 +341,7 @@ CElem::~CElem()
 	neighbors.resize(0);
 	mat_vector.resize(0);
 	edges_orientation.resize(0);
+	
 	owner = NULL;
 	if(transform_tensor)
 		delete transform_tensor;
@@ -513,7 +514,7 @@ void CElem:: SetFace(CElem* onwer, const int Face)
 			this->setElementProperties(MshElemType::TRIANGLE, true);
 		break;                           // 3-D pyramid element
 	default:
-		std::cerr << "CElem::SetFace MshElemType not handled" << "\n";
+		throw std::runtime_error("CElem::SetFace MshElemType not handled");
 	}
 
 	for(size_t i = 0; i < n; i++)
@@ -1788,6 +1789,28 @@ void CElem::InvertNormalVector()
 	normal_vector[0] = -normal_vector[0];
 	normal_vector[1] = -normal_vector[1];
 	normal_vector[2] = -normal_vector[2];
+
+}
+
+// JOD 2021-12-09
+double CElem::GetHorizontalNodeDistance(CNode* node) const
+{
+	for(size_t i = 0; i< nodes.Size();++i)
+	{
+		if(std::fabs(double(nodes[i]->getData()[2] - node->getData()[2])) < 1e-10)
+		{
+			//std::cout << "x: " << nodes[i]->getData()[0] << std::endl;
+			const double distance = std::sqrt(double((nodes[i]->getData()[0] - node->getData()[0]) *
+													(nodes[i]->getData()[0] - node->getData()[0])
+													+ (nodes[i]->getData()[1] - node->getData()[1]) *
+													(nodes[i]->getData()[1] - node->getData()[1])));
+			if(distance > 10e-10)
+				return distance;
+		}
+	}
+
+	throw std::runtime_error("Node distance calculation failed");
+	return 0.;
 
 }
 

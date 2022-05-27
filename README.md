@@ -137,6 +137,8 @@ INITIAL_STEP_SIZE
 1e3
 ITERATIVE_TYPE
 COUPLED ; for outer coupling loop (take keyword LINEAR for solver, NONLINEAR for Picard)
+REDUCE_IF_NOT_CONVERGED
+0.5
 #STOP
 ```
 
@@ -299,7 +301,41 @@ $CONNECT_MODE
 ; mode ; 0: symmetric, 1: non-symmetric (downwind fixed), 2 variable (dependent on velocity in reference element)
 ; 2 ref_element_number n_ref_x, n_ref_y, n_ref_z minimum_velocity_abs
 ```
-##### Deactivated subdomain
+
+###### Process coupling 
+
+Flux for RICHARDS_FLOW to couple to OVERLAND_FLOW:
+```
+#SOURCE_TERM
+ $PCS_TYPE
+  RICHARDS_FLOW
+ $PRIMARY_VARIABLE
+  PRESSURE1
+ $GEO_TYPE
+  POLYLINE INTERFACE
+ $DIS_TYPE_CONDITION
+  CONSTANT_NEUMANN 1
+  PCS OVERLAND_FLOW
+  HEAD
+  2.83333333e-2 1.e-3 0.0 0.0 ; leakage, rill height, given value, residual permeability 
+```
+Couple HEAT_TRANSPORT to a given temperature of 10:
+```
+#SOURCE_TERM
+ $PCS_TYPE
+  HEAT_TRANSPORT
+ $PRIMARY_VARIABLE
+  TEMPERATURE1
+ $GEO_TYPE
+  POLYLINE INTERFACE
+ $DIS_TYPE_CONDITION
+  CONSTANT_NEUMANN 1
+  HEAT_TRANSPORT
+  GIVEN_TEMPERATURE
+  0.1 0.0 10.0 0.0 ; leakage, rill height, given value, residual permeability 
+```
+
+###### Deactivated subdomain
 
 ```
 #PROCESS
@@ -348,7 +384,50 @@ and select liquids as:
    AQ
   ```
 
+#### Volumetric heat capacity
 
+##### MMP Volumetric heat capacity models
+
+0: Curve (value depends on temperature) <br>
+1: constant value <br>
+
+Example:
+```
+#MEDIUM_PROPERTIES
+ $GEOMETRY_DIMENSION
+  1
+ $GEOMETRY_AREA
+  1.0
+ $POROSITY
+  1  1.00
+ $STORAGE
+  1  0.0
+ $TORTUOSITY
+  1  1.000000e+000
+ $PERMEABILITY_TENSOR
+  ISOTROPIC   1.0e-15
+ $HEAT_DISPERSION
+  1  0.000000e+000 0.000000e+000
+ $VOLUMETRIC_HEAT_CAPACITY
+  0 1  // 1st curve in rfd file
+```
+
+##### MFP Volumetric heat capacity models
+
+1: const <br>
+
+For instance if advection
+  
+Example:  
+``` 
+#FLUID_PROPERTIES
+ $FLUID_TYPE
+  LIQUID
+   $VISCOSITY
+  1 1e-3
+ $VOLUMETRIC_HEAT_CAPACITY
+  1 4.2e6 
+```
   
 #### Fluid properties
 

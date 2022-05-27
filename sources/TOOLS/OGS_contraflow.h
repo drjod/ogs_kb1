@@ -39,7 +39,7 @@ public:
 			{ input_list.push_back(input_group_t(_time, _mode, _Q, _var)); }
 
 	void initialize();
-	contra::Result call_contraflow(const double& current_time, stru3::DVec T_s);
+	bool call_contraflow(const double& current_time, stru3::DVec T_s, contra::Result& result);
 
 private:
 	std::string _itos(int i) // convert int to string

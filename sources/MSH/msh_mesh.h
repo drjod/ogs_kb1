@@ -276,15 +276,12 @@ public:
 		NodesNumber_Linear = nod_vector.size();
 	}
 	/// Free the memory occupied by edges
-    void FreeEdgeMemory(); // 09.2012. WW
+    	void FreeEdgeMemory(); // 09.2012. WW
 
-	/**
-	 * @{
-	 * */
-    /*!
+    	/*
 		brief Find the element by a point
 	*/
-     size_t FindElementByPoint(const double* xyz);
+     	int FindElementByPoint(const double* xyz);
 
 	/**
 	 * \brief depreciated method - uses old surface class
@@ -482,7 +479,7 @@ public:
 	CFluidMomentum* fm_pcs;                   // by PCH
 
 	std::vector<size_t> sorted_nodes;
-	std::vector<size_t> xy_change;
+	std::vector<int> xy_change;
 	bool nodes_are_sorted;
 
 	/// Import MODFlow grid. 10.2009 WW

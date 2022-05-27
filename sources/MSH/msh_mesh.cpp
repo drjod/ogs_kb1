@@ -5,6 +5,7 @@
    08/2005 WW/OK Encapsulation from rf_ele_msh
    last modified
 **************************************************************************/
+
 #include <cfloat>
 #include <cmath>
 #include <climits>
@@ -1605,7 +1606,7 @@ void CFEMesh::GetNODOnPLY(const GEOLIB::Polyline* const ply,
 	}
 
 	// compute nodes (and supporting points) along polyline
-	double search_radius (this->getMinEdgeLength()); // getSearchLength());
+	double search_radius (this->getMinEdgeLength()/2); // getSearchLength());
 	if (!automatic)
 		search_radius = eps;
 	_mesh_nodes_along_polylines.push_back(MeshNodesAlongPolyline(ply, this,
@@ -4503,7 +4504,7 @@ void CFEMesh::HydroSysMeshGenerator(string fname,
    brief Find the element by a point
    YS/WW 05/2012
 */
-size_t CFEMesh::FindElementByPoint(const double* xyz)
+int CFEMesh::FindElementByPoint(const double* xyz)
 {
    double x1[3], x2[3], x3[3], x4[3], x5[3], x6[3], x7[3], x8[3];
    double a, a_sub[12];

@@ -13,6 +13,7 @@
 //#include <string>
 //#include <vector>
 
+
 namespace FileIO
 {
 class BoundaryConditionIO;
@@ -25,6 +26,7 @@ class BoundaryConditionIO;
 #include "LinearFunctionData.h" // TF
 #include "ProcessInfo.h"                          // KR
 #include "Constrained.h"
+#include "geo_sfc.h"
 
 // GEOLib
 //#include "geo_ply.h"
@@ -49,14 +51,11 @@ class CBoundaryCondition :
 	bool connected_geometry;
 	std::string connected_geometry_name;
 	void SetPolylineNodeVectorConnected(std::vector<long>& ply_nod_vector_cond);
+	int average_mode;
 
 public:
+	int average_verbosity;
 	bool isConnected() const { return connected_geometry; }
-//	CBoundaryCondition(ProcessInfo const& process_info,
-//			GeoInfo const& geo_info,
-//			DistributionInfo const& distribution_info,
-//			);
-
 
 	friend class CBoundaryConditionsGroup;
 	friend class FileIO::BoundaryConditionIO;
@@ -158,6 +157,11 @@ public:
 
 	bool is_conditionally_active;  // JOD 2019-04-04
 	int condition_type;  // 0: lower threshold, 1: upper threshold
+
+	std::vector<double> changingBC_z_vec;  // JOD 2020-7
+	std::vector<int> changingBC_curve_vec;
+	int get_average_mode() { return average_mode; }
+
 private:
 
 	std::vector<std::string> _PointsFCTNames;
@@ -231,9 +235,6 @@ private:
 	bool _isConstrainedBC;
 	std::vector<Constrained> _constrainedBC;
 	bool _isSeepageBC;
-
-
-
 };
 
 class CBoundaryConditionNode                      //OK raus
@@ -243,6 +244,7 @@ public:
 	long msh_node_number;
 	long msh_node_number_subst;           //WW
     std::vector<long>  msh_vector_conditional; // JOD 2020-01-27
+    std::vector<double>  msh_vector_conditional_length; // JOD 2021-11-12
 
 	double node_value;
 	double node_value_last_calc;
@@ -328,4 +330,29 @@ extern CBoundaryCondition* BCGet(std::string);    //OK
 
 //ToDo
 extern void ScalingDirichletBoundaryConditions(const double factor);
+
+
+
+namespace FiniteElement
+{
+
+
+extern void DomainIntegration(CRFProcess* m_pcs,
+	                       const std::vector<long> & nodes_in_dom,
+	                       std::vector<double> & node_value_vector);
+
+extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
+                     std::vector<long> const & nodes_on_sfc,
+                     std::vector<double> & node_value_vector,
+					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+
+extern void EdgeIntegration(MeshLib::CFEMesh* m_msh,
+	                     const std::vector<long> & nodes_on_ply,
+	                     std::vector<double> & node_value_vector,
+			     FiniteElement::DistributionType dis_type,
+			     FiniteElement::PrimaryVariable prim_val,
+			     bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode);
+}
+
+
 #endif

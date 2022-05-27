@@ -1256,16 +1256,26 @@ void LegacyVtkInterface::printScalarArray(string arrayName, std::fstream &vtk_fi
 	if (!pcs)
 		return;
 
-	int indexDataArray = pcs->GetNodeValueIndex(arrayName);
+	int indexDataArray = pcs->GetNodeValueIndex(arrayName, true);  // JOD 2021-02-22
 	long numNodes = _mesh->GetNodesNumber(false);
 
 	vtk_file << "SCALARS " << arrayName << " double 1" << "\n";
 	vtk_file << "LOOKUP_TABLE default" << "\n";
 
-	for (long j = 0l; j < numNodes; j++)
-		vtk_file << pcs->GetNodeValue(_mesh->nod_vector[j]->GetIndex(),
+	if (arrayName.find("DELTA") == 0)  // JOD 2021-02-20
+	{
+		for (long j = 0l; j < numNodes; j++)
+			vtk_file <<  pcs->GetNodeValue(_mesh->nod_vector[j]->GetIndex(), 1) 
+                           - pcs->GetNodeValue(_mesh->nod_vector[j]->GetIndex(), indexDataArray)
+			 << "\n";
+	}
+	else
+	{ 
+		for (long j = 0l; j < numNodes; j++)
+			vtk_file << pcs->GetNodeValue(_mesh->nod_vector[j]->GetIndex(),
 									  indexDataArray)
-		<< "\n";
+			<< "\n";
+	}
 }
 
 // round very small and very large numbers in order to avoid read error in paraview

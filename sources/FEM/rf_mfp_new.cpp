@@ -383,8 +383,8 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 			//AKS
 			if(density_model == 15)// components constant density
 			{
-			if(eos_name == "CONSTANT") 
-			in >> rho[0] >> rho[1] >> rho[2] >> rho[3];
+				if(eos_name == "CONSTANT")
+					in >> rho[0] >> rho[1] >> rho[2] >> rho[3];
 			}
 
 			if(density_model == 18) // BG, NB calculated node densities from the phase transition model
@@ -814,21 +814,25 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 			in.str(GetLineFromFile1(mfp_file));
 			in >> heat_capacity_model;
 			// TF 11/2011 - used only in read- and write-method
-//			if(heat_capacity_model == 0) // c = fct(x)
-//				in >> heat_capacity_fct_name;
-			if(heat_capacity_model == 1) // c = const
+			if(heat_capacity_model == 0) // c = fct(x)
+			{
+				in >> specificHeatCapacity_curve_number;
+				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
+				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
+			}
+			else if(heat_capacity_model == 1) // c = const
 			{
 				in >> specific_heat_capacity;
 				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-			if(heat_capacity_model == 2) // my(p,T,C)
+			else if(heat_capacity_model == 2) // my(p,T,C)
 			{
 				in >> C_0;
 				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-			if(heat_capacity_model == 3) // YD: improved phase change
+			else if(heat_capacity_model == 3) // YD: improved phase change
 			{
 				in >> T_Latent1; // Tmin for phase change
 				in >> T_Latent2; // Tmax for phase change
@@ -838,7 +842,7 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				specific_heat_capacity_pcs_name_vector.push_back("SATURATION1");
 				enthalpy_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-			if(heat_capacity_model == 4) // YD: improved phase change, function
+			else if(heat_capacity_model == 4) // YD: improved phase change, function
 			{
 				in >> T_Latent1; // Tmin for phase change
 				in >> T_Latent2; // Tmax for phase change
@@ -849,33 +853,31 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 				specific_heat_capacity_pcs_name_vector.push_back("SATURATION1");
 				enthalpy_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-
-			if (heat_capacity_model == 10) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
+			else if (heat_capacity_model == 10) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
 			{
 				in >> const_specific_heat_capacity;
 				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-
-			if (heat_capacity_model == 27) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
+			else if (heat_capacity_model == 27) // JOD 2020-3-20 - Heat Capacity accounts for density dependency on temperature (linear function)
 			{
 				in >> const_specific_heat_capacity;
 				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 			}
-			//AKS
-			if(density_model == 15)// components constant density
-			{
-			if(eos_name == "CONSTANT") 
-			in >> cp[0] >> cp[1] >> cp[2] >> cp[3];
-			}
-
-			if ((heat_capacity_model == 11 || heat_capacity_model == 12)) // && pcs_vector[0]->getProcessType() != FiniteElement::TNEQ)
+			else if ((heat_capacity_model == 11 || heat_capacity_model == 12)) // && pcs_vector[0]->getProcessType() != FiniteElement::TNEQ)
 			{
 				std::cout << "Warning: This heat capacity model requires two components and their molar masses defined in the mcp file!\n";
 				specific_heat_capacity_pcs_name_vector.push_back("PRESSURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("TEMPERATURE1");
 				specific_heat_capacity_pcs_name_vector.push_back("CONCENTRATION1");
+			}
+
+			//AKS
+			if(density_model == 15)// components constant density
+			{
+				if(eos_name == "CONSTANT")
+					in >> cp[0] >> cp[1] >> cp[2] >> cp[3];
 			}
 
 			in.clear();
@@ -900,6 +902,8 @@ std::ios::pos_type CFluidProperties::Read(std::ifstream* mfp_file)
 
 
 			in.clear();
+
+			std::cout << "Warning: For this fluid: "<< name << ", the given volumetric heat capacity is used !!\n";
 			continue;
 		}
 		//....................................................................
@@ -1333,7 +1337,7 @@ double CFluidProperties::Density(double* values)
 		int valid;
 		density = GetCurveValue(density_curve_number, 0, primVal[0], &valid);
 		if (valid != 1)
-			cout << "Error in CFluidProperties::Density: Did not get curve value" << "\n";
+			std::runtime_error("Error in CFluidProperties::Density: Did not get curve value");
 		break;
 	case 1:                   // rho = const
 		density = rho_0;
@@ -1472,7 +1476,7 @@ double CFluidProperties::Density(double* values)
 		}
 		break;
 	case 27: // JOD 2020-3-20  - density has a non-linear denpendency on temperature BW 31.08.2017
-		// temperature need to be in the unit of [°C] not [K]
+		// temperature need to be in the unit of [K] not [°C]
 		density = (999.83952
 			+ 16.945176*(primVal[0] - 273.15)
 			- 7.9870401e-3*pow((primVal[0] - 273.15), 2.0)
@@ -1695,7 +1699,7 @@ break;
 			density = MATCalcFluidDensityMethod8(primary_variable[0],
 				primary_variable[1],
 				primary_variable[2]);
-			break;
+			break;}
 		case 10:                  // Get density from temperature-pressure values from fct-file NB
 			if (!T_Process)
 				primary_variable[1] = T_0;
@@ -1729,7 +1733,7 @@ break;
 			density = rho_0 *exp(drho_dp * (max(variables[0], 0.0) - p_0) + drho_dT * (max(variables[2], 0.0)) + drho_dC *max(variables[2], 0.0));
 			break;
 		case 15: // mixture 1/rho= sum_i x_i/rho_i #p, T, x:-> Amagat's law#
-			for (int CIndex = 2; CIndex < cmpN + 2; CIndex++) Rho += variables[CIndex] / ComponentDensity(CIndex, variables);
+			for (int CIndex = 2; CIndex < cmpN + 2; CIn}dex++) Rho += variables[CIndex] / ComponentDensity(CIndex, variables);
 			density = 1 / Rho;
 			break;
 		case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
@@ -1768,7 +1772,7 @@ break;
 				+ (6.14889851856743e-10 - 1.06165223196756e-14 * max(pressure, 0.0) + 4.75014903737416e-20 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 5.)
 				+ (-7.39221950969522e-13 + 1.42790422913922e-17 * max(pressure, 0.0) - 7.13130230531541e-23 * pow(max(pressure, 0.0), 2.)) * pow(max(primary_variable[1], 0.0), 6.);
 
-			if (fabs(drho_dC) > 1.e-20)
+			if (fabs(drho_dC) > 1.e-20)}
 				density *= 1. + drho_dC * (max(primary_variable[2], 0.0) - C_0);
 			break;
 		case 21:                   // rho(p,C,T) = rho_0*(1+beta_p*(p-p_0)+beta_C*(C-C_0)+beta_T*(T-T_0))    //  JOD 2015-11-18
@@ -1918,7 +1922,7 @@ break;
 						case 7:                   // rho_w^l(p,T) for gas phase
 							// 
 							//vapour_pressure = MFPCalcVapourPressure(primary_variable[0]);
-							//air_gas_density = (COMP_MOL_MASS_AIR * (primary_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
+							//air_gas_density = (COMP_MOL_MASS_AIR * (primarycout <<_variable[1]-vapour_pressure)) / (GAS_CONSTANT*(primary_variable[0]+0.0));
 							//vapour_density = (COMP_MOL_MASS_WATER*vapour_pressure) / (GAS_CONSTANT*(primary_variable[0]+0.0));
 							//density = vapour_density + air_gas_density;
 							//
@@ -1962,7 +1966,7 @@ break;
 							break;
 							//case 16:                                  // rho(T) = rho_0*(1+beta_T*(T-T_0))
 							//   density = rho_0*(1.+drho_dT*(max(primary_variable[0],0.0)-T_0));
-							//   break;
+							//   break;cout <<
 						case 18:	//using calculated densities at nodes from the phase transition model, BG, NB 11/2010
 							// Just dummy function, so density is not 0 ;
 							std::cout << " Error - Density Model 18 not implemented, usind dummy density of 1000." << "\n";
@@ -2284,7 +2288,7 @@ double CFluidProperties::Viscosity(double* values)
 		int valid;
 		viscosity = GetCurveValue(viscosity_curve_number, 0, primVal[0], &valid);
 		if ( valid != 1)
-		  cout << "Error in CFluidProperties::Viscosity: Did not get curve value" << "\n";
+		  std::runtime_error("Error in CFluidProperties::Viscosity: Did not get curve value");
 		break;
 	}
 	case 1:                               // my = const
@@ -2306,10 +2310,17 @@ double CFluidProperties::Viscosity(double* values)
 			                                    "TEMPERATURE1") + 1);
 		}
 		//ToDo pcs_name
- 		if(!T_Process) 
-			primVal[0] = T_0 + viscosity_T_shift;
-		else primVal[0] += viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
-		viscosity = LiquidViscosity_Yaws_1976(primVal[0]);
+ 		if(!T_Process)  //BW: 23.03.2020 please update changes
+			primVal[1] = T_0 + viscosity_T_shift;
+		else primVal[1] += viscosity_T_shift; //JM if viscosity_T_shift==273 (user defined), Celsius can be used within this model
+		viscosity = LiquidViscosity_Yaws_1976(primVal[1]);
+		//if ((primVal[1] < 0) || (viscosity == 0.0) || (viscosity<0.000281) || (viscosity>0.002))
+		//{
+		//	cout << "Error in CFluidProperties::Viscosity: Did not get curve value" << "\n";
+		//	std::cout << "At Element: " << Fem_Ele_Std->GetMeshElement()->GetIndex() << "Temperature: " << primVal[1] << " Viscosity: " << viscosity <<
+		//		"\n";
+		//	exit(0);
+		//}
 		break;
 	}
 	case 4:                               // my^g(T), Marsily (1986)
@@ -2678,7 +2689,10 @@ double CFluidProperties::SpecificHeatCapacity(double* variables,bool flag_conten
 	switch(heat_capacity_model)
 	{
 	case 0:                               // c = f(x)
-		specific_heat_capacity = GetCurveValue(0,0,temperature,&gueltig);
+		specific_heat_capacity = GetCurveValue(specificHeatCapacity_curve_number, 0, temperature, &gueltig);
+		//std::cout << temperature << "\t" << specific_heat_capacity << "\n";
+		if (gueltig != 1)
+			std::runtime_error("Error in CFluidProperties::SpecificHeatCapacity: Did not get curve value");
 		break;
 	case 1:                               // c = const, value already read in to specific_heat_capacity
 		break;
@@ -2741,8 +2755,8 @@ double CFluidProperties::SpecificHeatCapacity(double* variables,bool flag_conten
 		if (flag_content == false)
 		{
 			double drho_dT_local;
-			drho_dT_local = -(3030730.128 * pow(temperature, 5.0) - 4770091861 * pow(temperature, 4.0) + 3132378474000 * pow(temperature, 3.0)
-				- 1005350784000000 * pow(temperature, 2.0) + 155150238900000000 * temperature - 9272148759000000000) / (pow((6751940 * temperature - 1444292411), 2.0));
+			drho_dT_local = -(3030730.128 * pow(temperature, 5.0) - 4770091861. * pow(temperature, 4.0) + 3132378474000. * pow(temperature, 3.0)
+				- 1005350784000000. * pow(temperature, 2.0) + 155150238900000000. * temperature - 9272148759000000000.) / (pow((6751940. * temperature - 1444292411.), 2.0));
 			specific_heat_capacity = const_specific_heat_capacity * (1 + drho_dT_local *temperature / Density(&primary_variable[1]));
 		}
 			
@@ -2897,7 +2911,7 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 			else if(assem->FluidProp->get_flag_volumetric_heat_capacity())
 				heat_capacity_fluids = assem->FluidProp->get_volumetric_heat_capacity();
 			else
-				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity() * assem->FluidProp->Density();
+				heat_capacity_fluids = assem->FluidProp->SpecificHeatCapacity(NULL, flag_calcContent) * assem->FluidProp->Density(); //BW: 23.03.2020, please update changes
 
 			if(m_pcs->type != 1) // neither liquid nor ground water flow
 			{

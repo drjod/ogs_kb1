@@ -13,6 +13,7 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <map>
 
 #include "display.h"
 #include "memory.h"
@@ -40,7 +41,7 @@ extern void remove_white_space(std::string*);
 #include "tools.h"
 //#include "rf_node.h"
 #include "rf_bc_new.h"
-//#include "rf_pcs.h"
+#include "rf_pcs.h"
 //#include "rf_fct.h"
 #include "rfmat_cp.h"
 //#include "geo_ply.h"
@@ -49,6 +50,10 @@ extern void remove_white_space(std::string*);
 #include "mathlib.h"
 
 #include "BoundaryCondition.h"
+
+#if defined(USE_MPI)
+#include "par_ddc.h"
+#endif
 
 #ifndef _WIN32
 #include <cstdio>
@@ -157,6 +162,8 @@ CBoundaryCondition::CBoundaryCondition() :
 	_isConstrainedBC = false;
 	_isSeepageBC = false;
 	is_conditionally_active = false;
+	average_mode = 0;
+	average_verbosity = 0;
 
 	connected_geometry = false;  // JOD 2020-01-27
 	geoInfo_connected = new GeoInfo();
@@ -371,13 +378,37 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			}
 		}
 
-		if (line_string.find("GRADIENT") != std::string::npos) // 6/2012  JOD
+		if (line_string.find("GRADIENT") != std::string::npos
+				&& line_string.find("CHANGING") == std::string::npos) // 6/2012  JOD
 		{
 			this->setProcessDistributionType(FiniteElement::GRADIENT);
 		    in >> gradient_ref_depth;
             in >> gradient_ref_depth_value;
             in >> gradient_ref_depth_gradient;
 			in.clear();
+		}
+
+		if (line_string.find("CHANGING_GRADIENT") != std::string::npos) // 7/2020  JOD
+		{
+			this->setProcessDistributionType(FiniteElement::CHANGING_GRADIENT);
+			geo_node_value = 0.;  // used in Set function
+			int number_of_curves;
+			in >> number_of_curves;
+			in.clear();
+			double z_before = -1e20;
+			for(int i=0; i<number_of_curves; ++i)
+			{
+				in.str(readNonBlankLineFromInputStream(*bc_file));
+				double z;
+				int curve;
+				in >> z >> curve;
+				changingBC_z_vec.push_back(z);
+				changingBC_curve_vec.push_back(curve);
+				in.clear();
+				if(z_before >= z)
+					throw std::runtime_error("ERROR in CHANGING_GRADIENT BC - z must be increasing");
+				z_before = z;
+			}
 		}
 
 		// Time dependent function
@@ -589,6 +620,22 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			  //continue;
 		  }
 		  //....................................................................
+		  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
+		  {
+			  in.str(readNonBlankLineFromInputStream(*bc_file));
+			  in >> average_mode >> average_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
+			  std::cout << "\tAverage mode " << average_mode;
+			  if(average_mode == 0)
+				  std::cout << " - equal\n";
+			  else if(average_mode == 1)
+				  std::cout << " - With node area\n";
+			  else if(average_mode == 2)
+				  std::cout << " - With LIQUID_FLOW sink term (take care that values are kept)";
+			  else
+				  throw std::runtime_error("Average mode not supported");
+			  in.clear();
+		  }
+		  //....................................................................
 	}
 	return position;
 }
@@ -770,7 +817,19 @@ void CBoundaryCondition::SetPolylineNodeVectorConnected(std::vector<long>&ply_no
 				*(dynamic_cast<GEOLIB::Polyline const*>(geoInfo_connected->getGeoObj()))
 		      );
 
+	// to check  - JOD 2021-11-30
+	//CGLPolyline* m_polyline =  GEOGetPLYByName(geo_name);
+
+
+        //double msh_min_edge_length = m_msh->getMinEdgeLength();
+        //m_msh->setMinEdgeLength(m_polyline->epsilon);
+
+
+
 	m_msh->GetNODOnPLY(&ply_connected, ply_node_cond_ids, true);
+                                                
+	//m_msh->setMinEdgeLength(msh_min_edge_length);
+	
 	ply_nod_vector_cond.insert(ply_nod_vector_cond.begin(),
 		    		  ply_node_cond_ids.begin(), ply_node_cond_ids.end());
 
@@ -1191,7 +1250,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				//YD/WW
 				m_node_value->pcs_pv_name = _pcs_pv_name;
 				m_node_value->msh_node_number_subst = msh_node_number_subst;
-        m_node_value->fct_name = bc->fct_name;
+				m_node_value->fct_name = bc->fct_name;
 				pcs->bc_node.push_back(bc); //WW
 				//WW
 				pcs->bc_node_value.push_back(m_node_value);
@@ -1202,6 +1261,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				//CC
 				m_polyline = GEOGetPLYByName(bc->geo_name);
 				std::vector<long> nodes_vector_cond;
+				std::vector<double> nodes_vector_cond_length;
 				// 08/2010 TF get the polyline data structure
 				GEOLIB::Polyline const* ply(static_cast<const GEOLIB::Polyline*> (bc->getGeoObj()));
 
@@ -1210,9 +1270,22 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 					if(bc->isConnected())   // JOD 2020-01-27
 					{
 						bc->SetPolylineNodeVectorConnected(nodes_vector_cond);
+						if(bc->average_mode == 1)
+						{
+							nodes_vector_cond_length.resize(nodes_vector_cond.size());
+							std::fill(nodes_vector_cond_length.begin(), nodes_vector_cond_length.end(), 1.);
+
+							if (m_msh->GetMaxElementDim() == 1)
+								FiniteElement::DomainIntegration(pcs, nodes_vector_cond, nodes_vector_cond_length);
+							else FiniteElement::EdgeIntegration(m_msh, nodes_vector_cond, nodes_vector_cond_length,
+											bc->getProcessDistributionType(), bc->getProcessPrimaryVariable(),
+											true, false, 0);//
+											//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+						}
 					}
 
-					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT)
+					if (bc->getProcessDistributionType() == FiniteElement::CONSTANT
+							|| bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)
 					{
 						// 08/2010 TF
 						double msh_min_edge_length = m_msh->getMinEdgeLength();
@@ -1243,7 +1316,11 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 							m_node_value->bc_node_copy_geom = bc->copy_geom;
 							m_node_value->bc_node_copy_geom_name = bc->copy_geom_name;
 							if(bc->isConnected())					// JOD 2020-01-27  // !!! node_value becomes offset
+							{
 								  m_node_value->msh_vector_conditional = nodes_vector_cond;
+								  m_node_value->msh_vector_conditional_length = nodes_vector_cond_length;
+
+							}
 							//WW
 							pcs->bc_node.push_back(bc);
 							//WW
@@ -1896,3 +1973,4 @@ void CBoundaryCondition::SurfaceInterpolation(CRFProcess* m_pcs,
 		}                         // while
 	}                                     //j
 }
+

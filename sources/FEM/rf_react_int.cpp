@@ -2707,7 +2707,7 @@ void REACTINT::PermeabilityPorosityUpdate()
                 //double test = m_pcs_flow->GetElementValue( n, idx_k);
             
 
-                /*/ ***************************************************** /*/
+                // ***************************************************** 
                 // If Kozeny-Carman formulation is choosen
                 if(m_mat_mp->permeability_porosity_updating_type == 0){
 
@@ -2721,13 +2721,13 @@ void REACTINT::PermeabilityPorosityUpdate()
                     // Calculate for the new perm. k_t_new
                     k_t_new = m_mat_mp->VermaPruess( k_init,n_init,n_t );
                 }
-                /*/ ***************************************************** /*/
+                // ***************************************************** 
 
                 // save new permeability: in index+1
                 m_pcs_flow->SetElementValue( n, idx_k+1, k_t_new	);
                 //double test_2 = m_pcs_flow->GetElementValue( n, idx_k+1);
             
-                /*/ ***************************************************** /*/
+                // *****************************************************
             }
 
             if (m_mat_mp->permeability_tensor_type == 1){
@@ -2744,7 +2744,7 @@ void REACTINT::PermeabilityPorosityUpdate()
                     m_pcs_flow->SetElementValue( n, idx_k_yy, k_t_yy);
 
 
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
                     // If Kozeny-Carman formulation is choosen
                     if(m_mat_mp->permeability_porosity_updating_type == 0){
 
@@ -2758,13 +2758,13 @@ void REACTINT::PermeabilityPorosityUpdate()
                         k_t_new = m_mat_mp->VermaPruess( k_init,n_init,n_t );
                         k_t_new_yy = m_mat_mp->VermaPruess( k_init_yy,n_init,n_t );
                     }
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
 
                     // save new permeability: in index+1
                     m_pcs_flow->SetElementValue( n, idx_k+1, k_t_new	);
                     m_pcs_flow->SetElementValue( n, idx_k_yy+1, k_t_new_yy	);
                 
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
                 }
 
               if (m_mat_mp->GetGeoDimension() ==3){
@@ -2782,7 +2782,7 @@ void REACTINT::PermeabilityPorosityUpdate()
                     m_pcs_flow->SetElementValue( n, idx_k_zz, k_t_zz);
 
 
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
                     // If Kozeny-Carman formulation is choosen
                     if(m_mat_mp->permeability_porosity_updating_type == 0){
 
@@ -2798,14 +2798,14 @@ void REACTINT::PermeabilityPorosityUpdate()
                         k_t_new_yy = m_mat_mp->VermaPruess( k_init_yy,n_init,n_t );
                         k_t_new_zz = m_mat_mp->VermaPruess( k_init_zz,n_init,n_t );
                     }
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
 
                     // save new permeability: in index+1
                     m_pcs_flow->SetElementValue( n, idx_k+1, k_t_new	);
                     m_pcs_flow->SetElementValue( n, idx_k_yy+1, k_t_new_yy	);
                     m_pcs_flow->SetElementValue( n, idx_k_zz+1, k_t_new_zz	);
                 
-                    /*/ ***************************************************** /*/
+                    // *****************************************************
                 }
             }
     }

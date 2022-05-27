@@ -13,6 +13,7 @@
 
 // FEMLib
 #include "tools.h"
+#include "FileTools.h"
 //#include "rf_pcs.h"
 //#include "femlib.h"
 extern double* GEOGetELEJacobianMatrix(long number,double* detjac);
@@ -67,7 +68,7 @@ using FiniteElement::ElementValue_DM;
    last modification:
 **************************************************************************/
 CMediumProperties::CMediumProperties() :
-	geo_dimension(0), _mesh (NULL), _geo_type (GEOLIB::GEODOMAIN)
+	geo_dimension(0), _geo_type (GEOLIB::GEODOMAIN)
 {
 	name = "DEFAULT";
 	mode = 0;
@@ -126,7 +127,8 @@ CMediumProperties::CMediumProperties() :
     betaexpo = 0;
 	ElementVolumeMultiplyer = 1.0; //SB / JOD 2014-11-10
 	ElementLengthMultiplyer_vector[0] = ElementLengthMultiplyer_vector[1]
-		= ElementLengthMultiplyer_vector[2] = 1;            //  JOD 2015-11-18 LPVC 
+		= ElementLengthMultiplyer_vector[2] = 1.;            //  JOD 2015-11-18 LPVC
+	Multiplyer_direction_factor[0] = Multiplyer_direction_factor[1] = Multiplyer_direction_factor[2] = 1.;
 	permeability_pressure_model = -1; //01.09.2011. WW
 	permeability_strain_model = -1; //01.09.2011. WW
     forchheimer_cf = 0.0; //NW
@@ -146,6 +148,10 @@ CMediumProperties::CMediumProperties() :
 	evaporation = -1;
 
 	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
+
+	heat_conductivity = -1.;
+	velocity_given = false;
+	volumetric_heat_capacity_model = -1;
 }
 
 /**************************************************************************
@@ -423,112 +429,110 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> porosity_model;
 			switch(porosity_model)
 			{
-			case 0:       // n=f(x)
-				in >> porosity_curve;
-				break;
-			case 1:       // n=const
-				in >> porosity_model_values[0];
-				break;
-			case 2:       // f(normal effective stress for fracture systems)
-				in >> porosity_model_values[0];
-				in >> porosity_model_values[1];
-				in >> porosity_model_values[2];
-				in >> porosity_model_values[3];
-				porosity_pcs_name_vector.push_back("PRESSURE1");
-				break;
-			case 3:       // Chemical swelling model
-				in >> porosity_model_values[0]; // Initial porosity
-				in >> porosity_model_values[1]; // Specific surface[m^2/g]
-				in >> porosity_model_values[2]; // Expansive min. fragtion
-				in >> porosity_model_values[3]; // m
-				in >> porosity_model_values[4]; // I
-				in >> porosity_model_values[5]; // S^l_0
-				in >> porosity_model_values[6]; // beta
-				porosity_pcs_name_vector.push_back("SATURATION2");
-				porosity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 4:       // Chemical swelling model (constrained swelling, constant I)
-				in >> porosity_model_values[0]; // Initial porosity
-				in >> porosity_model_values[1]; // Specific surface[m^2/g]
-				in >> porosity_model_values[2]; // Expansive min. fragtion
-				in >> porosity_model_values[3]; // m
-				in >> porosity_model_values[4]; // I
-				in >> porosity_model_values[5]; // S^l_0
-				in >> porosity_model_values[6]; // beta
-				in >> porosity_model_values[7]; // n_min
-				                                //for richard flow only
-				porosity_pcs_name_vector.push_back("SATURATION1");
-				porosity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 5:       // Chemical swelling model (free swelling, constant I)
-				in >> porosity_model_values[0]; // Initial porosity
-				in >> porosity_model_values[1]; // Specific surface[m^2/g]
-				in >> porosity_model_values[2]; // Expansive min. fragtion
-				in >> porosity_model_values[3]; // m
-				in >> porosity_model_values[4]; // I
-				in >> porosity_model_values[5]; // S^l_0
-				in >> porosity_model_values[6]; // beta
-				porosity_pcs_name_vector.push_back("SATURATION2");
-				porosity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 6:       // Chemical swelling model (constrained swelling)
-				in >> porosity_model_values[0]; // Initial porosity
-				in >> porosity_model_values[1]; // Specific surface[m^2/g]
-				in >> porosity_model_values[2]; // Expansive min. fragtion
-				in >> porosity_model_values[3]; // m
-				in >> porosity_model_values[4]; // I
-				in >> porosity_model_values[5]; // S^l_0
-				in >> porosity_model_values[6]; // beta
-				in >> porosity_model_values[7]; // n_min
-				porosity_pcs_name_vector.push_back("SATURATION2");
-				porosity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 7:       // n=f(stress_mean) WW
-				in >> porosity_curve;
-				break;
-			case 10:      // Chemical swelling model (constrained swelling, constant I)
-			{
-				int m;
-				in >> porosity_model_values[0]; // Initial porosity
-				in >> m; // m
-				if (m > 15)
-					std::cout
-					<<
-					"Maximal number of solid phases is now limited to be 15!!!"
-					<< "\n";
-				for (int i = 0; i < m + 1; i++)
-					// molar volume [l/mol]
-					in >> porosity_model_values[i + 1];
-				break;
-			}
-			case 11:      //MB: read from file ToDo
-				// in >> porosity_file; // CB
-				in >> porosity_model_values[0]; // CB some dummy default value is read
-				// CB $POROSITY_DISTRIBUTION should be given as keyword in *.mmp file,
-				//     porosities then are to be read in from file by fct.
-				//     CMediumProperties::SetDistributedELEProperties
-				break;
-			case 12:
-				in >> porosity_model_values[0]; //WX 03.2011, dependent on strain
-				break;
-		    case 13: // mineral precipitation / dissolution by ABM
-		        in >> porosity_model_values[0]; // Initial porosity
-		        break;				
+				case 0:       // n=f(x)
+					in >> porosity_curve;
+					break;
+				case 1:       // n=const
+					in >> porosity_model_values[0];
+					break;
+				case 2:       // f(normal effective stress for fracture systems)
+					in >> porosity_model_values[0];
+					in >> porosity_model_values[1];
+					in >> porosity_model_values[2];
+					in >> porosity_model_values[3];
+					porosity_pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 3:       // Chemical swelling model
+					in >> porosity_model_values[0]; // Initial porosity
+					in >> porosity_model_values[1]; // Specific surface[m^2/g]
+					in >> porosity_model_values[2]; // Expansive min. fragtion
+					in >> porosity_model_values[3]; // m
+					in >> porosity_model_values[4]; // I
+					in >> porosity_model_values[5]; // S^l_0
+					in >> porosity_model_values[6]; // beta
+					porosity_pcs_name_vector.push_back("SATURATION2");
+					porosity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 4:       // Chemical swelling model (constrained swelling, constant I)
+					in >> porosity_model_values[0]; // Initial porosity
+					in >> porosity_model_values[1]; // Specific surface[m^2/g]
+					in >> porosity_model_values[2]; // Expansive min. fragtion
+					in >> porosity_model_values[3]; // m
+					in >> porosity_model_values[4]; // I
+					in >> porosity_model_values[5]; // S^l_0
+					in >> porosity_model_values[6]; // beta
+					in >> porosity_model_values[7]; // n_min
+													//for richard flow only
+					porosity_pcs_name_vector.push_back("SATURATION1");
+					porosity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 5:       // Chemical swelling model (free swelling, constant I)
+					in >> porosity_model_values[0]; // Initial porosity
+					in >> porosity_model_values[1]; // Specific surface[m^2/g]
+					in >> porosity_model_values[2]; // Expansive min. fragtion
+					in >> porosity_model_values[3]; // m
+					in >> porosity_model_values[4]; // I
+					in >> porosity_model_values[5]; // S^l_0
+					in >> porosity_model_values[6]; // beta
+					porosity_pcs_name_vector.push_back("SATURATION2");
+					porosity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 6:       // Chemical swelling model (constrained swelling)
+					in >> porosity_model_values[0]; // Initial porosity
+					in >> porosity_model_values[1]; // Specific surface[m^2/g]
+					in >> porosity_model_values[2]; // Expansive min. fragtion
+					in >> porosity_model_values[3]; // m
+					in >> porosity_model_values[4]; // I
+					in >> porosity_model_values[5]; // S^l_0
+					in >> porosity_model_values[6]; // beta
+					in >> porosity_model_values[7]; // n_min
+					porosity_pcs_name_vector.push_back("SATURATION2");
+					porosity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 7:       // n=f(stress_mean) WW
+					in >> porosity_curve;
+					break;
+				case 10:      // Chemical swelling model (constrained swelling, constant I)
+				{
+					int m;
+					in >> porosity_model_values[0]; // Initial porosity
+					in >> m; // m
+					if (m > 15)
+						std::cout
+						<<
+						"Maximal number of solid phases is now limited to be 15!!!"
+						<< "\n";
+					for (int i = 0; i < m + 1; i++)
+						// molar volume [l/mol]
+						in >> porosity_model_values[i + 1];
+					break;
+				}
+				case 11:      //MB: read from file ToDo
+					// in >> porosity_file; // CB
+					in >> porosity_model_values[0]; // CB some dummy default value is read
+					// CB $POROSITY_DISTRIBUTION should be given as keyword in *.mmp file,
+					//     porosities then are to be read in from file by fct.
+					//     CMediumProperties::SetDistributedELEProperties
+					break;
+				case 12:
+					in >> porosity_model_values[0]; //WX 03.2011, dependent on strain
+					break;
+				case 13: // mineral precipitation / dissolution by ABM
+					in >> porosity_model_values[0]; // Initial porosity
+					break;
 #ifdef GEM_REACT
-			case 15:
-				in >> porosity_model_values[0]; // set a default value for GEMS calculation
-				                                // save this seperately;
-				break;
+				case 15:
+					in >> porosity_model_values[0]; // set a default value for GEMS calculation
+													// save this seperately;
+					break;
 #endif
 #ifdef BRNS
-			case 16:
-				in >> porosity_model_values[0]; // set a default value for BRNS calculation
-				break;
+				case 16:
+					in >> porosity_model_values[0]; // set a default value for BRNS calculation
+					break;
 #endif
-			default:
-				std::cerr << "Error in MMPRead: no valid porosity model" <<
-				"\n";
-				break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid porosity model");
 			}
 			in.clear();
 			continue;
@@ -546,9 +550,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			case 2:       // do nothing
 				break;
 			default:
-				std::cout << "Error in MMPRead: no valid vol_mat_model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid vol_mat_model");
 			}
 			in.clear();
 			continue;
@@ -566,9 +568,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			case 2:       // do nothing
 				break;
 			default:
-				std::cout << "Error in MMPRead: no valid vol_bio_model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid vol_bio_model");
 			}
 			in.clear();
 			continue;
@@ -583,78 +583,76 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> tortuosity_tensor_type_name;
 			switch(tortuosity_tensor_type_name[0])
 			{
-			case '0':     // n=f(x) <- Case zero
-				break;
-			case '1':     // n=const
-				tortuosity_model = 1;
-				in >> tortuosity_model_values[0];
-				break;
-		    case '2': // t=n*factor
-    		   tortuosity_model = 2;
-               in >> tortuosity_model_values[0];
-               break;
-			case 'I':     // isotropic
-				tortuosity_tensor_type = 0;
-				tortuosity_model = 1;
-				in >> tortuosity_model_values[0];
-				//CMCD to pick up 2D and 3D Isotropic case.
-				tortuosity_model_values[1] = tortuosity_model_values[2] =
-				                                     tortuosity_model_values[0];
-				break;
-			case 'O':     // orthotropic  <- Case Alphabet O
-				tortuosity_model = 1;
-				tortuosity_tensor_type = 1;
-				if(geo_dimension == 0)
-					std::cout <<
-					"Error in CMediumProperties::Read: no geometric dimension"
-					          << "\n";
-				if(geo_dimension == 2)
-				{
+				case '0':     // n=f(x) <- Case zero
+					break;
+				case '1':     // n=const
+					tortuosity_model = 1;
 					in >> tortuosity_model_values[0];
-					in >> tortuosity_model_values[1];
-				}
-				if(geo_dimension == 3)
-				{
+					break;
+				case '2': // t=n*factor
+				   tortuosity_model = 2;
+				   in >> tortuosity_model_values[0];
+				   break;
+				case 'I':     // isotropic
+					tortuosity_tensor_type = 0;
+					tortuosity_model = 1;
 					in >> tortuosity_model_values[0];
-					in >> tortuosity_model_values[1];
-					in >> tortuosity_model_values[2];
-				}
-				break;
-			case 'A':     // anisotropic
-				tortuosity_model = 1;
-				tortuosity_tensor_type = 2;
-				if(geo_dimension == 0)
-					std::cout <<
-					"Error in CMediumProperties::Read: no geometric dimension"
-					          << "\n";
-				if(geo_dimension == 2)
-				{
-					in >> tortuosity_model_values[0];
-					in >> tortuosity_model_values[1];
-					in >> tortuosity_model_values[2];
-					in >> tortuosity_model_values[3];
-				}
-				if(geo_dimension == 3)
-				{
-					in >> tortuosity_model_values[0];
-					in >> tortuosity_model_values[1];
-					in >> tortuosity_model_values[2];
-					in >> tortuosity_model_values[3];
-					in >> tortuosity_model_values[4];
-					in >> tortuosity_model_values[5];
-					in >> tortuosity_model_values[6];
-					in >> tortuosity_model_values[7];
-					in >> tortuosity_model_values[8];
-				}
-				break;
-			case 'F':     //SB: read from file
-				tortuosity_model = 2; //OK
-				in >> permeability_file;
-				break;
-			default:
-				std::cout << "Error in MMPRead: no valid tortuosity tensor type" <<
-				"\n";
-				break;
+					//CMCD to pick up 2D and 3D Isotropic case.
+					tortuosity_model_values[1] = tortuosity_model_values[2] =
+														 tortuosity_model_values[0];
+					break;
+				case 'O':     // orthotropic  <- Case Alphabet O
+					tortuosity_model = 1;
+					tortuosity_tensor_type = 1;
+					if(geo_dimension == 0)
+						std::cout <<
+						"Error in CMediumProperties::Read: no geometric dimension"
+								  << "\n";
+					if(geo_dimension == 2)
+					{
+						in >> tortuosity_model_values[0];
+						in >> tortuosity_model_values[1];
+					}
+					if(geo_dimension == 3)
+					{
+						in >> tortuosity_model_values[0];
+						in >> tortuosity_model_values[1];
+						in >> tortuosity_model_values[2];
+					}
+					break;
+				case 'A':     // anisotropic
+					tortuosity_model = 1;
+					tortuosity_tensor_type = 2;
+					if(geo_dimension == 0)
+						std::cout <<
+						"Error in CMediumProperties::Read: no geometric dimension"
+								  << "\n";
+					if(geo_dimension == 2)
+					{
+						in >> tortuosity_model_values[0];
+						in >> tortuosity_model_values[1];
+						in >> tortuosity_model_values[2];
+						in >> tortuosity_model_values[3];
+					}
+					if(geo_dimension == 3)
+					{
+						in >> tortuosity_model_values[0];
+						in >> tortuosity_model_values[1];
+						in >> tortuosity_model_values[2];
+						in >> tortuosity_model_values[3];
+						in >> tortuosity_model_values[4];
+						in >> tortuosity_model_values[5];
+						in >> tortuosity_model_values[6];
+						in >> tortuosity_model_values[7];
+						in >> tortuosity_model_values[8];
+					}
+					break;
+				case 'F':     //SB: read from file
+					tortuosity_model = 2; //OK
+					in >> permeability_file;
+					break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid tortuosity tensor type");
 			}
 			in.clear();
 			continue;
@@ -680,42 +678,40 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> flowlinearity_model;
 			switch(flowlinearity_model)
 			{
-			case 0:       // k=f(x)
-				break;
-			case 1:       // Read in alpha
-				//Alpha
-				in >> flowlinearity_model_values[0];
-				break;
-			case 2:       // For equivalent flow in trianglular elements
-				//Alpha
-				in >> flowlinearity_model_values[0];
-				//Number of Fractures in Equivalent Medium
-				in >> flowlinearity_model_values[1];
-				//Reynolds Number above which non linear flow occurs.
-				in >> flowlinearity_model_values[2];
-				pcs_name_vector.push_back("PRESSURE1");
-				break;
-            case 3: // EE formulation for Forchheimer
-                in >> forchheimer_cf;
-                std::cout << "->Forchheimer nonlinear flow for EE" << "\n";
-                break;
-            case 4: // GW formulation for Forchheimer
-                in >> forchheimer_a1 >> forchheimer_a2;
-                std::cout << "->Forchheimer nonlinear flow with given a1, a2" << "\n";
-                break;
-            case 5: // GW formulation for Forchheimer if a1=1/k0
-              in >> forchheimer_a2;
-              forchheimer_a1 = .0;
-              std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << "\n";
-              break;
-            case 6: // EE formulation 2 for Forchheimer
-                in >> forchheimer_De;
-                std::cout << "->Forchheimer nonlinear flow for EE" << '\n';
-                break;
-			default:
-				std::cout << "Error in MMPRead: no valid flow linearity model" <<
-				"\n";
-				break;
+				case 0:       // k=f(x)
+					break;
+				case 1:       // Read in alpha
+					//Alpha
+					in >> flowlinearity_model_values[0];
+					break;
+				case 2:       // For equivalent flow in trianglular elements
+					//Alpha
+					in >> flowlinearity_model_values[0];
+					//Number of Fractures in Equivalent Medium
+					in >> flowlinearity_model_values[1];
+					//Reynolds Number above which non linear flow occurs.
+					in >> flowlinearity_model_values[2];
+					pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 3: // EE formulation for Forchheimer
+					in >> forchheimer_cf;
+					std::cout << "->Forchheimer nonlinear flow for EE" << "\n";
+					break;
+				case 4: // GW formulation for Forchheimer
+					in >> forchheimer_a1 >> forchheimer_a2;
+					std::cout << "->Forchheimer nonlinear flow with given a1, a2" << "\n";
+					break;
+				case 5: // GW formulation for Forchheimer if a1=1/k0
+				  in >> forchheimer_a2;
+				  forchheimer_a1 = .0;
+				  std::cout << "->Forchheimer nonlinear flow assuming a1=1/K0" << "\n";
+				  break;
+				case 6: // EE formulation 2 for Forchheimer
+					in >> forchheimer_De;
+					std::cout << "->Forchheimer nonlinear flow for EE" << '\n';
+					break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid flow linearity model");
 			}
 			in.clear();
 			continue;
@@ -743,74 +739,75 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> storage_model;
 			switch(storage_model)
 			{
-			case 0:       // S=f(x)
-				in >> storage_model_values[0]; //Function of pressure defined by curve
-				pcs_name_vector.push_back("PRESSURE1");
-				break;
-			case 1:       // S=const
-				in >> storage_model_values[0]; //Constant value in Pa
-				break;
-			case 2:
-				in >> storage_model_values[0]; //S0
-				in >> storage_model_values[1]; //increase
-				in >> storage_model_values[2]; //sigma(z0)
-				in >> storage_model_values[3]; //d_sigma/d_z
-				break;
-			case 21:
-				in >> storage_model_values[0];//KB0514 bulk compressibility (1/Pa)
-				in >> storage_model_values[1];//KB0514 fluid compressibility (1/Pa)
+				case 0:       // S=f(x)
+					in >> storage_model_values[0]; //Function of pressure defined by curve
+					pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 1:       // S=const
+					in >> storage_model_values[0]; //Constant value in Pa
+					break;
+				case 2:
+					in >> storage_model_values[0]; //S0
+					in >> storage_model_values[1]; //increase
+					in >> storage_model_values[2]; //sigma(z0)
+					in >> storage_model_values[3]; //d_sigma/d_z
+					break;
+				case 21:
+					in >> storage_model_values[0];//KB0514 bulk compressibility (1/Pa)
+					in >> storage_model_values[1];//KB0514 fluid compressibility (1/Pa)
 
-				break;
-			case 22:
-				in >> storage_model_values[0];//KB0514
-				break;
-			case 3:
-				in >> storage_model_values[0]; //curve number (as real number)
-				in >> storage_model_values[1]; //sigma(z0)
-				in >> storage_model_values[2]; //_sigma/d_z
-				break;
-			case 4:
-				in >> storage_model_values[0]; //curve number (as real number)
-				in >> storage_model_values[1]; //time collation
-				in >> storage_model_values[2]; //solid density
-				in >> storage_model_values[3]; //curve fitting factor, default 1
-				pcs_name_vector.push_back("PRESSURE1");
-				break;
-			case 5:       //Storativity is a function of normal effective stress defined by curve, set up for KTB.
-				in >> storage_model_values[0]; //curve number
-				in >> storage_model_values[1]; //time collation
-				in >> storage_model_values[2]; //Default storage value for material groups > 0
-				in >> storage_model_values[3]; //Angular difference between Y direction and Sigma 1
-				pcs_name_vector.push_back("PRESSURE1");
-				break;
-			case 6:       //Storativity is a function of normal effective stress defined by curve and distance from borehole, set up for KTB.
-				in >> storage_model_values[0]; //curve number
-				in >> storage_model_values[1]; //time collation
-				in >> storage_model_values[2]; //Default storage value for material groups > 0
-				in >> storage_model_values[3]; //Angular difference between Y direction and Sigma 1
-				in >> storage_model_values[4]; //Borehole (x) coordinate
-				in >> storage_model_values[5]; //Borehole (y) coordinate
-				in >> storage_model_values[6]; //Borehole (z) coordinate
-				in >> storage_model_values[7]; //Maximum thickness of shear zone
-				in >> storage_model_values[8]; //Fracture density
-				pcs_name_vector.push_back("PRESSURE1");
-				break;
-			case 10: 	// S=const for permeability_saturation_model = 10
-				storage_model_values[0] = 1;
-				break;
-			default:
-				cout << "Error in MMPRead: no valid storativity model" << "\n";
-				break;
-			case 7:       //RW/WW
-				in >> storage_model_values[0]; //Biot's alpha
-				in >> storage_model_values[1]; //Skempton's B coefficient
-				in >> storage_model_values[2]; //macroscopic drained bulk modulus
-				double val_l = storage_model_values[0] *
-				               (1. - storage_model_values[0] *
-				                storage_model_values[1])
-				               / storage_model_values[1] / storage_model_values[2];
-				storage_model_values[1] = val_l;
-				break;
+					break;
+				case 22:
+					in >> storage_model_values[0];//KB0514
+					break;
+				case 3:
+					in >> storage_model_values[0]; //curve number (as real number)
+					in >> storage_model_values[1]; //sigma(z0)
+					in >> storage_model_values[2]; //_sigma/d_z
+					break;
+				case 4:
+					in >> storage_model_values[0]; //curve number (as real number)
+					in >> storage_model_values[1]; //time collation
+					in >> storage_model_values[2]; //solid density
+					in >> storage_model_values[3]; //curve fitting factor, default 1
+					pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 5:       //Storativity is a function of normal effective stress defined by curve, set up for KTB.
+					in >> storage_model_values[0]; //curve number
+					in >> storage_model_values[1]; //time collation
+					in >> storage_model_values[2]; //Default storage value for material groups > 0
+					in >> storage_model_values[3]; //Angular difference between Y direction and Sigma 1
+					pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 6:       //Storativity is a function of normal effective stress defined by curve and distance from borehole, set up for KTB.
+					in >> storage_model_values[0]; //curve number
+					in >> storage_model_values[1]; //time collation
+					in >> storage_model_values[2]; //Default storage value for material groups > 0
+					in >> storage_model_values[3]; //Angular difference between Y direction and Sigma 1
+					in >> storage_model_values[4]; //Borehole (x) coordinate
+					in >> storage_model_values[5]; //Borehole (y) coordinate
+					in >> storage_model_values[6]; //Borehole (z) coordinate
+					in >> storage_model_values[7]; //Maximum thickness of shear zone
+					in >> storage_model_values[8]; //Fracture density
+					pcs_name_vector.push_back("PRESSURE1");
+					break;
+				case 10: 	// S=const for permeability_saturation_model = 10
+					storage_model_values[0] = 1;
+					break;
+				case 7:       //RW/WW
+				{
+					in >> storage_model_values[0]; //Biot's alpha
+					in >> storage_model_values[1]; //Skempton's B coefficient
+					in >> storage_model_values[2]; //macroscopic drained bulk modulus
+					double val_l = storage_model_values[0] *
+								   (1. - storage_model_values[0] *
+									storage_model_values[1])
+								   / storage_model_values[1] / storage_model_values[2];
+					storage_model_values[1] = val_l;
+					break;
+				}
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid storativity model");
 			}
 			in.clear();
 			continue;
@@ -835,9 +832,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			case 3:       // Chezy
 				break;
 			default:
-				std::cout << "Error in MMPRead: no valid conductivity model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid conductivity model");
 			}
 			in.clear();
 			continue;
@@ -863,80 +858,72 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> permeability_tensor_type_name;
 			switch(permeability_tensor_type_name[0])
 			{
-			case 'I':     // isotropic
-				permeability_tensor_type = 0;
-				permeability_model = 1;
-				in >> permeability_tensor[0];
-				//CMCD to pick up 2D and 3D Isotropic case.
-				permeability_tensor[1] = permeability_tensor[2] =
-				                                 permeability_tensor[0];
-				break;
-			case 'O':     // orthotropic
-				permeability_tensor_type = 1;
-				if (geo_dimension == 1) //  JOD 2015-11-18
-				{
-					std::cout <<
-						"Error in CMediumProperties::Take Isotropic"
-						<< "\n";
-				}
-				else if(geo_dimension == 2)
-				{
+				case 'I':     // isotropic
+					permeability_tensor_type = 0;
+					permeability_model = 1;
 					in >> permeability_tensor[0];
-					in >> permeability_tensor[1];
-				}
-				else if(geo_dimension == 3)
-				{
-					in >> permeability_tensor[0];
-					in >> permeability_tensor[1];
-					in >> permeability_tensor[2];
-				}
-				else
-				{
-					std::cout <<
-						"Error in CMediumProperties::Read: no geometric dimension"
-						<< "\n";
-				}
-				break;
-			case 'A':     // anisotropic
-				permeability_tensor_type = 2;
-				if (geo_dimension == 1)
-				{
-					std::cout << "Error in CMediumProperties::Take isotropic" << "\n";
-				}
-				else if(geo_dimension == 2)
-				{
-					in >> permeability_tensor[0];
-					in >> permeability_tensor[1];
-					in >> permeability_tensor[2];
-					in >> permeability_tensor[3];
-				}
-				else if(geo_dimension == 3)
-				{
-					in >> permeability_tensor[0];
-					in >> permeability_tensor[1];
-					in >> permeability_tensor[2];
-					in >> permeability_tensor[3];
-					in >> permeability_tensor[4];
-					in >> permeability_tensor[5];
-					in >> permeability_tensor[6];
-					in >> permeability_tensor[7];
-					in >> permeability_tensor[8];
-				}
-				else
-				{
-					std::cout <<
-						"Error in CMediumProperties::Read: no geometric dimension"
-						<< "\n";
-				}
-				break;
-			case 'F':     //SB: read from file
-				permeability_model = 2; //OK
-				in >> permeability_file;
-				break;
-			default:
-				std::cout <<
-				"Error in MMPRead: no valid permeability tensor type" << "\n";
-				break;
+					//CMCD to pick up 2D and 3D Isotropic case.
+					permeability_tensor[1] = permeability_tensor[2] =
+													 permeability_tensor[0];
+					break;
+				case 'O':     // orthotropic
+					permeability_tensor_type = 1;
+					if (geo_dimension == 1) //  JOD 2015-11-18
+					{
+						throw std::runtime_error("Error in CMediumProperties::Take Isotropic");
+					}
+					else if(geo_dimension == 2)
+					{
+						in >> permeability_tensor[0];
+						in >> permeability_tensor[1];
+					}
+					else if(geo_dimension == 3)
+					{
+						in >> permeability_tensor[0];
+						in >> permeability_tensor[1];
+						in >> permeability_tensor[2];
+					}
+					else
+					{
+						throw std::runtime_error("Error in CMediumProperties::Read: no geometric dimension");
+					}
+					break;
+				case 'A':     // anisotropic
+					permeability_tensor_type = 2;
+					if (geo_dimension == 1)
+					{
+						throw std::runtime_error("Error in CMediumProperties::Take isotropic");
+					}
+					else if(geo_dimension == 2)
+					{
+						in >> permeability_tensor[0];
+						in >> permeability_tensor[1];
+						in >> permeability_tensor[2];
+						in >> permeability_tensor[3];
+					}
+					else if(geo_dimension == 3)
+					{
+						in >> permeability_tensor[0];
+						in >> permeability_tensor[1];
+						in >> permeability_tensor[2];
+						in >> permeability_tensor[3];
+						in >> permeability_tensor[4];
+						in >> permeability_tensor[5];
+						in >> permeability_tensor[6];
+						in >> permeability_tensor[7];
+						in >> permeability_tensor[8];
+					}
+					else
+					{
+						throw std::runtime_error("Error in CMediumProperties::Read: no geometric dimension");
+					}
+					break;
+				case 'F':     //SB: read from file
+					permeability_model = 2; //OK
+					in >> permeability_file;
+					break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid permeability tensor type");
 			}
 			in.clear();
 			continue;
@@ -961,15 +948,13 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> permeability_model;
 			switch(permeability_model)
 			{
-			case 0:       // k=f(x)
-				break;
-			case 1:       // k=const
-				in >> permeability;
-				break;
-			default:
-				std::cout << "Error in MMPRead: no valid permeability model" <<
-				"\n";
-				break;
+				case 0:       // k=f(x)
+					break;
+				case 1:       // k=const
+					in >> permeability;
+					break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid permeability model");
 			}
 			in.clear();
 			continue;
@@ -981,34 +966,33 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			in >> permeability_strain_model;
 			switch(permeability_strain_model)
 			{
-			case 0: //strain_volume
-				break;
-			case 1: //strain_volumeeff plas strain
-				in >> permeability_strain_model_value[0];
-				break;
-			case 2: //eff plas strainif eff plas strain>0, f(strainp). else stain volume
-				in >> permeability_strain_model_value[0];
-				break;
-			case 3: //if eff plas strain>0, f(strainp). else stain volume
-				in >> permeability_strain_model_value[0]; //for strain volume
-				in >> permeability_strain_model_value[1]; //for eff plas strain
-				break;
-			case 4: //strain volume + eff plas strain
-				in >> permeability_strain_model_value[0];
-				in >> permeability_strain_model_value[1];
-				break;
-			case 5: //strain volume (threshold value, can be changed with plas strain)
-				in >> permeability_strain_model_value[0]; //threshold vol. strain
-				in >> permeability_strain_model_value[1]; //d_fac/d_volStrain when vol. strain <= threshold
-				in >> permeability_strain_model_value[2];// d_fac/d_volStrain when vol. strain > threshold
-				in >> permeability_strain_model_value[3];//curve numer for dependenc between threshold and plas strain
-				                                         //if -1, threshold is constant
-				in >> permeability_strain_model_value[4];//lower limit
-				in >> permeability_strain_model_value[5];//uper limit
-			default:
-				cout << "Error in MMPRead: no valid permeability strain model" <<
-				"\n";
-				break;
+				case 0: //strain_volume
+					break;
+				case 1: //strain_volumeeff plas strain
+					in >> permeability_strain_model_value[0];
+					break;
+				case 2: //eff plas strainif eff plas strain>0, f(strainp). else stain volume
+					in >> permeability_strain_model_value[0];
+					break;
+				case 3: //if eff plas strain>0, f(strainp). else stain volume
+					in >> permeability_strain_model_value[0]; //for strain volume
+					in >> permeability_strain_model_value[1]; //for eff plas strain
+					break;
+				case 4: //strain volume + eff plas strain
+					in >> permeability_strain_model_value[0];
+					in >> permeability_strain_model_value[1];
+					break;
+				case 5: //strain volume (threshold value, can be changed with plas strain)
+					in >> permeability_strain_model_value[0]; //threshold vol. strain
+					in >> permeability_strain_model_value[1]; //d_fac/d_volStrain when vol. strain <= threshold
+					in >> permeability_strain_model_value[2];// d_fac/d_volStrain when vol. strain > threshold
+					in >> permeability_strain_model_value[3];//curve numer for dependenc between threshold and plas strain
+															 //if -1, threshold is constant
+					in >> permeability_strain_model_value[4];//lower limit
+					in >> permeability_strain_model_value[5];//uper limit
+					break;
+				default:
+					throw std::runtime_error("Error in MMPRead: no valid permeability strain model");
 			}
 			in.clear();
 			continue;
@@ -1092,9 +1076,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				in >> permeability_pressure_model_values[0]; //WX: curve number 05.2010
 				break;
 			default:
-				std::cout << "Error in MMPRead: no valid permeability model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid permeability model");
 			}
 			in.clear();
 			continue;
@@ -1217,8 +1199,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 					break;
 				//
 				default:
-					ScreenMessage("Error in MMPRead: no valid permeability saturation model.\n");
-					break;
+					throw std::runtime_error("Error in MMPRead: no valid permeability saturation model.\n");
 				}
 				in.clear();
 			}
@@ -1357,9 +1338,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				break;
 
 			default:
-				std::cout << "Error in MMPRead: no valid permeability model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid permeability model");
 			}
 			in.clear();
 			continue;
@@ -1375,8 +1354,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				in >> permeability_effstress_model_value[0];
 				break;
 			default:
-				cout<< "Error in MMPRead: no valid permeability stress model" << "\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid permeability stress model");
 			}
 			in.clear();
 			continue;
@@ -1398,9 +1376,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				in >> permeability;
 				break;
 			default:
-				std::cout << "Error in MMPRead: no valid permeability model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid permeability model");
 			}
 			in.clear();
 			continue;
@@ -1499,14 +1475,21 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
                   std::cout << "Warning in MMPRead: permeability_model 8 is not implemented for permeability_tensor_type 2" << "\n";
                 break;
 			default:
-				std::cout << "Error in MMPRead: no valid permeability model" <<
-				"\n";
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid permeability model");
 			}
 			in.clear();
 			continue;
 		}
+		//------------------------------------------------------------------------
+		//12.7 ICE_CORRECTING_FACTOR 05.2022 BW
+		//------------------------------------------------------------------------
 
+		//subkeyword found
+		if (line_string.find("$ICE_CORRECTING_FACTOR") != std::string::npos)
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> ice_correcting_factor;
+		}
 		//....................................................................
 		//subkeyword found
 		if(line_string.find("$CAPILLARY_PRESSURE") != std::string::npos)
@@ -1594,9 +1577,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				in >> capillary_pressure_values[0]; // Pb
 				break;
 			default:
-				ScreenMessage("Error in MMPRead: no valid capillary pressure model.\n");
-				exit(1);
-				break;
+				throw std::runtime_error("Error in MMPRead: no valid capillary pressure model.\n");
 			}
 			if(old_format){
 				ScreenMessage("\n--\n Adopting capillary pressure saturation parameters from the\n");
@@ -1700,11 +1681,17 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				in >> heat_dispersion_transverse;
 				break;
 			default:
-				std::cout <<
-				"Error in CMediumProperties::Read: no valid heat dispersion model"
-				          << "\n";
-				break;
+				throw std::runtime_error("Error in CMediumProperties::Read: no valid heat dispersion model");
 			}
+			in.clear();
+			continue;
+		}
+		//------------------------------------------------------------------------
+		//subkeyword found
+		if(line_string.find("$HEAT_CONDUCTIVITY") != std::string::npos)
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> heat_conductivity;
 			in.clear();
 			continue;
 		}
@@ -1786,69 +1773,21 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		//subkeyword found
 		if(line_string.find("$PERMEABILITY_DISTRIBUTION") != std::string::npos) // JOD 2020-3-20 from BW
 		{
+			permeability_model = 2;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_file;
 			string file_name = permeability_file;
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if(indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if(indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0,indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if(indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0,indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(),std::ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_file = pathDirname(FileName) +  getDirSep() + permeability_file;
 			in.clear();
 			continue;
 		}
 
 		if (line_string.find("$PERMEABILITY_YDISTRIBUTION") != std::string::npos)	// JOD 2020-3-20 from BW, Y direction
 		{
+			permeability_model = 2;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_Y_file;
-			string file_name = permeability_Y_file;
-			
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if (indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if (indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0, indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if (indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0, indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_Y_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(), std::ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_Y_file = pathDirname(FileName) +  getDirSep() + permeability_Y_file;
 			in.clear();
 			continue;
 		}
@@ -1856,34 +1795,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		{
 			in.str(GetLineFromFile1(mmp_file));
 			in >> permeability_Z_file;
-			string file_name = permeability_Z_file;
-			
-
-			//-------WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if (indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if (indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0, indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if (indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0, indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			permeability_Z_file = funfname;
-			//--------------------------------------
-			//WW
-			std::ifstream mmp_file(funfname.data(), std::ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no PERMEABILITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			permeability_model = 2;
+			permeability_Z_file = pathDirname(FileName) +  getDirSep() + permeability_Z_file;
 			in.clear();
 			continue;
 		}
@@ -1894,37 +1806,10 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		//subkeyword found
 		if(line_string.find("$POROSITY_DISTRIBUTION") != std::string::npos)
 		{
+			porosity_model = 11;
 			in.str(GetLineFromFile1(mmp_file));
 			in >> porosity_file;
-			string file_name = porosity_file;
-			//else{ //CB this is to get the correct path in case the exe is not run from within the project folder
-			//  pos = (int)FileName.find_last_of('\\', -1) + 1;
-			//  file_name = FileName.substr(0,pos) + porosity_file;
-			//}
-			//-------CB as above by WW
-			indexChWin = FileName.find_last_of('\\');
-			indexChLinux = FileName.find_last_of('/');
-			if(indexChWin == string::npos && indexChLinux == std::string::npos)
-				funfname = file_name;
-			else if(indexChWin != string::npos)
-			{
-				funfname = FileName.substr(0,indexChWin);
-				funfname = funfname + "\\" + file_name;
-			}
-			else if(indexChLinux != string::npos)
-			{
-				funfname = FileName.substr(0,indexChLinux);
-				funfname = funfname + "/" + file_name;
-			}
-			porosity_file = funfname;
-			//WW
-			ifstream mmp_file(funfname.data(),ios::in);
-			if (!mmp_file.good())
-				std::cout <<
-				"Fatal error in MMPRead: no POROSITY_DISTRIBUTION file" <<
-				"\n";
-			mmp_file.close();
-			porosity_model = 11;
+			porosity_file = pathDirname(FileName) +  getDirSep() + porosity_file;
 			in.clear();
 			continue;
 		}
@@ -1951,12 +1836,11 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
               } else if (effective_heat_transfer_model==2) {
                   std::cout << "-> Heat transfer model: Schaube11 with h by Gnielinskl" << '\n';
               } else {
-                  std::cout << "Error in CMediumProperties::Read: no valid effective heat transfer model" << '\n';
+            	  throw std::runtime_error("Error in CMediumProperties::Read: no valid effective heat transfer model");
 	}
               break;
           default:
-              std::cout << "Error in CMediumProperties::Read: no valid heat transfer model" << '\n';
-              break;
+        	  throw std::runtime_error("Error in CMediumProperties::Read: no valid heat transfer model");
           }
           in.clear();
           continue;
@@ -1978,8 +1862,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
               in >> particle_diameter_model_value;
               break;
           default:
-              std::cout << "Error in CMediumProperties::Read: no valid heat transfer model" << '\n';
-              break;
+        	  throw std::runtime_error("Error in CMediumProperties::Read: no valid heat transfer model");
           }
           in.clear();
           continue;
@@ -2002,7 +1885,7 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 	  //------------------------------------------------------------------------
 	  if (line_string.find("$ELEMENT_VOLUME_MULTIPLYER") != std::string::npos)
 	  {
-		  int mode;
+		 int mode;
 
 		 std::string ElementVolumeMultiplyer_vector_type_name;
 		 in.str(GetLineFromFile1(mmp_file));
@@ -2014,31 +1897,37 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		 }
 		 else if (mode == 1)
 		 {
-			 if (geo_dimension == 1){
-				 in >> ElementLengthMultiplyer_vector[0];
+			 if (geo_dimension == 1)
+			 {
+				 in >>  Multiplyer_direction_factor[0];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0];
 				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0];
-				 std::cout << ElementLengthMultiplyer_vector[0]  << "\n";
+				 std::cout << Multiplyer_direction_factor[0]  << "\n";
 			 }
 			 else if (geo_dimension == 2)
 			 {
-				 in >> ElementLengthMultiplyer_vector[0];
-				 in >> ElementLengthMultiplyer_vector[1];
-				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1]  << "\n";
+				 in >> Multiplyer_direction_factor[0] >> Multiplyer_direction_factor[1];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0] / Multiplyer_direction_factor[1];
+				 ElementLengthMultiplyer_vector[1] = Multiplyer_direction_factor[1] / Multiplyer_direction_factor[0];
+
+				 ElementVolumeMultiplyer = Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1];
+				 std::cout << Multiplyer_direction_factor[0] << " " << Multiplyer_direction_factor[1]  << "\n";
 			 }
 			 else if (geo_dimension == 3)
 			 {
-				 in >> ElementLengthMultiplyer_vector[0];
-				 in >> ElementLengthMultiplyer_vector[1];
-				 in >> ElementLengthMultiplyer_vector[2];
-				 ElementVolumeMultiplyer = ElementLengthMultiplyer_vector[0] * ElementLengthMultiplyer_vector[1] * ElementLengthMultiplyer_vector[2];
-				 std::cout << ElementLengthMultiplyer_vector[0] << " " << ElementLengthMultiplyer_vector[1] << " " << ElementLengthMultiplyer_vector[2] << "\n";
+				 in >> Multiplyer_direction_factor[0] >> Multiplyer_direction_factor[1] >> Multiplyer_direction_factor[2];
+				 ElementLengthMultiplyer_vector[0] = Multiplyer_direction_factor[0] / (Multiplyer_direction_factor[1] * Multiplyer_direction_factor[2]);
+				 ElementLengthMultiplyer_vector[1] = Multiplyer_direction_factor[1] / (Multiplyer_direction_factor[0] * Multiplyer_direction_factor[2]);
+				 ElementLengthMultiplyer_vector[2] = Multiplyer_direction_factor[2] / (Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1]);
+
+				 ElementVolumeMultiplyer = Multiplyer_direction_factor[0] * Multiplyer_direction_factor[1] * Multiplyer_direction_factor[2];
+				 std::cout << Multiplyer_direction_factor[0] << " " << Multiplyer_direction_factor[1] << " " << Multiplyer_direction_factor[2] << "\n";
 			 }
 			 else
-				 std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension";
+				 throw std::runtime_error("Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER requires geo dimension 1, 2 or 3");
 		 }
 		 else
-		     std::cout << "Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1";
+			 throw std::runtime_error("Error in CMediumProperties::Read - ELEMENT_VOLUME_MULTIPLYER mode must be 0 or 1");
 
 		 in.clear();
 		 continue;
@@ -2061,6 +1950,60 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		  in >> fluidVelocity.x >> fluidVelocity.y >> fluidVelocity.z;
 		  in.clear();
 		  fluidVelocity.type = 1;
+		  continue;
+	  }
+	  //------------------------------------------------------------------------
+	  //subkeyword found
+	  if(line_string.find("$VOLUMETRIC_HEAT_CAPACITY") != std::string::npos)  // JOD 2021-5-21
+	  {
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> volumetric_heat_capacity_model;
+		  std::cout << "\tVolumetric heat capacity: ";
+		  switch(volumetric_heat_capacity_model)  // JOD 2022-05-13
+		  {
+		  	  case 0:  // CURVE - dependent on temperature
+		  		  in >> volumetric_heat_capacity_curve_number;
+		  		  std::cout << "Curve " << volumetric_heat_capacity_curve_number << '\n';
+		  		  break;
+		  	  case 1:  // constant value
+		  		  in >> volumetric_heat_capacity;
+		  		  std::cout << volumetric_heat_capacity << '\n';
+		  		  break;
+		  	  default:
+		  		  throw std::runtime_error("VOLUMETRIC_HEAT_CAPACITY model not supported");
+		  }
+		  in.clear();
+		  continue;
+		  /*
+		  switch(capillary_pressure_model)
+		  			{
+		  			case 0:       // k=f(Se)
+		  				in >> capillary_pressure_values[0]; // curve
+		  				in >> capillary_pressure_values[1]; // Slr
+		  				in >> capillary_pressure_values[2]; // Slmax
+		  				//
+		  				// JT: Check for old version format.
+		  				if(capillary_pressure_values[2] < 0.0){
+		  					capillary_pressure_values[1] = residual_saturation[0];	// old version uses relative permeabilty values for this
+		  					capillary_pressure_values[2] = maximum_saturation[0];	// old version uses relative permeabilty values for this
+		  					old_format = true;
+		  				}
+		  				break;
+		  			case 1:       // const
+		  				in >> capillary_pressure_values[0]; // the constant Pc value
+		  				//
+
+		  				 */
+
+	  }
+	  //------------------------------------------------------------------------
+	  //subkeyword found
+	  if(line_string.find("$VELOCITY") != std::string::npos)  // JOD 2022-02-02
+	  {
+		  velocity_given = true;
+		  in.str(GetLineFromFile1(mmp_file));
+		  in >> velocity[0] >> velocity[1] >> velocity[2];
+		  in.clear();
 		  continue;
 	  }
 	  //------------------------------------------------------------------------
@@ -2637,11 +2580,11 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
                                        CFiniteElementStd* assem)
 {
 	SolidProp::CSolidProperties* m_msp = NULL;
-	double heat_capacity_fluids, specific_heat_capacity_solid;
-	double density_solid;
-	double porosity, Sat, PG;
-	int group;
-	double T0, T1 = 0.0;
+	//double heat_capacity_fluids, specific_heat_capacity_solid;
+	//double density_solid;
+	//double porosity, Sat, PG;
+	//int group;
+	double T0, T1 = 0.0, T_diff = 0.0;
 	//  double H0,H1;
 	// ???
 	bool FLOW = false;                    //WW
@@ -2659,74 +2602,195 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 	//----------------------------------------------------------------------
 	switch (assem->SolidProp->GetCapacityModel())
 	{
-	//....................................................................
-	case 0:                               // f(x) user-defined function
-		break;
-	//....................................................................
-	case 1:                               // const
-		//OK411
-		group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
-		m_msp = msp_vector[group];
-		specific_heat_capacity_solid = m_msp->Heat_Capacity();
-		density_solid = fabs(m_msp->Density());
-		if (FLOW)
-		{
-			porosity = assem->MediaProp->Porosity(number, theta);
-			heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
-		}
-		else
-		{
-			heat_capacity_fluids = 0.0;
-			porosity = 0.0;
-		}
-		heat_capacity = porosity * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid;
-		break;
-	case 2:                               //boiling model for YD
-		//YD/OK: n c rho = n S^g c^g rho^g + n S^l c^l rho^l + (1-n) c^s rho^s
-		//assem->GetNodalVal(1); WW
-		T0 = assem->interpolate(assem->NodalVal0);
-		//This following lines moved from fem_ele_std but wrong.. WW
-		/*
-		   if(assem->FluidProp->heat_phase_change_curve>0){ //
-		   if(assem->FluidProp->heat_phase_change_curve>0||assem->heat_phase_change)
-		   { //
-		   if(fabs(assem->TG-T0)<1.0e-8) T1 +=1.0e-8;
-		   H0 = assem->interpolate(assem->NodalVal2);
-		   H1 = assem->interpolate(assem->NodalVal3);
-		   heat_capacity = (H1-H0)/(assem->TG-T0);
-		   }
-		   else //WW
-		   {
-		 */
-		if (FLOW)
-		{
-			PG = assem->interpolate(assem->NodalValC1);
-			if (assem->cpl_pcs->type == 1212) // Multi-phase WW
-				PG *= -1.0;
-			Sat = SaturationCapillaryPressureFunction(-PG);
-		}
-		else
-			Sat = 1.0;
-		T1 = assem->TG;
-		if ((T1 - T0) < DBL_MIN)
-			T1 *= -1;
-		heat_capacity = assem->SolidProp->Heat_Capacity(T1, Porosity(
-		                                                        assem), Sat);
-		//  }
-		break;
-	case 3:                               // D_THM1 - Richards model //WW
-		T1 = assem->TG;
-		heat_capacity = assem->SolidProp->Heat_Capacity(T1) * fabs(
-		        assem->SolidProp->Density()) + Porosity(assem)
-		                * MFPCalcFluidsHeatCapacity(assem);
-		break;
-	//....................................................................
-	default:
-		std::cout
-		<< "Error in CMediumProperties::HeatCapacity: no valid material model"
-		<< "\n";
-		break;
 		//....................................................................
+		case 0:                               // f(x) user-defined function
+			break;
+		//....................................................................
+		case 1:                               // const
+		{
+			//OK411
+			const int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+			m_msp = msp_vector[group];
+			const double specific_heat_capacity_solid = m_msp->Heat_Capacity();
+			const double density_solid = fabs(m_msp->Density());
+			double heat_capacity_fluids, porosity;
+			if (FLOW)
+			{
+				porosity = assem->MediaProp->Porosity(number, theta);
+				heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
+			}
+			else
+			{
+				heat_capacity_fluids = 0.0;
+				porosity = 0.0;
+			}
+			heat_capacity = porosity * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid;
+			break;
+		}
+		//....................................................................
+		case 2:                               //boiling model for YD
+			//YD/OK: n c rho = n S^g c^g rho^g + n S^l c^l rho^l + (1-n) c^s rho^s
+			//assem->GetNodalVal(1); WW
+			T0 = assem->interpolate(assem->NodalVal0);
+			//This following lines moved from fem_ele_std but wrong.. WW
+			/*
+			   if(assem->FluidProp->heat_phase_change_curve>0){ //
+			   if(assem->FluidProp->heat_phase_change_curve>0||assem->heat_phase_change)
+			   { //
+			   if(fabs(assem->TG-T0)<1.0e-8) T1 +=1.0e-8;
+			   H0 = assem->interpolate(assem->NodalVal2);
+			   H1 = assem->interpolate(assem->NodalVal3);
+			   heat_capacity = (H1-H0)/(assem->TG-T0);
+			   }
+			   else //WW
+			   {
+			 */
+			double Sat;
+			if (FLOW)
+			{
+				double PG = assem->interpolate(assem->NodalValC1);
+				if (assem->cpl_pcs->type == 1212) // Multi-phase WW
+					PG *= -1.0;
+				Sat = SaturationCapillaryPressureFunction(-PG);
+			}
+			else
+				Sat = 1.0;
+			T1 = assem->TG;
+			if ((T1 - T0) < DBL_MIN)
+				T1 *= -1;
+			heat_capacity = assem->SolidProp->Heat_Capacity(T1, Porosity(
+																	assem), Sat);
+			//  }
+			break;
+		//....................................................................
+		case 3:                               // D_THM1 - Richards model //WW
+			T1 = assem->TG;
+			heat_capacity = assem->SolidProp->Heat_Capacity(T1) * fabs(
+					assem->SolidProp->Density()) + Porosity(assem)
+							* MFPCalcFluidsHeatCapacity(assem);
+			break;
+		//....................................................................
+		case 7: // TYZ, same with the input case  BW merged 2022-05-12
+		{
+			// TYZ, heat capacity for ice freezing model
+			// // BW, 05.2021 revise this part of the code again and comment
+
+			// Initialization of the fraction of ice in the pore space
+			double phi_i = 0.0;
+
+			// Locate MMP index for the part that water freezes
+			const int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		    //group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+			m_msp = msp_vector[group];
+			//if(m_pcs->m_msh->ele_vector[number]->GetIndex() == 64)
+				//std::cout << " Element: " << m_pcs->m_msh->ele_vector[number]->GetIndex();
+
+			// Get Specific heat capapcity for the solid phase and the ice give in the *.msp
+			const double specific_heat_capacity_solid = m_msp->Heat_Capacity(0.0);
+			const double specific_heat_capacity_ice = m_msp->Heat_Capacity(1.0);
+			// Get volumetric heat capacity for the fluid phase, i.e. water here
+			const double heat_capacity_fluids = assem->FluidProp->getSpecificHeatCapacity() * assem->FluidProp->Density();
+
+			// Get Density for the solid phase and the ice
+			const double density_solid = fabs(m_msp->Density(0.0));
+			const double density_ice = fabs(m_msp->Density(1.0));
+
+			// Get porosity for this material group
+			const double porosity = assem->MediaProp->Porosity(number, theta);
+
+			// get the freezing model parameter omega (- 2 * omega = Ts, completely frozen temperature)
+			const double sigmoid_coeff = m_msp->getFreezingSigmoidCoeff();
+
+			// get the latent heat in J/Kg
+			const double latent_heat = m_msp->getlatentheat();
+
+			// get interpolated current temperature in Kelvin
+			T1 = assem->interpolate(assem->NodalVal1);
+
+			double sigmoid_derivative;
+
+			if (T1 > m_msp->getmeltingtemperature())
+			{
+				  phi_i = 0.0;
+				  sigmoid_derivative = 0.0;
+				  //sigmoid_second_derivative = 0.0;
+			}
+			//else if (T1 < m_msp->getfreezingtemperature())
+			//{
+			//	  phi_i = 1.0;
+			//	  sigmoid_derivative = 0.0;
+			//	  //sigmoid_second_derivative = 0.0;
+			//}
+			else
+			{
+				//Temperature interval T - TL
+				T_diff = T1 - m_msp->getmeltingtemperature();
+				// Calculate the volume fraction of ice
+				phi_i = CalcIceVolFrac(T_diff, sigmoid_coeff);
+				// calculate the derivative of the sigmoid function
+				sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
+				// calculate the second derivative of the sigmoid function
+				//sigmoid_second_derivative = Calcsigmoidsecondderive(T1, T_diff, sigmoid_coeff); //BW
+			}
+			//if (m_pcs->m_msh->ele_vector[number]->GetIndex() == 64)
+			//std::cout << " Temperature: " << T1 <<'\n';
+			
+			//05.2022 BW add the first term
+			heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+				   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
+			heat_capacity += porosity * density_ice * sigmoid_derivative * latent_heat;
+		
+			//05.2021 BW, compared to the code from SHEMAT, this is updated with the  rho_fluid*Latentheat
+			//      heat_capacity = porosity *(1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid
+			//              + phi_i * specific_heat_capacity_ice * density_ice + porosity * assem->FluidProp->Density() * sigmoid_derivative * latent_heat ;
+
+			//04.2022 BW to calculate heat content without the part of latent heat, which will be evaluated seperately
+			if (flag_calcContent == true)
+			{
+				   heat_capacity = porosity * (1.0 - phi_i) * heat_capacity_fluids + (1.0 - porosity) * specific_heat_capacity_solid * density_solid
+						   + porosity * phi_i * specific_heat_capacity_ice * density_ice;
+				   //std::cout << " PHI_I: " << phi_i << "heat capacity: " << heat_capacity << '\n';
+			}
+			break;
+		}
+		//....................................................................
+		case 22:
+		{
+			m_msp = msp_vector[this->number];
+			int ndx;
+			for(ndx = 0; ndx < (int)m_msp->getMesh()->mat_names_vector.size();++ndx)
+				if(m_msp->getMesh()->mat_names_vector[ndx].compare(
+						   "SOLID_SPECIFIC_HEAT_CAPACITY" + std::to_string(this->number)) == 0)
+					break;
+			// end of getting the index---------------------------------------------------------
+
+			if(m_msp->getMesh()->ele_vector[number]->mat_vector.Size() == 0)
+			{
+				throw std::runtime_error("No material");
+				return 0.;
+			}
+
+			const double specific_heat_capacity_solid = m_msp->getMesh()->ele_vector[number]->mat_vector(ndx);
+			const double density_solid = fabs(m_msp->Density());
+
+			double porosity, heat_capacity_fluids;
+			if (FLOW)  // from case 1
+			{
+				porosity = assem->MediaProp->Porosity(number, theta);
+				heat_capacity_fluids = MFPCalcFluidsHeatCapacity(flag_calcContent, assem);
+			}
+			else
+			{
+				heat_capacity_fluids = 0.0;
+				porosity = 0.0;
+			}
+
+			heat_capacity = porosity * heat_capacity_fluids + (1.0 - porosity) *specific_heat_capacity_solid* density_solid;
+			break;
+		}
+		//....................................................................
+		default:
+			throw std::runtime_error("Error in CMediumProperties::HeatCapacity: no valid material model");
 	}
 	return heat_capacity;
 }
@@ -2754,7 +2818,7 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 //   double *tensor = NULL;
 	//double a, b, Pc, T, Mw, rhow, rho_gw,rho_ga,rho_g, p_gw, mat_fac_w, mat_fac_g, A, B,H_vap, dp_gw, dPc, dA, dB, dT, q,Tc=647.3,expfactor;
 	double a, b, rhow, rho_gw,rho_ga,rho_g, p_gw, mat_fac_w, mat_fac_g, A, B,H_vap, dp_gw, dPc,
-	       dA, dB, dT, q;
+		   dA, dB, dT, q;
 	// TF unused variable - comment fix compile warning
 //   double Tc=647.3;
 	double expfactor;
@@ -2767,99 +2831,113 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 	//  int heat_capacity_model = 0;
 	CFluidProperties* m_mfp;              //WW
 	// long group = Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
-	m_mfp = Fem_Ele_Std->FluidProp;       //WW
 
-	//if (Fem_Ele_Std->PcsType==S)     // Multi-phase WW
-	//{
-	///*m_mfp = mfp_vector[0];
-	//eos_arg[0] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal0);
-	//eos_arg[1] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_t0);
-	//eos_arg[2] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_X0);
-	//heat_conductivity_fluids = m_mfp->HeatConductivity(eos_arg);*/
-	//}
-	//else
-//	{
-		for (size_t ii = 0; ii < pcs_vector.size(); ii++)
-			//		if (pcs_vector[ii]->pcs_type_name.find("FLOW") != string::npos) TF
-			if (isFlowProcess (pcs_vector[ii]->getProcessType ()))
-				FLOW = true;
-		if (FLOW)                 //WW
-		{
-			if (Fem_Ele_Std->cpl_pcs->type == 1212) // Multi-phase WW
-			{
-				double PG = Fem_Ele_Std->interpolate(
-				        Fem_Ele_Std->NodalValC1); // Capillary pressure
-				double
-				        Sw =
-				        Fem_Ele_Std->MediaProp->SaturationCapillaryPressureFunction(PG);
-				//
-				m_mfp = mfp_vector[0];
-				heat_conductivity_fluids = Sw * m_mfp->HeatConductivity();
-				m_mfp = mfp_vector[1];
-				heat_conductivity_fluids += (1.0 - Sw)
-				                            * m_mfp->HeatConductivity();
-			}
-			else
-			{
-				if (Fem_Ele_Std->FluidProp->density_model == 14
-				    && Fem_Ele_Std->MediaProp->heat_diffusion_model
-				    == 1 && Fem_Ele_Std->cpl_pcs)
-				{
-					dens_arg[0] = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalValC1); //Pressure
-					dens_arg[1] = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalVal1) + 273.15; //Temperature
-					dens_arg[2] = Fem_Ele_Std->Index; //ELE index
-					heat_conductivity_fluids
-					        = Fem_Ele_Std->FluidProp->HeatConductivity(
-					        dens_arg);
-				}
-				else
-					heat_conductivity_fluids
-					        = Fem_Ele_Std->FluidProp->HeatConductivity();
-				Sw = 1;
+	if(heat_conductivity == -1)  // not given as mmp-property
+	{
+		m_mfp = Fem_Ele_Std->FluidProp;       //WW
 
-				if (Fem_Ele_Std->cpl_pcs->type != 1)
+		//if (Fem_Ele_Std->PcsType==S)     // Multi-phase WW
+		//{
+		///*m_mfp = mfp_vector[0];
+		//eos_arg[0] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal0);
+		//eos_arg[1] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_t0);
+		//eos_arg[2] = Fem_Ele_Std->interpolate(Fem_Ele_Std->NodalVal_X0);
+		//heat_conductivity_fluids = m_mfp->HeatConductivity(eos_arg);*/
+		//}
+		//else
+	//	{
+			for (size_t ii = 0; ii < pcs_vector.size(); ii++)
+				//		if (pcs_vector[ii]->pcs_type_name.find("FLOW") != string::npos) TF
+				if (isFlowProcess (pcs_vector[ii]->getProcessType ()))
+					FLOW = true;
+			if (FLOW)                 //WW
+			{
+				if (Fem_Ele_Std->cpl_pcs->type == 1212) // Multi-phase WW
 				{
 					double PG = Fem_Ele_Std->interpolate(
-					        Fem_Ele_Std->NodalValC1); // Capillary pressure
-
-					if (PG < 0.0)
+							Fem_Ele_Std->NodalValC1); // Capillary pressure
+					double
+							Sw =
+							Fem_Ele_Std->MediaProp->SaturationCapillaryPressureFunction(PG);
+					//
+					m_mfp = mfp_vector[0];
+					heat_conductivity_fluids = Sw * m_mfp->HeatConductivity();
+					m_mfp = mfp_vector[1];
+					heat_conductivity_fluids += (1.0 - Sw)
+												* m_mfp->HeatConductivity();
+				}
+				else
+				{
+					if (Fem_Ele_Std->FluidProp->density_model == 14
+						&& Fem_Ele_Std->MediaProp->heat_diffusion_model
+						== 1 && Fem_Ele_Std->cpl_pcs)
 					{
-						Sw
-						        = Fem_Ele_Std->MediaProp->
-						          SaturationCapillaryPressureFunction(-PG);
-						heat_conductivity_fluids *= Sw;
-						if (Fem_Ele_Std->GasProp != 0)
-							heat_conductivity_fluids
-							        += (1. - Sw)
-							           * Fem_Ele_Std->GasProp->
-							           HeatConductivity();
+						dens_arg[0] = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalValC1); //Pressure
+						dens_arg[1] = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalVal1) + 273.15; //Temperature
+						dens_arg[2] = Fem_Ele_Std->Index; //ELE index
+						heat_conductivity_fluids
+								= Fem_Ele_Std->FluidProp->HeatConductivity(
+								dens_arg);
+					}
+					else
+						heat_conductivity_fluids
+								= Fem_Ele_Std->FluidProp->HeatConductivity();
+					Sw = 1;
+
+					if (Fem_Ele_Std->cpl_pcs->type != 1)
+					{
+						double PG = Fem_Ele_Std->interpolate(
+								Fem_Ele_Std->NodalValC1); // Capillary pressure
+
+						if (PG < 0.0)
+						{
+							Sw
+									= Fem_Ele_Std->MediaProp->
+									  SaturationCapillaryPressureFunction(-PG);
+							heat_conductivity_fluids *= Sw;
+							if (Fem_Ele_Std->GasProp != 0)
+								heat_conductivity_fluids
+										+= (1. - Sw)
+										   * Fem_Ele_Std->GasProp->
+										   HeatConductivity();
+						}
 					}
 				}
 			}
-		}
-		else
-		{
-			heat_conductivity_fluids = 0.0;
-			porosity = 0.0;
-		}
-//}
+			else
+			{
+				heat_conductivity_fluids = 0.0;
+				porosity = 0.0;
+			}
+	//}
 
-	dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
-	int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
+		dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+		int group = m_pcs->m_msh->ele_vector[number]->GetPatchIndex();
 
-	for (i = 0; i < dimen * dimen; i++)   //MX
-		heat_conductivity_tensor[i] = 0.0;
+		for (i = 0; i < dimen * dimen; i++)   //MX
+			heat_conductivity_tensor[i] = 0.0;
 
-	m_msp = msp_vector[group];
-	m_msp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
-	                              group); //MX
+		m_msp = msp_vector[group];
+		m_msp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
+									  group, number); //MX
 
-	for (i = 0; i < dimen * dimen; i++)
-		heat_conductivity_tensor[i] *= (1.0 - porosity);
-	for (i = 0; i < dimen; i++)
+		for (i = 0; i < dimen * dimen; i++)
+			heat_conductivity_tensor[i] *= (1.0 - porosity);
+		for (i = 0; i < dimen; i++)
 		heat_conductivity_tensor[i * dimen + i] += porosity * heat_conductivity_fluids;
+
+	}
+	else
+	{	// given as mmp-property - JOD 2022-03-12
+		dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+		for (i = 0; i < dimen * dimen; i++)
+			heat_conductivity_tensor[i] = 0.0;
+		for (i = 0; i < dimen; i++)
+			heat_conductivity_tensor[i * dimen + i] = heat_conductivity;
+	}
+
 
 	if(evaporation == 647)
 	{
@@ -2952,7 +3030,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	if(m_mfp->get_flag_volumetric_heat_capacity())
 		volumetric_heat_capacity_fluids = m_mfp->get_volumetric_heat_capacity();
 	else
-		volumetric_heat_capacity_fluids = m_mfp->getSpecificHeatCapacity() * m_mfp->Density();
+		volumetric_heat_capacity_fluids = m_mfp->SpecificHeatCapacity() * m_mfp->Density(); //BW:23.03.2020 please update changes
 
 	//Global Velocity
 	double velocity[3] = {0.,0.,0.};
@@ -3932,7 +4010,8 @@ double CMediumProperties::Porosity(long number,double theta)
 	if (porosity_model == 11)
 		for (por_index = 0; por_index
 		     < m_pcs->m_msh->mat_names_vector.size(); por_index++)
-			if (m_pcs->m_msh->mat_names_vector[por_index].compare("POROSITY")
+			if (m_pcs->m_msh->mat_names_vector[por_index].compare("POROSITY" +
+					std::to_string(number))
 			    == 0)
 				break;
 
@@ -4445,11 +4524,17 @@ double* CMediumProperties::PermeabilityTensor(long index)
 			for(perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
 			    perm_index++)
 				if(m_pcs->m_msh->mat_names_vector[perm_index].compare(
-				           "PERMEABILITY") == 0)
+				           "PERMEABILITY" + std::to_string(number)) == 0)
 					break;
 			// end of getting the index---------------------------------------------------------
-
+			if(_mesh->ele_vector[index]->mat_vector.Size() == 0)
+			{
+				throw std::runtime_error("No material");
+				return tensor;
+			}
 			tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
+
+
 			//CMCD
 			//01.09.2011 WW.  int edx = m_pcs->GetElementValueIndex("PERMEABILITY");
 			//CMCD
@@ -4758,17 +4843,20 @@ double* CMediumProperties::PermeabilityTensor(long index)
 				// get the index:-------------------------------------------------------------------
 				for (perm_index = 0; perm_index < (int)m_pcs->m_msh->mat_names_vector.size();
 					perm_index++){
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY") == 0){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY" +
+							std::to_string(number)) == 0){
 						tensor[0] = _mesh->ele_vector[index]->mat_vector(perm_index);
 						tensor[1] = 0.0;
 						tensor[2] = 0.0;
 					}
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y") == 0){
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Y" +
+							std::to_string(number)) == 0){
 						tensor[3] = 0.0;
 						tensor[4] = _mesh->ele_vector[index]->mat_vector(perm_index);
 						tensor[5] = 0.0;
 					}
-					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z") == 0)	 {
+					if (m_pcs->m_msh->mat_names_vector[perm_index].compare("PERMEABILITY_Z" +
+							std::to_string(number)) == 0)	 {
 						tensor[6] = 0.0;
 						tensor[7] = 0.0;
 						tensor[8] = _mesh->ele_vector[index]->mat_vector(perm_index);
@@ -5454,89 +5542,6 @@ void MMP2PCSRelation(CRFProcess* m_pcs)
 		}
 }
 
-/**************************************************************************
-   PCSLib-Function
-   Liest zu jedem Knoten einen Wert der Permeabilität ein.
-   Identifikation über Koordinaten
-   Programing:
-   10/2003     SB  First Version
-   01/2004     SB  2. Version
-   01/2005 OK Check MAT groups //OK41
-   06/2005 MB msh, loop over mmp groups
-   09/2005 MB EleClass
-   //SB/MB ? member function of CFEMesh / CMediumProperties
-   11/2005 OK GEOMETRY_AREA
-   04/2006 CMCD Constant area
-**************************************************************************/
-//MMPGetHeterogeneousFields
-void GetHeterogeneousFields()
-{
-	//OK411 int ok=0;
-	//OK411 char* name_file=NULL;
-	CMediumProperties* m_mmp = NULL;
-	//----------------------------------------------------------------------
-	// File handling
-	string file_path;
-	string file_path_base_ext;
-
-	//----------------------------------------------------------------------
-	// Tests
-	if(mmp_vector.size() == 0)
-		return;
-	//----------------------------------------------------------------------
-	//Schleife über alle Gruppen
-	for(int i = 0; i < (int)mmp_vector.size(); i++)
-	{
-		m_mmp = mmp_vector[i];
-		//....................................................................
-		// For Permeability
-		if(m_mmp->permeability_file.size() > 0)
-		{
-			//OK name_file = (char *) m_mmp->permeability_file.data();
-			//OK if(name_file != NULL)
-			//OK ok = FctReadHeterogeneousFields(name_file,m_mmp);
-
-			//WW file_path_base_ext = file_path + m_mmp->permeability_file;
-			//WW
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_file);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-
-		//Set Permeability for Y and Z JOD 2020-3-20 from BW
-		if (m_mmp->permeability_Y_file.size() > 0)
-		{
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Y_file);
-		}
-		if (m_mmp->permeability_Z_file.size() > 0)
-		{
-			m_mmp->SetDistributedELEProperties(m_mmp->permeability_Z_file);
-		}
-		//....................................................................
-		// For Porosity
-		if(m_mmp->porosity_file.size() > 0)
-		{
-			//CB name_file = (char *) m_mmp->porosity_file.data();
-			//CB if(name_file != NULL)
-			//CB  ok = FctReadHeterogeneousFields(name_file,m_mmp);
-			//file_path_base_ext = file_path + m_mmp->porosity_file;
-			//m_mmp->SetDistributedELEProperties(file_path_base_ext); // CB Removed bugs in this function
-			// CB Removed bugs in this function
-			m_mmp->SetDistributedELEProperties(m_mmp->porosity_file);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-		//....................................................................
-		// GEOMETRY_AREA
-		if(m_mmp->geo_area_file.size() > 0)
-		{
-			file_path_base_ext = file_path + m_mmp->geo_area_file;
-			m_mmp->SetDistributedELEProperties(file_path_base_ext);
-			// m_mmp->WriteTecplotDistributedProperties(); // removed by JOD 2020.3.20 as suggested by BW
-		}
-		//NW    else m_mmp->SetConstantELEarea(m_mmp->geo_area,i);
-		//....................................................................
-	}
-	//----------------------------------------------------------------------
-}
 
 /**************************************************************************
    PCSLib-Method:
@@ -5564,620 +5569,7 @@ void CMediumProperties::SetConstantELEarea(double area, int group)
 		}
 }
 
-/**************************************************************************
-   PCSLib-Method:
-   Programing:
-   11/2005 OK Implementation
-**************************************************************************/
-void CMediumProperties::SetDistributedELEProperties(string file_name)
-{
-	string line_string, line1;
-	string mmp_property_name;
-	string mmp_property_dis_type;
-	string mmp_property_mesh;
-	MeshLib::CElem* m_ele_geo = NULL;
-	bool element_area = false;
-	long i, j, ihet;
-	double mmp_property_value;
-	int mat_vector_size = 0;              // Init WW
-	double ddummy, conversion_factor = 1.0; //init WW
-	vector <double> xvals, yvals, zvals, mmpvals;
-	vector<double>temp_store;
-	int c_vals;
-	double x, y, z, mmpv;
-	std::stringstream in;
-	//CB
-	vector<double> garage;
-	int mat_vec_size = 0;
-	int por_index = 0;
-	int vol_bio_index = 0;
-	string outfile;
-	int k;
 
-	cout << " SetDistributedELEProperties: ";
-	//----------------------------------------------------------------------
-	// File handling
-	ifstream mmp_property_file(file_name.data(),ios::in);
-	if(!mmp_property_file.good())
-	{
-		cout <<
-		"Warning in CMediumProperties::SetDistributedELEProperties: no MMP property data"
-		     <<
-		"\n";
-		return;
-	}
-	mmp_property_file.clear();
-	mmp_property_file.seekg(0,ios::beg);
-	//----------------------------------------------------------------------
-	line_string = GetLineFromFile1(&mmp_property_file);
-	if(!(line_string.find("#MEDIUM_PROPERTIES_DISTRIBUTED") != string::npos))
-	{
-		cout << "Keyword #MEDIUM_PROPERTIES_DISTRIBUTED not found" << "\n";
-		return;
-	}
-	//----------------------------------------------------------------------
-	while(!mmp_property_file.eof())
-	{
-		line_string = GetLineFromFile1(&mmp_property_file);
-		if(line_string.find("STOP") != string::npos)
-			return;
-		if(line_string.empty())
-		{
-			cout <<
-			"Error in CMediumProperties::SetDistributedELEProperties - no enough data sets"
-			     << "\n";
-			return;
-		}
-		//....................................................................
-		if(line_string.find("$MSH_TYPE") != string::npos)
-		{
-			line_string = GetLineFromFile1(&mmp_property_file);
-			mmp_property_mesh = line_string;
-			_mesh = FEMGet(line_string);
-			if(!_mesh)
-			{
-				cout <<
-				"CMediumProperties::SetDistributedELEProperties: no MSH data" <<
-				"\n";
-				return;
-			}
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$MMP_TYPE") != string::npos)
-		{
-			element_area = false;
-			mmp_property_file >> mmp_property_name;
-			// cout << mmp_property_name << "\n";
-			// _mesh->mat_names_vector.push_back(mmp_property_name);
-			// JOD 2020-3-20 from BW - the same name entry does not save
-			bool existedname = false;
-			if (_mesh->mat_names_vector.size() == 0)
-			{
-				cout << " SetDistributedELEProperties: ";
-				cout << mmp_property_name << "\n";
-				_mesh->mat_names_vector.push_back(mmp_property_name);
-			}
-			else
-			{
-				for (unsigned int idx = 0; idx < _mesh->mat_names_vector.size(); idx++)
-					if (_mesh->mat_names_vector[idx].compare(mmp_property_name) == 0)
-						existedname = true;
-
-				if (existedname == false)
-				{
-					cout << " SetDistributedELEProperties: ";
-					cout << mmp_property_name << "\n";
-					_mesh->mat_names_vector.push_back(mmp_property_name);
-				}
-			}
-			if (mmp_property_name == "GEOMETRY_AREA")
-				element_area = true;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$DIS_TYPE") != string::npos)
-		{
-			mmp_property_file >> mmp_property_dis_type;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$CONVERSION_FACTOR") != string::npos)
-		{
-			mmp_property_file >> conversion_factor;
-			continue;
-		}
-		//....................................................................
-		if(line_string.find("$DATA") != string::npos)
-		{
-			switch(mmp_property_dis_type[0])
-			{
-			case 'N':     // Next neighbour
-			case 'G':     // Geometric mean
-				// Read in all values given, store in vectors for x, y, z and value
-				i = 0;
-				while(i == 0)
-				{
-					line1 = GetLineFromFile1(&mmp_property_file);
-					if(line1.find("STOP") != string::npos)
-						break;
-					in.str((string)line1);
-					in >> x >> y >> z >> mmpv;
-					in.clear();
-					mmpv *= conversion_factor; // convert values
-					xvals.push_back(x);
-					yvals.push_back(y);
-					zvals.push_back(z);
-					mmpvals.push_back(mmpv);
-				}
-				// sort values to mesh
-				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-				{
-					m_ele_geo = _mesh->ele_vector[i];
-					mat_vector_size = m_ele_geo->mat_vector.Size();
-					// CB Store old values as they are set to zero after resizing
-					for(j = 0; j < mat_vector_size; j++)
-						garage.push_back(m_ele_geo->mat_vector(j));
-					m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-					// CB Refill old values as they were set to zero after resizing
-					for(j = 0; j < mat_vector_size; j++)
-						m_ele_geo->mat_vector(j) = garage[j];
-					garage.clear();
-					if(mmp_property_dis_type[0] == 'N')
-					{
-						// Search for all elements of the mesh, which is the nearest given value in the input file
-						// Return value ihet is the index of the het. val in the mmpval-vector
-						ihet = GetNearestHetVal2(i,
-						                         _mesh,
-						                         xvals,
-						                         yvals,
-						                         zvals,
-						                         mmpvals);
-						m_ele_geo->mat_vector(mat_vector_size) =
-						        mmpvals[ihet];
-					}
-					if(mmp_property_dis_type[0] == 'G')
-					{
-						mmpv = GetAverageHetVal2(i,
-						                         _mesh,
-						                         xvals,
-						                         yvals,
-						                         zvals,
-						                         mmpvals);
-						m_ele_geo->mat_vector(mat_vector_size) = mmpv;
-					}
-				}
-				break;
-			case 'E':     // Element data modified by JOD 2020-3-20 according to BW
-				for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-				{
-					m_ele_geo = _mesh->ele_vector[i];
-
-					int group = m_ele_geo->GetPatchIndex();
-					mmp_property_file >> ddummy >> mmp_property_value;
-					if (group == this->number){				//BW: Only Write for this Material Group					
-						mat_vector_size = m_ele_geo->mat_vector.Size();
-						if (mat_vector_size > 0)
-						{
-							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-								temp_store.push_back(m_ele_geo->mat_vector(
-								c_vals));
-							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-							for (c_vals = 0; c_vals < mat_vector_size; c_vals++)
-								m_ele_geo->mat_vector(c_vals) =
-								temp_store[c_vals];
-							m_ele_geo->mat_vector(mat_vector_size) =
-								mmp_property_value;
-							temp_store.clear();
-						}
-						else
-						{
-							m_ele_geo->mat_vector.resize(mat_vector_size + 1);
-							m_ele_geo->mat_vector(mat_vector_size) =
-								mmp_property_value;
-						}
-						if (element_area)
-							_mesh->ele_vector[i]->SetFluxArea(
-							mmp_property_value);
-						if (line_string.empty())
-						{
-							cout <<
-								"Error in CMediumProperties::SetDistributedELEProperties - not enough data sets"
-								<< "\n";
-							return;
-						}
-					}
-					else
-						continue;
-				}
-				break;
-			default:
-				cout << " Unknown interpolation option for the values!" << "\n";
-				break;
-			}
-			continue;
-		}
-		//....................................................................
-	}
-	// CB now set VOL_MAT & VOL_BIO as heterogeneous values, if defined as model 2 and het Porosity
-	if( (mmp_property_name == "POROSITY") && (this->vol_bio_model == 2) )
-	{
-		_mesh->mat_names_vector.push_back("VOL_BIO");
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i]; // Get the element
-			mat_vec_size = m_ele_geo->mat_vector.Size();
-			// CB Store old values as they are set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				garage.push_back(m_ele_geo->mat_vector(j));
-			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
-			// CB Refill old values as they were set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				m_ele_geo->mat_vector(j) = garage[j];
-			garage.clear();
-			// Set the VOL_BIO value from mmp file input
-			m_ele_geo->mat_vector(mat_vec_size) = this->vol_bio;
-		}
-	}
-	if( (mmp_property_name == "POROSITY") && (this->vol_mat_model == 2) )
-	{
-		_mesh->mat_names_vector.push_back("VOL_MAT");
-		// Get the porosity index
-		for(por_index = 0; por_index < (int)_mesh->mat_names_vector.size(); por_index++)
-			if(_mesh->mat_names_vector[por_index].compare("POROSITY") == 0)
-				break;
-		// Get the vol_bio index
-		for(vol_bio_index = 0; vol_bio_index < (int)_mesh->mat_names_vector.size();
-		    vol_bio_index++)
-			if(_mesh->mat_names_vector[vol_bio_index].compare("VOL_BIO") == 0)
-				break;
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i]; // Get the element
-			mat_vec_size = m_ele_geo->mat_vector.Size();
-			// CB Store old values as they are set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				garage.push_back(m_ele_geo->mat_vector(j));
-			m_ele_geo->mat_vector.resize(mat_vec_size + 1);
-			// CB Refill old values as they were set to zero after resizing
-			for(j = 0; j < mat_vec_size; j++)
-				m_ele_geo->mat_vector(j) = garage[j];
-			garage.clear();
-			// Set the VOL_MAT value from (1-POROSITY-VOL_BIO)
-			m_ele_geo->mat_vector(mat_vec_size) = 1 -
-			                                      m_ele_geo->mat_vector(por_index) -
-			                                      m_ele_geo->mat_vector(vol_bio_index);
-		}
-	}
-	//----------------------------------------------------------------------
-	//Write sorted output file
-	//----------------------------------------------------------------------
-	// File handling
-
-	// CB
-	for(k = 0; k < (int)_mesh->mat_names_vector.size(); k++)
-	{
-		//file_name +="_sorted";
-		outfile = _mesh->mat_names_vector[k] + "_sorted";
-		ofstream mmp_property_file_out(outfile.data());
-		if(!mmp_property_file_out.good())
-		{
-			cout <<
-			"Warning in CMediumProperties::WriteDistributedELEProperties: no MMP property data file to write to"
-			     << "\n";
-			return;
-		}
-		mmp_property_file_out << "#MEDIUM_PROPERTIES_DISTRIBUTED" << "\n";
-		mmp_property_file_out << "$MSH_TYPE" << "\n" << "  " << mmp_property_mesh << "\n";
-		//mmp_property_file_out << "$MSH_TYPE" << "\n" << "  " << mmp_property_mesh << "\n";
-		//mmp_property_file_out << "$MMP_TYPE" << "\n" << "  " << "PERMEABILITY" << "\n";
-		mmp_property_file_out << "$MMP_TYPE" << "\n" << "  " <<
-		_mesh->mat_names_vector[k] << "\n";
-		mmp_property_file_out << "$DIS_TYPE" << "\n" << "  " << "ELEMENT" << "\n";
-		mmp_property_file_out << "$DATA" << "\n";
-		for(i = 0; i < (long)_mesh->ele_vector.size(); i++)
-		{
-			m_ele_geo = _mesh->ele_vector[i];
-			mmp_property_file_out << i << "  " << m_ele_geo->mat_vector(k) << "\n";
-		}
-		mmp_property_file_out << "#STOP" << "\n";
-		mmp_property_file_out.close();
-		//----------------------------------------------------------------------
-	}
-}
-
-/**************************************************************************
-   PCSLib-Method:
-   Programing:
-   11/2005 OK Implementation
-**************************************************************************/
-void CMediumProperties::WriteTecplotDistributedProperties()
-{
-	int j, k;
-	long i;
-	string element_type;
-	string m_string = "MAT";
-	double m_mat_prop_nod;
-	//----------------------------------------------------------------------
-	// Path
-	string path;
-	//--------------------------------------------------------------------
-	// MSH
-	MeshLib::CNode* m_nod = NULL;
-	MeshLib::CElem* m_ele = NULL;
-	if (!_mesh)
-		return;
-	//--------------------------------------------------------------------
-	// File handling
-	string mat_file_name = path + name + "_" + _mesh->pcs_name + "_PROPERTIES"
-	                       + TEC_FILE_EXTENSION;
-	fstream mat_file(mat_file_name.data(), ios::trunc | ios::out);
-	mat_file.setf(ios::scientific, ios::floatfield);
-	mat_file.precision(12);
-	if (!mat_file.good())
-		return;
-	mat_file.seekg(0L, ios::beg);
-	//--------------------------------------------------------------------
-	if ((long) _mesh->ele_vector.size() > 0)
-	{
-		m_ele = _mesh->ele_vector[0];
-		switch (m_ele->GetElementType())
-		{
-		case MshElemType::LINE:
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::QUAD:
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::HEXAHEDRON:
-			element_type = "BRICK";
-			break;
-		case MshElemType::TRIANGLE:
-			element_type = "TRIANGLE";
-			break;
-		case MshElemType::TETRAHEDRON:
-			element_type = "TETRAHEDRON";
-			break;
-		case MshElemType::PRISM:
-			element_type = "BRICK";
-			break;
-		default:
-			std::cerr
-			<<
-			"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
-			<< "\n";
-		}
-	}
-	//--------------------------------------------------------------------
-	// Header
-	mat_file << "VARIABLES = X,Y,Z";
-	for (j = 0; j < (int) _mesh->mat_names_vector.size(); j++)
-		mat_file << "," << _mesh->mat_names_vector[j];
-	mat_file << "\n";
-	mat_file << "ZONE T = " << name << ", " << "N = "
-	         << (long) _mesh->nod_vector.size() << ", " << "E = "
-	         << (long) _mesh->ele_vector.size() << ", " << "F = FEPOINT" << ", "
-	         << "ET = " << element_type << "\n";
-	//--------------------------------------------------------------------
-	// Nodes
-	for (i = 0; i < (long) _mesh->nod_vector.size(); i++)
-	{
-		m_nod = _mesh->nod_vector[i];
-		double const* const pnt (m_nod->getData());
-		mat_file << pnt[0] << " " << pnt[1] << " " << pnt[2];
-		for (size_t j = 0; j < _mesh->mat_names_vector.size(); j++)
-		{
-			m_mat_prop_nod = 0.0;
-			for (k = 0; k < (int) m_nod->getConnectedElementIDs().size(); k++)
-			{
-				m_ele = _mesh->ele_vector[m_nod->getConnectedElementIDs()[k]];
-				m_mat_prop_nod += m_ele->mat_vector(j);
-			}
-			m_mat_prop_nod /= (int) m_nod->getConnectedElementIDs().size();
-			mat_file << " " << m_mat_prop_nod;
-		}
-		mat_file << "\n";
-	}
-	//--------------------------------------------------------------------
-	// Elements
-	for (i = 0; i < (long) _mesh->ele_vector.size(); i++)
-	{
-		m_ele = _mesh->ele_vector[i];
-		//OK if(m_ele->GetPatchIndex()==number) {
-		switch (m_ele->GetElementType())
-		{
-		case MshElemType::LINE:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[0] + 1 << "\n";
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::QUAD:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << "\n";
-			element_type = "QUADRILATERAL";
-			break;
-		case MshElemType::HEXAHEDRON:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[4] + 1 << " "
-			         << m_ele->getNodeIndices()[5] + 1 << " "
-			         << m_ele->getNodeIndices()[6] + 1 << " "
-			         << m_ele->getNodeIndices()[7] + 1 << "\n";
-			element_type = "BRICK";
-			break;
-		case MshElemType::TRIANGLE:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << "\n";
-			element_type = "TRIANGLE";
-			break;
-		case MshElemType::TETRAHEDRON:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << "\n";
-			element_type = "TETRAHEDRON";
-			break;
-		case MshElemType::PRISM:
-			mat_file << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[0] + 1 << " "
-			         << m_ele->getNodeIndices()[1] + 1 << " "
-			         << m_ele->getNodeIndices()[2] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[3] + 1 << " "
-			         << m_ele->getNodeIndices()[4] + 1 << " "
-			         << m_ele->getNodeIndices()[5] + 1 << "\n";
-			element_type = "BRICK";
-			break;
-		default:
-			std::cerr
-			<<
-			"CMediumProperties::WriteTecplotDistributedProperties MshElemType not handled"
-			<< "\n";
-		}
-	}
-}
-
-/**************************************************************************
-   MSHLib-Method: GetNearestHetVal2
-   Task:
-   Programing:
-   0?/2004 SB Implementation
-   09/2005 MB EleClass
-   01/2006 SB ReImplementation with new concept by Olaf, moved here
-**************************************************************************/
-long GetNearestHetVal2(long EleIndex,
-                       CFEMesh* m_msh,
-                       vector <double> xvals,
-                       vector <double> yvals,
-                       vector <double> zvals,
-                       vector <double> mmpvals)
-{
-	(void)mmpvals;
-	long i, nextele, no_values;
-	double ex, ey, ez, dist, dist1; //WW , dist2;
-	double x, y, z;
-	MeshLib::CElem* m_ele = NULL;
-	no_values = (long) xvals.size();
-
-	x = 0.0;
-	y = 0.0;
-	z = 0.0;
-	dist = 10000000.0;                    //Startwert
-	//WW dist2 = 0.01;                                  // Abstand zwischen eingelesenen Knoten und Geometrieknoten-RF;
-	// Achtung, doppelbelegung möglich bei kleinen Gitterabständen
-	nextele = -1;
-
-	//Get element data
-	m_ele = m_msh->ele_vector[EleIndex];
-	double const* center (m_ele->GetGravityCenter());
-	x = center[0];
-	y = center[1];
-	z = center[2];
-
-	//Calculate distances
-	for(i = 0; i < no_values; i++)
-	{
-		ex = xvals[i];
-		ey = yvals[i];
-		ez = zvals[i];
-		dist1 = (ex - x) * (ex - x) + (ey - y) * (ey - y) + (ez - z) * (ez - z);
-		if(dist1 < dist)
-		{
-			dist = dist1;
-			nextele = i;
-		}
-	}
-
-	return nextele;
-}
-
-/**************************************************************************
-   MSHLib-Method: GetAverageHetVal2
-   Task:
-   Programing:
-   06/2005 MB Implementation
-   01/2006 SB Adapted to new structure
-**************************************************************************/
-double GetAverageHetVal2(long EleIndex,
-                         CFEMesh* m_msh,
-                         vector <double> xvals,
-                         vector <double> yvals,
-                         vector <double> zvals,
-                         vector <double> mmpvals)
-{
-	long i, j, ihet;
-	double average;
-	double xp[3],yp[3];
-	double value;
-	double NumberOfValues;
-	//WW double InvNumberOfValues;
-	CGLPoint* m_point = NULL;
-	MeshLib::CElem* m_ele = NULL;
-	long no_values = (long) xvals.size();
-
-	j = 0;                                //only for 1 value
-
-	//-----------------------------------------------------------------------
-	//Get element data
-	m_ele = m_msh->ele_vector[EleIndex];
-	for(j = 0; j < 3; j++)
-	{
-		double const* const pnt(m_ele->GetNode(j)->getData());
-		xp[j] = pnt[0];
-		yp[j] = pnt[1];
-		//zp[j] = 0.0;
-	}
-
-	//-----------------------------------------------------------------------
-	//Find data points in the element
-	NumberOfValues = 0;
-	//WW InvNumberOfValues = 0;
-	m_point = new CGLPoint;
-
-	average = -1;
-	value = 0;
-
-	for(i = 0; i < no_values; i++)
-		if(mmpvals[i] != -999999.0) //Data point not within an element yet
-		{
-			m_point->x = xvals[i];
-			m_point->y = yvals[i];
-			m_point->z = 0.0;
-
-			//....................................................................
-			//Calculate the product of values in element
-			//CC 10/05
-			if(m_point->IsInTriangleXYProjection(xp,yp))
-			{
-				value = value + zvals[i];
-				NumberOfValues++;
-				mmpvals[i] = -999999.0; //used as marker
-			}
-		}
-	//end for
-	//........................................................................
-	if(NumberOfValues == 0)               //if no data points in element --> get neares value
-	{
-		ihet = GetNearestHetVal2(EleIndex, m_msh, xvals, yvals, zvals, mmpvals);
-		if(ihet < 0)
-			DisplayMsgLn(" Error getting nearest het_value location");
-		else
-			average = mmpvals[ihet];
-	}
-	//........................................................................
-	else                                  //if data points in element --> Calculate arithmetic mean
-
-		average = value / NumberOfValues;
-	delete m_point;
-	return average;
-}
 
 /**************************************************************************
    FEMLib-Method:
@@ -8730,7 +8122,8 @@ double CMediumProperties::HeatTransferCoefficient(long number,double theta, CFin
             const int dimen = assem->pcs->m_msh->GetCoordinateFlag() / 10;
             for (int i=0; i <dimen*dimen; i++)
                 heat_conductivity_tensor[i] = 0.0;
-            assem->SolidProp->HeatConductivityTensor(dimen, heat_conductivity_tensor, assem->MeshElement->GetPatchIndex());
+            assem->SolidProp->HeatConductivityTensor(dimen, heat_conductivity_tensor,
+            		assem->MeshElement->GetPatchIndex(), assem->MeshElement->GetIndex());
             const double lamda_s = heat_conductivity_tensor[0]; //assume isotropic
             val = 6.*(1-n)/dp*1./(1./h+dp/10.0/lamda_s); // confirmed with DLR people. typo in Schaube2011
         } 
@@ -8750,4 +8143,76 @@ void CMediumProperties::setFrictionPhase (FiniteElement::FrictionPhase fric_phas
 FiniteElement::FrictionPhase CMediumProperties::getFrictionPhase () const
 {
 	return _fric_phase;
+}
+
+
+/**************************************************************************
+FEMLib-Method:
+Task: calculate the volume fraction of ice based on temperatuer
+Programing:
+2022 BW from (HS  02/2015)
+**************************************************************************/
+double CMediumProperties::CalcIceVolFrac(double T_in_dC, double freezing_sigmoid_coeff) const //BW merged 2022-05-12
+{
+    double phi_i = 0.0;
+
+    //phi_i = porosity* (1.0 - 1.0 / (1.0 + std::exp(-1.0 * freezing_sigmoid_coeff * T_in_dC))); // 16.07.2019 BW why for here is not T_in_dC - T_meltingtemperature,because T_melt = 0
+
+        phi_i =  1.0 - std::exp(-1.0 * std::pow((T_in_dC / freezing_sigmoid_coeff),2)); //BW 29.07.2019
+
+    return phi_i;
+}
+
+//double CMediumProperties::Calcsigmoidderive(double phi_i, double freezing_sigmoid_coeff, double porosity)
+//{
+//      double sigmoid_derive = 0.0;
+//
+//      sigmoid_derive = -porosity* freezing_sigmoid_coeff * (1 - phi_i) * phi_i; //16.07.2019 BW: do not really understand how this equation is derived
+//
+//      return sigmoid_derive;
+//}
+
+//BW 07.2019 - merged 2022-05-12
+double CMediumProperties::Calcsigmoidderive(double T_in_dC, double freezing_sigmoid_coeff) const
+{
+        double sigmoid_derive = 0.0;
+
+        sigmoid_derive = - 2 * T_in_dC / std::pow(freezing_sigmoid_coeff,2) * std::exp(-1.0 * std::pow((T_in_dC / freezing_sigmoid_coeff),2));
+
+        return sigmoid_derive;
+}
+
+//BW 05.2022
+//double CMediumProperties::Calcsigmoidsecondderive(double T_in, double T_in_dC, double freezing_sigmoid_coeff)
+//{
+//      double sigmoid_derive = 0.0;
+//
+//      sigmoid_derive = 4 * T_in * std::pow(T_in_dC, 2) * std::exp(-1.0 * std::pow((T_in_dC / freezing_sigmoid_coeff), 2) )/ std::pow(freezing_sigmoid_coeff, 4)
+//              - 2 * T_in_dC * std::exp(-1.0 * std::pow((T_in_dC / freezing_sigmoid_coeff), 2)) / std::pow(freezing_sigmoid_coeff, 2)
+//              - 2 * T_in * std::exp(-1.0 * std::pow((T_in_dC / freezing_sigmoid_coeff), 2)) / std::pow(freezing_sigmoid_coeff, 2);
+//      return sigmoid_derive;
+//}
+
+double CMediumProperties::VolumetricHeatCapacity(const double& temperature) const  // JOD 2022-05-13
+{
+	double value;
+
+	switch(volumetric_heat_capacity_model)
+	{
+		case 0:  // CURVE - dependent on temperature
+		{
+			int gueltig;
+			value = GetCurveValue(volumetric_heat_capacity_curve_number, 0, temperature, &gueltig);
+			//if(!gueltig)  threshold value if outside range
+			//	std::cout << "WARNING in VolumetricHeatCapacity: Value from curve not valid\n";
+		}
+			break;
+		case 1:  // const
+			value = volumetric_heat_capacity;
+			break;
+		default:
+			throw std::runtime_error("VolumetricHeatCapacity model not supported");
+	}
+
+	return value;
 }

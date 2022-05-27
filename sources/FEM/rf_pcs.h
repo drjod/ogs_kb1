@@ -8,6 +8,7 @@
 #ifndef rf_pcs_INC
 #define rf_pcs_INC
 
+
 #include <valarray>
 
 #include "makros.h"
@@ -28,6 +29,7 @@
 #include "Eigen/Eigen"
 
 #include <vector>
+#include <map>
 
 #include "OGS_WDC.h"
 #include "OGS_contraflow.h"
@@ -92,6 +94,30 @@ using MeshLib::CFEMesh;
 //---------------------------------------------------------------------------
 
 #define PCS_FILE_EXTENSION ".pcs"
+
+typedef struct  // JOD 2021-11-21 to scale source term with permeability, viscosity
+{
+	long node_number;
+#if defined(USE_MPI)
+	long node_number_local;
+#endif
+	double node_value;
+	int group_number;
+	bool keep_value;
+	int verbosity;
+} scaling_type;
+
+typedef struct  // JOD - 2022-02-15 for borehole outout
+{
+	double factor;
+	long node_BH;     // used if coupling_type is not 2
+	double value_BH;  // used if coupling_type is 2
+	int coupling_type; // 0: matrix, 1: RHS, 2: given value (value_BH)
+	double X;
+	double Y;
+	double Z;
+
+} borehole_values_type;
 
 typedef struct                                    /* Knotenwert-Informationen */
 {
@@ -207,6 +233,7 @@ class CRFProcess : public ProcessInfo
 {
 	//----------------------------------------------------------------------
 	// Properties
+
 private:
 	/**
 	 * _problem is a pointer to an instance of class Problem.
@@ -288,15 +315,23 @@ protected:                                        //WW
   int mysize;                               
   int myrank; 
 #elif defined(NEW_EQS)
+
 #ifdef LIS
 public:
-	Linear_EQS* eqs_new;
+	Linear_EQS* eqs_new;public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #else
 	Linear_EQS* eqs_new;
+public:
+	Linear_EQS* get_eqs_new() { return eqs_new; } // JOD 2020-04-03
+protected:
 #endif                                         // LIS endif for Fluid Momentum	// PCH
 	bool configured_in_nonlinearloop;
 #else
-  LINEAR_SOLVER* eqs;
+    LINEAR_SOLVER* eqs;
+
+
 #endif
 
 	//
@@ -351,6 +386,8 @@ public:
 	std::vector<bc_JFNK> BC_JFNK;
 #endif
 public:
+	void set_BCNode(long bc_eqs_index, long bc_value);
+	void add_to_RHS(const int& ndx, const double& value);
 	std::vector<OGS_WDC*> ogs_WDC_vector;  // JOD 2018-08-08
 	std::vector<OGS_contraflow*> ogs_contraflow_vector;  // JOD 2019-31-07
 	// BG, DL Calculate phase transition of CO2
@@ -370,7 +407,7 @@ public:
 	int Phase_Transition_Model;           //BG, NB flag of Phase_Transition_Model (1...CO2-H2O-NaCl)
 	                                      // BG 11/2010 Sets the initial conditions for multi phase flow if Phase_Transition_CO2 is used
 	void CalculateFluidDensitiesAndViscositiesAtNodes(CRFProcess* m_pcs);
-	/**
+	/**eqs
 	 * Sets the value for pointer _problem.
 	 * @param problem the value for _problem
 	 */
@@ -621,8 +658,9 @@ public:
 	bool selected;                        //OK
 	bool saturation_switch;               // JOD
 	void StoreInitialValues(std::string);// JOD 2/2015
-	double AccumulateContent(const int&, const double&, const double&, std::vector<std::string>); // JOD 2/2015
-	void IncorporateNodeConnectionSourceTerms(long, long, double, CSourceTerm*); // JOD 2/2015
+	double AccumulateContent(const int&, const bool&, const double&,
+			const double&, std::vector<std::string>, const bool&, const bool& flag_Latent_heat=false); // JOD 2/2015
+	void IncorporateNodeConnectionSourceTerms(const long&, const long&, const double&, CSourceTerm*, double& value); // JOD 2/2015
 
 	// MSH
 	CFEMesh* m_msh;                       //OK
@@ -650,6 +688,17 @@ public:
 		return GetNodeValue(*std::min_element(nodes.begin(), nodes.end(),
 				[&](size_t i, size_t j) { return GetNodeValue(i, ndx) < GetNodeValue(j, ndx); } ), ndx);
 	}
+
+	double GetWeightedAverageNodeValue(const std::vector<size_t> nodes, const std::vector<double> weights,
+			const int& ndx) const
+	{
+		double value = 0.;
+		for(int i=0; i<nodes.size(); ++i)
+		{
+			value += GetNodeValue(nodes[i], ndx) * weights[i];
+		}
+		return value;
+	}
 	//-----------------------------
 
 	std::vector<std::string> const& getElementValueNameVector () { return ele_val_name_vector; }
@@ -657,6 +706,12 @@ private:
 	//PCH
 	std::vector<std::string> ele_val_name_vector;
 public:
+	//std::map<long, borehole_values_type> GetBoreholeValues() { return Borehole_values_kept; }
+	double calculateNodeValueFromConnectedNodes(const std::vector<long>&, const std::vector<double>&,
+			const int&, const int&, bool&);
+	std::map<std::string, std::map<long, borehole_values_type> > Borehole_values_kept;  // JOD 2022-02-15 for borehole output
+	std::map<long, double> ST_values_kept;  // JOD 2021-11-12 to use them in BC
+	std::map<long, double> ST_factor_kept;  // JOD 2022-02-17 to use in HEAT_TRANSPORT source term peaceman factor from LIQUID_FLOW
 	std::vector<double*> ele_val_vector;  //PCH
 	void SetElementValue(long,int,double); //PCH
 	double GetElementValue(size_t,int);     //PCH
@@ -899,6 +954,7 @@ public:
 	void CalcSecondaryVariablesPSGLOBAL(); // PCH
 	void CalcSecondaryVariablesDensity();                                                  // PCH
 	void CalcSecondaryVariablesViscosity(); // JOD 2016-1-11
+	void CalcSecondaryVariablesIcefraction();//BW, 06.2021 ice fraction  merged 2022-05-12
 	double GetCapillaryPressureOnNodeByNeighobringElementPatches(int nodeIdx,
 	                                                             int meanOption,
 	                                                             double Sw);
@@ -1003,7 +1059,6 @@ private:
 	// method to check on constrained boundary conditions
 	bool checkConstrainedBC(CBoundaryCondition const & bc, CBoundaryConditionNode const & bc_node, double & bc_value);
 	std::valarray<double> getNodeVelocityVector(const long node_id);
-
 };
 
 //========================================================================
@@ -1180,6 +1235,11 @@ extern REACT_GEM* m_vec_GEM;
 class REACT_BRNS;
 extern REACT_BRNS* m_vec_BRNS;
 #endif
+
+#if defined(USE_MPI)
+extern bool global_flag_keep_values;  // to keep ST values and make them consistent over all processors
+#endif
+
 
 extern bool hasAnyProcessDeactivatedSubdomains;   //NW
 

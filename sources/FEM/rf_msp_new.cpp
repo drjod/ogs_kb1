@@ -13,6 +13,7 @@
 //#include <iostream>
 //#include <sstream>
 #include <cfloat>
+#include <stdexcept>
 
 // FEM-Makros
 #include "makros.h"
@@ -23,12 +24,14 @@
 #include "fem_ele_vec.h"
 #include "rf_msp_new.h"
 #include "rf_tim_new.h"
+#include "rf_fct.h"
 //#include "rf_mmp_new.h"
 #include "pcs_dm.h"
 
 #include "StringTools.h"
 #include "files0.h"                               // GetLineFromFile1
 #include "tools.h"                                // GetLineFromFile
+#include "FileTools.h"
 
 using namespace std;
 
@@ -159,6 +162,15 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				in_sd >> (*data_Density)(0);
 				in_sd.clear();
 			}
+			else if (Density_mode == 7) // this is a model for soil + ice  from BW 2022-05-16
+			{
+				// rho1 = soil density, rho2 = ice density
+				data_Density = new Matrix(2);
+				in_sd >> (*data_Density)(0); // soil density
+				in_sd >> (*data_Density)(1); // ice density
+				in_sd.clear();
+			}
+
 		}
 		//....................................................................
 		if(line_string.find("$THERMAL") != string::npos)
@@ -171,148 +183,247 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 		// subkeyword found
 		if(line_string.find("CAPACITY") != string::npos)
 		{
-			in_sd.str(GetLineFromFile1(msp_file));
-			in_sd >> Capacity_mode;
-			switch(Capacity_mode)
+			if(line_string.find("_DISTRIBUTION") != string::npos)
 			{
-			case 0:       //  = f(x)
-				in_sd >> Size;
+				Capacity_mode = 22;
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> file_name_capacity;
+				std::cout << "\t\tHeat capacity distribution file name: " << file_name_capacity << '\n';
+				file_name_capacity = pathDirname(FileName) +  getDirSep() + file_name_capacity;
 				in_sd.clear();
-				data_Capacity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >> (*data_Capacity)(i,0) >> (*data_Capacity)(i,1);
-					in_sd.clear();
-				}
-				break;
-			case 1:       //  = const
-				data_Capacity = new Matrix(1);
-				in_sd >> (*data_Capacity)(0);
-				in_sd.clear();
-				break;
-			case 2:       // boiling model for rock. WW
-				// 0. Wet capacity
-				// 1. Dry capacity
-				// 2. Boiling temperature
-				// 3. Boiling temperature range
-				// 4. Latent of vaporization
-				data_Capacity = new Matrix(5);
-				for(i = 0; i < 5; i++)
-					in_sd >> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-			case 3:       // DECOVALEX THM1, Bentonite
-				in_sd.clear();
-				break;
-			case 4:
-				//0. Capacity at density 1
-				//1. Capacity at density 2
-				//2. density 1
-				//3. density 2
-				data_Capacity = new Matrix(5);
-				for(i=0; i<4; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-				// TES
-			case 5: //Capacity depending on solid conversion
-				//0. Capacity at lower_density_limit (reactive system property)
-				//1. Capacity at upper_density_limit (reactive system property)
-				data_Capacity = new Matrix(3);
-				for(i=0; i<2; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
-			case 6: //Capacity depending on loading with adsorbate
-				//0. Capacity at desorbed state (lower density limit)
-				//1. Capacity of adsorbate
-				data_Capacity = new Matrix(3);
-				for(i=0; i<2; i++)
-					in_sd>> (*data_Capacity)(i);
-				in_sd.clear();
-				break;
 			}
+			else
+			{
+					in_sd.str(GetLineFromFile1(msp_file));
+					in_sd >> Capacity_mode;
+					switch(Capacity_mode)
+					{
+						case 0:       //  = f(x)
+							in_sd >> Size;
+							in_sd.clear();
+							data_Capacity = new Matrix(Size, 2);
+							for(i = 0; i < Size; i++)
+							{
+								in_sd.str(GetLineFromFile1(msp_file));
+								in_sd >> (*data_Capacity)(i,0) >> (*data_Capacity)(i,1);
+								in_sd.clear();
+							}
+							break;
+						case 1:       //  = const
+							data_Capacity = new Matrix(1);
+							in_sd >> (*data_Capacity)(0);
+							in_sd.clear();
+							break;
+						case 2:       // boiling model for rock. WW
+							// 0. Wet capacity
+							// 1. Dry capacity
+							// 2. Boiling temperature
+							// 3. Boiling temperature range
+							// 4. Latent of vaporization
+							data_Capacity = new Matrix(5);
+							for(i = 0; i < 5; i++)
+								in_sd >> (*data_Capacity)(i);
+							in_sd.clear();
+							break;
+						case 3:       // DECOVALEX THM1, Bentonite
+							in_sd.clear();
+							break;
+						case 4:
+							//0. Capacity at density 1
+							//1. Capacity at density 2
+							//2. density 1
+							//3. density 2
+							data_Capacity = new Matrix(5);
+							for(i=0; i<4; i++)
+								in_sd>> (*data_Capacity)(i);
+							in_sd.clear();
+							break;
+							// TES
+						case 5: //Capacity depending on solid conversion
+							//0. Capacity at lower_density_limit (reactive system property)
+							//1. Capacity at upper_density_limit (reactive system property)
+							data_Capacity = new Matrix(3);
+							for(i=0; i<2; i++)
+								in_sd>> (*data_Capacity)(i);
+							in_sd.clear();
+							break;
+						case 6: //Capacity depending on loading with adsorbate
+							//0. Capacity at desorbed state (lower density limit)
+							//1. Capacity of adsorbate
+							data_Capacity = new Matrix(3);
+							for(i=0; i<2; i++)
+								in_sd>> (*data_Capacity)(i);
+							in_sd.clear();
+							break;
+						case 7:  // soil and ice heat capacity, BW 2022-05-12
+							data_Capacity = new Matrix(2);
+							in_sd >> (*data_Capacity)(0);  // soil
+							in_sd >> (*data_Capacity)(1);  // ice
+							in_sd.clear();
+							break;
+						default:
+							throw std::runtime_error("Error when reading MSP-File: Capacity not supported");
+					}
+
+			}
+		}
+        //....................................................................
+        // subkeyword found
+		if (line_string.find("LATENT_HEAT") != string::npos) // BW 2022-05-12
+		{
+			in_sd.str(GetLineFromFile1(msp_file));
+			in_sd >> freezing_latent_heat; // Latent heat for freezing J/kg
+			in_sd.clear();
 		}
 
 		//....................................................................
 		// subkeyword found
-		if(line_string.compare("CONDUCTIVITY") == 0)
+		if (line_string.find("FREEZING_SIGMOID_COEFFICENT") != string::npos) // BW 2022-05-12
 		{
 			in_sd.str(GetLineFromFile1(msp_file));
-			in_sd >> Conductivity_mode;
-			switch(Conductivity_mode)
-			{
-			case 0:       //  = f(T) //21.12.2009 WW
-				in_sd >> heat_conductivity_fct_number;
-				in_sd.clear();
-				/*in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
-				}*/
-				//WW
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
-				break;
-			case 1:       //  = const
-				data_Conductivity = new Matrix(1);
-				in_sd >> (*data_Conductivity)(0);
-				in_sd.clear();
-				break;
-			case 2:       // boiling model for rock. WW
-				// 0. Wet conductivity
-				// 1. Dry conductivity
-				// 2. Boiling temperature
-				// 3. Boiling temperature range
-				data_Conductivity = new Matrix(4);
-				for(i = 0; i < 4; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 3:       // DECOVALEX THM1, Bentonite
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("TEMPERATURE1");
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 30:       // another model for bentonite. WW
-				// 0. maximum conductivity
-				// 1. minimum conductivity
-				// 2. saturation
-				data_Conductivity = new Matrix(3);
-				for(i = 0; i < 3; i++)
-					in_sd >> (*data_Conductivity)(i);
-				in_sd.clear();
-				capacity_pcs_name_vector.push_back("SATURATION1");
-				break;
-			case 4:       //  = f(S) //21.12.2009 WW
-				in_sd >> Size;
-				in_sd.clear();
-				data_Conductivity = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >>
-					(*data_Conductivity)(i,
-					                     0) >> (*data_Conductivity)(i,1);
-					in_sd.clear();
-				}
-				break;
-			case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function 
-				in_sd >> T_0;
-				in_sd.clear();
-				conductivity_pcs_name_vector.push_back("TEMPERATURE1");
- 				conductivity_pcs_name_vector.push_back("SATURATION1");
-				break; 
-			}
+			in_sd >> freezing_sigmoid_coeff; // sigmoid coefficient for freezing unitless
 			in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("ICE_CONDUCTIVIY_MODEL") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> ice_conductivity_model; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("MELTING_TEMPERATURE") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> melting_temperature; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if (line_string.find("FREEZING_TEMPERATURE") != string::npos) // BW 2022-05-12
+		{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> freezing_temperature; // different model for calculating the conductivity of the PM
+				in_sd.clear();
+		}
+		//....................................................................
+		// subkeyword found
+		if(line_string.find("CONDUCTIVITY")  != string::npos)
+		{
+			if(line_string.find("_DISTRIBUTION")  != string::npos)
+			{
+				Conductivity_mode = 22;
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> file_name_conductivity;
+				std::cout << "\t\tHeat conductivity distribution file name: " << file_name_conductivity << '\n';
+				file_name_conductivity = pathDirname(FileName) +  getDirSep() + file_name_conductivity;
+				in_sd.clear();
+			}
+			else
+			{
+				in_sd.str(GetLineFromFile1(msp_file));
+				in_sd >> Conductivity_mode;
+				switch(Conductivity_mode)
+				{
+				case 0:       //  = f(T) //21.12.2009 WW
+					in_sd >> heat_conductivity_curve_number;
+					in_sd.clear();
+					/*in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}*/
+					//WW
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					break;
+				case 1:       //  = const
+					data_Conductivity = new Matrix(1);
+					in_sd >> (*data_Conductivity)(0);
+					in_sd.clear();
+					break;
+				case 2:       // boiling model for rock. WW
+					// 0. Wet conductivity
+					// 1. Dry conductivity
+					// 2. Boiling temperature
+					// 3. Boiling temperature range
+					data_Conductivity = new Matrix(4);
+					for(i = 0; i < 4; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 3:       // DECOVALEX THM1, Bentonite
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("TEMPERATURE1");
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 4:       //  = f(S) //21.12.2009 WW
+					in_sd >> Size;
+					in_sd.clear();
+					data_Conductivity = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >>
+						(*data_Conductivity)(i,
+											 0) >> (*data_Conductivity)(i,1);
+						in_sd.clear();
+					}
+					break;
+				case 5:       // DECOVALEX2015, Task B2, Buffer: f(S,T) by matrix function
+					in_sd >> T_0;
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					conductivity_pcs_name_vector.push_back("SATURATION1");
+					break;
+				case 6:		// f(T, S), Saturation S from table (over elments)  - JOD 2022-01-24
+				{
+					std::string fct_name;
+					in_sd >> fct_name;
+					fct_names.push_back(fct_name);
+					in_sd >> fct_name;  // conductivity over saturation for different temperatures
+					if(fct_name.length() > 0)  // to check
+						fct_names.push_back(fct_name);  // saturation over elements
+					in_sd.clear();
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//conductivity_pcs_name_vector.push_back("SATURATION1");
+				}
+	            case 7:       //  thermal conductivity soil and ice merged from BW 2022-05-12
+	                data_Conductivity = new Matrix(3);
+	                in_sd >> (*data_Conductivity)(0); // soild lambda
+	                in_sd >> (*data_Conductivity)(1); // ice lambda
+	                in_sd >> (*data_Conductivity)(2); // water lambda
+					conductivity_pcs_name_vector.push_back("TEMPERATURE1");
+					//capacity_pcs_name_vector.push_back("TEMPERATURE1");
+	                in_sd.clear();
+	                break;
+				case 30:       // another model for bentonite. WW
+					// 0. maximum conductivity
+					// 1. minimum conductivity
+					// 2. saturation
+					data_Conductivity = new Matrix(3);
+					for(i = 0; i < 3; i++)
+						in_sd >> (*data_Conductivity)(i);
+					in_sd.clear();
+					capacity_pcs_name_vector.push_back("SATURATION1");
+					break;
+					break;
+
+				default:
+					throw std::runtime_error("Error when reading MSP-File: Conductivity not supported");
+				}
+				in_sd.clear();
+			}
+
 		}
 
 		//....................................................................
@@ -323,68 +434,64 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			thermal_conductivity_tensor_dim = 0; //NW
 			switch(thermal_conductivity_tensor_type_name[0])
 			{
-			case 'I': // isotropic
-				thermal_conductivity_tensor_type = 0;
-				in_sd >> thermal_conductivity_tensor[0];
-				thermal_conductivity_tensor[1] = thermal_conductivity_tensor[2] =
-				                                         thermal_conductivity_tensor
-				                                         [0];
-				break;
-			case 'O':      // orthotropic
-				thermal_conductivity_tensor_type = 1;
-				in_sd >> thermal_conductivity_tensor_dim;
-				if(thermal_conductivity_tensor_dim == 0)
-					std::cout <<
-					"Error in CSolidProperties::Read: no tensor dimension"
-					          << "\n";
-				if(thermal_conductivity_tensor_dim == 2)
-				{
+				case 'I': // isotropic
+					thermal_conductivity_tensor_type = 0;
 					in_sd >> thermal_conductivity_tensor[0];
-					in_sd >> thermal_conductivity_tensor[1];
-				}
-				if(thermal_conductivity_tensor_dim == 3)
-				{
-					in_sd >> thermal_conductivity_tensor[0];
-					in_sd >> thermal_conductivity_tensor[1];
-					in_sd >> thermal_conductivity_tensor[2];
-				}
-				break;
-			case 'A':      // anisotropic
-				thermal_conductivity_tensor_type = 2;
-				in_sd >> thermal_conductivity_tensor_dim;
-				if(thermal_conductivity_tensor_dim == 0)
-					std::cout <<
-					"Error in CSolidProperties::Read: no tensor dimension"
-					          << "\n";
-				if(thermal_conductivity_tensor_dim == 2)
-				{
-					in_sd >> thermal_conductivity_tensor[0];
-					in_sd >> thermal_conductivity_tensor[1];
-					in_sd >> thermal_conductivity_tensor[2];
-					in_sd >> thermal_conductivity_tensor[3];
-				}
-				if(thermal_conductivity_tensor_dim == 3)
-				{
-					in_sd >> thermal_conductivity_tensor[0];
-					in_sd >> thermal_conductivity_tensor[1];
-					in_sd >> thermal_conductivity_tensor[2];
-					in_sd >> thermal_conductivity_tensor[3];
-					in_sd >> thermal_conductivity_tensor[4];
-					in_sd >> thermal_conductivity_tensor[5];
-					in_sd >> thermal_conductivity_tensor[6];
-					in_sd >> thermal_conductivity_tensor[7];
-					in_sd >> thermal_conductivity_tensor[8];
-				}
-				break;
-			default:
-				cout <<
-				"Error in CSolidProperties::Read: no valid thermal conductivity tensor type"
-				     << "\n";
-				break;
+					thermal_conductivity_tensor[1] = thermal_conductivity_tensor[2] =
+															 thermal_conductivity_tensor
+															 [0];
+					break;
+				case 'O':      // orthotropic
+					thermal_conductivity_tensor_type = 1;
+					in_sd >> thermal_conductivity_tensor_dim;
+					if(thermal_conductivity_tensor_dim == 0)
+						std::cout <<
+						"Error in CSolidProperties::Read: no tensor dimension"
+								  << "\n";
+					if(thermal_conductivity_tensor_dim == 2)
+					{
+						in_sd >> thermal_conductivity_tensor[0];
+						in_sd >> thermal_conductivity_tensor[1];
+					}
+					if(thermal_conductivity_tensor_dim == 3)
+					{
+						in_sd >> thermal_conductivity_tensor[0];
+						in_sd >> thermal_conductivity_tensor[1];
+						in_sd >> thermal_conductivity_tensor[2];
+					}
+					break;
+				case 'A':      // anisotropic
+					thermal_conductivity_tensor_type = 2;
+					in_sd >> thermal_conductivity_tensor_dim;
+					if(thermal_conductivity_tensor_dim == 0)
+						std::cout <<
+						"Error in CSolidProperties::Read: no tensor dimension"
+								  << "\n";
+					if(thermal_conductivity_tensor_dim == 2)
+					{
+						in_sd >> thermal_conductivity_tensor[0];
+						in_sd >> thermal_conductivity_tensor[1];
+						in_sd >> thermal_conductivity_tensor[2];
+						in_sd >> thermal_conductivity_tensor[3];
+					}
+					if(thermal_conductivity_tensor_dim == 3)
+					{
+						in_sd >> thermal_conductivity_tensor[0];
+						in_sd >> thermal_conductivity_tensor[1];
+						in_sd >> thermal_conductivity_tensor[2];
+						in_sd >> thermal_conductivity_tensor[3];
+						in_sd >> thermal_conductivity_tensor[4];
+						in_sd >> thermal_conductivity_tensor[5];
+						in_sd >> thermal_conductivity_tensor[6];
+						in_sd >> thermal_conductivity_tensor[7];
+						in_sd >> thermal_conductivity_tensor[8];
+					}
+					break;
+				default:
+					throw std::runtime_error("Error in CSolidProperties::Read: no valid thermal conductivity tensor type");
 			}
 			in_sd.clear();
 		}
-
 		//....................................................................
 		// subkeyword found
 		if(line_string.find("$ELASTICITY") != string::npos)
@@ -411,46 +518,48 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 				type = 1000;
 			switch(type)  // 15.03.2008 WW
 			{
-			case 0:       //  = f(x)
-				in_sd >> Size;
-				in_sd.clear();
-				data_Youngs = new Matrix(Size, 2);
-				for(i = 0; i < Size; i++)
-				{
-					in_sd.str(GetLineFromFile1(msp_file));
-					in_sd >> (*data_Youngs)(i,0) >> (*data_Youngs)(i,1);
+				case 0:       //  = f(x)
+					in_sd >> Size;
 					in_sd.clear();
-				}
-				break;
-			case 1:       //  = const
-				data_Youngs = new Matrix(1);
-				in_sd >> (*data_Youngs)(0);
-				in_sd.clear();
-				break; // UJG 24.11.2009
-			case 2:       //  = const
-				// data_Youngs Lubby1 model
-				//  0: E_0
-				//  1: a (factor)
-				//  2: n (exponent)
-				data_Youngs = new Matrix(3);
-				in_sd >> (*data_Youngs)(0) >> (*data_Youngs)(1) >> (*data_Youngs)(2);
-				in_sd.clear();
-				break;
-			case 1000:    // case 10-13: transverse isotropic linear elasticity (UJG 24.11.2009)
-				// data_Youngs transverse isotropic linear elasticity
-				//  0: E_i     (Young's modulus of the plane of isotropy)
-				//  1: E_a     (Young's modulus w.r.t. the anisotropy direction)
-				//  2: nu_{ia} (Poisson's ratio w.r.t. the anisotropy direction)
-				//  3: G_a     (shear modulus w.r.t. the anisotropy direction)
-				//  4: n_x     (x-coefficient of the local axis of anisotropy (2D case: -\sin\phi))
-				//  5: n_y     (y-coefficient of the local axis of anisotropy (2D case: \cos\phi))
-				//  6: n_z     (z-coefficient of the local axis of anisotropy (2D case: 0))
-				data_Youngs = new Matrix(7);
-				in_sd >> (*data_Youngs)(0) >> (*data_Youngs)(1) >>
-				(*data_Youngs)(2) >> (*data_Youngs)(3)
-				>> (*data_Youngs)(4) >> (*data_Youngs)(5) >> (*data_Youngs)(6);
-				in_sd.clear();
-				break;
+					data_Youngs = new Matrix(Size, 2);
+					for(i = 0; i < Size; i++)
+					{
+						in_sd.str(GetLineFromFile1(msp_file));
+						in_sd >> (*data_Youngs)(i,0) >> (*data_Youngs)(i,1);
+						in_sd.clear();
+					}
+					break;
+				case 1:       //  = const
+					data_Youngs = new Matrix(1);
+					in_sd >> (*data_Youngs)(0);
+					in_sd.clear();
+					break; // UJG 24.11.2009
+				case 2:       //  = const
+					// data_Youngs Lubby1 model
+					//  0: E_0
+					//  1: a (factor)
+					//  2: n (exponent)
+					data_Youngs = new Matrix(3);
+					in_sd >> (*data_Youngs)(0) >> (*data_Youngs)(1) >> (*data_Youngs)(2);
+					in_sd.clear();
+					break;
+				case 1000:    // case 10-13: transverse isotropic linear elasticity (UJG 24.11.2009)
+					// data_Youngs transverse isotropic linear elasticity
+					//  0: E_i     (Young's modulus of the plane of isotropy)
+					//  1: E_a     (Young's modulus w.r.t. the anisotropy direction)
+					//  2: nu_{ia} (Poisson's ratio w.r.t. the anisotropy direction)
+					//  3: G_a     (shear modulus w.r.t. the anisotropy direction)
+					//  4: n_x     (x-coefficient of the local axis of anisotropy (2D case: -\sin\phi))
+					//  5: n_y     (y-coefficient of the local axis of anisotropy (2D case: \cos\phi))
+					//  6: n_z     (z-coefficient of the local axis of anisotropy (2D case: 0))
+					data_Youngs = new Matrix(7);
+					in_sd >> (*data_Youngs)(0) >> (*data_Youngs)(1) >>
+					(*data_Youngs)(2) >> (*data_Youngs)(3)
+					>> (*data_Youngs)(4) >> (*data_Youngs)(5) >> (*data_Youngs)(6);
+					in_sd.clear();
+					break;
+				default:
+					throw std::runtime_error("YOUNGS_MODULUS type not supported");
 			}
 		}
 		//....................................................................
@@ -468,17 +577,16 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			in_sd>>Time_Dependent_E_nv_mode;
 			switch(Time_Dependent_E_nv_mode)
 			{
-			case 1://isotropic
-				in_sd>>Time_Dependent_E_nv_value[0]>>Time_Dependent_E_nv_value[1];//[0] for E, [1] for nv
-				break;
-			case 2://transversely isotropic
-				in_sd>>Time_Dependent_E_nv_value[0]>>Time_Dependent_E_nv_value[1]>>Time_Dependent_E_nv_value[2]>>
-					Time_Dependent_E_nv_value[3]>>Time_Dependent_E_nv_value[4];
-				//[0]: Ei, [1]: Ea, [2]: ni, [3]: Eia, [4]: Ga
-				break;
-			default:
-				cout<<"!ERROR in msp file, no valid TIME_DEPENDENT_YOUNG_POISSON mode!"<<endl;
-				break;
+				case 1://isotropic
+					in_sd>>Time_Dependent_E_nv_value[0]>>Time_Dependent_E_nv_value[1];//[0] for E, [1] for nv
+					break;
+				case 2://transversely isotropic
+					in_sd>>Time_Dependent_E_nv_value[0]>>Time_Dependent_E_nv_value[1]>>Time_Dependent_E_nv_value[2]>>
+						Time_Dependent_E_nv_value[3]>>Time_Dependent_E_nv_value[4];
+					//[0]: Ei, [1]: Ea, [2]: ni, [3]: Eia, [4]: Ga
+					break;
+				default:
+					throw std::runtime_error("ERROR in msp file, no valid TIME_DEPENDENT_YOUNG_POISSON mode");
 			}
 			in_sd.clear();
 		}
@@ -599,17 +707,17 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			in_sd >> bishop_model;
 			switch(bishop_model)
 			{
-			case 1: //constant
-				in_sd >> bishop_model_value;
-				break;
-			case 2: //pow(Se, parameter)
-				in_sd >> bishop_model_value;
-				break;
-			case 3:              // JM model 3:    if p<bishop_model_value -> bishop_parameter=0.0;  else -> bishop_parameter=1.0  
-				in_sd >> bishop_model_value;                       
-				break;              
-			default:
-				break;
+				case 1: //constant
+					in_sd >> bishop_model_value;
+					break;
+				case 2: //pow(Se, parameter)
+					in_sd >> bishop_model_value;
+					break;
+				case 3:              // JM model 3:    if p<bishop_model_value -> bishop_parameter=0.0;  else -> bishop_parameter=1.0
+					in_sd >> bishop_model_value;
+					break;
+				default:
+					break;
 			}
 			in_sd.clear();
 		}
@@ -791,7 +899,8 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 			 in_sd >> reaction_system;
 			 this->setSolidReactiveSystem(FiniteElement::convertSolidReactiveSystem(reaction_system));
 			 in_sd.clear();
-			 if (reaction_system.compare("SINUSOIDAL") == 0) { //For Benchmarks
+			 if (reaction_system.compare("SINUSOIDAL") == 0)
+			 { //For Benchmarks
 				in_sd.str(GetLineFromFile1(msp_file));
 				in_sd >> reaction_enthalpy; //in J/kg, negative for exothermic composition reaction
 				in_sd.clear();
@@ -856,8 +965,8 @@ std::ios::pos_type CSolidProperties::Read(std::ifstream* msp_file)
 					for(int ii=0; ii<bedding_tens_curve_order+1; ii++)
 						in_sd>>tens_para[ii];
 				}
-		in_sd.clear();
-	}
+				in_sd.clear();
+			}
 			CalTransMatrixMicroStru(TransMicroStru, Bedding_Norm);
 			TransMicroStru->GetTranspose(*TransMicroStru_T);
 			Cal_Inv_Matrix(6, TransMicroStru_T, TransMicroStru_TInv);
@@ -1179,7 +1288,7 @@ double CSolidProperties::CalulateValue
    Programing:
    08/2004 WW Implementation
 **************************************************************************/
-double CSolidProperties::Density(double refence )
+double CSolidProperties::Density(double refence)
 {
 	double val = 0.0;
 	switch(Density_mode)
@@ -1189,6 +1298,12 @@ double CSolidProperties::Density(double refence )
 		break;
 	case 1:
 		val = (*data_Density)(0);
+		break;
+	case 7:                // Freezing model TYZ  from BW 2022-05-16
+		if (refence == 0.0)
+			val = (*data_Density)(0);
+		else
+			val = (*data_Density)(1);
 		break;
 	}
 	return val;
@@ -1234,6 +1349,12 @@ double CSolidProperties::Heat_Capacity(double refence)
 		double C = refence/lower_solid_density_limit - 1.0;
 		val = lower_solid_density_limit/refence * ((*data_Capacity)(0) + C * (*data_Capacity)(1));
 	}
+		break;
+	case 7: //Freezing model - TYZ from BW 2022-05-16
+		if (refence == 0.0)
+			val = (*data_Capacity)(0);//soil heat capacity 0
+		else
+			val = (*data_Capacity)(1);//ice heat capacity 1
 		break;
 	default:
 		val = (*data_Capacity)(0);
@@ -1379,50 +1500,59 @@ double CSolidProperties::Heat_Conductivity(double refence)
 	int gueltig;
 	switch(Conductivity_mode)
 	{
-	case 0:
-		int gueltig;
-		val = GetCurveValue(heat_conductivity_fct_number, 0, refence, &gueltig);
-		//val = CalulateValue(data_Conductivity, refence);
-		break;
-	case 1:
-		val = (*data_Conductivity)(0);
-		break;
-	case 2:
-		{  
-		const double *k_T = data_Conductivity->getEntryArray();
+		case 0:
+			val = GetCurveValue(heat_conductivity_curve_number, 0, refence, &gueltig);
+			//val = CalulateValue(data_Conductivity, refence);
+			break;
+		case 1:
+			val = (*data_Conductivity)(0);
+			break;
+		case 2:
+			{
+			const double *k_T = data_Conductivity->getEntryArray();
 
-		// 0. Wet conductivity
-		// 1. Dry conductivity
-		// 2. Boiling temperature
-		// 3. Boiling temperature range
-		if(refence < k_T[2]) // Wet
-			val =  k_T[0];
-		else if((refence >= k_T[2]) &&
-		        (refence < (k_T[2] + k_T[3])))
-			val =  k_T[0] + (k_T[0] - k_T[1]) * (refence - k_T[2]) / k_T[3];
-		else
-			val =  k_T[1];
-		}
-		break;
-	case 3:                               // refence: saturation
-		//val = 1.28-0.71/(1+10.0*exp(refence-0.65));  //MX
-		val = 1.28 - 0.71 / (1 + exp(10.0 * (refence - 0.65)));
-		break;
-	case 30:  // Another model for bentonite. 10.2013. WW
-		{
-		//val = k_max-k_min/(1+10.0*exp(refence-S0));  
-		const double *k_T = data_Conductivity->getEntryArray();
-//		val = k_T[0] - (k_T[0]-k_T[1]) / (1 + exp(10.0 * (refence - k_T[2])));
-		val = k_T[0] + k_T[1]* (refence - k_T[2]);
-		}
-		break;
-	case 4:                               //21.12.2009. WW
-		val = CalulateValue(data_Conductivity, refence);
-		break;
-	case 5:                               // DECOVALEX2015, TaskB2 JM            
-		CalPrimaryVariable(capacity_pcs_name_vector);
-		val = GetMatrixValue(primary_variable[0]+T_0,primary_variable[1],name,&gueltig);
-		break; 
+			// 0. Wet conductivity
+			// 1. Dry conductivity
+			// 2. Boiling temperature
+			// 3. Boiling temperature range
+			if(refence < k_T[2]) // Wet
+				val =  k_T[0];
+			else if((refence >= k_T[2]) &&
+					(refence < (k_T[2] + k_T[3])))
+				val =  k_T[0] + (k_T[0] - k_T[1]) * (refence - k_T[2]) / k_T[3];
+			else
+				val =  k_T[1];
+			}
+			break;
+		case 3:                               // refence: saturation
+			//val = 1.28-0.71/(1+10.0*exp(refence-0.65));  //MX
+			val = 1.28 - 0.71 / (1 + exp(10.0 * (refence - 0.65)));
+			break;
+		case 4:                               //21.12.2009. WW
+			val = CalulateValue(data_Conductivity, refence);
+			break;
+		case 5:                               // DECOVALEX2015, TaskB2 JM
+			CalPrimaryVariable(capacity_pcs_name_vector);
+			val = GetMatrixValue(primary_variable[0]+T_0,primary_variable[1],name,&gueltig);
+			break;
+		case 7: //Freezing model - TYZ  - merged from BW 2022-05-12
+			if (refence == 0.0)
+				val = (*data_Conductivity)(0); // soil thermal conductivity 0
+			else if (refence == 1.0)
+				val = (*data_Conductivity)(1); // ice thermal conductivity 1
+			//     else
+			//val = (*data_Conductivity)(2); // water thermal conductivity 2;05.2021 by BW, why thermal conductivity of water needs to be defined here again.
+			break;
+		case 30:  // Another model for bentonite. 10.2013. WW
+			{
+			//val = k_max-k_min/(1+10.0*exp(refence-S0));
+			const double *k_T = data_Conductivity->getEntryArray();
+			//		val = k_T[0] - (k_T[0]-k_T[1]) / (1 + exp(10.0 * (refence - k_T[2])));
+			val = k_T[0] + k_T[1]* (refence - k_T[2]);
+			}
+			break;
+		default:
+			throw std::runtime_error("ERROR in solid property: Heat conductivity model not implemented");
 	}
 	return val;
 }
@@ -1437,9 +1567,8 @@ double CSolidProperties::Heat_Conductivity(double refence)
    last modification:
    ToDo: geo_dimension
 **************************************************************************/
-void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, int group)
+void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, const int& group, const int& index)
 {
-	group = group;                        //OK411
 	//static double tensor[9];
 	double temperature = 0.0;
 	double saturation = 0.0;
@@ -1459,39 +1588,85 @@ void CSolidProperties::HeatConductivityTensor(const int dim, double* tensor, int
 	int gueltig=1; 
 	switch (Conductivity_mode)
 	{
-	case 0:
-		//WW
-		base_thermal_conductivity = Heat_Conductivity(primary_variable[0]);
-		break;
-	case 1:
-		//WW
-		base_thermal_conductivity = Heat_Conductivity(0);
-		break;
-	case 2:                               // Boiling model. DECOVALEX THM2
-		temperature = primary_variable[0];
-		base_thermal_conductivity = Heat_Conductivity(temperature);
-		break;
-	case 3:                               // DECOVALEX THM1
-		saturation = primary_variable[1];
-		base_thermal_conductivity = Heat_Conductivity(saturation);
-		break;
-	case 5:                      
-		base_thermal_conductivity = GetMatrixValue(primary_variable[1],primary_variable[0]+T_0,name,&gueltig);  
-		break;  
-	default:                              //Normal case
-		cout <<
-		"***Error in CSolidProperties::HeatConductivityTensor(): conductivity mode is not supported "
-		     << "\n";
-		//base_thermal_conductivity = Heat_Conductivity();
+		case 0:
+			//WW
+			base_thermal_conductivity = Heat_Conductivity(primary_variable[0]);
+			break;
+		case 1:
+			//WW
+			base_thermal_conductivity = Heat_Conductivity(0);
+			break;
+		case 2:                               // Boiling model. DECOVALEX THM2
+			temperature = primary_variable[0];
+			base_thermal_conductivity = Heat_Conductivity(temperature);
+			break;
+		case 3:                               // DECOVALEX THM1
+			saturation = primary_variable[1];
+			base_thermal_conductivity = Heat_Conductivity(saturation);
+			break;
+		case 5:
+			base_thermal_conductivity = GetMatrixValue(primary_variable[1],primary_variable[0]+T_0,name,&gueltig);
+			break;
+		case 6: // JOD 2022-01-24
+		{
+			double saturation;
+			bool is_valid;
+			CFunction* m_fct = NULL;
+
+			if(fct_names.size() == 2)
+			{
+				m_fct = FCTGet(fct_names[1]);
+				if(m_fct) // get saturation from fct 1
+				{
+					saturation = m_fct->GetValue(double(index), is_valid, 2  /* given value */);
+					if(!is_valid)
+						throw std::runtime_error("ERROR in solid heat conductivity - No saturation for element");
+				}
+				else
+					throw std::runtime_error("ERROR in solid heat conductivity - No fct for element wise saturation");
+
+				m_fct = FCTGet(fct_names[0]);  // get heat conductivity from fct 0
+				if(m_fct) // get heat conductivity from fct 0
+				{
+						base_thermal_conductivity = m_fct->GetValue(saturation, is_valid, 3  /* 2D table */,
+								primary_variable[0] /* temperature */);
+						if(!is_valid)
+							throw std::runtime_error("ERROR in solid heat conductivity - No heat conductivity for element");
+				}
+				else
+					throw std::runtime_error("ERROR in solid heat conductivity - No fct for heat conductivity");
+			}
+			else
+				throw std::runtime_error("ERROR in solid heat conductivity - Two fct names required");
+			break;
+		}
+		case 7: //Ice Model, get the fuild conductivity, so far no temperature dependency is considered. merfed from BW 2022-05-21
+			base_thermal_conductivity = Heat_Conductivity(0);
+			break;
+		case 22:
+			// get the index:-------------------------------------------------------------------
+			int ndx;
+			for(ndx = 0; ndx < (int)getMesh()->mat_names_vector.size();++ndx)
+				if(getMesh()->mat_names_vector[ndx].compare(
+						   "SOLID_HEAT_CONDUCTIVITY" + std::to_string(group)) == 0)
+					break;
+			// end of getting the index---------------------------------------------------------
+			if(getMesh()->ele_vector[index]->mat_vector.Size() == 0)
+			{
+				throw std::runtime_error("No material");
+				return;
+			}
+			base_thermal_conductivity = getMesh()->ele_vector[index]->mat_vector(ndx);
+			break;
+		default:                              //Normal case
+			throw std::runtime_error("Error in CSolidProperties::HeatConductivityTensor(): conductivity mode is not supported");
 	}
 
 	//--------------------------------------------------------------------
 	//Set unit tensor
 	//check
 	if (thermal_conductivity_tensor_type > 0 && dim != thermal_conductivity_tensor_dim)
-		cout <<
-		"***Error in CSolidProperties::HeatConductivityTensor(): problem dimension and the given tensor dimension are not same."
-		     << "\n";
+		throw std::runtime_error("Error in CSolidProperties::HeatConductivityTensor(): problem dimension and the given tensor dimension are not same.");
 	//reset
 	for(i = 0; i < 9; i++)
 		tensor[i] = 0.0;
@@ -8013,9 +8188,9 @@ double CSolidProperties::E_Function(int dim, const ElementValue_DM *ele_val, int
 			CalPrinStrDir(stress, prin_str, prin_dir, size);
 			return_value = GetCurveValue((int)E_Function_Model_Value[0], 0, prin_str[0], &valid);
 		}
+		break;
 	default :
 		return_value = 1.;
-		break;
 	}
 	return return_value;
 }

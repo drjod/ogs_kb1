@@ -51,7 +51,7 @@ public:
 	           const long dof, bool messg = true);
 #if defined(USE_MPI)
 	Linear_EQS(const long size);
-#endif
+#endif // USE_MPI
 	~Linear_EQS();
 	// Configure numerics
 	void ConfigNumerics( CNumerics* m_num, const long n = 0);
@@ -66,7 +66,7 @@ public:
 	/// GMRES. 01.09.2010. WW
 	void setPCS(::CRFProcess* the_pcs) {a_pcs = the_pcs; }
 	void Init_Precond_Jacobi_JFNK();
-#endif
+#endif // JFNK_H2M
 	void ComputePreconditioner();
 	void ComputePreconditioner_Jacobi();
 	void ComputePreconditioner_ILU() {       }
@@ -79,12 +79,12 @@ public:
 	int BiCGStab(double* xg, const long n);
 	int CGS(double* xg, const long n);
 	double GetCPUtime() const { return cpu_time;  }
-#else
+#else // USE_MPI
 #ifdef LIS                                  //NW
 	int Solver(CNumerics* num = NULL);
-#else
+#else  // LIS
 	int Solver();
-#endif
+#endif  // not LIS
 	int CG();
 	int BiCG();                           //02.2010. WW
 	int BiCGStab();
@@ -98,7 +98,7 @@ public:
 	int AMG1R5() {return -1; }
 	int UMF() {return -1; }
 	int GMRES();
-#endif
+#endif  // not USE_MPI
 	//
 	void Initialize();
 	void Clean();
@@ -117,7 +117,7 @@ public:
 	int DOF() { return A->Dof(); }
 	long Size() { return A->Size(); }
 	void SetDomain(CPARDomain* a_dom) {dom = a_dom; }
-#endif
+#endif  // USE_MPI
 	// Write
 	void Write(std::ostream &os = std::cout);
 	void WriteRHS(std::ostream &os = std::cout);
@@ -146,7 +146,7 @@ private:                                          // Dot not remove this!
 	double dot (const double* xx,  const double* yy, const long n);
 	inline void MatrixMulitVec(double* xx,  double* yy);
 	inline void TransMatrixMulitVec(double* xx,  double* yy);
-#endif
+#endif  // USE_MPI
 	//
 	std::string solver_name;
 	std::string precond_name;

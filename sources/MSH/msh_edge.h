@@ -14,6 +14,9 @@
 //------------------------------------------------------------------------
 namespace MeshLib
 {
+
+class CNode;
+
 /**
  * \brief Class CEdge represent an edge of a finite element mesh.
  *

@@ -35,6 +35,7 @@ class CNodeValue
       long geo_node_number;
       long msh_node_number;
       double node_value;
+      double length; // JODSH
       double node_area;
 
       //    int node_distype;
@@ -46,8 +47,10 @@ class CNodeValue
       int CurveIndex;
       int conditional;
       //std::vector<double>history_value;
-      long msh_node_number_conditional;
-                                                  // JOD   st-coupling 4.7.10
+      long msh_node_number_conditional; // JOD   st-coupling 4.7.10
+      std::vector<long>  msh_vector_conditional; // JOD 2021-12-10
+      std::vector<double>  msh_vector_conditional_length; // JOD 2021-12-10
+
       std::vector<long> msh_node_numbers_averaging;
                                                   // JOD
       std::vector<double> msh_node_weights_averaging;
@@ -63,6 +66,8 @@ class CNodeValue
       void setSTVectorIndex(int index) { _st_vector_index = index; }
       std::size_t getSTVectorGroup() const { return _st_vector_group; }
       void setSTVectorGroup(int group) { _st_vector_group = group; }
+
+      int scaling_node_group;
 
    private:
       FiniteElement::DistributionType _node_distype;

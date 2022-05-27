@@ -45,7 +45,7 @@ CTimeDiscretization::CTimeDiscretization(void)
 {
 	step_current = 0;
 	time_start = 0.0;
-	time_end = 1.0;
+	time_end = DBL_MAX;
 	time_type_name = "CONSTANT";          //OK
 	time_control_type = TimeControlType::INVALID;           //kg44//JT
 	time_unit = "SECOND";
@@ -91,6 +91,7 @@ CTimeDiscretization::CTimeDiscretization(void)
 	last_time_step_length = 0;
 	dampening = 0;
 	pay_no_mind_to_output = false; // JOD 2014-11-26
+	correction_factor = 1.;
 
 }
 
@@ -589,11 +590,15 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 							dampening = strtod(line_string.data(),NULL);
 							line.clear();
 						}
+						else if (line_string.find("REDUCE_IF_NOT_CONVERGED") != std::string::npos) // JOD 2022-05-13
+						{
+							*tim_file >> line_string;
+							correction_factor = strtod(line_string.data(),NULL);  // no effect if value 1. (default)
+							line.clear();
+						}
 						else
 						{
-							std::cout << "ERROR: Unrecognized keyword in .tim file: " << line.str() << "\n";
-							std::cout << " You may want to check line endings (carriage return)." << "\n";
-							exit(1);
+							throw std::runtime_error("ERROR: Unrecognized keyword in .tim file - You may want to check line endings (carriage return).");
 						}
 					} // end of while loop adaptive
 				// end of if "SELF_ADAPTIVE"
@@ -797,7 +802,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 {
 	double tval, next;
 	int no_time_steps = (int)time_step_vector.size();
-    bool adapt = false;
+    	bool adapt = false;
 	//
 	// TIME STEP VECTOR
 	// -----------------------------------
@@ -809,54 +814,74 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	//
 	// TIME CONTROL METHODS
 	// -----------------------------------
-	if(time_control_type == TimeControlType::NEUMANN || time_control_type == TimeControlType::SELF_ADAPTIVE){
-    adapt = true;
-    if(aktuelle_zeit < MKleinsteZahl && repeat == false){
+	if(time_control_type == TimeControlType::NEUMANN || time_control_type == TimeControlType::SELF_ADAPTIVE)
+	{
+    		adapt = true;
+    		if(aktuelle_zeit - time_start < MKleinsteZahl && repeat == false)
+    		{
 			time_step_length = FirstTimeStepEstimate();
-		}
-		else if( time_control_type == TimeControlType::NEUMANN){
+    		}
+    		else if( time_control_type == TimeControlType::NEUMANN)
+    		{
 			time_step_length = NeumannTimeControl();
-		}
-		else if(time_control_type == TimeControlType::SELF_ADAPTIVE){
-			time_step_length = SelfAdaptiveTimeControl();
-		}
+    		}
+    		else if(time_control_type == TimeControlType::SELF_ADAPTIVE)
+    		{
+    			if(repeat)
+    			{
+    				time_step_length *= correction_factor;
+    				std::cout << "Time step corrected to: " << time_step_length << '\n';
+    			}
+    			else
+    				time_step_length = SelfAdaptiveTimeControl();
+    		}
 	}
-	else if(time_control_type == TimeControlType::STABLE_ERROR_ADAPTIVE){
-    adapt = true;
-			time_step_length = StableErrorAdaptive();
+	else if(time_control_type == TimeControlType::STABLE_ERROR_ADAPTIVE)
+	{
+    		adapt = true;
+		time_step_length = StableErrorAdaptive();
 	}
-	else if(time_control_type == TimeControlType::ERROR_CONTROL_ADAPTIVE){
-    adapt = true;
-		if(aktuelle_zeit < MKleinsteZahl){
+	else if(time_control_type == TimeControlType::ERROR_CONTROL_ADAPTIVE)
+	{
+    		adapt = true;
+		if(aktuelle_zeit < MKleinsteZahl)
+		{
 			time_step_length = AdaptiveFirstTimeStepEstimate();
 		}
-		else{
+		else
+		{
 			time_step_length = ErrorControlAdaptiveTimeControl();
 		}
 	}
-	else if(time_control_type == TimeControlType::PI_AUTO_STEP_SIZE){
-    adapt = true;
+	else if(time_control_type == TimeControlType::PI_AUTO_STEP_SIZE)
+	{
+    		adapt = true;
 		time_step_length = this_stepsize;
 	}
 	else if(time_control_type == TimeControlType::DYNAMIC_COURANT
 			|| time_control_type == TimeControlType::DYNAMIC_PRESSURE
-			|| time_control_type == TimeControlType::DYNAMIC_VARIABLE){ // JT2012: Soon to come.
-    adapt = true;
-		if(!last_dt_accepted){
+			|| time_control_type == TimeControlType::DYNAMIC_VARIABLE)
+	{ // JT2012: Soon to come.
+    		adapt = true;
+		if(!last_dt_accepted)
+		{
 			time_step_length *= dt_failure_reduction_factor;
 			dynamic_minimum_suggestion = time_step_length;
 		}
-		else if(accepted_step_count > 1){ // initial time step is otherwise maintained for first 2 active time steps
+		else if(accepted_step_count > 1)
+		{ // initial time step is otherwise maintained for first 2 active time steps
 		}
 	}
-	else if (this->time_control_type == TimeControlType::MAX_PV_CHANGE){ //KB0315   
-	//else if(this->time_control_name == "MAX_PV_CHANGE"){ //KB0315
-	//else if (this->time_type_name == "MAX_PV_CHANGE"){ //KB0315
+	else if (this->time_control_type == TimeControlType::MAX_PV_CHANGE)
+	{ 	//KB0315   
+		//else if(this->time_control_name == "MAX_PV_CHANGE"){ //KB0315
+		//else if (this->time_type_name == "MAX_PV_CHANGE"){ //KB0315
 		// activate other process
-    adapt = true;
+    		adapt = true;
 		this->time_active = false; // set this process false, i.e. it is not calculated
 		CRFProcess* m_pcs = PCSGet(this->max_pv_change_pcs_name);
-		if(aktuelle_zeit < MKleinsteZahl){ // only first tim step
+		if(aktuelle_zeit < MKleinsteZahl)
+		{ // only first tim step
 			m_pcs->flag_delta_max = true;
 			m_pcs->pcs_name_delta_max = this->pcs_type_name;
 			m_pcs->var_name_delta_max = this->max_pv_change_var_name;
@@ -867,12 +892,16 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 		time_step_length = m_pcs->Tim->this_stepsize; // set to step length of controlling process
 		
 	}
-	else if(no_time_steps==0){ // Processes without time control
+	else if(no_time_steps==0)
+	{ // Processes without time control
 		time_step_length = DBL_MAX; // Large, thus other processes will control the step
 	}
+
 	// Restrict by minimum
-	if(time_step_length < min_time_step){ // Default value of min_time_step is DBL_EPSILON, unless entered otherwise in the .tim read
+	if(time_step_length < min_time_step)
+	{ // Default value of min_time_step is DBL_EPSILON, unless entered otherwise in the .tim read
 		time_step_length = min_time_step;
+		std::cout << "Time step corrected to minimum value: " << min_time_step << '\n';
 	}
 	// JT: the recommended time step, before critical alteration (for dt control)
 	//     otherwise the critical time will govern time change, rather than primary variable rates.
@@ -884,26 +913,34 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
   {
 	  if (pay_no_mind_to_output == false) // JOD 2015-11-26
 	  {    
-        if (current_time < critical_time[i])
-        {
-          next = current_time + time_step_length;
-	   	  tval = next + time_step_length / 1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step. JOD takes a power of 2 to speedup multiplication
-          if (tval > critical_time[i]){						// Critical time is hit
-            if (next != critical_time[i]){					// otherwise, match is already exact
-              time_step_length = (critical_time[i] - current_time);
-            }
-            break;
-          }
-          else if (tval + time_step_length > critical_time[i]){ // We can hit the critical time in 2 time steps, smooth the transition
-            if (next + time_step_length != critical_time[i]){ // otherwise, match is already exact
-             time_step_length = (critical_time[i] - current_time) / 2.0;
-            }
-            break;
-          }
-          break;
-        }
-      }
+        	if (current_time < critical_time[i])
+        	{
+          		next = current_time + time_step_length;
+	   	  	tval = next + time_step_length / 1.0e3;				// JT2012. A tiny increase in dt is better than a miniscule dt on the next step. JOD takes a power of 2 to speedup multiplication
+          		if (tval > critical_time[i])
+			{						// Critical time is hit
+            			if (next != critical_time[i])
+				{					// otherwise, match is already exact
+              				time_step_length = (critical_time[i] - current_time);
+            			}
+            			break;
+          		}
+          		else if (tval + time_step_length > critical_time[i])
+			{ // We can hit the critical time in 2 time steps, smooth the transition
+            			if (next + time_step_length != critical_time[i])
+				{ // otherwise, match is already exact
+             				time_step_length = (critical_time[i] - current_time) / 2.0;
+            			}
+            			break;
+          		}
+          		break;
+        	}
+      	}
   }
+
+  if(current_time + time_step_length > time_end)  // JOD 2021-08-02
+	  time_step_length = time_end - current_time;
+
   //
   next_active_time = current_time + time_step_length;
   return time_step_length;
@@ -1044,8 +1081,10 @@ double CTimeDiscretization::FirstTimeStepEstimate(void)
 //	double density_fluid = m_mfp->Density(); //WW // TF: set, but never used
 
 	const double initial_time_step = std::max(initial_step_size, min_time_step);
+	return initial_time_step;
 
-	for (size_t n_p = 0; n_p < pcs_vector.size(); n_p++)
+// the following removed by JOD 2021-08-02
+/*	for (size_t n_p = 0; n_p < pcs_vector.size(); n_p++)
 	{
 		m_pcs = pcs_vector[n_p];
 		CFiniteElementStd* fem = m_pcs->GetAssembler();
@@ -1157,7 +1196,8 @@ double CTimeDiscretization::FirstTimeStepEstimate(void)
 			break;
 		}
 	}
-	return time_step_length;
+	return time_start;
+*/
 }
 
 /**************************************************************************
@@ -1646,19 +1686,27 @@ double CTimeDiscretization::SelfAdaptiveTimeControl ( void )
 	const FiniteElement::ProcessType pcs_type (FiniteElement::convertProcessType (pcs_type_name));
 	for (size_t n_p = 0; n_p < pcs_vector.size(); n_p++)
 	{
-		if (pcs_vector[n_p]->getProcessType() == pcs_type) {
+		if (pcs_vector[n_p]->getProcessType() == pcs_type)
+		{
 			m_pcs = pcs_vector[n_p];
-			if (adapt_itr_type==IterationType::LINEAR) {
+			if (adapt_itr_type==IterationType::LINEAR) 
+			{
 				n_itr = std::max(n_itr, m_pcs->iter_lin_max);
-			} else if (adapt_itr_type==IterationType::NONLINEAR) {
+			} 
+			else if (adapt_itr_type==IterationType::NONLINEAR)
+			{
 				n_itr = std::max(n_itr, m_pcs->iter_nlin_max);
-			} else if (adapt_itr_type==IterationType::COUPLED
-					|| adapt_itr_type==IterationType::COUPLED_STABLE_ERROR) {
+			} 
+			else if (adapt_itr_type==IterationType::COUPLED
+					|| adapt_itr_type==IterationType::COUPLED_STABLE_ERROR) 
+			{
 				n_itr = m_pcs->iter_outer_cpl + 1;
 			}
 		}
 	}
-	if (!m_pcs) {
+
+	if (!m_pcs)
+	{
 		ScreenMessage("-> ERROR in SelfAdaptiveTimeControl(): PCS not found\n");
 		return 0.0;
 	}
@@ -1667,14 +1715,17 @@ double CTimeDiscretization::SelfAdaptiveTimeControl ( void )
 	double multiplier = 1.0;
 	if (!time_adapt_coe_vector.empty())
 		multiplier = time_adapt_coe_vector.back();
-	for (std::size_t i=0; i<time_adapt_tim_vector.size(); i++ ) {
-		if (n_itr <= time_adapt_tim_vector[i] ) {
+	for (std::size_t i=0; i<time_adapt_tim_vector.size(); i++ )
+	{
+		if (n_itr <= time_adapt_tim_vector[i] )
+		{
 			multiplier = time_adapt_coe_vector[i];
 			break;
 		}
 	}
 
-	if (adapt_itr_type==IterationType::COUPLED_STABLE_ERROR){
+	if (adapt_itr_type==IterationType::COUPLED_STABLE_ERROR)
+	{
 		double const inverse_error(1/m_pcs->cpl_max_relative_error);
 		if (inverse_error < 2*multiplier)
 		{
@@ -1685,12 +1736,16 @@ double CTimeDiscretization::SelfAdaptiveTimeControl ( void )
 		}
 	}
 
-	if (!m_pcs->accepted) {
+	if (!m_pcs->accepted) 
+	{
 		multiplier = time_adapt_coe_vector.back();
-	} else if (stay_steps_after_rejection > 0 && multiplier > 1.0) {
+	} 
+	else if (stay_steps_after_rejection > 0 && multiplier > 1.0) 
+	{
 		// don't increase time step size if a simulation has experienced rejection recently
 		double consecutive_successful_steps = aktueller_zeitschritt - last_rejected_timestep;
-		if (consecutive_successful_steps <= stay_steps_after_rejection) {
+		if (consecutive_successful_steps <= stay_steps_after_rejection)
+		{
 			multiplier = 1.0;
 			std::cout << "Time step size will not be increased because of rejection experienced in last time steps. \n";
 		}

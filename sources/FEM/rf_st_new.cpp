@@ -8,13 +8,17 @@
 
 #include "rf_fct.h"
 
+#include "fem_ele_std.h"
 #include "makros.h"
 // C++ STL
 //#include <fstream>
 #include <cfloat>
+#include <cmath>
 #include <iostream>
 #include <numeric>
+#include <limits>
 #include <set>
+#include <stdexcept>
 
 #include "display.h"
 #include "files0.h"
@@ -60,8 +64,11 @@ using Math_Group::CSparseMatrix;
 //#include "problem.h"
 // For analytical source terms
 #include "rf_mfp_new.h"
+#include "rf_msp_new.h"
+#include "rf_mmp_new.h"
 #include "rf_node.h"
 #include "rfmat_cp.h"
+
 
 // Base
 #include "quicksort.h"
@@ -88,6 +95,12 @@ using Math_Group::vec;
 #ifndef GRAVITY_CONSTANT
 #define GRAVITY_CONSTANT 9.81
 #endif
+
+#if defined(USE_MPI)
+bool global_flag_keep_values = false;  // to keep ST values and make them consistent over all processors
+#endif
+
+int scaling_node_group_running = 0;
 
 std::vector<CSourceTerm*> st_vector;
 std::list<CSourceTermGroup*> st_group_list;
@@ -137,18 +150,29 @@ CSourceTerm::CSourceTerm() :
 
    connected_geometry = false;
    connected_geometry_verbose_level = 0;
-   connected_geometry_exchange_term = 0.0;
+   connected_geometry_exchange_term = 1.;  // value 1 used as default to use it with BOREHOLE
    connected_geometry_offset = 0.;
    connected_geometry_mode = -1;
    connected_geometry_minimum_velocity_abs = -1;               // JOD 2015-11-18
    connected_geometry_ref_element_number = -1;
    connected_geometry_reference_direction[0] = connected_geometry_reference_direction[1] = connected_geometry_reference_direction[2] = 0;
+   connected_geometry_couplingType = 1; // matrix couplig as default
 
    threshold_geometry = false;
    storageRate_geometry = false;
    ignore_axisymmetry = false;
 
    wdc_connector_materialGroup = -1;
+   wdc_flag_extract_and_reinject = false;
+
+   variable_storage = false;
+
+   scaling_mode = 0;
+   scaling_verbosity = 0;
+   keep_values = false;
+   borehole_mode = -1;
+   average_mode = -1;
+   verbosity = 0;
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -600,12 +624,12 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  if (line_string.find("$CONNECT_MODE") != std::string::npos)  //  JOD 2015-11-18
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> connected_geometry_mode;
-		  if (connected_geometry_mode == 2)
+		  in >> connected_geometry_mode;  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
+		  in >> connected_geometry_couplingType; // 0: RHS (only with mode 1), 1: matrix entry
+		  if ((connected_geometry_mode == 2))
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
-		  this->connected_geometry = true;
 		  in.clear();
 		  continue;
 	  }
@@ -647,59 +671,97 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 	      //FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_HE, *st_file,
 	    	//	  	  well1_geometry_name_HE, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquifer, *st_file,
-	    		  	  well1_geometry_name_aquifer, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBC, *st_file,
-	    		  	  well1_geometry_name_liquidBC, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquifer, *st_file,
-	    		  	  well2_geometry_name_aquifer, geo_obj, unique_name);
-	      FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_liquidBC, *st_file,
-	    		  	  well2_geometry_name_liquidBC, geo_obj, unique_name);
-
+		  if(getGeoType() == GEOLIB::POINT)
+		  {
+			  FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_aquifer, *st_file,
+						  well1_geometry_name_aquifer, geo_obj, unique_name);
+			  FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well1_liquidBC, *st_file,
+						  well1_geometry_name_liquidBC, geo_obj, unique_name);
+			  FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquifer, *st_file,
+						  well2_geometry_name_aquifer, geo_obj, unique_name);
+			  FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_liquidBC, *st_file,
+						  well2_geometry_name_liquidBC, geo_obj, unique_name);
+		  }
+		  else if(getGeoType() == GEOLIB::POLYLINE)
+		  {
+			  FileIO::GeoIO::readGeoInfo(geoInfo_wellDoublet_well2_aquifer, *st_file,
+			  						  well2_geometry_name_aquifer, geo_obj, unique_name);
+			  wdc_flag_extract_and_reinject = true;
+		  }
+		  else
+			  throw std::runtime_error("Error in WDC - GeoType unknown or not supported");
 		  in.clear();
 		  continue;
 	  }
 	  //....................................................................
 	  if (line_string.find("$WELL_DOUBLET_PARAMETER") != std::string::npos) // JOD 2018-06-13
 	  {
+		  std::cout << "Read WDC parameter\n";
 		  int numberOfParameterSets;
-		  double accuracy_temperature = 0.01, accuracy_powerrate = 10., accuracy_flowrate = 1.e-5;  // default values
-		  double well_shutdown_temperature_range = 10.;
+		  double accuracy_temperature = 0.01, accuracy_powerrate = 1e3, accuracy_flowrate = 1.e-5;  // default values
+		  double well_shutdown_temperature_range = 5.;
+		  connected_geometry_mode = 1;  // NNNC downwind fixed
+		  connected_geometry_couplingType = 1; // NNNC via matrix entry as default
+
+		  std::string tmp;
+		  int heat_pump_flag;
+		  std::string heat_pump_file_name;  // for carnot
+
 		  in.str(readNonBlankLineFromInputStream(*st_file));
-		  in >> numberOfParameterSets >> well_shutdown_temperature_range >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate;
-
-		  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range, accuracy_temperature, accuracy_powerrate, accuracy_flowrate);
-		  in.clear();
-		  while(numberOfParameterSets--)  // no check if number is right
+		  in >> tmp >> heat_pump_flag >> heat_pump_file_name;
+		  if(heat_pump_flag == 0)
 		  {
-			  double tmp0, tmp2, tmp3, tmp4;
-		  	  int tmp1;
-
-			  in.str(readNonBlankLineFromInputStream(*st_file));
-			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4;
-			  in.clear();
-			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
-			  ogs_WDC->add_parameterGroup
-			  (
-				tmp0,  // time
-				tmp1,  // scheme indicator [0, 1, 2]
-				tmp2,  // powerrate
-				tmp3,  // target value
-				tmp4  // threshold value
-			  );
+			  std::cout << "\tNo heat pump";
 		  }
+		  else if(heat_pump_flag == 1)
+		  {
+			  in >> heat_pump_file_name;
+			  std::cout << "\tCarnot heat pump - File name: " << heat_pump_file_name <<  "\n";
+		  }
+		  else
+			  throw std::runtime_error("ERROR in heat pump specification");
+		  in.clear();
+
+		  bool logging = false;
+
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> numberOfParameterSets >> well_shutdown_temperature_range
+		  	  >> accuracy_temperature >> accuracy_powerrate >> accuracy_flowrate
+			  >> connected_geometry_couplingType  // as in $CONNECT_MODE
+			  >> logging;
+		  in.clear();
 
 		  if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
 		  {
+			  ogs_WDC = new OGS_WDC(well_shutdown_temperature_range,
+					  accuracy_temperature, accuracy_powerrate, accuracy_flowrate,
+					  m_pcs->ogs_WDC_vector.size(), logging);
+
+			  ogs_WDC->set_heat_pump_parameter(heat_pump_flag, heat_pump_file_name);
+
+			  while(numberOfParameterSets--)  // no check if number is right
+			  {
+				  double tmp0, tmp2, tmp3, tmp4, tmp5=-1.;
+				  int tmp1;
+
+				  in.str(readNonBlankLineFromInputStream(*st_file));
+				  in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5;
+				  in.clear();
+				  ogs_WDC->add_parameterGroup
+				  (
+					tmp0,  // time
+					tmp1,  // scheme indicator [0, 1, 2]
+					tmp2,  // powerrate
+					tmp3,  // target value
+					tmp4,  // threshold value
+					tmp5   // temperature sink for heat pump
+				  );
+			  }
+
 			  m_pcs->ogs_WDC_vector.push_back(ogs_WDC);
 		  }
 		  else
 			  throw std::runtime_error("No PCS for WellDoubletControl");
-
-		  in.clear();
-
-		  std::ofstream stream("logging.txt"); // to delete old file - later, number of iterations are appended
-		  stream << "simulationTime\titerations\tT_HE\n";
 
 		  continue;
 	  }
@@ -714,107 +776,137 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  continue;
 	  }
 	  //....................................................................
-	 	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
-	 	  {
-	 		  std::cout << "CONTRAFLOW_PIPES\n";
-	 		 int tmp0;
-	 		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
+	  if (line_string.find("$SCALING") != std::string::npos) // JODSH 2021-11-04
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> scaling_mode >> scaling_verbosity;  // 1: with permeability, 2: with permeability and viscosity
+		  std::cout << "\tScaling mode " << scaling_mode;
+		  if(scaling_mode == 0)
+			  std::cout << " - No scaling\n";
+		  else if(scaling_mode == 1)
+			  std::cout << " - With horizontal permeability\n";
+		  else if(scaling_mode == 2)
+			  std::cout << " - With horizontal permeability and viscosity\n";
+		  else
+			  throw std::runtime_error("Scaling mode not supported");
 
-	 		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
-	 		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
-	 		 in.clear();
+		  scaling_node_group = scaling_node_group_running;
+		  scaling_node_group_running++;
+		  in.clear();
 
-			 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
-		 	 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
-		 	 in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
+	  {
+		  std::cout << "CONTRAFLOW_PIPES\n";
+		 int tmp0;
+		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
 
-	 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
-	 				 {	// pipe
-	 		 				tmp1,  // d_0_i
-	 		 				tmp2,  // d_0_o
-	 		 				tmp3,  // d_1_i
-	 		 				tmp4,  // d_1_o
-	 		 				tmp5,  // w
-	 		 				tmp6,  // lambda_0
-	 		 				tmp7  // lambda_1
-	 				 },
-					 {	// fluid
-							 tmp8,  // lambda
-							 tmp9,	// mu
-							 tmp10,	// c
-							 tmp11	// rho
-					 }
+		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
+		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
+		 in.clear();
 
-	 		 );
+		 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
+		 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
+		 in.clear();
 
-	 		 int numberOfSegments;
-	 		 in.str(readNonBlankLineFromInputStream(*st_file));
-	 		 in >> numberOfSegments;
-	 		 in.clear();
+		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
+				 {	// pipe
+						tmp1,  // d_0_i
+						tmp2,  // d_0_o
+						tmp3,  // d_1_i
+						tmp4,  // d_1_o
+						tmp5,  // w
+						tmp6,  // lambda_0
+						tmp7  // lambda_1
+				 },
+				 {	// fluid
+						 tmp8,  // lambda
+						 tmp9,	// mu
+						 tmp10,	// c
+						 tmp11	// rho
+				 }
 
-	 		 while(numberOfSegments--)  // no check if number is right
-	 		 {
-	 			  in.str(readNonBlankLineFromInputStream(*st_file));
-	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
-	 			  in.clear();
-	 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
-	 			  ogs_contraflow->add_segment_data_group
-	 			  ({
-	 				tmp0,  // N
-	 				tmp1,  // L
-	 				tmp2,  // D
-	 				tmp3  // lambda_g
-	 			  });
-	 		 }
-	 		ogs_contraflow->initialize();
+		 );
+
+		 int numberOfSegments;
+		 in.str(readNonBlankLineFromInputStream(*st_file));
+		 in >> numberOfSegments;
+		 in.clear();
+
+		 while(numberOfSegments--)  // no check if number is right
+		 {
+			  in.str(readNonBlankLineFromInputStream(*st_file));
+			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+			  in.clear();
+			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
+			  ogs_contraflow->add_segment_data_group
+			  ({
+				tmp0,  // N
+				tmp1,  // L
+				tmp2,  // D
+				tmp3  // lambda_g
+			  });
+		 }
+		ogs_contraflow->initialize();
 
 
-			 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
-			 {
-				 m_pcs->ogs_contraflow_vector.push_back(ogs_contraflow);
-			 }
-			 else
-				 throw std::runtime_error("No PCS for WellDoubletControl");
+		 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
+		 {
+			 m_pcs->ogs_contraflow_vector.push_back(ogs_contraflow);
+		 }
+		 else
+			 throw std::runtime_error("No PCS for WellDoubletControl");
 
-	 		 std::cout << "Set contraflow source term\n";
+		 std::cout << "Set contraflow source term\n";
 
-	 		 continue;
-	 	  }
-	 	  //....................................................................
-	 	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
-	 	  {
-	 		 std::cout << "CONTRAFLOW_INPUT\n";
-	 		  int numberOfInputSets;
+		 continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
+	  {
+		 std::cout << "CONTRAFLOW_INPUT\n";
+		  int numberOfInputSets;
 
-	 		  in.str(readNonBlankLineFromInputStream(*st_file));
-	 		  in >> numberOfInputSets;
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> numberOfInputSets;
 
-	 		  in.clear();
-	 		  while(numberOfInputSets--)  // no check if number is right
-	 		  {
-	 			  int tmp1;
-	 			  double tmp0, tmp2, tmp3;
+		  in.clear();
+		  while(numberOfInputSets--)  // no check if number is right
+		  {
+			  int tmp1;
+			  double tmp0, tmp2, tmp3;
 
-	 			  in.str(readNonBlankLineFromInputStream(*st_file));
-	 			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
-	 			  in.clear();
+			  in.str(readNonBlankLineFromInputStream(*st_file));
+			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
+			  in.clear();
 
-	 			  ogs_contraflow->add_input_group
-	 			  (
-	 				tmp0,  // time
-					tmp1,	// mode 0: provide feed in temperature T_in, 1: provide temperature difference dT
-	 				tmp2,  // Q
-	 				tmp3  // T_in / dT
-	 			  );
-	 		  }
-	 		  continue;
-	 	  }
+			  ogs_contraflow->add_input_group
+			  (
+				tmp0,  // time
+				tmp1,	// mode 0: provide feed in temperature T_in, 1: provide temperature difference dT
+				tmp2,  // Q
+				tmp3  // T_in / dT
+			  );
+		  }
+		  continue;
+	  }
 	  //....................................................................
 	  if (line_string.find("$ASSIGN_TO_ELEMENT_EDGE") != std::string::npos)
 	  {
 		 in.clear();
 		 assign_to_element_edge = true;
 		 continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$VARIABLE_STORAGE") != std::string::npos)
+	  {
+		 in.clear();
+		 variable_storage = true;
+		 continue;
+		 std::cout << "VARIABLE STORAGE\n";
+		 std::cout << "\tWARNING: Time step size form LIQUID_FLOW used\n";
 	  }
 	 //....................................................................
       if (line_string.find("$IGNORE_AXISYMMETRY") != std::string::npos)
@@ -823,8 +915,94 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
          ignore_axisymmetry = true;
          continue;
       }
-    /**/
-   }                                              // end !new_keyword
+      //....................................................................
+      if (line_string.find("$KEEP_VALUES") != std::string::npos)
+      {
+         in.clear();
+         keep_values = true;
+#if defined(USE_MPI)
+	  global_flag_keep_values = true;
+#endif
+	  std::cout << "\tKeep values\n";
+         continue;
+      }
+      //....................................................................
+	  if (line_string.find("$BOREHOLE") != std::string::npos && // JOD 2021-12-06
+			  line_string.find("GIVEN_VALUE") == std::string::npos)
+	  {
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> borehole_mode;
+		std::cout << "\tBorehole mode " << borehole_mode;
+
+		switch(borehole_mode)
+		{
+			case -1:
+				std::cout << " - Switched off";
+				break;
+			case 0: // conductive - peaceman
+				// use the following :
+				// $CONNECT_PARAMETERS
+ 				//   1. 0  ; exchange coefficient (is 1. for borehole in mode 0),   verbosity level = 0, 1, 1
+				// $CONNECT_MODE
+				//  0   ; symmetric
+				in >> borehole_data.radius >> connected_geometry_verbose_level;
+				std::cout << " - Radius " << borehole_data.radius;
+				connected_geometry_mode = 0; // NNNC symmetric
+				break;
+			case 1:  // advective (currently only heat) transport - with LIQUID_FLOW source / sink term
+				in >> connected_geometry_verbose_level;
+				connected_geometry_mode = 1; // NNNC non-symmetric
+				break;
+			default:
+				throw std::runtime_error("Borehole mode not supported");
+		}
+
+		std::cout << '\n';
+		
+		connected_geometry = true;  // connected by NNNC (also if not used with $CONNECTED_GEOMETRY)
+
+		in.clear();
+		continue;
+	  }
+      	  //....................................................................
+	  if (line_string.find("$BOREHOLE_GIVEN_VALUE") != std::string::npos) // JOD 2022-02-10
+	  {
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> borehole_data.value;
+		connected_geometry_couplingType = 2; // for source / sink term via RHS
+		in.clear();
+
+		std::cout << "\tBorehole given primary value: " << borehole_data.value << '\n';
+		continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$AVERAGE_MODE") != std::string::npos) //JOD-2021-11-12
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> average_mode >> average_verbosity;  //  0: equal, 1: node area, 2: LIQUID_FLOW ST
+		  std::cout << "\tAverage mode " << average_mode;
+		  if(average_mode == 0)
+			  std::cout << " - equal\n";
+		  else if(average_mode == 1)
+			  std::cout << " - With node area\n";
+		  else if(average_mode == 2)
+			  std::cout << " - With LIQUID_FLOW sink term (take care that values are kept)";
+		  else
+			  throw std::runtime_error("Average mode not supported");
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$VERBOSITY") != std::string::npos) //JOD-2021-11-12
+	  {
+		  in.str(readNonBlankLineFromInputStream(*st_file));
+		  in >> verbosity;
+		  in.clear();
+		  continue;
+	  }
+	  //....................................................................
+
+   } // end!new_keyword
    return position;
 }
 
@@ -1583,1111 +1761,6 @@ void CSourceTermGroup::WriteNodeConnections()
   surfaces.clear();
 }
 
-/**************************************************************************
- ROCKFLOW - Funktion: FaceIntegration
- Task: Translate distributed Neumann boundary condition /source term on edges
- found on a polyline to nodes value for all kinds of element
- Programming:
- 07/2005 WW Re-Implementation
- 12/2005 WW Axismmetry
- **************************************************************************/
-//void CSourceTerm::EdgeIntegration(CFEMesh* msh, vector<long>&nodes_on_ply,
-//		vector<double>&node_value_vector) {
-//	long i, j, k, l;
-//	long this_number_of_nodes;
-//	int elemsCnode;
-//	int nedges, ii;
-//	vec<CNode*> e_nodes(3);
-//	vec<CEdge*> e_edges(12);
-//
-//	double Jac = 0.0;
-//	double Weight = 0.0;
-//	double eta = 0.0;
-//	double v1, v2, radius = 0.0;
-//	double Shfct[3];
-//	bool Const = false;
-//
-//	if (dis_type_name.find("CONSTANT") != std::string::npos)
-//		Const = true;
-//
-//	//CFEMesh* msh = m_pcs->m_msh;
-//	//CFEMesh* msh;  // JOD
-//	//msh = FEMGet(pcs_type_name);
-//	CElem* elem = NULL;
-//	CEdge* edge = NULL;
-//	CNode* node = NULL;
-//
-//	int nSize = (long) msh->nod_vector.size();
-//	this_number_of_nodes = (long) nodes_on_ply.size();
-//	vector<long> G2L(nSize);
-//	vector<double> NVal(this_number_of_nodes);
-//
-//	// Unmakr edges.
-//	for (i = 0; i < (long) msh->edge_vector.size(); i++)
-//		msh->edge_vector[i]->SetMark(false);
-//	for (i = 0; i < nSize; i++) {
-//		msh->nod_vector[i]->SetMark(false);
-//		G2L[i] = -1;
-//	}
-//
-//	// Search edges on polyline
-//	for (i = 0; i < this_number_of_nodes; i++) {
-//		NVal[i] = 0.0;
-//		k = nodes_on_ply[i];
-//		G2L[k] = i;
-//		node = msh->nod_vector[k];
-//		elemsCnode = (int) node->connected_elements.size();
-//		for (j = 0; j < elemsCnode; j++) {
-//			l = msh->nod_vector[k]->connected_elements[j];
-//			elem = msh->ele_vector[l];
-//			nedges = elem->GetEdgesNumber();
-//			elem->GetEdges(e_edges);
-//			for (ii = 0; ii < nedges; ii++) {
-//				edge = e_edges[ii];
-//				if (edge->GetMark())
-//					continue;
-//				edge->GetNodes(e_nodes);
-//				// Edge A
-//				if (*node == *e_nodes[0])
-//					e_nodes[0]->SetMark(true);
-//				// Edge B
-//				if (*node == *e_nodes[1])
-//					e_nodes[1]->SetMark(true);
-//				if (msh->getOrder()) // Quadratic
-//				{
-//					if (*node == *e_nodes[2])
-//						e_nodes[2]->SetMark(true);
-//				}
-//				if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark()) {
-//					if (msh->getOrder()) {
-//						if (e_nodes[2]->GetMark())
-//							edge->SetMark(true);
-//					} else
-//						edge->SetMark(true);
-//				}
-//
-//			}// e_edges
-//		}
-//	}
-//
-//	for (i = 0; i < (long) msh->edge_vector.size(); i++) {
-//		edge = msh->edge_vector[i];
-//		if (!edge->GetMark())
-//			continue;
-//		edge->GetNodes(e_nodes);
-//		if (msh->getOrder()) // Quad
-//		{
-//			if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark()
-//					&& e_nodes[2]->GetMark()) {
-//				Jac = 0.5 * edge->Length();
-//				v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
-//				v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-//				if (Const && (!msh->isAxisymmetry())) {
-//					NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1 / 3.0;
-//					NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1 / 3.0;
-//					NVal[G2L[e_nodes[2]->GetIndex()]] += 4.0 * Jac * v1 / 3.0;
-//
-//				} else {
-//					for (k = 0; k < 3; k++) // Three nodes
-//					{
-//						// Numerical integration
-//						for (l = 0; l < 3; l++) // Gauss points
-//						{
-//							Weight = Jac * MXPGaussFkt(3, l);
-//							eta = MXPGaussPkt(3, l);
-//							ShapeFunctionLineHQ(Shfct, &eta);
-//							//Axisymmetical problem
-//							if (msh->isAxisymmetry()) {
-//								radius = 0.0;
-//								for (ii = 0; ii < 3; ii++)
-//									radius += Shfct[ii] * e_nodes[ii]->X();
-//								Weight *= radius; //2.0*pai*radius;
-//							}
-//							NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
-//									+ eta * (v2 - v1)) * Shfct[k] * Weight;
-//						}
-//					}
-//				}
-//			}
-//		} else // Linear
-//		{
-//			if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark()) {
-//				Jac = 0.5 * edge->Length();
-//				v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
-//				v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-//				if (!msh->isAxisymmetry()) {
-//					if (Const) {
-//						NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1;
-//						NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1;
-//					} else {
-//						NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * (2.0 * v1
-//								+ v2) / 3.0;
-//						NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * (v1 + 2.0
-//								* v2) / 3.0;
-//					}
-//				} else // Axisymmetry
-//				{
-//
-//					for (k = 0; k < 2; k++) // Three nodes
-//					{
-//						// Numerical integration
-//						for (l = 0; l < 3; l++) // Gauss points
-//						{
-//							Weight = Jac * MXPGaussFkt(3, l);
-//							eta = MXPGaussPkt(3, l);
-//							ShapeFunctionLine(Shfct, &eta);
-//							//Axisymmetical problem
-//							if (msh->isAxisymmetry()) {
-//								radius = 0.0;
-//								for (ii = 0; ii < 2; ii++)
-//									radius += Shfct[ii] * e_nodes[ii]->X();
-//								Weight *= radius; //2.0*pai*radius;
-//							}
-//							NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
-//									+ eta * (v2 - v1)) * Shfct[k] * Weight;
-//						}
-//					}
-//				}// End of is (!axi)
-//			}
-//		}
-//	}
-//	for (i = 0; i < this_number_of_nodes; i++)
-//		node_value_vector[i] = NVal[i];
-//	for (i = 0; i < (long) msh->edge_vector.size(); i++)
-//		msh->edge_vector[i]->SetMark(true);
-//	for (i = 0; i < nSize; i++)
-//		msh->nod_vector[i]->SetMark(true);
-//	NVal.clear();
-//	G2L.clear();
-//	e_nodes.resize(0);
-//	e_edges.resize(0);
-//}
-
-double AreaProjection(CEdge *edge, FiniteElement::PrimaryVariable primaryVariable)
-{
-	double area_projection (0);
-//	const double epsilon (1.0e-8); //tolerance to decide whether projection is used
-	//compute edge normal vector
-	double edge_normal[3];//edge integration is 2 dimensional
-	double elemNormalVector[3];
-
-	elemNormalVector[0] = 0;
-	elemNormalVector[1] = 0;
-	elemNormalVector[2] = 1;
-
-	edge->SetNormalVector(elemNormalVector, edge_normal); // Attenzione! This only works if nodes are numbered counter-clockwise.
-	//TODO: distinguish coordinate systems!
-	//if coordinate axes are at an angle with edges
-//	if (fabs(edge_normal[0]) > epsilon && fabs(edge_normal[1]) > epsilon) {
-		if (primaryVariable == FiniteElement::DISPLACEMENT_X)
-			area_projection = edge_normal[0];
-		else if (primaryVariable == FiniteElement::DISPLACEMENT_Y)
-			area_projection = edge_normal[1];
-//	}
-
-	return area_projection;
-}
-
-
-void CSourceTerm::EdgeIntegration(CFEMesh* msh, const std::vector<long>&nodes_on_ply,
-std::vector<double>&node_value_vector) const
-{
-   long i, j, k, l;
-   long this_number_of_nodes;
-   int elemsCnode;
-   int nedges, ii;
-   vec<CNode*> e_nodes(3);
-   vec<CEdge*> e_edges(12);
-
-   double Jac = 0.0;
-   double Weight = 0.0;
-   double eta = 0.0;
-   double v1, v2, radius = 0.0;
-   double Shfct[3];
-
-   double area_projection (1.0); //for projection of element areas for edges not parallel to the coordinate axes
-   bool Const = false;
-   if (this->getProcessDistributionType() == FiniteElement::CONSTANT || this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
-      Const = true;
-
-   //CFEMesh* msh = m_pcs->m_msh;
-   //CFEMesh* msh;  // JOD
-   //msh = FEMGet(pcs_type_name);
-   CElem* elem = NULL;
-   CEdge* edge = NULL;
-   CNode* node = NULL;
-
-   int nSize = (long) msh->nod_vector.size();
-   this_number_of_nodes = (long) nodes_on_ply.size();
-   std::vector<long> G2L(nSize);
-   std::vector<double> NVal(this_number_of_nodes);
-
-// CB THMBM
-   // CB added to remove bug with deactivated Subdomains
-   //for(i=0;i<(long)pcs_vector.size();i++){
-   //  if(pcs_vector[i]->getProcessType()==this->getProcessType())
-   //  {
-   //    pcs_vector[i]->CheckMarkedElement();
-   //    break;
-   //  }
-   //}
-
-   // Unmakr edges.
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
-      msh->edge_vector[i]->SetMark(false);
-   for (i = 0; i < nSize; i++)
-   {
-      msh->nod_vector[i]->SetMark(false);
-      G2L[i] = -1;
-   }
-
-   // Search edges on polyline
-   for (i = 0; i < this_number_of_nodes; i++)
-   {
-      NVal[i] = 0.0;
-      k = nodes_on_ply[i];
-      G2L[k] = i;
-      node = msh->nod_vector[k];
-      elemsCnode = (int) node->getConnectedElementIDs().size();
-      for (j = 0; j < elemsCnode; j++)
-      {
-         l = msh->nod_vector[k]->getConnectedElementIDs()[j];
-         elem = msh->ele_vector[l];
-         nedges = elem->GetEdgesNumber();
-         elem->GetEdges(e_edges);
-         for (ii = 0; ii < nedges; ii++)
-         {
-            edge = e_edges[ii];
-            if (edge->GetMark())
-               continue;
-            edge->GetNodes(e_nodes);
-            // Edge A
-            if (*node == *e_nodes[0])
-               e_nodes[0]->SetMark(true);
-            // Edge B
-            if (*node == *e_nodes[1])
-               e_nodes[1]->SetMark(true);
-            if (msh->getOrder())                  // Quadratic
-            {
-               if (*node == *e_nodes[2])
-                  e_nodes[2]->SetMark(true);
-            }
-            if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark())
-            {
-               if (msh->getOrder())
-               {
-                  if (e_nodes[2]->GetMark())
-                     edge->SetMark(true);
-               } else
-               edge->SetMark(true);
-            }
-
-         }                                        // e_edges
-      }
-   }
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-   const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
-   const size_t id_act_h_min =  msh->GetNodesNumber(false);
-   const size_t id_act_h_max =  msh->getLargestActiveNodeID_Quadratic();
-
-   struct loc_function
-   {
-      static bool isIDinRange( const size_t n_id, const size_t id_max0, 
-                                   const size_t id_min1,  const size_t id_max1 )
-      {
-	return (n_id < id_max0) || (n_id >= id_min1 && n_id <  id_max1);
-      }
-   };
-#endif
-
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
-   {
-	   edge = msh->edge_vector[i];
-	   if (!edge->GetMark())
-		   continue;
-	   edge->GetNodes(e_nodes);
-
-	   if (this->isPressureBoundaryCondition())
-	   {
-		   area_projection=AreaProjection(edge, this->getProcessPrimaryVariable());
-
-	   }
-
-      if (msh->getOrder())                        // Quadradic shape functions
-      {
-         if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark()
-            && e_nodes[2]->GetMark())
-         {
-            Jac = 0.5 * edge->getLength()*area_projection;
-            v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
-            v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (Const && (!msh->isAxisymmetry() || ignore_axisymmetry))
-            {
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-              if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
-#endif
-               NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1 / 3.0;
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	      if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
-#endif
-               NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1 / 3.0;
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	      if(loc_function::isIDinRange( e_nodes[2]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
-#endif
-               NVal[G2L[e_nodes[2]->GetIndex()]] += 4.0 * Jac * v1 / 3.0;
-
-            }
-            else
-            {
-               for (k = 0; k < 3; k++)            // Three nodes
-               {
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-                 if( !loc_function::isIDinRange(  e_nodes[k]->GetIndex(), id_act_l_max, id_act_h_min, id_act_h_max))
-                    continue;
-#endif
-                  // Numerical integration
-                  for (l = 0; l < 3; l++)         // Gauss points
-                  {
-                     Weight = Jac * MXPGaussFkt(3, l);
-                     eta = MXPGaussPkt(3, l);
-                     ShapeFunctionLineHQ(Shfct, &eta);
-                     //Axisymmetical problem
-                     if (msh->isAxisymmetry())
-                     {
-                        radius = 0.0;
-                        for (ii = 0; ii < 3; ii++)
-                           radius += Shfct[ii] * e_nodes[ii]->getData()[0];
-                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
-                     }
-                     NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
-                        + eta * (v2 - v1)) * Shfct[k] * Weight;
-
-                  }
-
-               }
-            }
-         }
-      } else                                      // Linear shape functions
-      {
-         if (e_nodes[0]->GetMark() && e_nodes[1]->GetMark())
-         {
-            Jac = 0.5 * edge->getLength()*area_projection;
-            v1 = node_value_vector[G2L[e_nodes[0]->GetIndex()]];
-            v2 = node_value_vector[G2L[e_nodes[1]->GetIndex()]];
-            if (!msh->isAxisymmetry()  && !ignore_axisymmetry)
-            {
-               if (Const)
-               {
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	          if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max,
-                                            id_act_h_min, id_act_h_max))
-#endif
-                  NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * v1;
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	          if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max,
-                                            id_act_h_min, id_act_h_max))
-#endif
-                  NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * v1;
-               }
-               else
-               {
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	         if(loc_function::isIDinRange( e_nodes[0]->GetIndex(), id_act_l_max, 
-                                            id_act_h_min, id_act_h_max))
-#endif
-                  NVal[G2L[e_nodes[0]->GetIndex()]] += Jac * (2.0 * v1
-                     + v2) / 3.0;
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-	         if(loc_function::isIDinRange( e_nodes[1]->GetIndex(), id_act_l_max,
-                                                id_act_h_min, id_act_h_max))
-#endif
-                  NVal[G2L[e_nodes[1]->GetIndex()]] += Jac * (v1 + 2.0
-                     * v2) / 3.0;
-               }
-            } else                                // Axisymmetry
-            {
-
-               for (k = 0; k < 2; k++)            // Three nodes
-               {
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-                  if( !loc_function::isIDinRange( e_nodes[k]->GetIndex(), id_act_l_max, 
-                                                  id_act_h_min, id_act_h_max) )           
-                    continue; 
-#endif
-                  // Numerical integration
-                  for (l = 0; l < 3; l++)         // Gauss points
-                  {
-                     Weight = Jac * MXPGaussFkt(3, l);
-                     eta = MXPGaussPkt(3, l);
-                     ShapeFunctionLine(Shfct, &eta);
-                     //Axisymmetical problem
-                     if (msh->isAxisymmetry() && !ignore_axisymmetry)
-                     {
-                        radius = 0.0;
-                        for (ii = 0; ii < 2; ii++)
-                           radius += Shfct[ii] * e_nodes[ii]->getData()[0];
-                        Weight *= radius * 6.283185307179586;         //2.0*pai*radius;
-                     }
-                     NVal[G2L[e_nodes[k]->GetIndex()]] += 0.5 * (v1 + v2
-                        + eta * (v2 - v1)) * Shfct[k] * Weight;
-                  }
-               }
-            }                                     // End of is (!axi)
-         }
-      }
-   }
-   for (i = 0; i < this_number_of_nodes; i++)
-   {
-      node_value_vector[i] = NVal[i];
-      node = msh->nod_vector[nodes_on_ply[i]];
-   }
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
-      msh->edge_vector[i]->SetMark(true);
-   for (i = 0; i < nSize; i++)
-      msh->nod_vector[i]->SetMark(true);
-   NVal.clear();
-   G2L.clear();
-   e_nodes.resize(0);
-   e_edges.resize(0);
-}
-
-
-/**************************************************************************
- ROCKFLOW - Funktion: FaceIntegration
- Task: Translate distributed Neumann boundary condition /source term on faces
- found on a surface into nodes value for all kinds of element
- Programming:
- 08/2005 WW Re-Implementation
- 11/2005 WW/OK Layer optimization
- 01/2010 NW improvement of efficiency to search faces
- **************************************************************************/
-
-/*
-void CSourceTerm::FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
-                std::vector<double>&node_value_vector)
-{
-   if (!msh)
-   {
-      std::cout
-         << "Warning in CSourceTerm::FaceIntegration: no MSH data, function doesn't function";
-      return;
-   }
-
-   long i, j, k, l;
-   long this_number_of_nodes;
-   int nfaces, nfn;
-   int nodesFace[8];
-   double nodesFVal[8];
-
-   bool Const = false;
-   if (this->getProcessDistributionType() == FiniteElement::CONSTANT
-                   || this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN
-                   || this->getProcessDistributionType() == FiniteElement::RECHARGE)    //MW
-      //        if (dis_type_name.find("CONSTANT") != std::string::npos)
-      Const = true;
-   //----------------------------------------------------------------------
-   // Interpolation of polygon values to nodes_on_sfc
-   if (!Const)                                    // Get node BC by interpolation with surface
-   {
-      int nPointsPly = 0;
-      double Area1, Area2;
-      double Tol = 1.0e-9;
-      bool Passed;
-      const int Size = (int) nodes_on_sfc.size();
-      double gC[3], p1[3], p2[3], vn[3], unit[3], NTri[3];
-
-      CGLPolyline* m_polyline = NULL;
-      Surface *m_surface = NULL;
-      m_surface = GEOGetSFCByName(geo_name);      //CC
-
-      // list<CGLPolyline*>::const_iterator p = m_surface->polyline_of_surface_list.begin();
-      std::vector<CGLPolyline*>::iterator p =
-         m_surface->polyline_of_surface_vector.begin();
-
-      for (j = 0; j < Size; j++)
-      {
-          double const*const pn (msh->nod_vector[nodes_on_sfc[j]]->getData());
-//         pn[0] = msh->nod_vector[nodes_on_sfc[j]]->X();
-//         pn[1] = msh->nod_vector[nodes_on_sfc[j]]->Y();
-//         pn[2] = msh->nod_vector[nodes_on_sfc[j]]->Z();
-         node_value_vector[j] = 0.0;
-         Passed = false;
-         // nodes close to first polyline
-         p = m_surface->polyline_of_surface_vector.begin();
-         while (p != m_surface->polyline_of_surface_vector.end())
-         {
-               m_polyline = *p;
-               // Grativity center of this polygon
-               for (i = 0; i < 3; i++)
-                  gC[i] = 0.0;
-               vn[2] = 0.0;
-               nPointsPly = (int) m_polyline->point_vector.size();
-               if (m_polyline->point_vector.front() == m_polyline->point_vector.back())
-                  nPointsPly -= 1;
-               for (i = 0; i < nPointsPly; i++)
-               {
-                  gC[0] += m_polyline->point_vector[i]->x;
-                  gC[1] += m_polyline->point_vector[i]->y;
-                  gC[2] += m_polyline->point_vector[i]->z;
-
-                  vn[2] += m_polyline->point_vector[i]->getPropert();
-               }
-               for (i = 0; i < 3; i++)
-                  gC[i] /= (double) nPointsPly;
-               // BC value at center is an average of all point values of polygon
-               vn[2] /= (double) nPointsPly;
-
-               // Area of this polygon by the grativity center
-               for (i = 0; i < nPointsPly; i++)
-               {
-                  p1[0] = m_polyline->point_vector[i]->x;
-                  p1[1] = m_polyline->point_vector[i]->y;
-                  p1[2] = m_polyline->point_vector[i]->z;
-                  k = i + 1;
-                  if (i == nPointsPly - 1)
-                     k = 0;
-                  p2[0] = m_polyline->point_vector[k]->x;
-                  p2[1] = m_polyline->point_vector[k]->y;
-                  p2[2] = m_polyline->point_vector[k]->z;
-
-                  vn[0] = m_polyline->point_vector[i]->getPropert();
-                  vn[1] = m_polyline->point_vector[k]->getPropert();
-
-                  Area1 = fabs(ComputeDetTri(p1, gC, p2));
-
-                  Area2 = 0.0;
-                  // Check if pn is in the triangle by points (p1, gC, p2)
-                  Area2 = fabs(ComputeDetTri(p2, gC, pn));
-                  unit[0] = fabs(ComputeDetTri(gC, p1, pn));
-                  unit[1] = fabs(ComputeDetTri(p1, p2, pn));
-                  Area2 += unit[0] + unit[1];
-                  if (fabs(Area1 - Area2) < Tol)
-                  {
-                      // Intopolation whin triangle (p1,p2,gC)
-                      // Shape function
-                      for (l = 0; l < 2; l++)
-                         unit[l] /= Area1;
-                      ShapeFunctionTri(NTri, unit);
-                      for (l = 0; l < 3; l++)
-                         node_value_vector[j] += vn[l] * NTri[l];
-                      Passed = true;
-                      break;
-                   }
-
-                }
-                //
-                p++;
-                if (Passed)
-                   break;
-             }                                        // while
-          }                                           //j
-       }
-
-       int Axisymm = 1;                               // ani-axisymmetry
-       //CFEMesh* msh = m_pcs->m_msh;
-       if (msh->isAxisymmetry())
-          Axisymm = -1;                               // Axisymmetry is true
-       CElem* elem = NULL;
-       CElem* face = new CElem(1);
-       CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
-       CNode* e_node = NULL;
-       CElem* e_nei = NULL;
-       //vec<CNode*> e_nodes(20);
-       // vec<CElem*> e_neis(6);
-
-       face->SetFace();
-       this_number_of_nodes = (long) nodes_on_sfc.size();
-       int nSize = (long) msh->nod_vector.size();
-       std::vector<long> G2L(nSize);
-       std::vector<double> NVal(this_number_of_nodes);
-       for (i = 0; i < nSize; i++)
-         {
-            msh->nod_vector[i]->SetMark(false);
-            G2L[i] = -1;
-         }
-
-         for (i = 0; i < this_number_of_nodes; i++)
-         {
-            NVal[i] = 0.0;
-            k = nodes_on_sfc[i];
-            G2L[k] = i;
-         }
-
-         //----------------------------------------------------------------------
-         // NW 15.01.2010
-         // 1) search element faces on the surface
-         // 2) face integration
-
-         //init
-         for (i = 0; i < (long) msh->ele_vector.size(); i++)
-         {
-            msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
-         }
-         std::set<long> set_nodes_on_sfc;               //unique set of node id on the surface
-         for (i = 0; i < (long) nodes_on_sfc.size(); i++)
-         {
-            set_nodes_on_sfc.insert(nodes_on_sfc[i]);
-         }
-
-         //filtering elements: elements should have nodes on the surface
-         //Notice: node-elements relation has to be constructed beforehand
-         // CB THMBM
-         //this->getProcess()->CheckMarkedElement(); // CB added to remove bug with deactivated Subdomains
-         std::vector<long> vec_possible_elements;
-         for (i = 0; i < this_number_of_nodes; i++)
-         {
-            k = nodes_on_sfc[i];
-            for (j = 0; j < (long) msh->nod_vector[k]->getConnectedElementIDs().size(); j++)
-            {
-               l = msh->nod_vector[k]->getConnectedElementIDs()[j];
-               if (msh->ele_vector[l]->selected == 0)
-                  vec_possible_elements.push_back(l);
-               msh->ele_vector[l]->selected += 1;       // remember how many nodes of an element are on the surface
-            }
-         }
-
-         //search elements & face integration
-      #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-            const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
-            const size_t id_act_h_min = msh-> GetNodesNumber(false);
-            const size_t id_act_h_max = msh->getLargestActiveNodeID_Quadratic();
-      #endif
-            int count;
-            double fac = 1.0;
-            for (i = 0; i < (long) vec_possible_elements.size(); i++)
-            {
-               elem = msh->ele_vector[vec_possible_elements[i]];
-               if (!elem->GetMark())
-                  continue;
-               nfaces = elem->GetFacesNumber();
-               elem->SetOrder(msh->getOrder());
-               for (j = 0; j < nfaces; j++)
-               {
-                  e_nei = elem->GetNeighbor(j);
-                  nfn = elem->GetElementFaceNodes(j, nodesFace);
-                  //1st check
-                  if (elem->selected < nfn)
-                     continue;
-
-                  if(elem->GetDimension() != 3)
-                     continue;
-
-                  //2nd check: if all nodes of the face are on the surface
-                  count = 0;
-                  for (k = 0; k < nfn; k++)
-                  {
-                     e_node = elem->GetNode(nodesFace[k]);
-                     if (set_nodes_on_sfc.count(e_node->GetIndex()) > 0)
-                     {
-                        count++;
-                     }
-                  }
-                  if (count != nfn)
-                     continue;
-                  // face integration
-                  for (k = 0; k < nfn; k++)
-                  {
-                     e_node = elem->GetNode(nodesFace[k]);
-                     nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
-                  }
-                  fac = 1.0;
-                                                           // Not a surface face
-                  if (elem->GetDimension() == e_nei->GetDimension())
-                     fac = 0.5;
-                  face->SetFace(elem, j);
-                  face->SetOrder(msh->getOrder());
-                  face->ComputeVolume();
-                  fem->setOrder(msh->getOrder() + 1);
-                  fem->ConfigElement(face, this->_pcs->m_num->ele_gauss_points, true);
-                  fem->FaceIntegration(nodesFVal);
-                      for (k = 0; k < nfn; k++)
-                      {
-                         e_node = elem->GetNode(nodesFace[k]);
-
-             #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-                         if(     (e_node->GetIndex() < id_act_l_max)
-                             ||  (    e_node->GetIndex() >= id_act_h_min
-                                      &&  e_node->GetIndex() < id_act_h_max)
-                          )
-             #endif
-                         NVal[G2L[e_node->GetIndex()]] += fac * nodesFVal[k];
-                      }
-                   }
-                }
-
-
-
-   for (i = 0; i < this_number_of_nodes; i++)
-      node_value_vector[i] = NVal[i];
-   for (i = 0; i < nSize; i++)
-      msh->nod_vector[i]->SetMark(true);
-
-   NVal.clear();
-   G2L.clear();
-   delete fem;
-   delete face;
-}
-*/
-
-
-
-
-void FaceIntegration(CFEMesh* msh, std::vector<long> const &nodes_on_sfc,
-		std::vector<double>&node_value_vector, Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points)
-{
-   if (!msh)
-   {
-      std::cout
-         << "Warning in CSourceTerm::FaceIntegration: no MSH data, function doesn't function";
-      return;
-   }
-
-   long i, j, k, l;
-   long this_number_of_nodes;
-   int nfaces, nfn;
-   int nodesFace[8];
-   double nodesFVal[8];
-
-   bool Const = false;
-   if (disType == FiniteElement::CONSTANT
-		   || disType == FiniteElement::CONSTANT_NEUMANN
-		   || disType == FiniteElement::RECHARGE)	//MW
-      //	if (dis_type_name.find("CONSTANT") != std::string::npos)
-      Const = true;
-   //----------------------------------------------------------------------
-   // Interpolation of polygon values to nodes_on_sfc
-   if (!Const)                                    // Get node BC by interpolation with surface
-   {
-      int nPointsPly = 0;
-      double Area1, Area2;
-      double Tol = 1.0e-9;
-      bool Passed;
-      const int Size = (int) nodes_on_sfc.size();
-      double gC[3], p1[3], p2[3], vn[3], unit[3], NTri[3];
-
-      CGLPolyline* m_polyline = NULL;
-      //Surface *m_surface = NULL;
-      //m_surface = GEOGetSFCByName(geo_name);      //CC
-
-      // list<CGLPolyline*>::const_iterator p = m_surface->polyline_of_surface_list.begin();
-      std::vector<CGLPolyline*>::iterator p =
-         m_surface->polyline_of_surface_vector.begin();
-
-      for (j = 0; j < Size; j++)
-      {
-    	  double const*const pn (msh->nod_vector[nodes_on_sfc[j]]->getData());
-//         pn[0] = msh->nod_vector[nodes_on_sfc[j]]->X();
-//         pn[1] = msh->nod_vector[nodes_on_sfc[j]]->Y();
-//         pn[2] = msh->nod_vector[nodes_on_sfc[j]]->Z();
-         node_value_vector[j] = 0.0;
-         Passed = false;
-         // nodes close to first polyline
-         p = m_surface->polyline_of_surface_vector.begin();
-         while (p != m_surface->polyline_of_surface_vector.end())
-         {
-            m_polyline = *p;
-            // Grativity center of this polygon
-            for (i = 0; i < 3; i++)
-               gC[i] = 0.0;
-            vn[2] = 0.0;
-            nPointsPly = (int) m_polyline->point_vector.size();
-            if (m_polyline->point_vector.front() == m_polyline->point_vector.back())
-               nPointsPly -= 1;
-            for (i = 0; i < nPointsPly; i++)
-            {
-               gC[0] += m_polyline->point_vector[i]->x;
-               gC[1] += m_polyline->point_vector[i]->y;
-               gC[2] += m_polyline->point_vector[i]->z;
-
-               vn[2] += m_polyline->point_vector[i]->getPropert();
-            }
-            for (i = 0; i < 3; i++)
-               gC[i] /= (double) nPointsPly;
-            // BC value at center is an average of all point values of polygon
-            vn[2] /= (double) nPointsPly;
-
-            // Area of this polygon by the grativity center
-            for (i = 0; i < nPointsPly; i++)
-            {
-               p1[0] = m_polyline->point_vector[i]->x;
-               p1[1] = m_polyline->point_vector[i]->y;
-               p1[2] = m_polyline->point_vector[i]->z;
-               k = i + 1;
-               if (i == nPointsPly - 1)
-                  k = 0;
-               p2[0] = m_polyline->point_vector[k]->x;
-               p2[1] = m_polyline->point_vector[k]->y;
-               p2[2] = m_polyline->point_vector[k]->z;
-
-               vn[0] = m_polyline->point_vector[i]->getPropert();
-               vn[1] = m_polyline->point_vector[k]->getPropert();
-
-               Area1 = fabs(ComputeDetTri(p1, gC, p2));
-
-               Area2 = 0.0;
-               // Check if pn is in the triangle by points (p1, gC, p2)
-               Area2 = fabs(ComputeDetTri(p2, gC, pn));
-               unit[0] = fabs(ComputeDetTri(gC, p1, pn));
-               unit[1] = fabs(ComputeDetTri(p1, p2, pn));
-               Area2 += unit[0] + unit[1];
-               if (fabs(Area1 - Area2) < Tol)
-               {
-                  // Intopolation whin triangle (p1,p2,gC)
-                  // Shape function
-                  for (l = 0; l < 2; l++)
-                     unit[l] /= Area1;
-                  ShapeFunctionTri(NTri, unit);
-                  for (l = 0; l < 3; l++)
-                     node_value_vector[j] += vn[l] * NTri[l];
-                  Passed = true;
-                  break;
-               }
-
-            }
-            //
-            p++;
-            if (Passed)
-               break;
-         }                                        // while
-      }                                           //j
-   }
-
-   int Axisymm = 1;                               // ani-axisymmetry
-   //CFEMesh* msh = m_pcs->m_msh;
-   if (msh->isAxisymmetry())
-      Axisymm = -1;                               // Axisymmetry is true
-   CElem* elem = NULL;
-   CElem* face = new CElem(1);
-   CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
-   CNode* e_node = NULL;
-   CElem* e_nei = NULL;
-   //vec<CNode*> e_nodes(20);
-   // vec<CElem*> e_neis(6);
-
-   face->SetFace();
-   this_number_of_nodes = (long) nodes_on_sfc.size();
-   int nSize = (long) msh->nod_vector.size();
-   std::vector<long> G2L(nSize);
-   std::vector<double> NVal(this_number_of_nodes);
-
-   for (i = 0; i < nSize; i++)
-   {
-
-	   msh->nod_vector[i]->SetMark(false);
-      G2L[i] = -1;
-   }
-
-   for (i = 0; i < this_number_of_nodes; i++)
-   {
-      NVal[i] = 0.0;
-      k = nodes_on_sfc[i];
-      G2L[k] = i;
-   }
-
-   //----------------------------------------------------------------------
-   // NW 15.01.2010
-   // 1) search element faces on the surface
-   // 2) face integration
-
-
-   std::set<long> set_nodes_on_sfc;               //unique set of node id on the surface
-   for (i = 0; i < (long) nodes_on_sfc.size(); i++)
-   {
-      set_nodes_on_sfc.insert(nodes_on_sfc[i]);
-   }
-
-   //filtering elements: elements should have nodes on the surface
-   //Notice: node-elements relation has to be constructed beforehand
-   // CB THMBM
-   //this->getProcess()->CheckMarkedElement(); // CB added to remove bug with deactivated Subdomains
-   std::vector<long> vec_possible_elements;
-
-   std::vector<long> elements_at_geo;
-   std::vector<long> nodes_on_sfc2(nodes_on_sfc);
-
-   msh->GetConnectedElements(nodes_on_sfc2, elements_at_geo);
-
-
-   //init
-   for (i = 0; i < (long) msh->ele_vector.size(); i++)
-   {
-      msh->ele_vector[i]->selected = 0;           //TODO can use a new variable
-   }
-
-   for (i = 0; i < this_number_of_nodes; i++)
-   {
-      k = nodes_on_sfc[i];
-      for (j = 0; j < (long) msh->nod_vector[k]->getConnectedElementIDs().size(); j++)
-      {
-         l = msh->nod_vector[k]->getConnectedElementIDs()[j];
-         if (msh->ele_vector[l]->selected == 0)
-            vec_possible_elements.push_back(l);
-         msh->ele_vector[l]->selected += 1;       // remember how many nodes of an element are on the surface
-      }
-   }
-
-   //for (i = 0; i < msh->ele_vector.size(); i++)
-	 //  std::cout << "----- " << msh->ele_vector[l]->selected << "\n";
-   //search elements & face integration
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-      const size_t id_act_l_max = static_cast<size_t>(msh->getNumNodesLocal());
-      const size_t id_act_h_min = msh-> GetNodesNumber(false);
-      const size_t id_act_h_max = msh->getLargestActiveNodeID_Quadratic();
-#endif
-
-   int count;
-   double fac = 1.0;
-   for (i = 0; i < (long) vec_possible_elements.size(); i++)
-   {
-      elem = msh->ele_vector[vec_possible_elements[i]];
-      if (!elem->GetMark())
-         continue;
-      nfaces = elem->GetFacesNumber();
-      elem->SetOrder(msh->getOrder());
-      for (j = 0; j < nfaces; j++)
-      {
-         e_nei = elem->GetNeighbor(j);
-         nfn = elem->GetElementFaceNodes(j, nodesFace);
-         //1st check
-         if (elem->selected < nfn)
-            continue;
-
-         if(elem->GetDimension() != 3)
-            continue;
-
-         //2nd check: if all nodes of the face are on the surface
-         count = 0;
-         for (k = 0; k < nfn; k++)
-         {
-            e_node = elem->GetNode(nodesFace[k]);
-            if (set_nodes_on_sfc.count(e_node->GetIndex()) > 0)
-            {
-               count++;
-            }
-         }
-         if (count != nfn)
-            continue;
-         // face integration
-         for (k = 0; k < nfn; k++)
-         {
-            e_node = elem->GetNode(nodesFace[k]);
-            nodesFVal[k] = node_value_vector[G2L[e_node->GetIndex()]];
-         }
-         fac = 1.0;
-                                                  // Not a surface face
-         if (elem->GetDimension() == e_nei->GetDimension())
-            fac = 0.5;
-         face->SetFace(elem, j);
-         face->SetOrder(msh->getOrder());
-         face->ComputeVolume();
-         fem->setOrder(msh->getOrder() + 1);
-         fem->ConfigElement(face, ele_gauss_points, true);
-         fem->FaceIntegration(nodesFVal);
-         for (k = 0; k < nfn; k++)
-         {
-            e_node = elem->GetNode(nodesFace[k]);
-
-#if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2013
-            if(     (e_node->GetIndex() < id_act_l_max)
-                ||  (    e_node->GetIndex() >= id_act_h_min
-			 &&  e_node->GetIndex() < id_act_h_max)
-             )
-#endif
-            NVal[G2L[e_node->GetIndex()]] += fac * nodesFVal[k];
-         }
-      }
-   }
-
-   for (i = 0; i < this_number_of_nodes; i++)
-      node_value_vector[i] = NVal[i];
-   for (i = 0; i < nSize; i++)
-      msh->nod_vector[i]->SetMark(true);
-
-   NVal.clear();
-   G2L.clear();
-   delete fem;
-   delete face;
-}
-
-
-
-/**************************************************************************
- ROCKFLOW - Funktion: DomainIntegration
- Task:  Translate distributed source term within elements into nodes value
- for all kinds of element
- Programming:
- 08/2005 WW Re-Implementation
- 09/2010 TF re structured some things
- **************************************************************************/
-void CSourceTerm::DomainIntegration(CFEMesh* msh, const std::vector<long>&nodes_in_dom,
-std::vector<double>&node_value_vector) const
-{
-   double nodesFVal[8];
-
-   int Axisymm = 1;                               // ani-axisymmetry
-   if (msh->isAxisymmetry())
-      Axisymm = -1;                               // Axisymmetry is true
-   CElement* fem = new CElement(Axisymm * msh->GetCoordinateFlag());
-   vec<CNode*> e_nodes(20);
-
-   const size_t this_number_of_nodes (nodes_in_dom.size());
-   const size_t nSize (msh->nod_vector.size());
-   std::vector<long> G2L(nSize);
-   std::vector<double> NVal(this_number_of_nodes);
-
-   for (size_t i = 0; i < nSize; i++)
-   {
-      msh->nod_vector[i]->SetMark(false);
-      G2L[i] = -1;
-   }
-
-   for (size_t i = 0; i < this_number_of_nodes; i++)
-   {
-      NVal[i] = 0.0;
-      G2L[nodes_in_dom[i]] = i;
-   }
-
-   size_t count = 0;
-   for (size_t i = 0; i < msh->ele_vector.size(); i++)
-   {
-      CElem* elem (msh->ele_vector[i]);
-      if (!elem->GetMark())
-         continue;
-      elem->GetNodes(e_nodes);
-      size_t nn = elem->GetNodesNumber(msh->getOrder());
-      count = 0;
-      for (size_t j = 0; j < nn; j++)
-      {
-         for (size_t k = 0; k < this_number_of_nodes; k++)
-         {
-            if (*e_nodes[j] == *msh->nod_vector[nodes_in_dom[k]])
-            {
-               count++;
-               break;
-            }
-         }
-      }
-      if (count != nn)
-         continue;
-      for (size_t j = 0; j < nn; j++)
-         nodesFVal[j] = node_value_vector[G2L[e_nodes[j]->GetIndex()]];
-      fem->ConfigElement(elem, this->_pcs->m_num->ele_gauss_points, true);
-      fem->setOrder(msh->getOrder() + 1);
-      fem->FaceIntegration(nodesFVal);
-      for (size_t j = 0; j < nn; j++)
-         NVal[G2L[e_nodes[j]->GetIndex()]] += nodesFVal[j];
-   }
-
-   for (size_t i = 0; i < this_number_of_nodes; i++)
-      node_value_vector[i] = NVal[i];
-   for (size_t i = 0; i < nSize; i++)
-      msh->nod_vector[i]->SetMark(true);
-
-   NVal.clear();
-   G2L.clear();
-   e_nodes.resize(0);
-   delete fem;
-}
 
 /**************************************************************************
  FEMLib-Method:
@@ -2927,25 +2000,23 @@ void GetGreenAmptNODValue(double &value, CSourceTerm* m_st, long msh_node)
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
 void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
 {
-   //	if (st->COUPLING_SWITCH == true ||
-   //		st->getProcessType() == GROUNDWATER_FLOW ||
-   //		st->getProcessType() == RICHARDS_FLOW ||
-   //		st->getProcessType() == OVERLAND_FLOW)
-   //		GetCouplingNODValuePicard(value, st, cnodev);
-   //	else
-   //		cout << "Error in GetCouplingNODValue";
-
-   if (st->isCoupled() &&
-      (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
+	if((st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
+		      st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	 && st->pcs_type_name_cond == "LIQUID_FLOW")
+	{
+		GetCouplingNODValueConvectiveForm(value, st, cnodev->msh_node_number);
+	}
+	else if (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
       st->getProcessType() == FiniteElement::RICHARDS_FLOW ||
       st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW ||
       st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
-      st->getProcessType() == FiniteElement::HEAT_TRANSPORT) )
+      st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	{
       GetCouplingNODValuePicard(value, st, cnodev);
-   else if (st->isCoupled() &&
-      st->getProcessType() == FiniteElement::OVERLAND_FLOW)
+	}
+	else if (st->getProcessType() == FiniteElement::OVERLAND_FLOW)
 	  GetCouplingNODValueNewton(value, st, cnodev);
-   else
+	else
       std::cout << "Error in GetCouplingNODValue";
 }
 #endif
@@ -3044,12 +2115,10 @@ CNodeValue* cnodev)
    /////
 
 #ifdef NEW_EQS
-#ifdef LIS
    // JOD 2018-5-17
    CSparseMatrix* A = NULL;
-   A = m_pcs_this->eqs_new->get_A();
+   A = m_pcs_this->get_eqs_new()->get_A();
    (*A)(cnodev->msh_node_number, cnodev->msh_node_number) += condArea;
-#endif
 #else
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, condArea);
 #endif
@@ -3059,10 +2128,8 @@ CNodeValue* cnodev)
    {   // gas pressure term 
 
 #ifdef NEW_EQS
-#ifdef LIS
 	   // JOD 2018-5-17
 	   (*A)(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size()) -= condArea;
-#endif
 #else
 		MXInc(cnodev->msh_node_number, cnodev->msh_node_number+ m_pcs_this->m_msh->nod_vector.size(), -condArea);
 #endif
@@ -3077,6 +2144,67 @@ CNodeValue* cnodev)
    if (m_st->no_surface_water_pressure)           // neglect hydrostatic surface liquid pressure
      value = 0; 
 
+}
+#endif
+
+
+/**************************************************************************
+ FEMLib-Method:
+ Task: Source term for convective form of ADE
+ Programing:
+ 03/2020 JOD Implementation
+
+ Restrictions:
+ 	 takes mfp_vector[0]
+ 	 density model gets temperature and only that
+ **************************************************************************/
+#if !defined(USE_PETSC)
+void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, const long mesh_node_number)//CNodeValue* cnodev)
+{
+    //const long mesh_node_number = cnodev->msh_node_number;
+    long eq_index;
+    long dom_node_index;
+    
+    //double  poro = 0.0;
+    //int material_group;
+    //long msh_ele;
+    //size_t number_of_connected_elements;
+    
+    //get process
+   CRFProcess* m_pcs_this = NULL;
+   m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
+   double nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
+
+   eq_index = m_pcs_this->m_msh->nod_vector[mesh_node_number]->GetEquationIndex();
+   //std::cout << temperature << ", ";
+   //double density_test = mfp_vector[0]->Density();
+   //std::cout << " mesh node number: " << mesh_node_number << "; Value: "<< value << '\n';
+   //std::cout << " Equation Index: " << eq_index << '\n';
+
+   if (mfp_vector[0]->get_flag_volumetric_heat_capacity())
+       value *= mfp_vector[0]->get_volumetric_heat_capacity();
+   else
+       value *= mfp_vector[0]->Density(&nodal_val  // only first value of array set and as temperature
+    		   ) * mfp_vector[0]->SpecificHeatCapacity(NULL, true);
+
+#if defined(NEW_EQS)
+#if defined(USE_MPI)  // JOD 2020-04-08
+   //std::cout << "myrank: " << myrank << "; mesh node number: " << mesh_node_number << "; Value: " << value << '\n' ;
+   CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
+   dom_node_index = dom_vector[myrank]->GetDOMNode(mesh_node_number);
+   //std::cout << "mesh node number: " << mesh_node_number << "; dom_node_index: " << dom_node_index << '\n';
+   (*A)(dom_node_index, dom_node_index) -= value;
+#else // not USE_MPI
+   // JOD 2020-3-25
+   CSparseMatrix* A = m_pcs_this->get_eqs_new()->get_A();
+   (*A)(mesh_node_number, mesh_node_number) -= value;
+#endif
+	
+#else  // not  NEW_EQS
+   MXInc(mesh_node_number, mesh_node_number, -value);
+#endif
+
+     value = 0;  // no right hand side term
 }
 #endif
 
@@ -3762,268 +2890,588 @@ void STGroupDelete(std::string pcs_type_name, std::string pcs_pv_name)
  modification:
  05/2010
  **************************************************************************/
+void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
+{
+	CGLPolyline* old_ply (GEOGetPLYByName(st->geo_name));
+	if (old_ply) {
+		std::vector<long> ply_nod_vector;
+		std::vector<long> ply_nod_vector_cond;
+		std::vector<double> ply_nod_val_vector;
+		std::vector<double> ply_nod_vector_cond_length;
+
+		double min_edge_length (m_msh->getMinEdgeLength());
+		m_msh->setMinEdgeLength (old_ply->epsilon);
+		m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(st->getGeoObj()), ply_nod_vector, true);
+		m_msh->setMinEdgeLength (min_edge_length);  // reset value
+
+		if (st->isCoupled() &&
+			!st->isConnectedGeometry())  // if both combined connected nodes are set below
+			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
+
+	    if(st->hasThreshold()) // JOD 2018-02-20
+	    {  // only point supported
+		  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+	    }
+
+	    if(st->calculatedFromStorageRate()) // JOD 2018-02-22
+	    {  // only point supported
+		  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
+		  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
+	    }
+
+		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
+
+		if(st->verbosity)
+		{
+			std::cout << "\t" << ply_nod_vector.size() << " nodes with total value of " << std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.) << '\n';
+			for(int i=0; i< ply_nod_vector.size(); i++)
+			{
+				std::cout << "\t\t" << i << ": " << ply_nod_vector[i] << " with value " << ply_nod_val_vector[i];
+			  	if (st->isConnectedGeometry() &&
+					  st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+					std::cout << " - connected to " << ply_nod_vector_cond[i];
+				std::cout << '\n';
+			}
+		}
+
+		if(st->scaling_verbosity && st->scaling_mode == 1)
+		{
+			std::cout << "Scaling mode: " << st->scaling_mode << '\n';
+			for(long i=0; i < ply_nod_vector.size(); ++i)
+			{
+				std::cout << '\t' << ply_nod_vector[i] << ":\t" << ply_nod_val_vector[i] << '\n'; 
+			}
+		}
+
+		if (st->distribute_volume_flux)   // 5.3.07 JOD
+			DistributeVolumeFlux(st, ply_nod_vector, ply_nod_val_vector);
+
+		st->st_node_ids.clear();
+		st->st_node_ids.resize(ply_nod_vector.size());
+		st->st_node_ids = ply_nod_vector;
+
+		if (st->isConnectedGeometry() &&  // JOD 10/2018
+				st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+		{
+			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
+			  if(st->average_mode == 1)
+			  {
+				  CRFProcess* m_pcs(PCSGet(pcs_type_name));
+
+				  ply_nod_vector_cond_length.resize(ply_nod_vector_cond.size());
+				  std::fill(ply_nod_vector_cond_length.begin(), ply_nod_vector_cond_length.end(), 1.);
+
+				  if (m_msh->GetMaxElementDim() == 1)
+					  FiniteElement::DomainIntegration(m_pcs, ply_nod_vector_cond, ply_nod_vector_cond_length);
+				  else FiniteElement::EdgeIntegration(m_pcs->m_msh, ply_nod_vector_cond, ply_nod_vector_cond_length,
+						  	  	  st->getProcessDistributionType(), st->getProcessPrimaryVariable(),
+								  true, false, 0);//
+								//bc->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+			  }
+			  else if(st->average_mode == -1)  // take nearest point
+			  {
+				CRFProcess* m_pcs(PCSGet(pcs_type_name));
+				std::vector<long> ply_nod_vector_cond_new;
+				for(std::size_t i = 0; i < ply_nod_vector.size(); ++i)
+				{
+			  		double distance_min = 1e10;
+					int j_nearest = -1;
+
+					for(std::size_t j = 0; j < ply_nod_vector_cond.size(); ++j)
+					{
+						const double distance_current = 
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->X() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->X()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->X() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->X()) +
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Y() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Y()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Y() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Y()) +
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Z() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Z()) *
+							(m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Z() - m_pcs->m_msh->nod_vector[ply_nod_vector_cond[j]]->Z());
+						if(distance_min > distance_current)
+						{
+							j_nearest = j;
+						       	distance_min = distance_current;	
+						}
+					}
+					ply_nod_vector_cond_new.push_back(ply_nod_vector_cond[j_nearest]);
+				}				
+
+				ply_nod_vector_cond = ply_nod_vector_cond_new;
+
+			  }
+		}
+		
+
+		if (st->isConstrainedST())
+		{
+			for (std::size_t i(0); i < st->st_node_ids.size(); i++)
+			{
+				st->_constrainedSTNodesIndices.push_back(-1);
+				for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
+					st->pushBackConstrainedSTNode(i, false);
+			}
+		}
+
+
+		if (st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
+			  {
+		  	 	  std::cout << "\tConnect every node with every node of other surface\n";
+				  std::vector<long>::iterator pos;
+				  std::vector<double> ply_nod_val_vector_cond_original;
+
+
+				  SetPolylineNodeValueVector(st, ply_nod_vector_cond, ply_nod_vector_cond /* nod used */, ply_nod_val_vector_cond_original);
+
+		  		  const double total_val_cond_original = std::accumulate(ply_nod_val_vector_cond_original.begin(), ply_nod_val_vector_cond_original.end(), 0.);
+
+	  	  		  if (st->verbosity && st->isConnectedGeometry() &&
+			  		st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+					std::cout << "\t\t\t" << ply_nod_vector_cond.size() << " connected nodes with total value of " << total_val_cond_original << '\n';
+
+
+				  int nod_vector_size = (int)ply_nod_vector.size();
+				  int nod_vector_cond_size = (int)ply_nod_vector_cond.size();
+
+				  for (int i = 0; i < nod_vector_size; i++)  // extend nod_vector
+				  {
+					  for (int j = 1; j < nod_vector_cond_size; j++)
+					  {
+						  pos = ply_nod_vector.begin() + i * nod_vector_cond_size + j;
+						  ply_nod_vector.insert(pos, ply_nod_vector[i * nod_vector_cond_size + j - 1]);
+					  }
+				  }
+
+				  for (int i = 1; i < nod_vector_size; i++)  // extend nod_vector_cond
+				  {
+					  for (int j = 0; j < nod_vector_cond_size; j++)
+					  {
+						  ply_nod_vector_cond.push_back(ply_nod_vector_cond[j]);
+					  }
+				  }
+
+				  // extend nod_val_vector
+				  std::vector<double> ply_nod_val_vector_original(ply_nod_val_vector);
+				  ply_nod_val_vector.resize(nod_vector_size * nod_vector_cond_size);
+
+				  for (int i = 0; i < nod_vector_size; i++)
+				  {
+					  for (int j = 0; j < nod_vector_cond_size; j++)
+					  {
+						  ply_nod_val_vector[i*nod_vector_cond_size + j] = ply_nod_val_vector_original[i] * ply_nod_val_vector_cond_original[j] / (total_val_cond_original);
+					  }
+				  }
+
+		  		  if(st->verbosity)
+		  		  {
+		  			std::cout << "\tNow " << ply_nod_vector.size() << " nodes with total value of " << 
+						std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.) << '\n';
+		  		  	if(st->verbosity > 1)
+		  				for (int i = 0; i < ply_nod_vector.size(); i++)
+		  				{
+				  			std::cout << "\t\t" << i << ": " << ply_nod_vector[i] << " connected to " << ply_nod_vector_cond[i] << " with value "<< ply_nod_val_vector[i] << '\n';
+		  				}
+		  		  }
+			  }
+		/////
+		if(st->ogs_WDC != nullptr)  // for (3D) ATES with polyline wells
+		{  	  // point for measurements
+			std::vector<long> ply_nod_vector_well2;
+
+			m_msh->setMinEdgeLength (old_ply->epsilon);
+			m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+					st->geoInfo_wellDoublet_well2_aquifer->getGeoObj()),
+					ply_nod_vector_well2, true);
+			m_msh->setMinEdgeLength (min_edge_length);  // reset value
+
+			std::vector<double> well2_mesh_node_values;
+
+			SetPolylineNodeValueVector(st, ply_nod_vector_well2,
+					ply_nod_vector_well2, // cond (not used)
+					well2_mesh_node_values);
+
+			double total_value = std::accumulate(ply_nod_val_vector.begin(),
+								ply_nod_val_vector.end(), 0.);
+			for(auto& value: ply_nod_val_vector) value /= total_value;
+
+			total_value = std::accumulate(well2_mesh_node_values.begin(),
+					well2_mesh_node_values.end(), 0.);
+			for(auto& value: well2_mesh_node_values) value /= total_value;
+
+
+
+			st->ogs_WDC->set_doublet_mesh_nodes({
+				std::vector<size_t>(ply_nod_vector.begin(), ply_nod_vector.end()),  // well1
+				std::vector<size_t>(ply_nod_vector_well2.begin(), ply_nod_vector_well2.end()), // well2
+				std::vector<size_t>(ply_nod_vector.begin(), ply_nod_vector.end()),
+												// nod_val->msh_node_number  // heatExchanger
+				std::vector<double>(ply_nod_val_vector.begin(), ply_nod_val_vector.end()),
+												// well 1 - node area
+				std::vector<double>(well2_mesh_node_values.begin(), well2_mesh_node_values.end()),
+												// well 2 - node area
+				std::vector<double>(ply_nod_val_vector.begin(), ply_nod_val_vector.end()),
+																// heatExchanger - node area
+			});
+
+			CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+			// warm well 1 - LIQUID_FLOW
+			for(long i=0; i < ply_nod_vector.size(); ++i)
+			 {
+				 CNodeValue *nod_val_liquid_well (new CNodeValue());
+				 nod_val_liquid_well->msh_node_number = ply_nod_vector[i];
+				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+				 nod_val_liquid_well->geo_node_number =
+						 nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+				 nod_val_liquid_well->node_value = st->geo_node_value * ply_nod_val_vector[i];
+				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+				 pcs_liquid->st_node.push_back(st);
+			 }
+
+			// cold well 2 - LIQUID_FLOW
+			for(long i=0; i < ply_nod_vector_well2.size(); ++i)
+			 {
+				 CNodeValue *nod_val_liquid_well (new CNodeValue());
+				 nod_val_liquid_well->msh_node_number = ply_nod_vector_well2[i];
+				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+				 nod_val_liquid_well->geo_node_number =
+						 nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+				 nod_val_liquid_well->node_value = -st->geo_node_value * well2_mesh_node_values[i];  // ! negative
+				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+
+				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+				 pcs_liquid->st_node.push_back(st);
+			 }
+
+
+			std::copy (ply_nod_vector_well2.begin(), ply_nod_vector_well2.end(), std::back_inserter(ply_nod_vector));
+			std::transform(well2_mesh_node_values.begin(), well2_mesh_node_values.end(), well2_mesh_node_values.begin(),
+					[&](double& c){return -c;});
+			std::copy (well2_mesh_node_values.begin(), well2_mesh_node_values.end(), std::back_inserter(ply_nod_val_vector));
+		
+	   }
+
+		if(st->borehole_mode == 0)  // conductive with peaceman
+		{
+			double factor, radius_e;
+			CRFProcess* m_pcs(PCSGet(pcs_type_name));
+
+			for(size_t i=0; i < ply_nod_vector.size(); ++i)
+			{
+				CalculatePeaceman(st, m_pcs, ply_nod_vector[i],
+						m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
+								ply_nod_vector, m_pcs->m_msh->ele_vector)
+						, factor, radius_e);
+
+				factor /= std::log(radius_e / st->borehole_data.radius);
+				ply_nod_val_vector[i] *= factor;
+				
+         			// to use advective HEAT_TRANSPORT with conductive (peaceman) LIQUID_FLOW 
+				if(m_pcs->ST_factor_kept.find(ply_nod_vector[i]) != m_pcs->ST_factor_kept.end())
+                                       	m_pcs->ST_factor_kept[ply_nod_vector[i]] = m_pcs->ST_factor_kept[ply_nod_vector[i]] + factor;
+                        	else
+                               		m_pcs->ST_factor_kept[ply_nod_vector[i]] = factor;
+			}
+		}
+
+		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ply_nod_vector_cond_length, ShiftInNodeVector);
+	} // end polyline
+}
+
+
 void CSourceTermGroup::SetPNT(CRFProcess* pcs, CSourceTerm* st,
 const int ShiftInNodeVector)
 {
-  //05.2012. WW
-  long node_id = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj()));
-  if(node_id < 0)
-    return;
-   CNodeValue *nod_val (new CNodeValue());
+ 	 //05.2012. WW
+ 	 long node_id = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj()));
+ 	 if(node_id < 0)
+ 	   return;
+ 	  CNodeValue *nod_val (new CNodeValue());
 
-   // TF removed some checks - check validity of data while reading data
+ 	  // TF removed some checks - check validity of data while reading data
 
-   nod_val->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj())) + ShiftInNodeVector;
-   nod_val->CurveIndex = st->CurveIndex;
-                                                  //WW
-   nod_val->geo_node_number = nod_val->msh_node_number - ShiftInNodeVector;
-   nod_val->node_value = st->geo_node_value;
-   nod_val->tim_type_name = st->tim_type_name;
+ 	  nod_val->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->getGeoObj())) + ShiftInNodeVector;
+ 	  nod_val->CurveIndex = st->CurveIndex;
+ 	                                                 //WW
+ 	  nod_val->geo_node_number = nod_val->msh_node_number - ShiftInNodeVector;
+ 	  nod_val->node_value = st->geo_node_value;
+ 	  nod_val->tim_type_name = st->tim_type_name;
 
-   if(st->isConnected()) // JOD 2018-02-20
-   {
-	   nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
-			   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
-   }
+ 	  if(st->isConnectedGeometry() && // JOD 2018-02-20
+ 	    st->getConnectedGeometryCouplingType() != 2)
+ 	  {
+ 	          nod_val->msh_node_number_conditional = m_msh->GetNODOnPNT(
+ 	       		   static_cast<const GEOLIB::Point*>(st->geoInfo_connected->getGeoObj()));
+ 	  }
 
-   if(st->hasThreshold()) // JOD 2018-02-20
-   {  // only point supported
-	  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
-   }
+ 	  if(st->hasThreshold()) // JOD 2018-02-20
+ 	  {  // only point supported
+ 	         st->msh_node_number_threshold = m_msh->GetNODOnPNT(
+ 	       				static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
+ 	  }
 
 
-   if(st->calculatedFromStorageRate()) // JOD 2018-02-22
-   {  // only point supported
-	  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
-	  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
-	   st->storageRate.inlet_msh_node_areas.push_back(1.);
-	   st->storageRate.outlet_msh_node_areas.push_back(1.);
-	   st->storageRate.inlet_totalArea = 1.;
-	   st->storageRate.outlet_totalArea = 1.;
-   }
+ 	  if(st->calculatedFromStorageRate()) // JOD 2018-02-22
+ 	  {  // only point supported
+ 	         st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+ 	       				static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
+ 	         st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
+ 	       				static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
+ 	          st->storageRate.inlet_msh_node_areas.push_back(1.);
+ 	          st->storageRate.outlet_msh_node_areas.push_back(1.);
+ 	          st->storageRate.inlet_totalArea = 1.;
+ 	          st->storageRate.outlet_totalArea = 1.;
+ 	  }
 
-   if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
-   {
-      //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-      std::cout << "      - Critical depth" << "\n";
-   }
+ 	  if (st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
+ 	  {
+ 	     //	if (st->dis_type_name.compare("CRITICALDEPTH") == 0) {
+ 	     nod_val->setProcessDistributionType (st->getProcessDistributionType());
+ 	     nod_val->node_area = 1.0;
+ 	     std::cout << "      - Critical depth" << "\n";
+ 	  }
 
-   if (st->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-	  std::cout << "      - Normal depth" << "\n";
-   }
+ 	  if (st->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
+ 	  {
+ 	     nod_val->setProcessDistributionType (st->getProcessDistributionType());
+ 	     nod_val->node_area = 1.0;
+ 	         std::cout << "      - Normal depth" << "\n";
+ 	  }
 
-   //	if (st->dis_type_name.compare("PHILIP") == 0) { // JOD
-   //		nod_val->node_distype = 10;
-   //		nod_val->node_area = 1.0;
-   //	}
-   // Added by CB
-   if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
-   {
-     long msh_ele = m_msh->nod_vector[nod_val->msh_node_number]->getConnectedElementIDs()[0];
-     if (mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
-       nod_val->node_value *= mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
-   }
+ 	  //	if (st->dis_type_name.compare("PHILIP") == 0) { // JOD
+ 	  //		nod_val->node_distype = 10;
+ 	  //		nod_val->node_area = 1.0;
+ 	  //	}
+ 	  // Added by CB
+ 	  if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
+ 	  {
+ 	    long msh_ele = m_msh->nod_vector[nod_val->msh_node_number]->getConnectedElementIDs()[0];
+ 	    if (mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->GetGeoDimension() < 3)
+ 	      nod_val->node_value *= mmp_vector[m_msh->ele_vector[msh_ele]->GetPatchIndex()]->geo_area;
+ 	  }
 
-   if (st->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      nod_val->node_area = 1.0;
-	  std::cout << "      - Green-Ampt" << "\n";
-   }
+ 	  if (st->getProcessDistributionType() == FiniteElement::GREEN_AMPT)
+ 	  {
+ 	     nod_val->setProcessDistributionType (st->getProcessDistributionType());
+ 	     nod_val->node_area = 1.0;
+ 	         std::cout << "      - Green-Ampt" << "\n";
+ 	  }
 
-   if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT)
-   {
-      nod_val->setProcessDistributionType (st->getProcessDistributionType());
-      pcs->compute_domain_face_normal = true;     //WW
-      CElem* elem = NULL;
-      CNode* cnode = NULL;                        //WW
-      for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
-      {
-         elem = m_msh->ele_vector[i];
-         if (!elem->GetMark())
-            continue;
-         int nn = elem->GetNodesNumber(m_msh->getOrder());
-         for (long j = 0; j < nn; j++)
-         {
-            cnode = elem->GetNode(j);             //WW
-            if (cnode->GetIndex() == (size_t)st->geo_node_number)
-               st->element_st_vector.push_back(i);
-         }
-      }
-   }
+ 	  if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT)
+ 	  {
+ 	     nod_val->setProcessDistributionType (st->getProcessDistributionType());
+ 	     pcs->compute_domain_face_normal = true;     //WW
+ 	     CElem* elem = NULL;
+ 	     CNode* cnode = NULL;                        //WW
+ 	     for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
+ 	     {
+ 	        elem = m_msh->ele_vector[i];
+ 	        if (!elem->GetMark())
+ 	           continue;
+ 	        int nn = elem->GetNodesNumber(m_msh->getOrder());
+ 	        for (long j = 0; j < nn; j++)
+ 	        {
+ 	           cnode = elem->GetNode(j);             //WW
+ 	           if (cnode->GetIndex() == (size_t)st->geo_node_number)
+ 	              st->element_st_vector.push_back(i);
+ 	        }
+ 	     }
+ 	  }
 
-   if (st->getProcessDistributionType() == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
-		st->node_value_vectorArea.resize(1);
-	    st->node_value_vectorArea[0] = 1.0;
-		//nod_val->node_value = 0.0;
-		////Get process type
-		//CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(st->getProcessType()));
-		////Get Mesh
-		//CFEMesh* mesh (m_pcs_this->m_msh);
-		//long msh_ele = mesh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()[0];
-	 //   int group = mesh->ele_vector[msh_ele]->GetPatchIndex();
+ 	  if (st->getProcessDistributionType() == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
+ 	       	st->node_value_vectorArea.resize(1);
+ 	           st->node_value_vectorArea[0] = 1.0;
+ 	       	//nod_val->node_value = 0.0;
+ 	       	////Get process type
+ 	       	//CRFProcess* m_pcs_this = PCSGet(convertProcessTypeToString(st->getProcessType()));
+ 	       	////Get Mesh
+ 	       	//CFEMesh* mesh (m_pcs_this->m_msh);
+ 	       	//long msh_ele = mesh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()[0];
+ 	        //   int group = mesh->ele_vector[msh_ele]->GetPatchIndex();
 
-		//st->node_value_vectorArea[0] = mmp_vector[group]->geo_area;
-		if (m_msh->isAxisymmetry() && m_msh->GetMaxElementDim() == 1)
-			st->node_value_vectorArea[0] *= m_msh->nod_vector[nod_val->geo_node_number]->X();
-				//2pi is mulitplicated during the integration process
-   }
+ 	       	//st->node_value_vectorArea[0] = mmp_vector[group]->geo_area;
+ 	       	if (m_msh->isAxisymmetry() && m_msh->GetMaxElementDim() == 1)
+ 	       		st->node_value_vectorArea[0] *= m_msh->nod_vector[nod_val->geo_node_number]->X();
+ 	       			//2pi is mulitplicated during the integration process
+ 	  }
 
-   if (st->getProcessDistributionType()==FiniteElement::RECHARGE)	//MW
-   {
-	   nod_val->setProcessDistributionType (st->getProcessDistributionType());
-   }
+ 	  if (st->getProcessDistributionType()==FiniteElement::RECHARGE)	//MW
+ 	  {
+ 	          nod_val->setProcessDistributionType (st->getProcessDistributionType());
+ 	  }
 
-   st->st_node_ids.push_back(nod_val->geo_node_number);
+ 	  st->st_node_ids.push_back(nod_val->geo_node_number);
 
-   if (st->isConstrainedST())
-   {
-	   st->_constrainedSTNodesIndices.push_back(-1);
-	   for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
-		   st->pushBackConstrainedSTNode(i,false);
-   }
+ 	  if (st->isConstrainedST())
+ 	  {
+ 	          st->_constrainedSTNodesIndices.push_back(-1);
+ 	          for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
+ 	       	   st->pushBackConstrainedSTNode(i,false);
+ 	  }
 
-   if(st->ogs_WDC != nullptr)
-   {  	  // point for measurements
-	 st->ogs_WDC->set_doublet_mesh_nodes({
-		  	  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
-			  	  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
-				  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)}  // heatExchanger
-				  });
+ 	  if(st->ogs_WDC != nullptr)
+ 	  {  	  // point for measurements
+ 	        st->ogs_WDC->set_doublet_mesh_nodes({
+ 	       	 std::vector<size_t>(1, m_msh->GetNODOnPNT(
+ 	       			 static_cast<const GEOLIB::Point*>(
+ 	       					 st->geoInfo_wellDoublet_well1_aquifer->getGeoObj()))),  // well1
+ 	       			 std::vector<size_t>(1, m_msh->GetNODOnPNT(
+ 	       					 static_cast<const GEOLIB::Point*>(
+ 	       							 st->geoInfo_wellDoublet_well2_aquifer->getGeoObj()))),  // well2
+ 	       			  std::vector<size_t>{static_cast<size_t>(nod_val->msh_node_number)},  // heatExchanger
+ 	       				std::vector<double>(1, 1.),  // well 1 - node area
+ 	       				std::vector<double>(1, 1.), // well 2 - node area
+ 	       				std::vector<double>(1, 1.) // heatexchanger - node area
+ 	       			  });
+ 	         // liquid flow BCs
+ 	         CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
 
-	  // liquid flow BCs
-	  CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
+ 	         std::vector<long> liquidBC_mesh_nodes;
+ 	         std::vector<double> liquidBC_mesh_node_values;
+ 	         double total_value;
 
-	  std::vector<long> liquidBC_mesh_nodes;
-	  std::vector<double> liquidBC_mesh_node_values;
-	  double total_value;
+ 	       	 // warm well 1
+ 	       	 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
+ 	       	 {
+ 	       		 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+ 	       							  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
+ 	       		 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+ 	       	 }
+ 	       	 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+ 	       	 {
+ 	       		 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+ 	       				 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
 
-		 // warm well 1
-		 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-		 {
-			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-								  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-		 }
-		 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-		 {
-			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-					 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+ 	       		 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+ 	       		 FiniteElement::EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
+ 	       				 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+ 	       				 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+ 	       		 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+ 	       		 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
+ 	       	 }
 
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-		 }
+ 	       	 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+ 	       	 {
+ 	       		 CNodeValue *nod_val_liquid_well (new CNodeValue());
+ 	       		 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
+ 	       		 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+ 	       		 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+ 	       		 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
+ 	       		 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
-		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-		 {
-			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
-			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+ 	       		 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+ 	       		 pcs_liquid->st_node.push_back(st);
+ 	       	 }
 
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-			 pcs_liquid->st_node.push_back(st);
-		 }
+ 	       	 liquidBC_mesh_nodes.clear();
+ 	       	 //////// cold well 2 - copy from lines above except that node_value is negative
+ 	       	 if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POINT)
+ 	       	 {
+ 	       		 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+ 	       							  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
+ 	       		 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+ 	       	 }
+ 	       	 else if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POLYLINE)
+ 	       	 {
+ 	       		 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
+ 	       				 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
+ 	       		 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
+ 	       		 FiniteElement::EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values,
+ 	       				 st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+ 	       				 st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
+ 	       		 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
+ 	       		 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
+ 	       	 }
 
-		 liquidBC_mesh_node_values.clear();
-		 //////// cold well 2 - copy from lines above except that node_value is negative
-		 if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POINT)
-		 {
-			 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-								  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-		 }
-		 else if(st->geoInfo_wellDoublet_well2_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-		 {
-			 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-					 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
-			 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-			 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-			 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-		 }
+ 	       	 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+ 	       	 {
+ 	       		 CNodeValue *nod_val_liquid_well (new CNodeValue());
+ 	       		 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
+ 	       		 nod_val_liquid_well->CurveIndex = st->CurveIndex;
+ 	       		 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
+ 	       		 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
+ 	       		 nod_val_liquid_well->tim_type_name = st->tim_type_name;
 
-		 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-		 {
-			 CNodeValue *nod_val_liquid_well (new CNodeValue());
-			 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-			 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-			 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-			 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
-			 nod_val_liquid_well->tim_type_name = st->tim_type_name;
+ 	       		 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
+ 	       		 pcs_liquid->st_node.push_back(st);
+ 	       	 }
 
-			 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-			 pcs_liquid->st_node.push_back(st);
-		 }
+ 	         /*
+ 	         // warm well 1
+ 	         CNodeValue *nod_val_liquid_well1 (new CNodeValue());
+ 	         nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+ 	       		  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector;
+ 	         nod_val_liquid_well1->CurveIndex = st->CurveIndex;
+ 	         nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
+ 	         nod_val_liquid_well1->node_value = st->geo_node_value;
+ 	         nod_val_liquid_well1->tim_type_name = st->tim_type_name;
 
-	  /*
-	  // warm well 1
-	  CNodeValue *nod_val_liquid_well1 (new CNodeValue());
-	  nod_val_liquid_well1->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector;
-	  nod_val_liquid_well1->CurveIndex = st->CurveIndex;
-	  nod_val_liquid_well1->geo_node_number = nod_val_liquid_well1->msh_node_number - ShiftInNodeVector;
-	  nod_val_liquid_well1->node_value = st->geo_node_value;
-	  nod_val_liquid_well1->tim_type_name = st->tim_type_name;
+ 	         pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
+ 	         pcs_liquid->st_node.push_back(st);
+ 	         // cold well 2 - copy from lines above except node_value is negative
+ 	         CNodeValue *nod_val_liquid_well2 (new CNodeValue());
+ 	         nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
+ 	       		  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector;
+ 	         nod_val_liquid_well2->CurveIndex = st->CurveIndex;
+ 	         nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
+ 	         nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
+ 	         nod_val_liquid_well2->tim_type_name = st->tim_type_name;
 
-	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well1);
-	  pcs_liquid->st_node.push_back(st);
-	  // cold well 2 - copy from lines above except node_value is negative
-	  CNodeValue *nod_val_liquid_well2 (new CNodeValue());
-	  nod_val_liquid_well2->msh_node_number = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-			  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector;
-	  nod_val_liquid_well2->CurveIndex = st->CurveIndex;
-	  nod_val_liquid_well2->geo_node_number = nod_val_liquid_well2->msh_node_number - ShiftInNodeVector;
-	  nod_val_liquid_well2->node_value = -st->geo_node_value;  // !!!!!
-	  nod_val_liquid_well2->tim_type_name = st->tim_type_name;
+ 	         pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
+ 	         pcs_liquid->st_node.push_back(st);
+ 	         */
+ 	  }
 
-	  pcs_liquid->st_node_value.push_back(nod_val_liquid_well2);
-	  pcs_liquid->st_node.push_back(st);
-	  */
-   }
+ 	  if(st->ogs_contraflow != nullptr)  // JOD 2019-31-07
+ 	  {
+ 	          st->ogs_contraflow->add_node(nod_val->msh_node_number);
 
-   if(st->ogs_contraflow != nullptr)  // JOD 2019-31-07
-   {
-	   st->ogs_contraflow->add_node(nod_val->msh_node_number);
+ 	          GEOLIB::Point pnt(
+ 	       		   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+ 	       		   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+ 	       		   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[2]);
 
-	   GEOLIB::Point pnt(
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
-			   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[2]);
+ 	          std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
+ 	          double z = pnt.getData()[2];
+ 	          for(int i=0; i < segment_data_vec.size(); ++i)
+ 	          {
+ 	       	   const int N = segment_data_vec[i].N;
+ 	       	   const double dz = segment_data_vec[i].L / N;
 
-	   std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
-	   double z = pnt.getData()[2];
-	   for(int i=0; i < segment_data_vec.size(); ++i)
-	   {
-		   const int N = segment_data_vec[i].N;
-		   const double dz = segment_data_vec[i].L / N;
-
-		   for(int j=0; j<N; ++j)
-		   {
-			   z -= dz;
-			   pnt = GEOLIB::Point(
-					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
-					   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
-					   z);
-			   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
-		   }
-	   }
-   }
-
-   pcs->st_node_value.push_back(nod_val);         //WW
-   pcs->st_node.push_back(st);                 //WW
+ 	       	   for(int j=0; j<N; ++j)
+ 	       	   {
+ 	       		   z -= dz;
+ 	       		   pnt = GEOLIB::Point(
+ 	       				   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
+ 	       				   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
+ 	       				   z);
+ 	       		   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
+ 	       	   }
+ 	          }
+ 	  }
+	
+	if(st->borehole_mode == 0)
+	{
+		double factor, radius_e;
+	
+		CalculatePeaceman(st, pcs, nod_val->geo_node_number,
+			 pcs->m_msh->nod_vector[nod_val->geo_node_number]->getConnectedElementIDs()
+				, factor, radius_e);
+	
+		factor /= std::log(radius_e / st->borehole_data.radius);
+		nod_val->node_value *= factor;
+	 	// to use advective HEAT_TRANSPORT with conductive (peaceman) LIQUID_FLOW 
+	 	if(pcs->ST_factor_kept.find(nod_val->geo_node_number) != pcs->ST_factor_kept.end())
+	 		pcs->ST_factor_kept[nod_val->geo_node_number] = pcs->ST_factor_kept[nod_val->geo_node_number] + factor;
+	 	else
+	 		pcs->ST_factor_kept[nod_val->geo_node_number] = factor;
+	
+	}
+	
+	pcs->st_node_value.push_back(nod_val);         //WW
+   	pcs->st_node.push_back(st);                 //WW
 
 }
 
@@ -4096,187 +3544,6 @@ const int ShiftInNodeVector)
  modified
  07/2010 TF substituted GEOGetPLYByName
  **************************************************************************/
-void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
-{
-	CGLPolyline* old_ply (GEOGetPLYByName(st->geo_name));
-	if (old_ply) {
-		std::vector<long> ply_nod_vector;
-		std::vector<long> ply_nod_vector_cond;
-		std::vector<double> ply_nod_val_vector;
-
-		double min_edge_length (m_msh->getMinEdgeLength());
-		m_msh->setMinEdgeLength (old_ply->epsilon);
-		m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(st->getGeoObj()), ply_nod_vector, true);
-		m_msh->setMinEdgeLength (min_edge_length);
-
-		if (st->isCoupled())
-			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
-
-	    if(st->hasThreshold()) // JOD 2018-02-20
-	    {  // only point supported
-		  st->msh_node_number_threshold = m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_threshold->getGeoObj()));
-	    }
-
-	    if(st->calculatedFromStorageRate()) // JOD 2018-02-22
-	    {  // only point supported
-		  st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateInlet->getGeoObj())));
-		  st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
-	    }
-
-		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
-
-		if (st->distribute_volume_flux)   // 5.3.07 JOD
-			DistributeVolumeFlux(st, ply_nod_vector, ply_nod_val_vector);
-
-		st->st_node_ids.clear();
-		st->st_node_ids.resize(ply_nod_vector.size());
-		st->st_node_ids = ply_nod_vector;
-
-		if (st->isConnected())   // JOD 10/2018
-			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
-
-		if (st->isConstrainedST())
-		{
-			for (std::size_t i(0); i < st->st_node_ids.size(); i++)
-			{
-				st->_constrainedSTNodesIndices.push_back(-1);
-				for (std::size_t i(0); i < st->getNumberOfConstrainedSTs(); i++)
-					st->pushBackConstrainedSTNode(i, false);
-			}
-		}
-
-
-		if (st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
-			  {
-				 double total_val_cond = 0;
-				  std::vector<long>::iterator pos;
-				  std::vector<double> ply_nod_val_vector_cond_original;
-
-
-				  SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector_cond_original);
-
-				  for (int i = 0; i < (int)ply_nod_val_vector_cond_original.size(); i++)
-					  total_val_cond += ply_nod_val_vector_cond_original[i];
-
-				  int nod_vector_size = (int)ply_nod_vector.size();
-				  int nod_vector_cond_size = (int)ply_nod_vector_cond.size();
-
-				  for (int i = 0; i < nod_vector_size; i++)  // extend nod_vector
-				  {
-					  for (int j = 1; j < nod_vector_cond_size; j++)
-					  {
-						  pos = ply_nod_vector.begin() + i * nod_vector_cond_size + j;
-						  ply_nod_vector.insert(pos, ply_nod_vector[i * nod_vector_cond_size + j - 1]);
-					  }
-				  }
-
-				  for (int i = 1; i < nod_vector_size; i++)  // extend nod_vector_cond
-				  {
-					  for (int j = 0; j < nod_vector_cond_size; j++)
-					  {
-						  ply_nod_vector_cond.push_back(ply_nod_vector_cond[j]);
-					  }
-				  }
-
-				  // extend nod_val_vector
-				  std::vector<double> ply_nod_val_vector_original(ply_nod_val_vector);
-				  ply_nod_val_vector.resize(nod_vector_size * nod_vector_cond_size);
-
-				  for (int i = 0; i < nod_vector_size; i++)
-				  {
-					  for (int j = 0; j < nod_vector_cond_size; j++)
-					  {
-						  ply_nod_val_vector[i*nod_vector_cond_size + j] = ply_nod_val_vector_original[i] * ply_nod_val_vector_cond_original[j] / (total_val_cond);
-					  }
-				  }
-			  }
-		/////
-		if(st->ogs_WDC != nullptr)
-		{  	  // point for measurements
-			st->ogs_WDC->set_doublet_mesh_nodes({
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
-					  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
-					  std::vector<size_t>(ply_nod_vector.begin(), ply_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
-					  });
-			 st->ogs_WDC->set_heatExchangerArea(std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.));
-			 // liquid flow BCs
-			 CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-			 std::vector<long> liquidBC_mesh_nodes;
-			 std::vector<double> liquidBC_mesh_node_values;
-			 double total_value;
-
-			 // warm well 1
-			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-			 {
-				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-									  st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
-				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 }
-			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-			 {
-				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-						 st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
-
-				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-			 }
-
-			 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-			 {
-				 CNodeValue *nod_val_liquid_well (new CNodeValue());
-				 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-				 nod_val_liquid_well->node_value = st->geo_node_value * liquidBC_mesh_node_values[i];
-				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
-
-				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-				 pcs_liquid->st_node.push_back(st);
-			 }
-
-			 liquidBC_mesh_nodes.clear();
-			 //////// cold well 2 - copy from lines above except that node_value is negative
-			 if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-			 {
-				 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-									  st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
-				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-			 }
-			 else if(st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POLYLINE)
-			 {
-				 m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(
-						 st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes, true);
-
-				 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 st->EdgeIntegration(m_msh, liquidBC_mesh_nodes, liquidBC_mesh_node_values);
-				 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-				 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-			 }
-
-			 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-			 {
-				 CNodeValue *nod_val_liquid_well (new CNodeValue());
-				 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-				 nod_val_liquid_well->CurveIndex = st->CurveIndex;
-				 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-				 nod_val_liquid_well->node_value = -st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
-				 nod_val_liquid_well->tim_type_name = st->tim_type_name;
-
-				 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-				 pcs_liquid->st_node.push_back(st);
-			 }
-	   }
-
-		st->SetNodeValues(ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector, ShiftInNodeVector);
-	} // end polyline
-}
-
-
 /**************************************************************************
  FEMLib-Method:
  Task:
@@ -4288,6 +3555,7 @@ void CSourceTermGroup::SetDMN(CSourceTerm *m_st, const int ShiftInNodeVector)
    std::vector<long> dmn_nod_vector;
    std::vector<double> dmn_nod_val_vector;
    std::vector<long> dmn_nod_vector_cond;
+   std::vector<double> dmn_nod_val_vector_cond;  // not used
 
    GEOGetNodesInMaterialDomain(m_msh, m_st->analytical_material_group,
       dmn_nod_vector, false);
@@ -4295,10 +3563,10 @@ void CSourceTermGroup::SetDMN(CSourceTerm *m_st, const int ShiftInNodeVector)
    dmn_nod_val_vector.resize(number_of_nodes);
 
    for (size_t i = 0; i < number_of_nodes; i++)
-      dmn_nod_val_vector[i] = 0;
+      dmn_nod_val_vector[i] = m_st->geo_node_value;
 
    m_st->SetNodeValues(dmn_nod_vector, dmn_nod_vector_cond,
-      dmn_nod_val_vector, ShiftInNodeVector);
+      dmn_nod_val_vector, dmn_nod_val_vector_cond, ShiftInNodeVector);
 
 }
 
@@ -4315,6 +3583,7 @@ void CSourceTermGroup::SetCOL(CSourceTerm *m_st, const int ShiftInNodeVector)
    std::vector<long> col_nod_vector;
    std::vector<double> col_nod_val_vector;
    std::vector<long> col_nod_vector_cond;
+   std::vector<double> col_nod_val_vector_cond;  // nod used
 
    long i = 0;
    if (m_st->geo_name == "BOTTOM")
@@ -4334,7 +3603,7 @@ void CSourceTermGroup::SetCOL(CSourceTerm *m_st, const int ShiftInNodeVector)
    m_st->SetSurfaceNodeVectorConditional(col_nod_vector, col_nod_vector_cond);
 
    m_st->SetNodeValues(col_nod_vector, col_nod_vector_cond,
-      col_nod_val_vector, ShiftInNodeVector);
+      col_nod_val_vector, col_nod_val_vector_cond, ShiftInNodeVector);
 
 }
 
@@ -4352,6 +3621,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
    std::vector<std::size_t> sfc_node_ids;
    std::vector<long> sfc_nod_vector_cond;
    std::vector<double> sfc_nod_val_vector;
+   std::vector<double> sfc_nod_val_vector_cond;  // not used
    Surface* m_sfc = NULL;
 
    m_sfc = GEOGetSFCByName(m_st->geo_name);       //CC
@@ -4364,16 +3634,8 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
       std::cout << "Surface " << m_st->geo_name << ": " << sfc.getNTriangles()  << "\n";
       SetSurfaceNodeVector(&sfc, sfc_node_ids);
 
-      /*for(long i=0; i< sfc_node_ids.size(); ++i)
-      {
-      std::cout << i << " " << sfc_node_ids[i] << " " <<
-    		  m_msh->nod_vector[sfc_node_ids[i]]->getData()[0] << " " <<
-    		  m_msh->nod_vector[sfc_node_ids[i]]->getData()[1] << " " <<
-			  m_msh->nod_vector[sfc_node_ids[i]]->getData()[2] << std::endl;
-      }*/
-/*
-      SetSurfaceNodeVector(m_sfc, sfc_nod_vector);
-*/
+      //SetSurfaceNodeVector(m_sfc, sfc_nod_vector);
+
       sfc_nod_vector.insert(sfc_nod_vector.begin(),
          sfc_node_ids.begin(), sfc_node_ids.end());
       if (m_st->isCoupled())
@@ -4381,9 +3643,9 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
             sfc_nod_vector_cond);
 // CB JOD MERGE //
 
-	  if (m_st->isConnected())   // JOD 2/2015
+	  if (m_st->isConnectedGeometry() &&   // JOD 2/2015
+			  m_st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
 		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
-
 	   if(m_st->hasThreshold()) // JOD 2018-03-7  - copyed from SetPnt
 	   {  // only point supported
 		   m_st->msh_node_number_threshold = m_msh->GetNODOnPNT(
@@ -4395,7 +3657,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   if (m_st->geoInfo_storageRateInlet->getGeoType() == GEOLIB::POINT)
 		   {
 			   m_st->storageRate.inlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
-					static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateInlet->getGeoObj())));
+				static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateInlet->getGeoObj())));
 			   m_st->storageRate.outlet_msh_node_numbers.push_back(m_msh->GetNODOnPNT(
 					static_cast<const GEOLIB::Point*>(m_st->geoInfo_storageRateOutlet->getGeoObj())));
 			   m_st->storageRate.inlet_msh_node_areas.push_back(1.);
@@ -4441,156 +3703,83 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   }
 	   }
 
-	   //		m_st->SetDISType();
-	   SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
-	   double total = 0.;
-	   for(int i=0; i< sfc_nod_val_vector.size(); i++)
-		   total += sfc_nod_val_vector[i];
+	//		m_st->SetDISType();
+	SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector, sfc_nod_val_vector);
 
-		if(m_st->ogs_WDC != nullptr)
-			{  	  // point for measurements
-				//std::vector<size_t> nodes_HE;
-				//nodes_HE.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_HE->getGeoObj())));
-
-				 m_st->ogs_WDC->set_doublet_mesh_nodes({
-						  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well1_aquifer->getGeoObj())),  // well1
-						  m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(m_st->geoInfo_wellDoublet_well2_aquifer->getGeoObj())),  // well2
-						  //nodes_HE
-						  std::vector<size_t>(sfc_nod_vector.begin(), sfc_nod_vector.end())// nod_val->msh_node_number  // heatExchanger
-						  });
-				 m_st->ogs_WDC->set_heatExchangerArea(std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.));
-				 //m_st->ogs_WDC->set_heatExchangerArea(1.);
-				 // liquid flow BCs
-				 CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
-				 std::vector<size_t> liquidBC_mesh_nodes;
-				 std::vector<double> liquidBC_mesh_node_values;
-				 double total_value;
-
-				 // warm well 1
-				 if(m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-				 {
-					 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-										  m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj())) + ShiftInNodeVector);
-					 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 }
-				 else if(m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::SURFACE)
-				 {
-					 m_msh->GetNODOnSFC(static_cast<const GEOLIB::Surface*>(
-							  m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoObj()), liquidBC_mesh_nodes);
-
-					 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-
-					 std::vector<long> temp;
-					 for(auto &i: liquidBC_mesh_nodes) temp.push_back(i);
-					 FaceIntegration(m_msh, temp, liquidBC_mesh_node_values, m_sfc,
-							 m_st->getProcessDistributionType(), m_st->_pcs->m_num->ele_gauss_points);
-					 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-					 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-				 }
-
-				 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-				 {
-					 CNodeValue *nod_val_liquid_well (new CNodeValue());
-					 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-					 nod_val_liquid_well->CurveIndex = m_st->CurveIndex;
-					 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-					 nod_val_liquid_well->node_value = m_st->geo_node_value * liquidBC_mesh_node_values[i];
-					 nod_val_liquid_well->tim_type_name = m_st->tim_type_name;
-
-					 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-					 pcs_liquid->st_node.push_back(m_st);
-				 }
-
-				 liquidBC_mesh_nodes.clear();
-				 //////// cold well 2 - copy from lines above except that node_value is negative
-				 if(m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::POINT)
-				 {
-					 liquidBC_mesh_nodes.push_back(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(
-										  m_st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj())) + ShiftInNodeVector);
-					 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-				 }
-				 else if(m_st->geoInfo_wellDoublet_well1_liquidBC->getGeoType() == GEOLIB::SURFACE)
-				 {
-					 m_msh->GetNODOnSFC(static_cast<const GEOLIB::Surface*>(
-							  m_st->geoInfo_wellDoublet_well2_liquidBC->getGeoObj()), liquidBC_mesh_nodes);
-
-					 liquidBC_mesh_node_values.resize(liquidBC_mesh_nodes.size(), 1.);
-
-					 std::vector<long> temp;
-					 for(auto &i: liquidBC_mesh_nodes) temp.push_back(i);
-					 FaceIntegration(m_msh, temp, liquidBC_mesh_node_values, m_sfc,
-							 m_st->getProcessDistributionType(), m_st->_pcs->m_num->ele_gauss_points);
-					 total_value = std::accumulate(liquidBC_mesh_node_values.begin(), liquidBC_mesh_node_values.end(), 0.);
-					 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
-				 }
-
-				 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
-				 {
-					 CNodeValue *nod_val_liquid_well (new CNodeValue());
-					 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
-					 nod_val_liquid_well->CurveIndex = m_st->CurveIndex;
-					 nod_val_liquid_well->geo_node_number = nod_val_liquid_well->msh_node_number - ShiftInNodeVector;
-					 nod_val_liquid_well->node_value = -m_st->geo_node_value * liquidBC_mesh_node_values[i];  // !!!!!
-					 nod_val_liquid_well->tim_type_name = m_st->tim_type_name;
-
-					 pcs_liquid->st_node_value.push_back(nod_val_liquid_well);
-					 pcs_liquid->st_node.push_back(m_st);
-				 }
-		   }
+	if(m_st->verbosity)
+	{
+		std::cout << "\t" << sfc_nod_vector.size() << " nodes with total value of " << std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.) << '\n';
+		for(int i=0; i< sfc_nod_vector.size(); i++)
+		{
+			std::cout << "\t\t" << i << ": " << sfc_nod_vector[i] << " with value " << sfc_nod_val_vector[i];
+		  	if (m_st->isConnectedGeometry() &&
+				  m_st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+				std::cout << " - connected to " << sfc_nod_vector_cond[i];
+			std::cout << '\n';
+		}
+	}
 
 
-
-	  ///////////////////////////////
-	  if (m_st->everyoneWithEveryone)  // JOD 8/2015   quick'n'dirty to test approach
+	  if (m_st->everyoneWithEveryone)  // JOD 8/2015 - modified 2022-02-23
 	  {
-		 double total_val_cond = 0;
+		  std::cout << "\tConnect every node with every node of other surface\n";
 		  std::vector<long>::iterator pos;
 		  std::vector<double> sfc_nod_val_vector_cond_original;
 
 		  SetSurfaceNodeValueVector(m_st, m_sfc, sfc_nod_vector_cond,
 			  sfc_nod_val_vector_cond_original);
+		  const double total_val_cond_original = std::accumulate(sfc_nod_val_vector_cond_original.begin(), sfc_nod_val_vector_cond_original.end(), 0.);
 
+	  	  if (m_st->verbosity && m_st->isConnectedGeometry() &&
+			  m_st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+			std::cout << "\t\t\t" << sfc_nod_vector_cond.size() << " connected nodes with total value of " << total_val_cond_original << '\n';
 
-		  for (int i = 0; i < (int)sfc_nod_val_vector_cond_original.size(); i++)
-			  total_val_cond += sfc_nod_val_vector_cond_original[i];
+		  const int nod_vector_size_original = (int)sfc_nod_vector.size();
+		  const int nod_vector_cond_size_original = (int)sfc_nod_vector_cond.size();
 
-		  int nod_vector_size = (int)sfc_nod_vector.size();
-		  int nod_vector_cond_size = (int)sfc_nod_vector_cond.size();
+		  std::vector<double> sfc_nod_val_vector_original(sfc_nod_val_vector);
 
-		  for (int i = 0; i < nod_vector_size; i++)  // extend nod_vector
-		  {
-			  for (int j = 1; j < nod_vector_cond_size; j++)
+		  // examples
+		  // nod_vector: 0, 1
+		  // nod_vector_cond: 2, 3, 4
+		  for (int i = 0; i < nod_vector_size_original; i++)  // extend nod_vector
+		  {  // 0, 1 -> 0,0,0,1,1,1
+			  for (int j = 1; j < nod_vector_cond_size_original; j++)
 			  {
-				  pos = sfc_nod_vector.begin() + i * nod_vector_cond_size + j;
-				  sfc_nod_vector.insert(pos, sfc_nod_vector[i * nod_vector_cond_size + j - 1]);
+				  pos = sfc_nod_vector.begin() + i * nod_vector_cond_size_original + j;
+				  sfc_nod_vector.insert(pos, sfc_nod_vector[i * nod_vector_cond_size_original + j - 1]);
 			  }
 		  }
 
-		  for (int i = 1; i < nod_vector_size; i++)  // extend nod_vector_cond
-		  {
-			  for (int j = 0; j < nod_vector_cond_size; j++)
+		  for (int i = 1; i < nod_vector_size_original; i++)  // extend nod_vector_cond
+		  {  // 2, 3, 4 -> 2, 3, 4, 2, 3, 4 
+			  for (int j = 0; j < nod_vector_cond_size_original; j++)
 			  {
 				  sfc_nod_vector_cond.push_back(sfc_nod_vector_cond[j]);
 			  }
 		  }
 
 		  // extend nod_val_vector
-		  std::vector<double> sfc_nod_val_vector_original(sfc_nod_val_vector);
-		  sfc_nod_val_vector.resize(nod_vector_size * nod_vector_cond_size);
+		  sfc_nod_val_vector.resize(sfc_nod_vector.size());
 
-
-		  for (int i = 0; i < nod_vector_size; i++)
+		  for (int i = 0; i < nod_vector_size_original; i++)
 		  {
-			  for (int j = 0; j < nod_vector_cond_size; j++)
+			  for (int j = 0; j < nod_vector_cond_size_original; j++)
 			  {
-				  sfc_nod_val_vector[i*nod_vector_cond_size + j] = sfc_nod_val_vector_original[i] * sfc_nod_val_vector_cond_original[j] / (total_val_cond);
+				  sfc_nod_val_vector[i*nod_vector_cond_size_original + j] = sfc_nod_val_vector_original[i] * sfc_nod_val_vector_cond_original[j] / (total_val_cond_original);
 			  }
 		  }
-	  }
-	  ///////////////////////////////
-	  //total = 0.;
-	  // for(int i=0; i< sfc_nod_val_vector.size(); i++)
-		//   total += sfc_nod_val_vector[i];
+
+		  if(m_st->verbosity)
+		  {
+		  	std::cout << "\tNow " << sfc_nod_vector.size() << " nodes with total value of " << std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.) << '\n';
+		  	if(m_st->verbosity > 1)
+		  		for (int i = 0; i < sfc_nod_vector.size(); i++)
+		  		{
+					  std::cout << "\t\t" << i << ": " << sfc_nod_vector[i] << " connected to " << sfc_nod_vector_cond[i] << " with value "<< sfc_nod_val_vector[i] << '\n';
+		  		}
+		  }
+	  }  // end everyone with everyone
 
 	  if (m_st->distribute_volume_flux)   // 5.3.07 JOD
 		  DistributeVolumeFlux(m_st, sfc_nod_vector, sfc_nod_val_vector);
@@ -4610,7 +3799,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 	  }
 
       m_st->SetNodeValues(sfc_nod_vector, sfc_nod_vector_cond,
-         sfc_nod_val_vector, ShiftInNodeVector);
+         sfc_nod_val_vector, sfc_nod_val_vector_cond, ShiftInNodeVector);
 
    }                                              // end surface
 }
@@ -4628,18 +3817,20 @@ void CSourceTerm::SetNOD()
    std::vector<long> nod_vector;
    std::vector<long> nod_vector_cond;
    std::vector<double> nod_val_vector;
+   std::vector<double> nod_val_vector_cond;
    int ShiftInNodeVector;
 
    nod_vector.push_back(msh_node_number);
    nod_vector_cond.push_back(msh_node_number);
    nod_val_vector.push_back(geo_node_value);
+   nod_val_vector_cond.push_back(geo_node_value);
 
    /*nod_vector[0] = msh_node_number;
     nod_vector_cond[0] = msh_node_number;
     nod_val_vector[0] =geo_node_value;*/
    ShiftInNodeVector = 0;
 
-   SetNodeValues(nod_vector, nod_vector_cond, nod_val_vector,
+   SetNodeValues(nod_vector, nod_vector_cond, nod_val_vector, nod_val_vector_cond,
       ShiftInNodeVector);
 
 }
@@ -4739,52 +3930,6 @@ void CSourceTermGroup::SetPolylineNodeVectorConditional(CSourceTerm* st,
    }                                              // end !area_assembly
 }
 
-/*
-// 09/2010 TF
-void CSourceTermGroup::SetPolylineNodeVectorConditional(CSourceTerm* st,
-		std::vector<size_t>& ply_nod_vector,
-		std::vector<size_t>& ply_nod_vector_cond)
-{
-	size_t assembled_mesh_node, number_of_nodes;
-
-	if (st->node_averaging) {
-		if (m_msh_cond) {
-			if (pcs_type_name == "RICHARDS_FLOW") {
-				m_msh_cond->GetNODOnPLY(
-						static_cast<const GEOLIB::Polyline*> (st->getGeoObj()),
-						ply_nod_vector_cond);
-				number_of_nodes = ply_nod_vector_cond.size();
-				assembled_mesh_node = ply_nod_vector[0];
-				ply_nod_vector.resize(number_of_nodes);
-				for (size_t i = 0; i < number_of_nodes; i++)
-					ply_nod_vector[i] = assembled_mesh_node;
-			} // end richards
-			else if (pcs_type_name == "OVERLAND_FLOW"
-			// JOD 4.10.01
-					|| pcs_type_name == "GROUNDWATER_FLOW") {
-				number_of_nodes = ply_nod_vector.size();
-				m_msh_cond->GetNODOnPLY(
-						static_cast<const GEOLIB::Polyline*> (st->getGeoObj()),
-						ply_nod_vector_cond);
-				assembled_mesh_node = ply_nod_vector_cond[0];
-				ply_nod_vector_cond.resize(number_of_nodes);
-				for (size_t i = 0; i < number_of_nodes; i++)
-					ply_nod_vector_cond[i] = assembled_mesh_node;
-			} // end overland, groundwater
-			else std::cout
-					<< "Warning in CSourceTermGroup::SetPolylineNodeVectorConditional - no area assembly for this process"
-					<< "\n";
-		} // end mesh_cond
-		else std::cout
-				<< "Warning in CSourceTermGroup::SetPLY - no MSH_COND data"
-				<< "\n";
-	} // end area_assembly
-	else {
-		number_of_nodes = ply_nod_vector.size();
-		ply_nod_vector_cond.resize(number_of_nodes);
-		st->SetNOD2MSHNOD(ply_nod_vector, ply_nod_vector_cond);
-	} // end !area_assembly
-}*/
 
 /**************************************************************************
  MSHLib-Method:
@@ -4835,74 +3980,7 @@ void CSourceTerm::InterpolatePolylineNodeValueVector(
 	MathLib::PiecewiseLinearInterpolation (interpolation_points, interpolation_values, nodes_as_interpol_points, node_values);
 }
 
-/**************************************************************************
- MSHLib-Method:
- Task:
- Programing:
- 11/2007 JOD
- last modification:
- **************************************************************************/
-/*void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
-		const std::vector<long>& ply_nod_vector,
-		std::vector<long>& ply_nod_vector_cond,
-		std::vector<double>& ply_nod_val_vector)
-{
-	long number_of_nodes = (long) ply_nod_vector.size();
-	ply_nod_val_vector.resize(number_of_nodes);
 
-	if (st->getProcessDistributionType() == FiniteElement::LINEAR
-			|| st->getProcessDistributionType() == FiniteElement::LINEAR_NEUMANN) {
-		st->InterpolatePolylineNodeValueVector(old_ply, st->DistribedBC, ply_nod_val_vector);
-	} else if (st->getProcessDistributionType() == FiniteElement::SYSTEM_DEPENDENT) {
-		CRFProcess* m_pcs = NULL;
-		m_pcs = PCSGet(pcs_type_name);
-		m_pcs->compute_domain_face_normal = true; //WW
-		long no_face = (long) m_msh->face_vector.size();
-		for (long i = 0; i < no_face; i++) {
-			int node_on_line = 0;
-			int no_vertex = m_msh->face_vector[i]->GetVertexNumber();
-			for (long jj = 0; jj < no_vertex; jj++) {
-				for (long kk = 0; kk < number_of_nodes; kk++) {
-					if (ply_nod_vector[kk]
-							== m_msh->face_vector[i]->GetNodeIndex(jj)) node_on_line++;
-				} // end nodes
-			} // end vertices
-			if (node_on_line == 2) st->element_st_vector.push_back(
-					m_msh->face_vector[i]->GetOwner()->GetIndex());
-		} // end faces
-	} // end system dependent
-	else //WW
-	{
-		for (long i = 0; i < number_of_nodes; i++) {
-			ply_nod_val_vector[i] = st->geo_node_value;
-			//			if (st->dis_type == 12)
-			if (st->getProcessDistributionType() == FiniteElement::CONSTANT_GEO)
-				ply_nod_val_vector[i] = st->geo_node_value / (double) number_of_nodes; // distribute flow to nodes along polyline. To do.. 4.10.06
-		}
-	}
-	
-	if (st->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN
-			|| st->getProcessDistributionType()
-					== FiniteElement::LINEAR_NEUMANN
-			|| st->getProcessDistributionType() == FiniteElement::GREEN_AMPT) {
-		if (m_msh->GetMaxElementDim() == 1) // 1D  //WW MB
-			st->DomainIntegration(m_msh, ply_nod_vector, ply_nod_val_vector);
-		else st->EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector);
-	}
-
-	if ( st->getProcessDistributionType() == FiniteElement::CRITICALDEPTH
-			|| st->getProcessDistributionType() == FiniteElement::NORMALDEPTH
-			|| st->getProcessDistributionType() == FiniteElement::ANALYTICAL) {
-		st->node_value_vectorArea.resize(number_of_nodes);
-		for (long i = 0; i < number_of_nodes; i++)
-			st->node_value_vectorArea[i] = 1.0; //Element width !
-		st->EdgeIntegration(m_msh, ply_nod_vector, st->node_value_vectorArea);
-	}
-
-	if (st->isCoupled() && st->node_averaging)
-		AreaAssembly(st, ply_nod_vector_cond, ply_nod_val_vector);
-}
-*/
 
 // 09/2010 TF
 void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
@@ -4963,9 +4041,11 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 			|| distype==FiniteElement::RECHARGE)	//MW
 	{
 		if (m_msh->GetMaxElementDim() == 1 || st->assign_to_element_edge) // 1D  //WW MB
-			st->DomainIntegration(m_msh, ply_nod_vector,
+			FiniteElement::DomainIntegration(PCSGet(pcs_type_name), ply_nod_vector,
 					ply_nod_val_vector);
-		else st->EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector);
+		else FiniteElement::EdgeIntegration(m_msh, ply_nod_vector, ply_nod_val_vector,
+				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition(), st->scaling_mode);
 	}
 
 	if (distype == FiniteElement::CRITICALDEPTH
@@ -4974,8 +4054,10 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 		st->node_value_vectorArea.resize(number_of_nodes);
 		for (size_t i = 0; i < number_of_nodes; i++)
 			st->node_value_vectorArea[i] = 1.0; //Element width !
-		st->EdgeIntegration(m_msh, ply_nod_vector,
-				st->node_value_vectorArea);
+		FiniteElement::EdgeIntegration(m_msh, ply_nod_vector,
+				st->node_value_vectorArea,
+				st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+				st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 	}
 
 	if (distype == FiniteElement::TRANSFER_SURROUNDING) { //TN - Belegung mit Fl�chenelementen
@@ -4986,10 +4068,12 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 		}
 
 		if (m_msh->GetMaxElementDim() == 1) // 1D  //WW MB
-			st->DomainIntegration(m_msh, ply_nod_vector,
+			FiniteElement::DomainIntegration(PCSGet(pcs_type_name), ply_nod_vector,
 					 st->node_value_vectorArea);
 		else
-			st->EdgeIntegration(m_msh, ply_nod_vector, st->node_value_vectorArea);
+			FiniteElement::EdgeIntegration(m_msh, ply_nod_vector, st->node_value_vectorArea,
+					st->getProcessDistributionType(), st->getProcessPrimaryVariable(), 
+					st->ignore_axisymmetry, st->isPressureBoundaryCondition());
 
 		
 		//CNode * a_node; //Fl�che wird hier im Knoten als patch area abgelegt
@@ -5012,13 +4096,13 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 	}
 }
 
-
 /**************************************************************************
  MSHLib-Method:
  Task:
  Programing:
  11/2007 JOD
  12/2012 JOD Extension to TWO_PHASE_FLOW
+ 04/2020 JOD deactivated
  last modification:
  **************************************************************************/
 void CSourceTermGroup::AreaAssembly(const CSourceTerm* const st,
@@ -5027,12 +4111,13 @@ std::vector<double>& ply_nod_val_vector) const
 {
    if (pcs_type_name == "RICHARDS_FLOW" || pcs_type_name == "MULTI_PHASE_FLOW")
    {
-      if (m_msh_cond->GetMaxElementDim() == 1)    // 1D  //WW MB
-         st->DomainIntegration(m_msh_cond, ply_nod_vector_cond,
+      /*if (m_msh_cond->GetMaxElementDim() == 1)    // 1D  //WW MB
+         DomainIntegration(m_msh_cond, ply_nod_vector_cond,
             ply_nod_val_vector);
       else
          st->EdgeIntegration(m_msh_cond, ply_nod_vector_cond,
             ply_nod_val_vector);
+	    */
       double sum_node_value = 0;
       for (size_t i = 0; i < ply_nod_val_vector.size(); i++)
          sum_node_value += ply_nod_val_vector[i];
@@ -5056,10 +4141,7 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
    // CRFProcess* m_pcs = NULL;
    // m_pcs = PCSGet(pcs_type_name);
    if (m_sfc == NULL)
-   {
-	   std::cerr << "Surface unknown" << "\n";
-	   return;
-   }
+	   throw std::runtime_error("Surface unknown");
 
    long number_of_nodes = (long) sfc_nod_vector.size();
    sfc_nod_val_vector.resize(number_of_nodes);
@@ -5120,9 +4202,9 @@ void CSourceTermGroup::SetSurfaceNodeValueVector(CSourceTerm* st,
 		   || st->getProcessDistributionType() == FiniteElement::RECHARGE)
    {
       if (m_msh->GetMaxElementDim() == 2)         // For all meshes with 1-D or 2-D elements
-         st->DomainIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector);
+    	  FiniteElement::DomainIntegration(PCSGet(pcs_type_name), sfc_nod_vector, sfc_nod_val_vector);
       else if (m_msh->GetMaxElementDim() == 3)    // For all meshes with 3-D elements
-         FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc,
+    	  FiniteElement::FaceIntegration(m_msh, sfc_nod_vector, sfc_nod_val_vector, m_sfc,
         		 st->getProcessDistributionType(), st->_pcs->m_num->ele_gauss_points);
    }                                              // end neumann
   else if (st->getProcessDistributionType() == FiniteElement::FUNCTION) // 25.08.2011. WW
@@ -5202,11 +4284,10 @@ std::vector<long>&sfc_nod_vector_cond)
  last modification:
  **************************************************************************/
 void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vector<long>& nodes_cond,
-		const std::vector<double>&node_values, int ShiftInNodeVector)
+		const std::vector<double>& node_values, const std::vector<double>& nodes_cond_length, const int& ShiftInNodeVector)
 {
    CNodeValue *m_nod_val = NULL;
    size_t number_of_nodes (nodes.size());
-
 
    // Added by CB;  removed by JOD 2015-11-19 
    /*double geometry_area = 1.0;
@@ -5227,15 +4308,25 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
       m_nod_val->geo_node_number = nodes[i];
       m_nod_val->setProcessDistributionType (getProcessDistributionType());
       m_nod_val->node_value = node_values[i];
+      m_nod_val->length = (geo_node_value == 0)? 0 : node_values[i] / geo_node_value;
 
+      m_nod_val->scaling_node_group = scaling_node_group;
       // Added by CB;  removed by JOD 2015-11-19 
       //if (this->getProcessDistributionType() == FiniteElement::CONSTANT_NEUMANN)
       //  m_nod_val->node_value *= geometry_area;
+      //m_nod_val->node_value *= geo_node_value;  // JOD 2020-05-29 ?????
+
       m_nod_val->CurveIndex = CurveIndex;
 // CB JOD MERGE //
 	
-	  if (connected_geometry)						// JOD 2/2015
-		  m_nod_val->msh_node_number_conditional = nodes_cond[i];
+	  if (connected_geometry && // JOD 2/2015
+   			connected_geometry_couplingType != 2) // not borehole mit given primary variable
+	  {
+		  m_nod_val->msh_node_number_conditional = nodes_cond[i];  // JOD 2021-12-10
+		  m_nod_val->msh_vector_conditional = nodes_cond;
+		  m_nod_val->msh_vector_conditional_length = nodes_cond_length;
+	  }
+
     /**/
 	  if (_coupled)                               // JOD 4.7.10
       {
@@ -6190,20 +5281,79 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 {
 	// get data from input *.st
 
-	double alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
-	double factor = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
+	double alpha;
+
+	if(m_st->GetBoreholeMode() == 1)  // advective heat transport
+	{
+		alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density(); // 1st mfp property for liquid !!!
+                                
+		if(m_st->getConnectedGeometryVerbosity() > 0)
+                	std::cout << "\t\t\tBorehole c_rho: " << mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density() << "\n";
+
+		if(m_st->isCoupled())
+		{
+               		CRFProcess* m_pcs_flow = PCSGet(m_st->pcs_type_name_cond);
+			if(m_pcs_flow)
+			{
+        	        	if(m_pcs_flow->ST_factor_kept.find(cnodev->msh_node_number) != m_pcs_flow->ST_factor_kept.end())
+				{
+
+        	       			const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] * 
+						(m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) - m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1)) ;
+
+					// std::cout << cnodev->msh_node_number << " Factor: " << m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] << "\n"; 
+					alpha *= fluid_flux;
+
+					if(m_st->getConnectedGeometryVerbosity() > 1)
+						std::cout << "\t\t\tNode " << cnodev->msh_node_number << " with pressure " << 
+						m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1) << " connected to\n\t\t\tnode " << 
+				      		cnodev->msh_node_number_conditional << " with pressure " << 
+				      		m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << '\n';
+				}
+				else
+        	        		throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - Factor for LIQUID_FLOW not kept");
+			}
+        	       	else
+        	        	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
+			
+		}
+		else  // not coupled to LIQUID_FLOW - source / sink term used with $KEEP_VALUES
+		{
+               		CRFProcess* m_pcs_liquid = PCSGet("LIQUID_FLOW");
+
+        	        if(m_pcs_liquid->ST_values_kept.find(cnodev->msh_node_number) != m_pcs_liquid->ST_values_kept.end())
+        	       	{
+        	       		alpha *= m_pcs_liquid->ST_values_kept[cnodev->msh_node_number];
+
+        	             	if(m_st->getConnectedGeometryVerbosity() > 0)
+        	               		std::cout << " - Q_fluid: " << m_pcs_liquid->ST_values_kept[cnodev->msh_node_number] << '\n';
+        	              
+        	              	if(fabs(m_pcs_liquid->ST_values_kept[cnodev->msh_node_number]) < 1.e-10)  // switch off ST - no connection
+				{
+					alpha = 0.;
+				}
+        	     	}
+        	       	else
+        	         	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
+		}
+	}
+	else
+		alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
+
+
+	double alpha_value = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
 
 	// determine downwind node part I - select now msh_node_number obtained from input *.gli in SetST()   - nodes are fixed for modes 0, 1 - if mode 2, nodes will be rearranged according to velocity later on)
 
-	long ToNode = cnodev->msh_node_number;                   // node from $GEO_TYPE 
-	long FromNode = cnodev->msh_node_number_conditional;     // where mesh_node_number is connected to (node from $CONNECTED_GEOMETRY) 
-	
+	const long ToNode = (alpha_value > 0) ?  cnodev->msh_node_number : cnodev->msh_node_number_conditional;
+	long FromNode = (alpha_value > 0) ? cnodev->msh_node_number_conditional : cnodev->msh_node_number; 
+
+	if(m_st->getConnectedGeometryCouplingType() == 2) // borehole with given primary variable
+		FromNode = -1;
+
 	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
-	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, factor, m_st);
-
-	value = 0; // factor * m_st->connected_geometry_offset;
-
+	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, alpha_value, m_st, value);
 }
 
 /**************************************************************************
@@ -6395,33 +5545,68 @@ Programing:
 06/2018 JOD implementation
 // passes temperatures and volumetic heat capacities to WDC and returns WDC result
 
-specific heat capacity and density can be pressure and temperature dependent
+!!! use constant (e.g. volumetric) heat capacity, when using polylines for warm and cold well,
+               dependency on pressure and temeprature not considered in NNNC
+heat capacity (pressure, temperature) when point heat source /sink term for heat exchanger
 only heat capacity and density of fluid is considered (mfp_vector[0])
 
 **************************************************************************/
-double CSourceTerm::apply_wellDoubletControl(const double &value,
-				const CNodeValue* cnodev, const double& aktuelle_zeit, const CRFProcess* m_pcs)
+double CSourceTerm::apply_wellDoubletControl(double value,
+				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
 	if(!m_pcs)
 		throw std::runtime_error("WellDoubletControl - No PCS");
 
 	const int ndx1 = 1;  // implicit - take new values for capacity calculations
 
-	long upwind_aquifer_mesh_node  = ogs_WDC->get_upwind_aquifer_mesh_node(aktuelle_zeit);
+	std::vector<size_t> heatExchanger_aquifer_mesh_nodes, upwind_aquifer_mesh_nodes;
+	std::vector<double> heatExchanger_aquifer_mesh_nodes_area_fraction, upwind_aquifer_mesh_nodes_area_fraction;
+
+	int operation_type = ogs_WDC->get_aquifer_mesh_nodes(aktuelle_zeit, wdc_flag_extract_and_reinject,
+				heatExchanger_aquifer_mesh_nodes, heatExchanger_aquifer_mesh_nodes_area_fraction,
+				upwind_aquifer_mesh_nodes, upwind_aquifer_mesh_nodes_area_fraction);
+	// operation_type 1: storing, -1: retrieving
+	if(wdc_flag_extract_and_reinject // polyline approach, no connection by elements
+		&& m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT)
+	{
+		if(operation_type * value < 0)  // storing with injection at warm well and retrieving with injection at cold well
+			return 0;
+		if(value < 0)  // -1 is only flag for retrieval: set value positive
+			value = -value;
+	}
+
+	ogs_WDC->set_heat_exchanger_mesh_nodes(heatExchanger_aquifer_mesh_nodes, heatExchanger_aquifer_mesh_nodes_area_fraction);
+
+	/*std::cout << "heat_exchanger\n";
+	for(int i=0; i< heatExchanger_aquifer_mesh_nodes.size(); ++i)
+	{
+		std::cout << heatExchanger_aquifer_mesh_nodes[i] << " " << heatExchanger_aquifer_mesh_nodes_area_fraction[i] << "\n";
+	}
+
+	std::cout << "unpwind\n";
+	for(int i=0; i< upwind_aquifer_mesh_nodes.size(); ++i)
+	{
+		std::cout << upwind_aquifer_mesh_nodes[i] << " " << upwind_aquifer_mesh_nodes_area_fraction[i] << "\n";
+	}*/
 
 	const CRFProcess* const m_pcs_liquid = (m_pcs->getProcessType() ==
 			FiniteElement::LIQUID_FLOW)? m_pcs : PCSGet("LIQUID_FLOW");
-	const CRFProcess* const m_pcs_heat = (m_pcs->getProcessType() ==
+	CRFProcess* m_pcs_heat = (m_pcs->getProcessType() ==
 			FiniteElement::HEAT_TRANSPORT)? m_pcs : PCSGet("HEAT_TRANSPORT");
 
-	// !!! Density() can change values
-	// extremum: maximum for injection & minimum for extraction
-	// this may make sense only for temperature
-	// reconsider and adapt this if capacity depends on pressure
-	double variables_heatExchanger[3] { ogs_WDC->get_extremum(m_pcs_liquid, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),
-		ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger) };  // pressure, temperature, ...
-	double variables_upwindAquifer[3] { m_pcs_liquid->GetNodeValue(upwind_aquifer_mesh_node, ndx1),
-		m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1) };
+	// heat capacity(pressure, temperature) here considered
+	double variables_heatExchanger[3] {
+		//ogs_WDC->get_extremum(m_pcs_liquid, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),
+		//ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger)
+		m_pcs_liquid->GetWeightedAverageNodeValue(heatExchanger_aquifer_mesh_nodes, // pressure
+				heatExchanger_aquifer_mesh_nodes_area_fraction, ndx1),  // !?
+		m_pcs_heat->GetWeightedAverageNodeValue(heatExchanger_aquifer_mesh_nodes,   // temperature
+				heatExchanger_aquifer_mesh_nodes_area_fraction, ndx1) };
+	double variables_upwindAquifer[3] {
+		m_pcs_liquid->GetWeightedAverageNodeValue(upwind_aquifer_mesh_nodes,  // pressure
+				upwind_aquifer_mesh_nodes_area_fraction, ndx1),  // !?
+		m_pcs_heat->GetWeightedAverageNodeValue(upwind_aquifer_mesh_nodes,   // temperature
+				upwind_aquifer_mesh_nodes_area_fraction, ndx1) };
 
 	double volumetric_heat_capacity_heatExchanger = (mfp_vector[0]->get_flag_volumetric_heat_capacity()) ?
 			mfp_vector[0]->get_volumetric_heat_capacity() :
@@ -6430,28 +5615,68 @@ double CSourceTerm::apply_wellDoubletControl(const double &value,
 			mfp_vector[0]->get_volumetric_heat_capacity() :
 			mfp_vector[0]->SpecificHeatCapacity(&variables_upwindAquifer[1]) * mfp_vector[0]->Density(&variables_upwindAquifer[1]);
 
-	const double result = value * ogs_WDC->call_WDC(m_pcs,
-			{ ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),  // extremum temperature at heat exchanger
-			m_pcs_heat->GetNodeValue(upwind_aquifer_mesh_node, ndx1),  // temperature in upwind aquifer
-			volumetric_heat_capacity_heatExchanger,
-			volumetric_heat_capacity_upwindAquifer });
+	double result = ogs_WDC->call_WDC(m_pcs,
+			{ //ogs_WDC->get_extremum(m_pcs_heat, ndx1, ogs_WDC->get_doublet_mesh_nodes().heatExchanger),  // extremum temperature at heat exchanger
+				m_pcs_heat->GetWeightedAverageNodeValue(heatExchanger_aquifer_mesh_nodes,
+						heatExchanger_aquifer_mesh_nodes_area_fraction, ndx1),
+				m_pcs_heat->GetWeightedAverageNodeValue(upwind_aquifer_mesh_nodes,
+					upwind_aquifer_mesh_nodes_area_fraction, ndx1),  // temperature in upwind aquifer
+				volumetric_heat_capacity_heatExchanger,
+				volumetric_heat_capacity_upwindAquifer },
+				heatExchanger_aquifer_mesh_nodes);
 
-	/*
-	if(m_pcs->getProcessType() ==
-			FiniteElement::LIQUID_FLOW && wdc_connector_materialGroup != -1 &&
-			value > 0 // to do it only once for well doublet (two wells)
-	)
+	// NNNC
+	if((ogs_WDC->get_parameter_list().begin()->indicator == 0 
+		|| ogs_WDC->get_parameter_list().begin()->indicator == 1 
+		|| ogs_WDC->get_parameter_list().begin()->indicator == 2)  // ST / ST
+			&& wdc_flag_extract_and_reinject 
+			&& m_pcs->getProcessType() == FiniteElement::HEAT_TRANSPORT 
+			&& (result > 1.e-10 || result < -1.e-10)  // use NNNC and connect wells only if storage is active (storing or retrieving)
+			)
 	{
-		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.type = 1;  // with this flag flow velocity is taken from material property
-		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.x = wdc_connector_normaldirectionVector[0] * result;
-		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.y = wdc_connector_normaldirectionVector[1] * result;
-		mmp_vector[wdc_connector_materialGroup]->fluidVelocity.z = wdc_connector_normaldirectionVector[2] * result;
-	}*/
-	return result;
+		//connected_geometry_mode = 1;  // downwind fixed - is set in Read function
+		connected_geometry_verbose_level = 0;
+
+		for(size_t i=0; i < upwind_aquifer_mesh_nodes.size(); ++i)
+		{
+			for(size_t j=0; j < heatExchanger_aquifer_mesh_nodes.size(); ++j)
+			{
+				double value_connection = value;
+				// constant (volumetric) heat capacity
+				const double factor = value * heatExchanger_aquifer_mesh_nodes_area_fraction[j] *
+								upwind_aquifer_mesh_nodes_area_fraction[i] *
+								volumetric_heat_capacity_upwindAquifer *
+								fabs(ogs_WDC->get_WellDoubletControl()->get_result().Q_W);
+
+				m_pcs_heat->IncorporateNodeConnectionSourceTerms(
+															upwind_aquifer_mesh_nodes[i],
+															heatExchanger_aquifer_mesh_nodes[j],
+															factor,
+															this, value_connection);
+
+				if(connected_geometry_couplingType == 0)
+				{  // set RHS values
+					m_pcs_heat->add_to_RHS(
+#if defined(USE_MPI)
+							dom_vector[myrank]->GetDOMNode(heatExchanger_aquifer_mesh_nodes[j]),
+
+#else
+							heatExchanger_aquifer_mesh_nodes[j],
+#endif
+							value_connection);
+
+					double convective_term = -factor / volumetric_heat_capacity_upwindAquifer;
+					GetCouplingNODValueConvectiveForm(convective_term, this, heatExchanger_aquifer_mesh_nodes[j]);
+				}
+			}
+		}
+	}
+
+	return value * result;
 }
 
 // JOD 2019-7-30
-double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs)
+double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs)
 {
 	std::vector<long> nodes_vec = ogs_contraflow->get_nodes_vec();
 	stru3::DVec T_s(nodes_vec.size());
@@ -6460,67 +5685,316 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 		T_s[i] = m_pcs->GetNodeValue(nodes_vec[i], 1);
 	}
 
-	// std::cout << "\napply contraflow\n";
-	contra::Result result = ogs_contraflow->call_contraflow(aktuelle_zeit, T_s);
-	std::vector<contra::SegmentData> segment_data_vec = ogs_contraflow->get_segment_data_vec();
-
-	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << nodes_vec[i] << " ";
-	// std::cout << std::endl;
-	// for(int i=0; i < nodes_vec.size(); ++i) std::cout << result.T_out[i] << " ";
-	// std::cout << std::endl;
-	// std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
-	// std::cout << "value: " << " " << value << "\n";
-	int j = 0;  // segment index
-	int k = 0;  // node in segment index
-	double L_ele = 0.;
-	int N = segment_data_vec[0].N;
-
-	for(std::size_t i=0; i < nodes_vec.size(); ++i)
+	//std::cout << "\napply contraflow\n";
+	contra::Result result;
+	if(ogs_contraflow->call_contraflow(aktuelle_zeit, T_s, result))
 	{
-		if(k == 1)
+		std::vector<contra::SegmentData> segment_data_vec = ogs_contraflow->get_segment_data_vec();
+
+		 //for(int i=0; i < nodes_vec.size(); ++i) std::cout << nodes_vec[i] << " ";
+		 //std::cout << std::endl;
+		 //for(int i=0; i < nodes_vec.size(); ++i) std::cout << result.T_out[i] << " ";
+		 //std::cout << std::endl;
+		 //std::cout << "Resistances: " << result.resistances_vec[0].R_0_Delta << " " << result.resistances_vec[0].R_1_Delta << std::endl;  // resistances vec due to segmetns
+		 //std::cout << "value: " << " " << value << "\n";
+		int j = 0;  // segment index
+		int k = 0;  // node in segment index
+		double L_ele = 0.;
+		int N = segment_data_vec[0].N;
+
+		for(std::size_t i=0; i < nodes_vec.size(); ++i)
 		{
-			L_ele = segment_data_vec[j].L/N;
-		}
-		else if(k == N)
-		{
-			k = 0;
-			if(j < int(segment_data_vec.size()-1))
+			if(k == 1)
 			{
-				L_ele /=2;  // inside BHE
-				++j;
+				L_ele = segment_data_vec[j].L/N;
 			}
-			else
-				L_ele = 0.;  // end of BHE
-		}
+			else if(k == N)
+			{
+				k = 0;
+				if(j < int(segment_data_vec.size()-1))
+				{
+					L_ele /=2;  // inside BHE
+					++j;
+				}
+				else
+					L_ele = 0.;  // end of BHE
+			}
 
-		if(k == 0)
-		{
-			N = segment_data_vec[j].N;
-			L_ele += segment_data_vec[j].L/(2*N);
+			if(k == 0)
+			{
+				N = segment_data_vec[j].N;
+				L_ele += segment_data_vec[j].L/(2*N);
 
-		}
+			}
 
 #ifdef NEW_EQS
-#ifdef LIS
-		   CSparseMatrix* A = NULL;
-		   A = m_pcs->eqs_new->get_A();
-	   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
-#endif
+			CSparseMatrix* A = NULL;
+		   A = m_pcs->get_eqs_new()->get_A();
+		   (*A)(nodes_vec[i], nodes_vec[i]) += value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta);
 #else
-	   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
+		   MXInc(nodes_vec[i], nodes_vec[i],  value * L_ele* ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta));
 #endif
-		// not implemented for PETSc
-	   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[j].R_0_Delta) + result.T_out[i] / result.resistances_vec[j].R_1_Delta);
+			// not implemented for PETSc
+		   eqs_rhs[nodes_vec[i]] += value * L_ele * ((result.T_in[i] / result.resistances_vec[j].R_0_Delta) + result.T_out[i] / result.resistances_vec[j].R_1_Delta);
 
-	   //double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[j].R_0_Delta) + (result.T_out[i] / result.resistances_vec[j].R_1_Delta)
-	//	- ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta)) * T_s[i]);
+		   //double flux = L_ele * (( (result.T_in[i] / result.resistances_vec[j].R_0_Delta) + (result.T_out[i] / result.resistances_vec[j].R_1_Delta)
+		//	- ( (1. / result.resistances_vec[j].R_0_Delta) + 1. / result.resistances_vec[j].R_1_Delta)) * T_s[i]);
 
-	   ++k;
-	}
-
+		   ++k;
+		}
+	} // end contraflow true (no shutin)
 
 	return 0.;
 }
 
 
+// JOD 2021-12-06
+void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
+		const long& msh_node,  // of local processor in case of MPI
+		const CFEMesh* const m_msh, const double& value,
+		// the following are updated
+		std::vector<scaling_type>& scaling_vec,
+		std::map<int, double>& scaling_total_source_term_vector,
+		std::map<int, double>& scaling_vec_sum)
+{
+
+	scaling_type scaling;
+
+	scaling.node_number = cnodev->msh_node_number;
+#if defined(USE_MPI)
+	scaling.node_number_local = msh_node;
+#endif
+	scaling.group_number = GetScalingNodeGroup();
+	scaling.keep_value = keep_values;
+	scaling.verbosity = scaling_verbosity;
+
+	// calculate a scaling factor for the node
+	double scaling_factor = 0;
+	std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
+	for (long i = 0; i < elements_connected.size(); ++i)
+	{
+		// permeability
+		const CElem* ele = m_msh->ele_vector[elements_connected[i]];
+		const double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
+		// viscosity - dependent on temperature, nothing else
+		CFluidProperties* mfp = MFPGet("LIQUID");
+		const CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+		double temperature = 0;
+
+		const int number_of_nodes = ele->getNodeIndices().Size();
+		for (int j = 0; j < number_of_nodes; ++j)
+		{
+			temperature += pcs_heat->GetNodeValue(ele->GetNodeIndex(j), 1); // implizit
+		}
+		temperature /= number_of_nodes;
+
+		double prim_values[3];
+		prim_values[1] = temperature;
+
+		const double visc = mfp->Viscosity(prim_values);  // use with viscosity model 3
+		//
+		scaling_factor += perm / visc;
+	}
+
+	scaling_factor *=  cnodev->length / elements_connected.size();
+
+	// store the scaling_factor, increment the sum of scalin_factor and source term value for the group (same CSourceTerm instance)
+	if(scaling_vec_sum.find(GetScalingNodeGroup()) != scaling_vec_sum.end())
+		scaling_vec_sum[GetScalingNodeGroup()] += scaling_factor;
+	else
+		scaling_vec_sum[GetScalingNodeGroup()] = scaling_factor;
+
+	if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
+		scaling_total_source_term_vector[GetScalingNodeGroup()] += value;
+	else
+		scaling_total_source_term_vector[GetScalingNodeGroup()] = value;
+
+	scaling.node_value = scaling_factor;
+	scaling_vec.push_back(scaling);
+}
+
+
+// JOD 2022/2 Implementation
+void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& node_number,
+		const std::vector<size_t>& elements_connected, double& factor, double& radius_e)
+{
+
+	CElem* face = new CElem(1);
+	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, 21); // 2D: X, Y,  m_pcs->m_msh->GetCoordinateFlag() // coord flag:
+	face->SetFace();
+
+	double sum = 0.;
+	double sum_ln = 0.;
+	factor = 0.;
+	bool take_elements_above = false;  // to avoid that face occurs twice
+	bool take_elements_below = false;
+	int number_of_taken_elements = 0;
+
+	for (size_t j = 0; j < elements_connected.size(); ++j)
+	{
+		// for r_e
+		bool neglect_element = false;
+
+		CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
+					//if (!elem->GetMark())   // !!! do not care about deactivation of elements
+					//	continue;
+		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+		{
+			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
+			{
+				if(take_elements_below)
+				{
+					neglect_element = true;
+					continue;
+				}
+				else
+					take_elements_above = true;
+				}
+
+			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() < m_pcs->m_msh->nod_vector[node_number]->Z() - 1e-5)
+			{
+				if(take_elements_above)
+				{
+					neglect_element = true;
+					continue;
+				}
+				else
+					take_elements_below = true;
+            }
+		}
+
+		if(neglect_element)
+			continue;
+
+		number_of_taken_elements++;
+
+		if(elem->GetDimension() == 2)
+		{
+			elem->SetOrder(m_pcs->m_msh->getOrder());
+			elem->ComputeVolume();
+			//fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
+		}
+		else if(elem->GetDimension() == 3)  // pris & hex
+		{
+			int nfaces, nfn, nodesFace[8];
+
+			CNode* e_node;
+
+			nfaces = elem->GetFacesNumber();
+			elem->SetOrder(m_pcs->m_msh->getOrder()); // ?
+
+			int facenumber = -1;
+			for (int k = 0; k < nfaces; k++)
+			{
+				nfn = elem->GetElementFaceNodes(k, nodesFace);
+				int counter = 0;
+				for (int l = 0; l < nfn; l++)
+				{
+					e_node = elem->GetNode(nodesFace[l]);
+					if(fabs(m_pcs->m_msh->nod_vector[node_number]->Z() - e_node->Z()) < 1.e-5)
+						counter++;
+				}
+				if(counter == nfn)
+				{
+					facenumber = k;
+					break;
+				}
+			}
+			if(facenumber == -1)
+				throw std::runtime_error("Error in borehole ST - Element face not found");
+
+			face->SetFace(elem, facenumber);
+			face->SetOrder(m_pcs->m_msh->getOrder());
+			face->ComputeVolume();
+			elem = face;
+		}
+		else
+			throw std::runtime_error("Error in Borehole ST: elements must be 2 or 3D");
+
+		fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
+		fem->SetMemory();
+		fem->SetMaterial();
+		fem->CalcLaplace(true);
+
+		Math_Group::Matrix* laplace = fem->get_Laplace();
+
+
+		if(m_st->getConnectedGeometryVerbosity() > 1)
+			laplace->Write();
+
+		CNode* wellNode = NULL;
+		int well_ndx;
+		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+			if(elem->GetNode(k)->GetEquationIndex() == node_number)
+			{
+				wellNode = elem->GetNode(k);
+				well_ndx = k;
+			}
+
+		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+		{
+			CNode* node = elem->GetNode(k);
+			if(node->GetEquationIndex() !=  wellNode->GetEquationIndex() &&
+					std::fabs(node->Z() - wellNode->Z()) < 1.e-5)
+			{
+				const double distance = std::sqrt(
+						(wellNode->X() - node->X()) * (wellNode->X() - node->X()) +
+						(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
+						// +
+						// (wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()));  // !!! mesh must be horizontal
+				const double entry = (*laplace)(well_ndx, k);
+
+				if(m_st->getConnectedGeometryVerbosity() > 1)
+					std::cout << "\tNodes " << node_number << " "<< node->GetEquationIndex() << " with distance " <<  distance <<
+					" (" << well_ndx<< ", "<< k << "): " <<  entry << std::endl;
+
+				if(distance > 1e-5)
+				{
+					sum -= entry;
+					sum_ln -= entry * std::log(distance);
+				}
+			}
+		}
+
+		/////////////////////////////////////////////////////////////////
+		// factor
+		const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
+
+		switch(m_st->getProcessType())
+		{
+			case  FiniteElement::LIQUID_FLOW:
+
+				factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
+							mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+				break;
+
+			case  FiniteElement::HEAT_TRANSPORT:
+			{
+				const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+
+				double heat_conductivity_solid[9];
+				msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
+				const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
+
+				factor += porosity * mfp_vector[0]->HeatConductivity() + // 1st mfp instance is LIQUID
+						(1-porosity) * heat_conductivity_solid[0];  // one entry
+				break;
+			}
+			default:
+				throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
+		}
+
+
+	}  // elements_connected
+
+	factor *= 6.283185307179586 / number_of_taken_elements;
+	radius_e = std::exp( (sum_ln - 6.283185307179586) / sum  ) ;  // peaceman
+
+	if(m_st->getConnectedGeometryVerbosity())
+		std::cout << "\tPeaceman r_e: " << radius_e  << " at node " << node_number << std::endl;
+
+	delete face;
+	delete fem;
+
+}
 

@@ -20,11 +20,13 @@
 #include "OGS_contraflow.h"
 #include <list>
 
+
 class CNodeValue;
 class CGLPolyline;
 class CGLLine;
 class Surface;
 class Polyline;
+
 
 namespace process                                 //WW
 {
@@ -75,8 +77,6 @@ struct StorageRate
 	double inlet_totalArea, outlet_totalArea;
 };
 
-
-
 typedef struct
 {
 	std::vector<double> value_reference;
@@ -84,6 +84,14 @@ typedef struct
 	//double value_store[10][5000];
 	double** value_store;                 //[PCS_NUMBER_MAX*2]First ref no processes(two fields per process..time, value), second ref no values
 } NODE_HISTORY;
+
+struct borehole_type
+{
+	double value;
+	double radius;
+};
+
+
 
 class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 {
@@ -102,13 +110,24 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	std::string well2_geometry_name_aquifer;
 	std::string well1_geometry_name_liquidBC;
 	std::string well2_geometry_name_liquidBC;
-
+	int scaling_mode; // JODSH 2021-11-04
+	int scaling_node_group;
 
 	OGS_WDC* ogs_WDC;  // pointer to vector entry in pcs
 	OGS_contraflow* ogs_contraflow;  // pointer to vector entry in pcs
 	int wdc_connector_materialGroup;
 	double wdc_connector_normaldirectionVector[3];
+	bool wdc_flag_extract_and_reinject;
+	bool variable_storage;
+
+	int average_mode;	// JOD 2020-12-10
+	int average_verbosity;
+	int average;
+	int borehole_mode;	// JOD 2020-12-07
+	borehole_type borehole_data;
 public:
+	int verbosity;  // JOD 2022-02-23 
+	borehole_type get_borehole_data() const { return borehole_data; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
 	~CSourceTerm();
@@ -117,15 +136,6 @@ public:
 	                        const GEOLIB::GEOObjects & geo_obj,
 	                        const std::string & unique_name);
 	void Write(std::fstream*);
-
-	void EdgeIntegration(MeshLib::CFEMesh* m_msh,
-	                     const std::vector<long> & nodes_on_ply,
-	                     std::vector<double> & node_value_vector) const;
-
-
-	void DomainIntegration(MeshLib::CFEMesh* m_msh,
-	                       const std::vector<long> & nodes_in_dom,
-	                       std::vector<double> & node_value_vector) const;
 
 	void SetNOD2MSHNOD(std::vector<long> & nodes, std::vector<long> & conditional_nodes);
 
@@ -160,8 +170,11 @@ public:
 	        std::vector<double> const & nodes_as_interpol_points,
 	        std::vector<double>& node_values) const;
 
-	void SetNodeValues(const std::vector<long> & nodes, const std::vector<long> & nodes_cond,
-	                   const std::vector<double> & node_values, int ShiftInNodeVector); // used only in sourcetermgroup
+	void SetNodeValues(const std::vector<long> &, const std::vector<long> &, const std::vector<double>&,
+	                   const std::vector<double> &, const int&); // used only in sourcetermgroup
+
+	void CalculateScalingForNode(const CNodeValue* const, const long& msh_node, const CFEMesh* const, const double&,
+			std::vector<scaling_type>&, std::map<int, double>&, std::map<int, double>&);
 
 	void SetNOD();
 
@@ -199,7 +212,11 @@ public:
 	bool no_surface_water_pressure, explicit_surface_water_pressure; // JOD 
 	
 	bool isCoupled () const { return _coupled; }
-	bool isConnected() const { return connected_geometry; }  // JOD 2/2015
+	//bool isConnected() const { return connected_geometry_mode > -1; }  // JOD 2/2015
+	bool isConnectedGeometry() const { return connected_geometry; }  // JOD 2021-12-10
+	int getConnectedGeometryCouplingType() const { return connected_geometry_couplingType; }  // JOD 2021-12-10
+	int getConnectedGeometryMode() const { return connected_geometry_mode; }
+	int  getConnectedGeometryVerbosity() const { return connected_geometry_verbose_level; }
 	bool hasThreshold() const { return threshold_geometry; }
 	bool calculatedFromStorageRate() const { return storageRate_geometry; }
 
@@ -243,9 +260,9 @@ public:
 
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
-	double apply_wellDoubletControl(const double &value, const CNodeValue* cnodev,
-			const double& aktuelle_zeit, const CRFProcess* m_pcs);  // JOD 2018-06-14
-	double apply_contraflow(const double &value, const double& aktuelle_zeit, const CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
+	double apply_wellDoubletControl(double value, const CNodeValue* cnodev,
+			const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
+	double apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
 	int geo_node_number;
@@ -263,7 +280,7 @@ public:
 	
 	int getTimeContrCurve() {return time_contr_curve; } //SB:02.2014 get bc ativity controlled curve
 	std::string getTimeContrFunction() {return time_contr_function; } //SB:02.2014 get bc ativity controlled curve
-  std::string getFunction() { return fct_name; } //SB:02.2014 get bc ativity controlled curve
+	std::string getFunction() { return fct_name; } //SB:02.2014 get bc ativity controlled curve
 
 	int getSubDomainIndex () const { return _sub_dom_idx; }
 
@@ -281,7 +298,6 @@ public:
 	  int connected_geometry_verbose_level;
 	  double connected_geometry_exchange_term;  // leakance
 	  double connected_geometry_offset;   // not used
-	  int connected_geometry_mode;
 	  long connected_geometry_ref_element_number;        //  JOD 2015-11-18 - mode 2
 	  double connected_geometry_minimum_velocity_abs;    //                      
 	  double connected_geometry_reference_direction[3];  //
@@ -291,8 +307,18 @@ public:
 	  long msh_node_number_threshold;
 
 	  bool storageRate_geometry;  // JOD 2018-02-22
+	  int GetScalingMode() { return scaling_mode; }
+	  int GetScalingNodeGroup() { return scaling_node_group; } 
+	  int scaling_verbosity;
+
+	  //double GetWellTemperature() { return well_temperature; }
+	  int GetBoreholeMode() { return borehole_mode; }
+	  borehole_type GetBoreholeData() { return borehole_data; }
+	  // double CalculateBorehole(double&, const long&, const long&, const std::vector<long>&, const std::vector<double>&, const int&, const int&);
 
 private:                                          // TF, KR
+	int connected_geometry_mode;
+	int connected_geometry_couplingType;
 	void ReadDistributionType(std::ifstream* st_file);
 	void ReadGeoType(std::ifstream* st_file,
 	                 const GEOLIB::GEOObjects& geo_obj,
@@ -337,8 +363,8 @@ private:                                          // TF, KR
 	double analytical_matrix_density;     // used only once in a global in rf_st_new
 	double factor;
 
-	  double transfer_coefficient; //TN - for DIS_TYPE TRANSFER_SURROUNDING
-	  double value_surrounding; //TN - for DIS_TYPE TRANSFER_SURROUNDING
+	double transfer_coefficient; //TN - for DIS_TYPE TRANSFER_SURROUNDING
+	double value_surrounding; //TN - for DIS_TYPE TRANSFER_SURROUNDING
 
 	std::string nodes_file;
 	int msh_node_number;
@@ -376,6 +402,7 @@ private:                                          // TF, KR
 	StorageRate storageRate;
 	bool ignore_axisymmetry; // JOD 2018-08-15
 	bool assign_to_element_edge;  // JOD 2018-9-28
+	bool keep_values; // JOD-2021-11-12
 };
 
 class CSourceTermGroup
@@ -448,7 +475,7 @@ private:
 	                                      std::vector<size_t>& ply_nod_vector,
 	                                      std::vector<size_t>& ply_nod_vector_cond);
 
-      void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
+    void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
     		  const std::vector<long>& ply_nod_vector,
     		  std::vector<long>& ply_nod_vector_cond, std::vector<double>& ply_nod_val_vector);
 
@@ -530,6 +557,7 @@ extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeVal
 extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 // JOD
 extern void GetCouplingNODValuePicard(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
+extern void GetCouplingNODValueConvectiveForm(double& value, CSourceTerm* m_st, const long mesh_node_number);//, CNodeValue* cnodev);  // JOD 2020-03-25
 #endif
 // JOD
 extern double CalcCouplingValue(double factor,
@@ -563,10 +591,11 @@ extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
 void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
-extern void FaceIntegration(MeshLib::CFEMesh* m_msh,
-                     std::vector<long> const & nodes_on_sfc,
-                     std::vector<double> & node_value_vector,
-					 Surface* m_surface, FiniteElement::DistributionType disType, int ele_gauss_points);
+void CalculatePeaceman(const CSourceTerm* const, CRFProcess*,
+		const long&, const std::vector<size_t>&, double&, double&);
 
-double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
+//double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
+
+
+
 #endif

@@ -6898,7 +6898,7 @@ if(m_krd->NumberMineralkinetics>0){
             // for inibition species or other species not appearing in Term myXMI
             // the first term is zero anyway, so just add the 2nd term, the contribution from TD forcing term
             // neglect Activity coefficients
-            if (m_kr->astn = -1)
+            if (m_kr->astn == -1)  // JOD = -> == due to warning
               d2X_dtdS[ReactionPartner + 1] += myXMI * (- 1.0) * m_kr->ProductionStoch[ReactionPartner] / Concentration * (TDF - TDF * TDF);  
             
           }
@@ -8478,7 +8478,7 @@ void CKinReactData::PhaseVoluminaPreprocessing(){
   CMediumProperties* m_mat_mp(mmp_vector[0]);
   MeshLib::CNode const*  node;
   double const* coord;
-  MeshLib::CElem const* m_ele;
+  MeshLib::CElem const* m_ele=NULL;
   double const* grav_c;
 
   CRFProcess *m_pcs = cp_vec[0]->getProcess();
