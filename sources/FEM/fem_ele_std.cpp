@@ -1725,12 +1725,14 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		if(MediaProp->volumetric_heat_capacity_model == -1)
+		if(MediaProp->volumetric_heat_capacity_model == -1|| flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
 		{
 			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		}
 		else
 		{
+			//if (TG < 273.15)
+			//	std:cout << "Temperature: " << TG << " ;CM; ";
 			val = MediaProp->VolumetricHeatCapacity(TG);
 		}
 		val /= time_unit_factor;
@@ -2310,63 +2312,63 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 			for(size_t i = 0; i < dim; i++)
 				tensor[i * dim + i] *= w[i];
 		}
-	//Add correcting factor to the permeability due to the ice formation in the pore space BW 05/2022
-	if (MediaProp->ice_correcting_factor > 0.0)
-	{
-
-
-		TG = interpolate(NodalValC1); // ground temperature Liquid flow, which one is TEMPERAURE1
-
-
-		// get the porosity
-		poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
-
-
-		// get the freezing model parameter
-		sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
-
-
-		if (TG > SolidProp->melting_temperature)
-			phi_i = 0.0;
-		//else if (TG < SolidProp->freezing_temperature)
-		//	phi_i = 1.0;
-		else
-		{
-			//Tempeature interval T - TL
-			TG = TG - SolidProp->melting_temperature;
-			//TG = -1.0;
-
-			// get the volume fraction of ice
-			phi_i = MediaProp->CalcIceVolFrac(TG, sigmoid_coeff);
-
-
-		}
-
-
-
-		kf_correcting_factor_ice = pow(10, -MediaProp->ice_correcting_factor * phi_i * poro);
-
-		/*if (phi_i > 0.0 && phi_i < 1.0)
+			//Add correcting factor to the permeability due to the ice formation in the pore space
+			if (MediaProp->ice_correcting_factor > 0.0)
 			{
-			std::cout << "Temperaure: " << TG << '\n';
-			std::cout << "Porosity: " << poro << '\n';
-			std::cout << "Ice fraction: " << phi_i << '\n';
-			std::cout << "Given Correcting_Factor: " << MediaProp->ice_correcting_factor << '\n';
-			std::cout << "kf_Correcting_Factor: " << kf_correcting_factor_ice << '\n';
-			}*/
-
-			//if (MediaProp->ice_correcting_factor < 1e-2)
-				//MeshElement->MarkingAll(false);
-			//	MediaProp->ice_correcting_factor = 1e-2;
-			//else
-			//{
-				//MeshElement->MarkingAll(true);
-		for (size_t i = 0; i < dim * dim; i++)
-			tensor[i] *= kf_correcting_factor_ice;
-			//}
 
 
-	}
+				TG = interpolate(NodalValC1); // ground temperature Liquid flow, which one is TEMPERAURE1
+
+
+				// get the porosity
+				poro = MediaProp->Porosity(Index, pcs->m_num->ls_theta);
+
+
+				// get the freezing model parameter
+				sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
+
+
+				if (TG > SolidProp->melting_temperature)
+					phi_i = 0.0;
+				//else if (TG < SolidProp->freezing_temperature)
+				//	phi_i = 1.0;
+				else
+				{
+					//Tempeature interval T - TL
+					TG = TG - SolidProp->melting_temperature;
+					//TG = -1.0;
+
+					// get the volume fraction of ice
+					phi_i = MediaProp->CalcIceVolFrac(TG, sigmoid_coeff);
+
+
+				}
+
+
+
+				kf_correcting_factor_ice = pow(10, -MediaProp->ice_correcting_factor * phi_i * poro);
+
+				/*if (phi_i > 0.0 && phi_i < 1.0)
+				{
+					std::cout << "Temperaure: " << TG << '\n';
+					std::cout << "Porosity: " << poro << '\n';
+					std::cout << "Ice fraction: " << phi_i << '\n';
+					std::cout << "Given Correcting_Factor: " << MediaProp->ice_correcting_factor << '\n';
+					std::cout << "kf_Correcting_Factor: " << kf_correcting_factor_ice << '\n';
+				}*/
+
+				//if (MediaProp->ice_correcting_factor < 1e-2)
+					//MeshElement->MarkingAll(false);
+				//	MediaProp->ice_correcting_factor = 1e-2;
+				//else
+				//{
+					//MeshElement->MarkingAll(true);
+				for (size_t i = 0; i < dim * dim; i++)
+					tensor[i] *= kf_correcting_factor_ice;
+				//}
+
+
+			}
 		for(size_t i = 0; i < dim * dim; i++)
 			mat[i] = tensor[i] / mat_fac * perm_effstress;//AS:perm. dependent eff stress.
 
@@ -2599,7 +2601,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 			else if (SolidProp->GetConductModel() == 7) // heat conductivity value including ice part
 			{
 				TG = interpolate(NodalVal1); // ground temperature
-				//if(this->MeshElement->GetIndex()<5)
+				//if(this->MeshElement->GetIndex()==64)
 				//std::cout << "Elementindex: " << this->MeshElement->GetIndex() << "; T: " << TG << "\n";
 				// get heat conductivity including the ice part
 				const double lambda_solid = SolidProp->Heat_Conductivity(0);
@@ -2613,8 +2615,8 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 
 				if (TG > SolidProp->melting_temperature)
 						phi_i = 0.0;
-				else if (TG < SolidProp->freezing_temperature)  //?????
-						phi_i = 1.0;
+				//else if (TG < SolidProp->freezing_temperature)
+				//		phi_i = 1.0;
 				else
 				{
 						//Tempeature interval T - TL
@@ -2634,34 +2636,34 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				//Update with the squar root rule BW 05.2021
 				if (SolidProp->ice_conductivity_model == 1)//volumetric mean
 				{
-						mat_fac = lambda_solid * (1 - poro) + lambda_ice * phi_i * poro +
-								FluidProp->HeatConductivity() * poro * (1.0 - phi_i);
+						mat_fac = lambda_solid * (1 - poro) + lambda_ice * phi_i * poro + FluidProp->HeatConductivity() * poro * (1.0 - phi_i);
 
+						// fluid, i.e. water heat conductivity
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
 				}
 				else if (SolidProp->ice_conductivity_model == 2)//power)
 				{
-						mat_fac = pow(lambda_solid, (1 - poro)) * pow(lambda_ice, (phi_i * poro)) *
-								pow(FluidProp->HeatConductivity(), poro * (1.0 - phi_i));
+						mat_fac = pow(lambda_solid, (1 - poro)) * pow(lambda_ice, (phi_i * poro)) * pow(FluidProp->HeatConductivity(), poro * (1.0 - phi_i));
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
 				}
-				else if (SolidProp->ice_conductivity_model == 3)//squareroot)
+				else if (SolidProp->ice_conductivity_model == 3)//squarroot)
 				{
-						mat_fac = pow((sqrt(lambda_solid) * (1 - poro) + sqrt(lambda_ice) * (phi_i * poro) +
-								sqrt(FluidProp->HeatConductivity()) * poro * (1.0 - phi_i)), 2);
-				}
-				else
-					throw std::runtime_error("Ice conductivity model not supported");
+						mat_fac = pow((sqrt(lambda_solid) * (1 - poro) + sqrt(lambda_ice) * (phi_i * poro) + sqrt(FluidProp->HeatConductivity()) * poro * (1.0 - phi_i)), 2);
 
-				for (size_t i = 0; i < dim; i++)
-						mat[i * dim + i] = mat_fac;
+						for (size_t i = 0; i < dim; i++)
+								mat[i * dim + i] = mat_fac;
+				}
 			}  // end SolidProp->GetConductModel() == 7
 			else
-			{ // other heat conductivity model
+			{
 				tensor = MediaProp->HeatConductivityTensor(Index);
 				for(size_t i = 0; i < dim * dim; i++)
 					mat[i] = tensor[i];  //mat[i*dim+i] = tensor[i];
 			}
 
-		}  // end mmp heat_conductivity == -1
+		}  // end heat_conductivity == -1
 		else
 		{	// JOD 2022-03-12
 			tensor = MediaProp->HeatDispersionTensorNew(ip);
@@ -9237,7 +9239,7 @@ void CFiniteElementStd::Config()
 		(*RHS) = 0.0;
 
 
-	//return; //This line makes the NodelVal1 wrong, please double check why you add the return here BW 05/2022
+	//return;
 	//----------------------------------------------------------------------
 	// Node value of the previous time step
 	int idx00 = idx0;                     //----------WW 05.01.07
@@ -12208,6 +12210,8 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 	Config();
 	setOrder(Order);
 	const double det = MeshElement->GetVolume();
+	//if(MeshElement->GetIndex() == 64)
+	//	std:cout << "Elementindex " << MeshElement->GetIndex();
 
 	for (i = 0; i < nNodes; i++)
 	{
@@ -12245,6 +12249,8 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 		const double factor = fkt *  MediaProp->ElementVolumeMultiplyer;
 
 		double content_increment = Gauss_val;
+		//if (MeshElement->GetIndex() == 64)
+		//cout << " Temperature at gauss points: " << Gauss_val;
 
 		if (flag_latent_heat == true)  // BW 2022-05-12
 		{
@@ -12257,11 +12263,11 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 				phi_i = 0.0;
 				content_increment = 0.0;
 			}
-			else if (Gauss_val < SolidProp->freezing_temperature)
-			{
-				phi_i = 1.0;
-				content_increment = 0.0;
-			}
+			//else if (Gauss_val < SolidProp->freezing_temperature)
+			//{
+			//	phi_i = 1.0;
+			//	content_increment = 0.0;
+			//}
 			else
 			{
 				//Temperature interval T - TL

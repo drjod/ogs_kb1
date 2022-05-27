@@ -6155,7 +6155,7 @@ void COutput::WriteLatentHeat(double time_current, int time_step_number)  // BW 
         //}
         //else
         //{
-                tec_file_name += "_LatentHeat";
+                tec_file_name += "_LatentHeat_";
         //}
 
         if (mmp_index >= 0)
@@ -6202,7 +6202,7 @@ void COutput::WriteLatentHeat(double time_current, int time_step_number)  // BW 
                         cout << "Data output: " << convertProcessTypeToString(getProcessType());
                         if (_nod_value_vector.size() == 1)
                                 cout << " " << _nod_value_vector[0];
-                        cout << " TOTAL_CONTENT " << mmp_index << endl;
+                        cout << " Latent Heat " << mmp_index << endl;
                 }
         }
 
