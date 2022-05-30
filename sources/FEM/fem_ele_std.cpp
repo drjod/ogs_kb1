@@ -2613,14 +2613,14 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				const double sigmoid_coeff = SolidProp->getFreezingSigmoidCoeff();
 				double phi_i;
 
-				if (TG > SolidProp->melting_temperature)
+				if (TG > SolidProp->getmeltingtemperature())
 						phi_i = 0.0;
 				//else if (TG < SolidProp->freezing_temperature)
 				//		phi_i = 1.0;
 				else
 				{
 						//Tempeature interval T - TL
-						TG -= SolidProp->melting_temperature;
+						TG -= SolidProp->getmeltingtemperature();
 						//TG = -1.0;
 
 						// get the volume fraction of ice
