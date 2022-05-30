@@ -831,11 +831,11 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
     			{
     				time_step_length *= correction_factor;
     				std::cout << "Time step corrected to: " << time_step_length << '\n';
-					if (time_step_length < min_time_step)
-					{
-						time_step_length = min_time_step;
-						std::cout << "Time step corrected to the minimum time step in NUM : " << time_step_length << '\n';
-					}
+					//if (time_step_length < min_time_step)
+					//{
+					//	time_step_length = min_time_step;
+					//	std::cout << "Time step corrected to the minimum time step in NUM : " << time_step_length << '\n';
+					//}
     			}
     			else
     				time_step_length = SelfAdaptiveTimeControl();
