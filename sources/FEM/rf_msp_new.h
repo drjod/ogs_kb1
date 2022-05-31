@@ -111,6 +111,8 @@ namespace SolidProp
 		// ice storage, BW 2022-05-12
 		double freezing_latent_heat; //  Latent heat for freezing J/kg
 		double freezing_sigmoid_coeff; // sigmoid coefficient for freezing unitless
+		int freezing_sigmoid_derivative_model; // 0, curve; 1, constant BW 05/2022
+		int freezing_sigmoid_derivative_model_curve_number; // BW 05/2022
 		int ice_conductivity_model;
 		double melting_temperature;
 		double freezing_temperature;
@@ -238,6 +240,8 @@ namespace SolidProp
 		void HeatConductivityTensor(const int dim, double* tensor, const int& group, const int& index);
 		//   int GetCapacityMode() {return Capacity_mode;};  ??
 		double getFreezingSigmoidCoeff() { return freezing_sigmoid_coeff; };
+		double getFreezingSigmoidDerivativeModel() { return freezing_sigmoid_derivative_model; };
+		int getFreezingSigmoidDerivativeCurveNumber() { return freezing_sigmoid_derivative_model_curve_number; };
 		double getlatentheat() const { return freezing_latent_heat; };
 		double getmeltingtemperature() const { return melting_temperature; };
 		double getfreezingtemperature() const { return freezing_temperature; };
