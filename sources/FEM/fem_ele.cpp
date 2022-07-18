@@ -1398,7 +1398,6 @@ void CElement::FaceNormalFluxIntegration(long element_index, double *NodeVal, do
 	double *sf = shapefct;
 	double normal_diff_flux_interpol, normal_adv_flux_interpol;
 	double dbuff_adv[10], flux[3];
-	ElementValue* gp_ele = ele_gp_value[element_index];
 
 	setOrder(Order);
 	if (Order == 2)
@@ -1465,7 +1464,7 @@ void CElement::FaceNormalFluxIntegration(long element_index, double *NodeVal, do
 			for (int i = 0; i < nNodes; i++) { // Integration
 				// Fick or Fourier diffusion
 				for (int l = 0; l < 3; l++)
-					flux[l] = gp_ele->Velocity(l, gp);// TransportFlux(l, gp);
+					flux[l] = ele_gp_value[element_index]->Velocity(l, gp);// TransportFlux(l, gp);
 				normal_diff_flux_interpol = PointProduction(flux, normal_vector);   //    fabs(PointProduction(flux, normal_vector));
 				dbuff[i] += normal_diff_flux_interpol * sf[i] * fkt;
 				// advection
@@ -1507,7 +1506,6 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
 		m_mfp = mfp_vector[1]; // 0=water, 1=gas
 	else
 		m_mfp = mfp_vector[0];
-    ElementValue* gp_ele = ele_gp_value[ele_index];
         
     setOrder(Order);
 
@@ -1537,9 +1535,9 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
 		
 		for (int l = 0; l < 3; l++)
 			if (multi)
-				flux[l] = gp_ele->Velocity_g(l, gp);
+				flux[l] = ele_gp_value[ele_index]->Velocity_g(l, gp);
 			else
-				flux[l] = gp_ele->Velocity(l, gp);
+				flux[l] = ele_gp_value[ele_index]->Velocity(l, gp);
 		double scalar_flux = MSkalarprodukt(flux, flux, 3);
 		// Integration
 		JTCoeff_val *= m_mfp->SpecificHeatCapacity() * m_mfp->Density() * (scalar_flux / ((kr * k) / m_mfp->Viscosity()) +  m_mfp->Density() * g * flux[2]);
@@ -1573,8 +1571,6 @@ void CElement::CalculateFluxThroughFace(long element_index, double factor, doubl
 	int i, gp, gp_r, gp_s, gp_t;
 	double fkt = 0.0, det;
 	double Gauss_val_normal_diff_flux, Gauss_val_normal_adv_flux;
-
-	ElementValue* gp_ele = ele_gp_value[element_index];
 
 	setOrder(Order);
 

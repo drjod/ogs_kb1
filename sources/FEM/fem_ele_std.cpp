@@ -1725,8 +1725,7 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		if(MediaProp->volumetric_heat_capacity_model == -1)
-			// removed by JOD 2022-7-18 that volumetric heat capacity can be used generally    || flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
+		if(MediaProp->volumetric_heat_capacity_model == -1|| flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
 		{
 			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		}
@@ -5403,7 +5402,7 @@ void CFiniteElementStd::CalcAdvection()
 		m_mfp_g =  mfp_vector[1];
 		GasProp = MFPGet("GAS");
 	}
-	ElementValue* gp_ele = ele_gp_value[Index];
+
 	CRFProcess* pcs_fluid_momentum = PCSGet("FLUID_MOMENTUM");
 
 	std::vector<std::vector<double> > nodal_vel(3);
@@ -5495,9 +5494,9 @@ void CFiniteElementStd::CalcAdvection()
        	 	}
        	 	else
        	 	{
-       	 		vel[0] = mat_factor * gp_ele->Velocity(0, gp);
-       	 		vel[1] = mat_factor * gp_ele->Velocity(1, gp);
-       	 		vel[2] = mat_factor * gp_ele->Velocity(2, gp);
+       	 		vel[0] = mat_factor * ele_gp_value[Index]->Velocity(0, gp);
+       	 		vel[1] = mat_factor * ele_gp_value[Index]->Velocity(1, gp);
+       	 		vel[2] = mat_factor * ele_gp_value[Index]->Velocity(2, gp);
        	 	}
 	}
         // CB _ctx_ : modify v if _ctx_ flux needs to be included
@@ -5511,9 +5510,9 @@ void CFiniteElementStd::CalcAdvection()
 			// // SB, BG
 			if(cp_vec[this->pcs->pcs_component_number]->transport_phase == 10)
 			{
-				vel[0] = mat_factor * gp_ele->Velocity_g(0, gp);
-				vel[1] = mat_factor * gp_ele->Velocity_g(1, gp);
-				vel[2] = mat_factor * gp_ele->Velocity_g(2, gp);
+				vel[0] = mat_factor * ele_gp_value[Index]->Velocity_g(0, gp);
+				vel[1] = mat_factor * ele_gp_value[Index]->Velocity_g(1, gp);
+				vel[2] = mat_factor * ele_gp_value[Index]->Velocity_g(2, gp);
 			}             // SB, BG
 		if(multiphase)            //02/2007 WW
 		{
@@ -5535,9 +5534,9 @@ void CFiniteElementStd::CalcAdvection()
 			else
 				rho_g = GasProp->Density();
 			mat_factor = rho_g * m_mfp_g->SpecificHeatCapacity();
-			vel[0] += mat_factor * gp_ele->Velocity_g(0, gp);
-			vel[1] += mat_factor * gp_ele->Velocity_g(1, gp);
-			vel[2] += mat_factor * gp_ele->Velocity_g(2, gp);
+			vel[0] += mat_factor * ele_gp_value[Index]->Velocity_g(0, gp);
+			vel[1] += mat_factor * ele_gp_value[Index]->Velocity_g(1, gp);
+			vel[2] += mat_factor * ele_gp_value[Index]->Velocity_g(2, gp);
 		}
 		// Velocity by Fluid_Momentum - 13.11.2009  PCH
 		if(pcs_fluid_momentum)
@@ -5578,9 +5577,9 @@ void CFiniteElementStd::CalcAdvection()
 #endif
 		if (pcs->m_num->ele_supg_method > 0) //NW
 		{
-			vel[0] = gp_ele->Velocity(0, gp);
-			vel[1] = gp_ele->Velocity(1, gp);
-			vel[2] = gp_ele->Velocity(2, gp);
+			vel[0] = ele_gp_value[Index]->Velocity(0, gp);
+			vel[1] = ele_gp_value[Index]->Velocity(1, gp);
+			vel[2] = ele_gp_value[Index]->Velocity(2, gp);
 			if(pcs_fluid_momentum)
 			{
 				CRFProcess* m_pcs = pcs_fluid_momentum;

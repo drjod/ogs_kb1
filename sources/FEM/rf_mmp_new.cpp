@@ -3033,7 +3033,6 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	CFluidProperties* m_mfp;
 	int Dim = m_pcs->m_msh->GetCoordinateFlag() / 10;
 	int i;
-	ElementValue* gp_ele = ele_gp_value[index];
 
 	// Materials
 	//MX, add index
@@ -3053,7 +3052,12 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 		velocity[2] = fluidVelocity.z;
 	}
 	else
-		gp_ele->getIPvalue_vec(ip, velocity); //gp velocities
+	{
+		if(ele_gp_value.size()>0 )  // FLOW exists - JOD 2022-07-18
+			ele_gp_value[index]->getIPvalue_vec(ip, velocity); //gp velocities
+		else
+			velocity[0] = velocity[1] = velocity[2] = 0.;
+	}
 	vg = MBtrgVec(velocity, 3);
 
 	//Dl in local coordinates
