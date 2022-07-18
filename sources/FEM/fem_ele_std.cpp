@@ -1725,7 +1725,8 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		if(MediaProp->volumetric_heat_capacity_model == -1|| flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
+		if(MediaProp->volumetric_heat_capacity_model == -1)
+			// removed by JOD 2022-7-18 that volumetric heat capacity can be used generally    || flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
 		{
 			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		}
