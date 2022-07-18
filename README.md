@@ -428,6 +428,17 @@ Example:
  $VOLUMETRIC_HEAT_CAPACITY
   1 4.2e6 
 ```
+
+#### MMP Heat conductivity
+
+Bulk value for all phases (solid, fluid). Implemented only for constant value. <br>
+Example: 
+```
+#MEDIUM_PROPERTIES
+ $HEAT_CONDUCTIVITY
+  2.5  ; heat conductivity value
+```
+
   
 #### Fluid properties
 
