@@ -113,7 +113,7 @@ namespace FiniteElement
 			void CalcContent();
 			double CalculateContent(double *, double*, double *, const bool&, const double&, const double&,
 					const bool&, const bool& flag_latent_heat = false);       // for budgets JOD 2/2015
-			void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric); // JOD 2/2015
+			void IncorporateNodeConnection(long UpwindNode, long DownwindNode, double factor, bool symmetric, bool advective= false); // JOD 2/2015
 			void CalcContentTNEQ(); //NW
 			void CalcContentTES(); //NW
 			//

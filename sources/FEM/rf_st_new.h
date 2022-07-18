@@ -125,9 +125,11 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int average;
 	int borehole_mode;	// JOD 2020-12-07
 	borehole_type borehole_data;
+	double borehole_aquifer_modified_conductivity;  // JOD 2022-06-17
 public:
 	int verbosity;  // JOD 2022-02-23 
 	borehole_type get_borehole_data() const { return borehole_data; }
+	double get_borehole_aquifer_modified_conductivity() const { return borehole_aquifer_modified_conductivity; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
 	~CSourceTerm();

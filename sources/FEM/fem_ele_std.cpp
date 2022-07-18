@@ -12319,7 +12319,7 @@ Programming:
 
 **************************************************************************/
 
-void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric)
+void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double factor, bool symmetric, bool advective)
 {
 
 #if defined(USE_PETSC)   // JOD 2015-12-7 alias WW
@@ -12353,19 +12353,25 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #ifdef NEW_EQS
 #if defined(USE_MPI)
 	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
-	(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
+	
+	//if(!advective)
+		(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
+
 	if(From != -1)
 		(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(From)) -= factor;
 #else
 	CSparseMatrix* A = pcs->eqs_new->A;
-	(*A)(To, To) += factor;
+
+	//if(!advective)
+		(*A)(To, To) += factor;
 	if(From != -1)  // not given value, otherwise RHS
 		(*A)(To, From) -= factor;
 #endif
 
 #else
 
-	MXInc(To, To, factor ); // ToNode on diagonal
+	//if(!advective)
+		MXInc(To, To, factor ); // ToNode on diagonal
 	if(From != -1)  // not given value, otherwise RHS
 		MXInc(To, From, -factor); //
 

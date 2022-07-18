@@ -112,7 +112,7 @@ typedef struct  // JOD - 2022-02-15 for borehole outout
 	double factor;
 	long node_BH;     // used if coupling_type is not 2
 	double value_BH;  // used if coupling_type is 2
-	int coupling_type; // 0: matrix, 1: RHS, 2: given value (value_BH)
+	int coupling_type; // 0: RHS, 1: matrix, 2: given value (value_BH)
 	double X;
 	double Y;
 	double Z;

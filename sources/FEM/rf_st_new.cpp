@@ -171,6 +171,7 @@ CSourceTerm::CSourceTerm() :
    scaling_verbosity = 0;
    keep_values = false;
    borehole_mode = -1;
+   borehole_aquifer_modified_conductivity = -1.;
    average_mode = -1;
    verbosity = 0;
 }
@@ -625,12 +626,34 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
-		  in >> connected_geometry_couplingType; // 0: RHS (only with mode 1), 1: matrix entry
+		  in >> connected_geometry_couplingType; // 0: RHS, 1: matrix entry
 		  if ((connected_geometry_mode == 2))
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
 		  in.clear();
+
+		  if(connected_geometry_mode == 0)
+			  std::cout << "Symmetric NNNC -";
+		  else if(connected_geometry_mode == 1)
+			  std::cout << "Non-symmetric NNNC -";
+		  else if(connected_geometry_mode == 2)
+		  {
+			  std::cout << "Non-symmetric NNNC with element " << connected_geometry_ref_element_number << " and direction "
+			  	  << connected_geometry_reference_direction[0] << " "
+				  << connected_geometry_reference_direction[1] << " "
+				  << connected_geometry_reference_direction[2] << " - ";
+		  }
+		  else
+			  throw std::runtime_error("Error - Connected geometry mode not supported");
+
+		  if(connected_geometry_couplingType == 0)
+			  std::cout << " via RHS\n";
+		  if(connected_geometry_couplingType == 1)
+			  std::cout << " via matrix\n";  // default
+		  else
+			  throw std::runtime_error("Error - Connected geometry coupling type not supported");
+
 		  continue;
 	  }
 	  //....................................................................
@@ -928,11 +951,11 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
       }
       //....................................................................
 	  if (line_string.find("$BOREHOLE") != std::string::npos && // JOD 2021-12-06
-			  line_string.find("GIVEN_VALUE") == std::string::npos)
+			  line_string.find("GIVEN_VALUE") == std::string::npos &&
+			  line_string.find("CONDUCTIVITY") == std::string::npos)
 	  {
 		in.str(readNonBlankLineFromInputStream(*st_file));
 		in >> borehole_mode;
-		std::cout << "\tBorehole mode " << borehole_mode;
 
 		switch(borehole_mode)
 		{
@@ -945,19 +968,25 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
  				//   1. 0  ; exchange coefficient (is 1. for borehole in mode 0),   verbosity level = 0, 1, 1
 				// $CONNECT_MODE
 				//  0   ; symmetric
-				in >> borehole_data.radius >> connected_geometry_verbose_level;
-				std::cout << " - Radius " << borehole_data.radius;
+				in >> borehole_data.radius >> connected_geometry_verbose_level >> connected_geometry_couplingType;
+				std::cout << "\tBorehole - Peaceman connection - Radius " << borehole_data.radius;
 				connected_geometry_mode = 0; // NNNC symmetric
 				break;
 			case 1:  // advective (currently only heat) transport - with LIQUID_FLOW source / sink term
-				in >> connected_geometry_verbose_level;
+				in >> connected_geometry_verbose_level >> connected_geometry_couplingType;
+				std::cout << "\tBorehole - advective connection";
 				connected_geometry_mode = 1; // NNNC non-symmetric
 				break;
 			default:
 				throw std::runtime_error("Borehole mode not supported");
 		}
 
-		std::cout << '\n';
+		  if(connected_geometry_couplingType == 0)
+			  std::cout << " - coupling via RHS\n";
+		  else if(connected_geometry_couplingType == 1)  // default
+			  std::cout << " - coupling via matrix\n";
+		  else
+			  throw std::runtime_error("Error - Connected geometry coupling type not supported");
 		
 		connected_geometry = true;  // connected by NNNC (also if not used with $CONNECTED_GEOMETRY)
 
@@ -969,10 +998,20 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  {
 		in.str(readNonBlankLineFromInputStream(*st_file));
 		in >> borehole_data.value;
-		connected_geometry_couplingType = 2; // for source / sink term via RHS
+		connected_geometry_couplingType = 2; // for given source / sink term via RHS
 		in.clear();
 
-		std::cout << "\tBorehole given primary value: " << borehole_data.value << '\n';
+		std::cout << "\tBorehole - No coupling, but given primary value: " << borehole_data.value << '\n';
+		continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$BOREHOLE_AQUIFER_MODIFIED_CONDUCTIVITY") != std::string::npos) // JOD 2022-06-17
+	  {
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> borehole_aquifer_modified_conductivity;
+		in.clear();
+
+		std::cout << "\tBorehole - Aquifer modified conductivity: " << borehole_aquifer_modified_conductivity << '\n';
 		continue;
 	  }
 	  //....................................................................
@@ -5285,10 +5324,14 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 
 	if(m_st->GetBoreholeMode() == 1)  // advective heat transport
 	{
-		alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density(); // 1st mfp property for liquid !!!
+
+      		if(mfp_vector[0]->get_flag_volumetric_heat_capacity()) // 1st mfp property for liquid !!!
+                        alpha = mfp_vector[0]->get_volumetric_heat_capacity();
+                else
+			alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
                                 
 		if(m_st->getConnectedGeometryVerbosity() > 0)
-                	std::cout << "\t\t\tBorehole c_rho: " << mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density() << "\n";
+                	std::cout << "\t\t\tBorehole c_rho: " << alpha << "\n";
 
 		if(m_st->isCoupled())
 		{
@@ -5298,10 +5341,11 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
         	        	if(m_pcs_flow->ST_factor_kept.find(cnodev->msh_node_number) != m_pcs_flow->ST_factor_kept.end())
 				{
 
-        	       			const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] * 
+        	       			const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] *  // without area to node (value)
 						(m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) - m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1)) ;
 
-					// std::cout << cnodev->msh_node_number << " Factor: " << m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] << "\n"; 
+					std::cout << cnodev->msh_node_number << " Factor: " << m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] << ", Flux: " << fluid_flux << "\n"; 
+std::cout << m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << "\t" << m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1) << '\n';
 					alpha *= fluid_flux;
 
 					if(m_st->getConnectedGeometryVerbosity() > 1)
@@ -5348,6 +5392,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	const long ToNode = (alpha_value > 0) ?  cnodev->msh_node_number : cnodev->msh_node_number_conditional;
 	long FromNode = (alpha_value > 0) ? cnodev->msh_node_number_conditional : cnodev->msh_node_number; 
 
+std::cout << "value: " <<value << ", to " << ToNode << " from " << FromNode << '\n'; 
 	if(m_st->getConnectedGeometryCouplingType() == 2) // borehole with given primary variable
 		FromNode = -1;
 
@@ -5956,38 +6001,47 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 			}
 		}
 
-		/////////////////////////////////////////////////////////////////
-		// factor
-		const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
-
-		switch(m_st->getProcessType())
+		if(m_st->get_borehole_aquifer_modified_conductivity() == -1)
 		{
-			case  FiniteElement::LIQUID_FLOW:
+			/////////////////////////////////////////////////////////////////
+			// factor
+			const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
 
-				factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
-							mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
-				break;
-
-			case  FiniteElement::HEAT_TRANSPORT:
+			switch(m_st->getProcessType())
 			{
-				const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+				case  FiniteElement::LIQUID_FLOW:
 
-				double heat_conductivity_solid[9];
-				msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
-				const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
+					factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
+								mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+					break;
 
-				factor += porosity * mfp_vector[0]->HeatConductivity() + // 1st mfp instance is LIQUID
-						(1-porosity) * heat_conductivity_solid[0];  // one entry
-				break;
+				case  FiniteElement::HEAT_TRANSPORT:
+				{
+					const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+	
+					double heat_conductivity_solid[9];
+					msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
+					const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
+
+					factor += porosity * mfp_vector[0]->HeatConductivity() + // 1st mfp instance is LIQUID
+							(1-porosity) * heat_conductivity_solid[0];  // one entry
+					break;
+				}
+				default:
+					throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
 			}
-			default:
-				throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
 		}
 
 
 	}  // elements_connected
 
-	factor *= 6.283185307179586 / number_of_taken_elements;
+
+	if(m_st->get_borehole_aquifer_modified_conductivity() != -1)
+		factor = 6.283185307179586 * m_st->get_borehole_aquifer_modified_conductivity();
+	else
+		factor *= 6.283185307179586 / number_of_taken_elements;
+	
+
 	radius_e = std::exp( (sum_ln - 6.283185307179586) / sum  ) ;  // peaceman
 
 	if(m_st->getConnectedGeometryVerbosity())

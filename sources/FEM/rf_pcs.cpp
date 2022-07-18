@@ -17692,7 +17692,11 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
 		  }
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
-  			  throw std::runtime_error("Error - Node connection not supported");
+  		  {
+  			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+  			value = alpha_value * GetNodeValue(FromNode, 1);
+  		  }
+  			  //throw std::runtime_error("Error - Node connection not supported");
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
 			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
@@ -17754,13 +17758,14 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
   		  {
+  			  // ?????
   			  value = alpha_value * GetNodeValue(FromNode, 1);  // implicit  ?????
 			if(m_st->borehole_mode > -1)
 				throw std::runtime_error("not implemented");
   		  }
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
-			  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);
+			  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);//, /* advective */ true);
 			  value = 0.;
 			
 			if(m_st->borehole_mode > -1)
@@ -17782,8 +17787,9 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 			if(alpha_value < 0)
 				throw std::runtime_error("Error in node connection: alpha_value > 0 required");
 
-			fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);
-			value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
+std::cout <<  "from: " << FromNode << "\n";
+			//fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value*1, false);
+			value = falpha_value * 1. * (m_st->GetBoreholeData().value);  // for RHS
 
 			if(m_st->borehole_mode > -1)
 			{
@@ -17805,7 +17811,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 	  case 2 : // NNNC variable - dependent on velocity in reference element
   		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
-  			  throw std::runtime_error("Error - Node connection not supported");
+  			  throw std::runtime_error("Error - Node connection not implemented");
   		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
   		  {
 				velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
