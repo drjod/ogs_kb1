@@ -171,9 +171,10 @@ CSourceTerm::CSourceTerm() :
    scaling_verbosity = 0;
    keep_values = false;
    borehole_mode = -1;
-   borehole_aquifer_modified_conductivity = -1.;
+   borehole_modified_aquifer_parameter = -1.;
    average_mode = -1;
    verbosity = 0;
+   pcs_type_name_cond2 = "";
 }
 
 // KR: Conversion from GUI-ST-object to CSourceTerm
@@ -400,7 +401,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
             _coupled = true;
             ReadDistributionType(st_file);
             in.str(readNonBlankLineFromInputStream(*st_file));
-            in >> line_string >> pcs_type_name_cond;
+            in >> line_string >> pcs_type_name_cond >> pcs_type_name_cond2;
             in.clear();
             in.str(readNonBlankLineFromInputStream(*st_file));    //
             in >> pcs_pv_name_cond;
@@ -1005,13 +1006,13 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		continue;
 	  }
 	  //....................................................................
-	  if (line_string.find("$BOREHOLE_AQUIFER_MODIFIED_CONDUCTIVITY") != std::string::npos) // JOD 2022-06-17
+	  if (line_string.find("$BOREHOLE_MODIFIED_AQUIFER_PARAMETER") != std::string::npos) // JOD 2022-06-17
 	  {
 		in.str(readNonBlankLineFromInputStream(*st_file));
-		in >> borehole_aquifer_modified_conductivity;
+		in >> borehole_modified_aquifer_parameter;
 		in.clear();
 
-		std::cout << "\tBorehole - Aquifer modified conductivity: " << borehole_aquifer_modified_conductivity << '\n';
+		std::cout << "\tBorehole - Modified aquifer parameter: " << borehole_modified_aquifer_parameter << '\n';
 		continue;
 	  }
 	  //....................................................................
@@ -2047,6 +2048,7 @@ void GetCouplingNODValue(double &value, CSourceTerm* st, CNodeValue* cnodev)
 	}
 	else if (st->getProcessType() == FiniteElement::GROUNDWATER_FLOW ||
       st->getProcessType() == FiniteElement::RICHARDS_FLOW ||
+	  st->getProcessType() == FiniteElement::LIQUID_FLOW ||
       st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW ||
       st->getProcessType() == FiniteElement::MASS_TRANSPORT ||
       st->getProcessType() == FiniteElement::HEAT_TRANSPORT)
@@ -2090,7 +2092,7 @@ CNodeValue* cnodev)
    if( (mesh_node_number = cnodev->msh_node_number) <  (long)m_pcs_this->m_msh->nod_vector.size())      
    {     // liquid 
 	   mesh_node_number_conditional = cnodev->msh_node_number_conditional; 
-	   if (m_st->getProcessType() == FiniteElement::RICHARDS_FLOW)
+	   if (m_st->getProcessType() == FiniteElement::RICHARDS_FLOW || m_st->getProcessType() == FiniteElement::LIQUID_FLOW)
           gamma = mfp_vector[0]->Density() * GRAVITY_CONSTANT;  // liquid pressure as a primary variable
        else if (m_st->getProcessType() == FiniteElement::MULTI_PHASE_FLOW)
 	      gamma = -mfp_vector[0]->Density() * GRAVITY_CONSTANT; // capillary pressure as a primary variable
@@ -2116,17 +2118,14 @@ CNodeValue* cnodev)
         m_pcs_overland = PCSGet(m_st->pcs_type_name_cond);
         head_overland = m_pcs_overland->GetNodeValue(cnodev->msh_node_number_conditional, m_pcs_overland->GetNodeValueIndex("HEAD") + 1);
 	    
-		relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_overland, head_overland,
-          cnodev->msh_node_number_conditional);    // overland		
+		relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_overland, head_overland, cnodev->msh_node_number_conditional);    // overland
 	}
    else
    {  // liquid
      if (h_this < h_cond_shifted)  // flow direction from overland compartment
-        relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_cond, h_cond,
-          cnodev->msh_node_number_conditional);   
+        relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_cond, h_cond, cnodev->msh_node_number_conditional);
      else          // flow direction from subsurface compartment (, where now relPerm = 1)
-	    relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_this, h_this,
-          cnodev->msh_node_number_conditional);    
+	    relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_this, h_this, cnodev->msh_node_number_conditional);
    }
 
 		
@@ -2273,7 +2272,7 @@ CNodeValue* cnodev)
    m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
    m_pcs_cond = PCSGet(m_st->pcs_type_name_cond);
    ///// 
-   if(m_st->pcs_type_name_cond == "RICHARDS_FLOW")
+   if(m_st->pcs_type_name_cond == "RICHARDS_FLOW" || m_st->pcs_type_name_cond == "LIQUID_FLOW")
      gamma = mfp_vector[0]->Density() * GRAVITY_CONSTANT; // liquid pressure as a primary variable
    else if(m_st->pcs_type_name_cond == "MULTI_PHASE_FLOW")
      gamma = -mfp_vector[0]->Density() * GRAVITY_CONSTANT; // capillary pressure as a primary variable
@@ -2285,8 +2284,7 @@ CNodeValue* cnodev)
    /////   relative coupling interface permeability (calculate ALWAYS implicitly)
    if (h_this_shifted > h_cond)
    { // flow direction from the overland compartment
-      relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_this, h_this,
-         cnodev->msh_node_number);               
+      relPerm = m_st->GetRelativeInterfacePermeability(m_pcs_this, h_this, cnodev->msh_node_number);
       relPerm_epsilon = m_st->GetRelativeInterfacePermeability(m_pcs_this, h_this + epsilon, // for jacobian
 		  cnodev->msh_node_number);
    }
@@ -2385,7 +2383,7 @@ double CSourceTerm::GetRelativeInterfacePermeability(CRFProcess* pcs, double hea
 	       
      if( sat > 1 )
 	    relPerm = 1; // liquid-covered surface (interface is filled)
-     else if( sat < 0 )
+     else if( sat <= 0 )
 	    relPerm = 0;  // no liquid on the surface
      else
 	    relPerm = pow(sat, 2*(1- sat)); // interface is partially filled by a liquid
@@ -2943,8 +2941,8 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		m_msh->GetNODOnPLY(static_cast<const GEOLIB::Polyline*>(st->getGeoObj()), ply_nod_vector, true);
 		m_msh->setMinEdgeLength (min_edge_length);  // reset value
 
-		if (st->isCoupled() &&
-			!st->isConnectedGeometry())  // if both combined connected nodes are set below
+		if (st->isCoupled() && (st->pcs_type_name_cond == "OVERLAND_FLOW" || st->pcs_type_name_cond2 == "OVERLAND_FLOW")  )
+		// removed !!!!!		&& !st->isConnectedGeometry())  // if both combined connected nodes are set below
 			SetPolylineNodeVectorConditional(st, ply_nod_vector, ply_nod_vector_cond);
 
 	    if(st->hasThreshold()) // JOD 2018-02-20
@@ -2993,9 +2991,12 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		st->st_node_ids = ply_nod_vector;
 
 		if (st->isConnectedGeometry() &&  // JOD 10/2018
-				st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
+				st->getConnectedGeometryCouplingType() != 2 // not borehole with given primary variable
+				&& (st->pcs_type_name_cond != "OVERLAND_FLOW" &&  st->pcs_type_name_cond2 != "OVERLAND_FLOW"))
 		{
+
 			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
+
 			  if(st->average_mode == 1)
 			  {
 				  CRFProcess* m_pcs(PCSGet(pcs_type_name));
@@ -4340,6 +4341,7 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
 
    }*/
 
+
    for (size_t i = 0; i < number_of_nodes; i++)
    {
       m_nod_val = new CNodeValue();
@@ -4367,7 +4369,7 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
 	  }
 
     /**/
-	  if (_coupled)                               // JOD 4.7.10
+	  if (_coupled && nodes_cond.size() > 0)                               // JOD 4.7.10
       {
          m_nod_val->msh_node_number_conditional = nodes_cond[i];
                                                   // JOD 4.10.01
@@ -4412,7 +4414,26 @@ void CSourceTerm::SetNodeValues(const std::vector<long>& nodes, const std::vecto
          st_vector[m_nod_val->getSTVectorGroup()]->setConstrainedSTNodesIndex(m_nod_val->geo_node_number, m_nod_val->getSTVectorIndex());
       _pcs->st_node_value.push_back(m_nod_val);   //WW
       _pcs->st_node.push_back(this);              //WW
-   }                                              // end nodes
+
+      if (_coupled && getProcessType() != FiniteElement::HEAT_TRANSPORT)  // !!!!!!!!!!
+      {
+    	  CRFProcess* m_pcs_OF = PCSGet("OVERLAND_FLOW");
+    	  if(m_pcs_OF)
+    	  {
+    		  CNodeValue *m_nod_val2 = new CNodeValue();
+    		  m_nod_val2->msh_node_number = nodes_cond[i];
+    		  m_nod_val2->geo_node_number = nodes_cond[i];
+    		  m_nod_val2->setProcessDistributionType (getProcessDistributionType());
+    		  m_nod_val2->node_value = node_values[i];
+    		  m_nod_val2->length = (geo_node_value == 0)? 0 : node_values[i] / geo_node_value;
+
+    		  m_nod_val2->msh_node_number_conditional = nodes[i];
+
+    		  m_pcs_OF->st_node_value.push_back(m_nod_val2);
+    		  m_pcs_OF->st_node.push_back(this);
+    	  }
+      }
+   }  // end nodes
 }
 
 
@@ -4513,7 +4534,31 @@ void CSourceTerm::SetNOD2MSHNOD(std::vector<long>& nodes,
 	CFEMesh* m_msh_this(FEMGet(convertProcessTypeToString(getProcessType())));
 
 	for (size_t i = 0; i < nodes.size(); i++) {
-		const GEOLIB::Point pnt(m_msh_this->nod_vector[nodes[i]]->getData());
+
+		const double* coordinate;
+		//coordinate = m_msh_this->nod_vector[nodes[i]]->getData();
+		//const
+		GEOLIB::Point pnt;//(coordinate);
+
+	       if(pcs_type_name_cond == "OVERLAND_FLOW" || pcs_type_name_cond2 == "OVERLAND_FLOW")
+			{
+					coordinate = m_msh_this->nod_vector[nodes[i]]->getData();
+					double coordinate2[3];
+					coordinate2[0] = -coordinate[2];
+					coordinate2[1] = 0.;
+					coordinate2[2] = 10.;//coordinate[2];
+
+					pnt = GEOLIB::Point(coordinate2);
+			}
+			else
+			{
+					coordinate = m_msh_this->nod_vector[nodes[i]]->getData();
+					//const GEOLIB::Point
+					pnt = GEOLIB::Point(coordinate);
+			}
+
+
+		//const GEOLIB::Point pnt(m_msh_this->nod_vector[nodes[i]]->getData());
 //      pnt[0] = m_msh_this->nod_vector[nodes[i]]->X();
 //      pnt[1] = m_msh_this->nod_vector[nodes[i]]->Y();
 //      pnt[2] = m_msh_this->nod_vector[nodes[i]]->Z();
@@ -5252,8 +5297,11 @@ double z_cond, CSourceTerm* m_st)
             return factor * (h_cond - z_cond); // decoupled
          else
             return factor * h_cond;
-      } else
-      return factor * (h_cond - z_cond);  // Richards', two-phase flow (liquid & gas)
+      }
+      else if (m_st->getProcessType() == FiniteElement::LIQUID_FLOW)
+    	  return factor * h_cond;
+      else
+    	  return factor * (h_cond - z_cond);  // Richards', two-phase flow (liquid & gas)
    }
 }
 
@@ -5316,7 +5364,7 @@ Programing:
 02/2015 JOD4cST Modification to use MKL PARDSIO solver 
 **************************************************************************/
 
-void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTerm* m_st)
+void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTerm* m_st, CRFProcess* m_pcs)
 {
 	// get data from input *.st
 
@@ -5325,41 +5373,61 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	if(m_st->GetBoreholeMode() == 1)  // advective heat transport
 	{
 
-      		if(mfp_vector[0]->get_flag_volumetric_heat_capacity()) // 1st mfp property for liquid !!!
-                        alpha = mfp_vector[0]->get_volumetric_heat_capacity();
-                else
+      	if(mfp_vector[0]->get_flag_volumetric_heat_capacity()) // 1st mfp property for liquid !!!
+      		alpha = mfp_vector[0]->get_volumetric_heat_capacity();
+      	else
 			alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
-                                
-		if(m_st->getConnectedGeometryVerbosity() > 0)
-                	std::cout << "\t\t\tBorehole c_rho: " << alpha << "\n";
 
 		if(m_st->isCoupled())
 		{
-               		CRFProcess* m_pcs_flow = PCSGet(m_st->pcs_type_name_cond);
+            CRFProcess* m_pcs_flow = PCSGet(m_st->pcs_type_name_cond);
+
+            CRFProcess* m_pcs_flow2 =  (m_st->pcs_type_name_cond2 == "")? PCSGet(m_st->pcs_type_name_cond):  PCSGet(m_st->pcs_type_name_cond2);
+
+
 			if(m_pcs_flow)
 			{
-        	        	if(m_pcs_flow->ST_factor_kept.find(cnodev->msh_node_number) != m_pcs_flow->ST_factor_kept.end())
+				const double gamma =   (m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")? 9810.: 1.;
+double pressure_cond;
+if(m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")
+{
+	pressure_cond = m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1) - 2*  m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[2] +
+			m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[0];
+	pressure_cond *= 9810;
+}
+else
+pressure_cond = 	m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1);
+
+
+				//long no = cnodev->msh_node_number;
+				//long no2 = cnodev->msh_node_number_conditional;
+				//std::cout << no <<std::endl;
+				if(m_pcs_flow->ST_factor_kept.find(cnodev->msh_node_number) != m_pcs_flow->ST_factor_kept.end())
 				{
-
-        	       			const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] *  // without area to node (value)
-						(m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) - m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1)) ;
-
-					std::cout << cnodev->msh_node_number << " Factor: " << m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] << ", Flux: " << fluid_flux << "\n"; 
-std::cout << m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << "\t" << m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1) << '\n';
-					alpha *= fluid_flux;
+					const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] *  // without area to node (value)
+						(pressure_cond - m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1)) ;
 
 					if(m_st->getConnectedGeometryVerbosity() > 1)
+					{
 						std::cout << "\t\t\tNode " << cnodev->msh_node_number << " with pressure " << 
 						m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1) << " connected to\n\t\t\tnode " << 
 				      		cnodev->msh_node_number_conditional << " with pressure " << 
-				      		m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) << '\n';
+							pressure_cond<< '\n';
+	                	std::cout << "\t\t\tFluid volumetric heat capacity: " << alpha << '\n';
+					}
+
+					alpha *= fluid_flux;
+
+					if(m_st->getConnectedGeometryVerbosity() > 1)
+						std::cout << "\t\t\tFluid flux: " << fluid_flux << '\n';
 				}
 				else
         	        		throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - Factor for LIQUID_FLOW not kept");
 			}
         	       	else
         	        	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
-			
+
+
 		}
 		else  // not coupled to LIQUID_FLOW - source / sink term used with $KEEP_VALUES
 		{
@@ -5392,11 +5460,10 @@ std::cout << m_pcs_flow->GetNodeValue(cnodev->msh_node_number_conditional, 1) <<
 	const long ToNode = (alpha_value > 0) ?  cnodev->msh_node_number : cnodev->msh_node_number_conditional;
 	long FromNode = (alpha_value > 0) ? cnodev->msh_node_number_conditional : cnodev->msh_node_number; 
 
-std::cout << "value: " <<value << ", to " << ToNode << " from " << FromNode << '\n'; 
+//std::cout << "value: " <<value << ", to " << ToNode << " from " << FromNode << '\n';
 	if(m_st->getConnectedGeometryCouplingType() == 2) // borehole with given primary variable
 		FromNode = -1;
 
-	CRFProcess* m_pcs(PCSGet(m_st->getProcessType()));
 	// now we have all data
 	m_pcs->IncorporateNodeConnectionSourceTerms(FromNode, ToNode, alpha_value, m_st, value);
 }
@@ -6001,7 +6068,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 			}
 		}
 
-		if(m_st->get_borehole_aquifer_modified_conductivity() == -1)
+		if(m_st->get_borehole_modified_aquifer_parameter() == -1)
 		{
 			/////////////////////////////////////////////////////////////////
 			// factor
@@ -6036,8 +6103,8 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 	}  // elements_connected
 
 
-	if(m_st->get_borehole_aquifer_modified_conductivity() != -1)
-		factor = 6.283185307179586 * m_st->get_borehole_aquifer_modified_conductivity();
+	if(m_st->get_borehole_modified_aquifer_parameter() != -1)
+		factor = 6.283185307179586 * m_st->get_borehole_modified_aquifer_parameter();
 	else
 		factor *= 6.283185307179586 / number_of_taken_elements;
 	

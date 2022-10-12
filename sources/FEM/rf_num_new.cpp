@@ -151,6 +151,9 @@ CNumerics::CNumerics(string name)
 		nls_max_iterations = 25;
 	}
 
+	nonlinear_allowed_failures = 1;
+	overland_epsilon = 1e-7;
+
 #ifdef USE_PETSC
 	lsover_name = "bcgs";
 	pres_name = "bjacobi";
@@ -674,6 +677,21 @@ ios::pos_type CNumerics::Read(ifstream* num_file)
 			line >> fct_const_alpha; //-1: off, [0.0,1.0] 0: Upwind, 1: Galerkin
 			line.clear();
 			cout << "->FEM_FCT method is selected." << "\n";
+			continue;
+		}
+		// JOD
+		if(line_string.find("$OVERLAND_EPSILON") != string::npos)
+		{
+			line.str(GetLineFromFile1(num_file));
+			line >> overland_epsilon;
+			line.clear();
+			continue;
+		}
+		if(line_string.find("$NONLINEAR_ALLOWED_FAILURES") != string::npos)
+		{
+			line.str(GetLineFromFile1(num_file));
+			line >> nonlinear_allowed_failures;
+			line.clear();
 			continue;
 		}
 		//....................................................................

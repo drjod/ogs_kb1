@@ -125,11 +125,11 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int average;
 	int borehole_mode;	// JOD 2020-12-07
 	borehole_type borehole_data;
-	double borehole_aquifer_modified_conductivity;  // JOD 2022-06-17
+	double borehole_modified_aquifer_parameter;  // JOD 2022-06-17
 public:
 	int verbosity;  // JOD 2022-02-23 
 	borehole_type get_borehole_data() const { return borehole_data; }
-	double get_borehole_aquifer_modified_conductivity() const { return borehole_aquifer_modified_conductivity; }
+	double get_borehole_modified_aquifer_parameter() const { return borehole_modified_aquifer_parameter; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
 	~CSourceTerm();
@@ -278,6 +278,7 @@ public:
     int TimeInterpolation;						//BG
 
 	std::string pcs_type_name_cond;
+	std::string pcs_type_name_cond2;
 	std::string pcs_pv_name_cond;
 	
 	int getTimeContrCurve() {return time_contr_curve; } //SB:02.2014 get bc ativity controlled curve
@@ -590,7 +591,7 @@ extern void GetPhilipNODValue(double& value, const CSourceTerm* m_st);
 extern void GetGreenAmptNODValue(double& value, CSourceTerm* m_st, long msh_node);
 // JOD
 extern void GetNODValue(double& value, CNodeValue* cnodev,CSourceTerm* m_st);
-void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st);// JOD 2/2015
+void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTerm* m_st, CRFProcess* m_pcs);// JOD 2/2015
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
 void CalculatePeaceman(const CSourceTerm* const, CRFProcess*,

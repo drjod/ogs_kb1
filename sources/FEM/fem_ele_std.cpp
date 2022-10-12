@@ -49,7 +49,7 @@ extern double gravity_constant;                   // TEST, must be put in input 
 #define COMP_MOL_MASS_N2 28.014					  //Nitrogen
 #define GAS_CONSTANT    8314.41                   // J/(kmol*K) WW
 #define GAS_CONSTANT_V  461.5                     //WW
-#define T_KILVIN_ZERO  273.15                     //WW
+#define T_KILVIN_ZERO  273.15                     //WW/
 
 #define GAS_MASS_FORM
 
@@ -288,6 +288,9 @@ CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, con
 		PcsType = EPT_OVERLAND_FLOW;
 		edlluse = new double [16]; //WW
 		edttuse = new double [16];
+		idx_vel[0] = pcs->GetNodeValueIndex("VELOCITY_X1");
+		idx_vel[1] = pcs->GetNodeValueIndex("VELOCITY_Y1");
+		idx_vel[2] = pcs->GetNodeValueIndex("VELOCITY_Z1");
 		break;
 
 		// case 'R':                             //OK4104 Richards flow
@@ -1088,8 +1091,11 @@ void CFiniteElementStd::CalcOverlandNLTERMSRills(double* haa,
 		}                         // end epsilon > 0
 		else
 		{
-			swval[i] = WDepth[i];
-			swold[i] = WDepthOld[i];
+			swval[i] = WDepth[i] * MediaProp->storage_model_values[0];//*1e-2*9810;// * (X[i]-10)*9810;
+			swold[i] = WDepthOld[i] * MediaProp->storage_model_values[0];//*1e-2*9810;//* (X[i]-10)*9810;
+
+			//swval[i] =  haa[i];//-10;// * 1e-9 * 9810 * .0530929;
+			//swold[i] = haaOld[i];//-10;// * 1e-9 * 9810 * .0530929;
 		}
 	}
 }
@@ -1145,6 +1151,10 @@ void CFiniteElementStd::CalcOverlandNLTERMSChannel(double* haa,
 			swval[i] = WDepth[i];
 			swold[i] = WDepthOld[i];
 		}
+
+
+		//swval[i] = 0.;
+		//swold[i] = 0.;
 	}                                     //end for
 }
 
@@ -1178,6 +1188,8 @@ void CFiniteElementStd::CalcOverlandCKWR(double* head, double* ckwr, int* iups)
 				iups[i * nnodes + j] = j;
 				flow_depth = head[j] - maxZ - rill_depth;
 			}
+			// !!!!!
+			flow_depth = 1.;
 			////////////////////////////////////////
 			if(flow_depth < 0.0)
 				ckwr[i * nnodes + j] = 0.0;
@@ -1375,11 +1387,11 @@ void CFiniteElementStd::CalcOverlandCoefficientsLine(double* head, double* axx, 
 
 	fric =  MediaProp->friction_coefficient;
 	slope_exp = MediaProp->friction_exp_slope;
-	width = MediaProp->overland_width;
+	width = MediaProp->overland_width * MediaProp->geo_area;
 
 	dx = X[1] - X[0];
 	dy = Y[1] - Y[0];
-	//WW dzx = Z[1] - Z[0];
+
 	delt = sqrt(dx * dx + dy * dy);
 	dhds = fabs( (head[0] - head[1]) / delt );
 
@@ -1391,6 +1403,7 @@ void CFiniteElementStd::CalcOverlandCoefficientsLine(double* head, double* axx, 
 
 	*axx = eslope * fric * width / delt;
 	*ast = delt * width / (double) (nnodes * dt);
+	//*ast = delt * width / (double) (nnodes * dt);
 }
 /**************************************************************************
    FEMLib-Method:
@@ -2689,6 +2702,27 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	//------------------------------------------------------------------
 	case EPT_OVERLAND_FLOW:                               // Overland flow
 		//................................................................
+	{
+		double h[4];
+		const double friction_coefficient = MediaProp->friction_coefficient;
+		const double friction_exp_slope = MediaProp->friction_exp_slope;
+		const double friction_exp_depth = MediaProp->friction_exp_depth;
+
+		for(int i = 0; i < nnodes; i++)
+		{
+			//std::cout << MeshElement->nodes_index[i] << " ";// << "\n";
+
+			h[i] = pcs->GetNodeValue(MeshElement->nodes_index[i], 1);
+		}
+		const double diff = std::abs(h[0]-h[1]);
+		double coef = friction_coefficient * std::pow(1/diff, 1- friction_exp_slope);
+
+		for(size_t i = 0; i < dim * dim; i++)
+					mat[i] = coef * mat_fac;// * (h[1] - h[0]);
+
+		//for(size_t i = 0; i < dim; i++)
+		//			mat[i + i*dim] = coef * mat_fac;// * (h[1] - h[0]);
+		/*
 		// H - water level
 		nidx1 = pcs->GetNodeValueIndex("HEAD") + 1;
 		Hav = 0.0;
@@ -2727,12 +2761,16 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 			arg = (pow(Hav,expp)) / (chezy * chezy);
 			mat_fac = arg / Ss;
 		}
+
+		*/
 		//................................................................
 		// Tensor
-		for(size_t i = 0; i < dim * dim; i++)
+		//for(size_t i = 0; i < dim * dim; i++)
 			//ToDo
-			mat[i] = tensor[i] / manning * mat_fac;
+		//	mat[i] = tensor[i] / manning * mat_fac;
+	}
 		break;
+
 	//------------------------------------------------------------------
 	case EPT_RICHARDS_FLOW:                               // Richards flow
 		// The following line only applies when Fluid Momentum is on
@@ -6566,6 +6604,7 @@ void CFiniteElementStd::Cal_Velocity()
 	// Set material
 	SetMaterial();
 
+
 	ElementValue* gp_ele;
 	if (PcsType == EPT_HEAT_TRANSPORT|| PcsType == EPT_MASS_TRANSPORT) // JOD 8/2015
 		gp_ele = ele_gp_flux[Index];
@@ -6599,6 +6638,9 @@ void CFiniteElementStd::Cal_Velocity()
 		}
 	}
 	else
+	{
+		if(PcsType == EPT_OVERLAND_FLOW)
+			idx1 = 1;
 		// This should be enough for Vw in PS_GLOBAL as well,
 		// since the first primary variable is Pw.
 		for(int i = 0; i < nnodes; i++)
@@ -6606,6 +6648,8 @@ void CFiniteElementStd::Cal_Velocity()
 			NodalVal[i] = pcs->GetNodeValue(nodes[i], idx1);
 			NodalVal1[i] = NodalVal[i];
 		}
+
+	}
 	//
 	if(PcsType == EPT_MULTIPHASE_FLOW)
 	{
@@ -6659,13 +6703,35 @@ void CFiniteElementStd::Cal_Velocity()
 		if((PcsType == EPT_TWOPHASE_FLOW) && (pcs->pcs_type_number == 1))
 			flag_cpl_pcs = false;
 		// Velocity
-		for (size_t i = 0; i < dim; i++)
+		if(PcsType == EPT_OVERLAND_FLOW)
 		{
-			vel[i] = 0.0;
-			for(int j = 0; j < nnodes; j++)
-				vel[i] += NodalVal[j] * dshapefct[i * nnodes + j];
-			//			 vel[i] += fabs(NodalVal[j])*dshapefct[i*nnodes+j];
+			for (size_t i = 0; i < dim; i++)
+			{
+				vel[i] = 0.0;
+
+					for(int j = 0; j < nnodes; j++)
+					//for(int k = 0; k < nnodes; k++)
+					{
+						//if(k != j)
+						{
+							//std::cout << "\n" << NodalVal[j] - NodalVal[k];
+							vel[i] += (NodalVal[j]) * dshapefct[i * nnodes + j];
+							//vel[i] += (NodalVal[j] - NodalVal[k]) * dshapefct[i * nnodes + j];
+						}
+					}
+			}
 		}
+		else
+		{
+			for (size_t i = 0; i < dim; i++)
+			{
+				vel[i] = 0.0;
+				for(int j = 0; j < nnodes; j++)
+					vel[i] += NodalVal[j] * dshapefct[i * nnodes + j];
+				//			 vel[i] += fabs(NodalVal[j])*dshapefct[i*nnodes+j];
+			}
+		}
+
 		if(PcsType == EPT_MULTIPHASE_FLOW) {
 			for (size_t i = 0; i < dim; i++)
 			{
@@ -6826,6 +6892,7 @@ void CFiniteElementStd::Cal_Velocity()
 			gp_ele->Velocity_g.Write(*pcs->matrix_file);
 		}
 	}
+
     //gp_ele->Velocity.Write();
 }
 /***************************************************************************
@@ -8816,7 +8883,7 @@ void CFiniteElementStd::AssembleParabolicEquationNewtonJacobian(double** jacob,
 	// double** jacob;
 	double hEps[4], hKeep[4], swval_eps[4];
 	double sumjac, stor_eps, akrw, remember;
-	double epsilon = 1.e-7;               // be carefull, like in primary variable dependent source terms (critical depth, normal depth)
+	const double epsilon = pcs->m_num->overland_epsilon;               // be carefull, like in primary variable dependent source terms (critical depth, normal depth)
 
 	/* jacob = (double**) Malloc(nnodes * sizeof(double));
 	   for (int i = 0; i < nnodes; i++)

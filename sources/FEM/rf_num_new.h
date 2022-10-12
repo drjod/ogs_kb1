@@ -90,6 +90,9 @@ public:
 	int lag_use_matrix;
 	int lag_vel_method;
 
+	double overland_epsilon;
+	int nonlinear_allowed_failures;
+
 	//
 	// Configure
 	void NumConfigure(bool overall_coupling_exists); //JT2012

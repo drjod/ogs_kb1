@@ -105,6 +105,8 @@ public:                                           //OK
 	double dampening;
 	double SEA_a, SEA_b, SEA_c;
 
+	int subtimesteps;
+
 	//
 	//WW double minish; // JOD
 	//WW int sub_steps; // JOD 4.7.10

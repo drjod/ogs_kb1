@@ -1131,6 +1131,27 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 	string nod_value_name;                //OK
 	CNode *node = NULL;
 	CRFProcess *deform_pcs = NULL; // 23.01.2012. WW. nulltpr
+	m_pcs = PCSGet(getProcessType());
+
+	bool out_node_vel = false;
+	for (size_t k = 0; k < nName; k++)
+		if(_nod_value_vector[k].find("VELOCITY") != string::npos)
+		{
+			if (out_node_vel == false &&
+					(getProcessType() == FiniteElement::HEAT_TRANSPORT ||
+							getProcessType() == FiniteElement::MASS_TRANSPORT)) // 8/2015 JOD
+			{
+				ele_gp_flux.clear();
+				const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
+				for (size_t i = 0; i < mesh_ele_vector_size; i++)
+					ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
+
+				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
+				m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
+				out_node_vel = true;
+			}
+		}
+
 
 	int timelevel;
 	//	m_msh = GetMSH();
@@ -1138,7 +1159,8 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 	// MSH
 	for (size_t k = 0; k < nName; k++)
 	{
-		m_pcs = PCSGet(_nod_value_vector[k], true);
+		if (m_pcs == NULL)
+			m_pcs = PCSGet(_nod_value_vector[k], true);
 		if (m_pcs != NULL)
 		{
             NodeIndex[k] = m_pcs->GetNodeValueIndex(_nod_value_vector[k],true); // JT Latest.
@@ -1231,9 +1253,11 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 			}
 		else
 		{
+			m_pcs = PCSGet(getProcessType());
 			for (size_t k = 0; k < nName; k++)
 			{
-				m_pcs = GetPCS(_nod_value_vector[k]);
+				if (m_pcs == NULL)
+					m_pcs = GetPCS(_nod_value_vector[k]);
 				if (m_pcs != NULL) { //WW
 					if (NodeIndex[k] > -1) {
 						if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10 
@@ -1259,6 +1283,18 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 		tec_file << "\n";
 	}
 	_new_file_opened = true;
+
+
+	if (ele_gp_flux.size() > 0)
+	{
+		for (int i = 0; i < (long)ele_gp_flux.size(); i++)
+		{
+			ElementValue* gp_ele = ele_gp_flux[i];
+			delete gp_ele;
+			gp_ele = NULL;
+		}
+		ele_gp_flux.clear();
+	}
 }
 
 /**************************************************************************
@@ -1490,21 +1526,6 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 	else
 		return;
 
-
-
-	if (getProcessType() == FiniteElement::HEAT_TRANSPORT || getProcessType() == FiniteElement::MASS_TRANSPORT) // 8/2015 JOD
-	{
-		ele_gp_flux.clear();
-		const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
-		for (size_t i = 0; i < mesh_ele_vector_size; i++)
-			ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
-
-		m_pcs = PCSGet(getProcessType());
-
-		m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
-		m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
-	}
-
 	vector <bool> skip; // CB
 	size_t no_ele_values = _ele_value_vector.size();
 	bool out_element_vel = false;
@@ -1519,6 +1540,19 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 		}
 		else if(_ele_value_vector[j].find("VELOCITY") != string::npos)
 		{
+			if (out_element_vel == false &&
+					(getProcessType() == FiniteElement::HEAT_TRANSPORT ||
+							getProcessType() == FiniteElement::MASS_TRANSPORT)) // 8/2015 JOD
+			{
+				m_pcs = PCSGet(getProcessType());
+				ele_gp_flux.clear();
+				const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
+				for (size_t i = 0; i < mesh_ele_vector_size; i++)
+					ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
+
+				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
+				// m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
+			}
 			out_element_vel = true;
 			// break;  // CB: allow output of velocity AND other ele values
 			skip.push_back(false);
@@ -2233,10 +2267,12 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
 		m_msh->SwitchOnQuadraticNodes(false);  //WW
 
 	// PCS
-	if (getProcessType() == FiniteElement::INVALID_PROCESS)
-		m_pcs = NULL;
-	else
-		m_pcs = PCSGet(getProcessType());
+	//if (getProcessType() == FiniteElement::INVALID_PROCESS)
+	//	m_pcs = NULL;
+	//else
+	//m_pcs = PCSGet();//getProcessType());
+
+	m_pcs = GetPCS();
 
 	CRFProcess* dm_pcs = NULL;            //WW
 	for (size_t i = 0; i < pcs_vector.size(); i++)
@@ -2673,7 +2709,7 @@ void COutput::NODWritePNTDataTEC(int time_step_number)
 		for (size_t i = 0; i < _nod_value_vector.size(); i++)
 		{
 			// PCS
-			if (!(_nod_value_vector[i].compare("FLUX") == 0)
+			if (!(_nod_value_vector[i].compare("COUPLING") == 0)
 				|| getProcessType() == FiniteElement::OVERLAND_FLOW) //JOD separate infiltration flux output in overland flow
 
 				m_pcs = GetPCS(_nod_value_vector[i]);
@@ -2885,6 +2921,28 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	m_pcs = PCSGet(getProcessType());
 
+	const size_t nName(_nod_value_vector.size());
+	bool out_node_vel = false;
+
+	for (size_t k = 0; k < nName; k++)
+		if(_nod_value_vector[k].find("VELOCITY") != string::npos)
+		{
+			if (out_node_vel == false &&
+					(getProcessType() == FiniteElement::HEAT_TRANSPORT ||
+							getProcessType() == FiniteElement::MASS_TRANSPORT)) // 8/2015 JOD
+			{
+				ele_gp_flux.clear();
+				const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
+				for (size_t i = 0; i < mesh_ele_vector_size; i++)
+					ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
+
+				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
+				m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
+				out_node_vel = true;
+			}
+		}
+
+
 	// File handling
 	char number_char[6];
 	sprintf(number_char, "%i", time_step_number);
@@ -3023,37 +3081,48 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 
 		// CB extend header
 		tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
-		if (eledefvec[0].size() == 3)
-		  tec_file << "TRIANGLE" << "\n";
-		if (eledefvec[0].size() == 4)
-		  tec_file << "QUADRILATERAL" << "\n";
-
-		// node values
-		for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
+		if(eledefvec.size()== 0)
 		{
-			double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
-			tec_file << pnt_i[0] << " ";
-			tec_file << pnt_i[1] << " ";
-			tec_file << pnt_i[2] << " ";
-			for (size_t k = 0; k < _nod_value_vector.size(); k++)
+			throw std::runtime_error("ERROR in SFC Output");
+		}
+		else
+		{
+			if (eledefvec[0].size() == 3)
+			  tec_file << "TRIANGLE" << "\n";
+			if (eledefvec[0].size() == 4)
+			  tec_file << "QUADRILATERAL" << "\n";
+
+			// node values
+			for (size_t i = 0; i < nodes_vector.size(); i++) // AB SB
 			{
-				m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
-				int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
+				double const* const pnt_i (m_msh->nod_vector[nodes_vector[i]]->getData());
+				tec_file << pnt_i[0] << " ";
+				tec_file << pnt_i[1] << " ";
+				tec_file << pnt_i[2] << " ";
+				for (size_t k = 0; k < _nod_value_vector.size(); k++)
+				{
+					if(m_pcs == NULL)
+						m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+					int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
 
-				if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
-					tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
-				else
-					tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
+					if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
+						tec_file << m_pcs->GetNodeValue(nodes_vector[i], 1) - m_pcs->GetNodeValue(nodes_vector[i], nidx - 1) << " ";
+					else if (_nod_value_vector[k].find("VELOCITY") == 0)
+						tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx-1) << " ";
+					else
+						tec_file << m_pcs->GetNodeValue(nodes_vector[i], nidx) << " ";
+				}
+				tec_file << "\n";
+			}  // end nodes_vector
+
+			// CB print element section
+			for (size_t i = 0; i < eledefvec.size(); i++)
+			{
+			  for (size_t j = 0; j < eledefvec[j].size(); j++)
+				tec_file << eledefvec[i][j] << " ";
+			  tec_file << "\n";
 			}
-			tec_file << "\n";
-		}  // end nodes_vector
 
-		// CB print element section
-		for (size_t i = 0; i < eledefvec.size(); i++)
-		{
-		  for (size_t j = 0; j < eledefvec[j].size(); j++)
-			tec_file << eledefvec[i][j] << " ";
-		  tec_file << "\n";
 		}
 		//clean up
 		//eledefvec.clear();

@@ -633,10 +633,10 @@ bool readGLIFileV4(const std::string& fname, GEOObjects* geo, std::string& uniqu
 		std::cout << " ok, " << ply_vec->size() << " polylines read"
 		          << "\n";
 	}
-	//else
-	//	std::cerr
-	//	<< "tag #POLYLINE not found or input stream error in GEOObjects"
-	//	<< "\n";
+	else
+		std::cerr
+		<< "tag #POLYLINE not found or input stream error in GEOObjects"
+		<< "\n";
 
 	std::vector<Surface*>* sfc_vec(new std::vector<Surface*>);
 	std::map<std::string,size_t>* sfc_names (new std::map<std::string,size_t>);
@@ -647,10 +647,10 @@ bool readGLIFileV4(const std::string& fname, GEOObjects* geo, std::string& uniqu
 		std::cout << " ok, " << sfc_vec->size() << " surfaces read"
 		          << "\n";
 	}
-	//else
-	//	std::cerr
-	//	<< "tag #SURFACE not found or input stream error in GEOObjects"
-	//	<< "\n";
+	else
+		std::cerr
+		<< "tag #SURFACE not found or input stream error in GEOObjects"
+		<< "\n";
 	in.close();
 
 	if (!ply_vec->empty())

@@ -41,6 +41,8 @@ extern bool flag_block_output_of_initial_values;
 // Data file
 //OK411
 extern int ReadData(char*, GEOLIB::GEOObjects& geo_obj, std::string& unique_name);
+
+extern int subtimestepnumber;
 /* PCS */
 #include "pcs_dm.h"
 #include "rf_pcs.h"
@@ -3324,9 +3326,46 @@ inline double Problem::OverlandFlow()
 	if (!m_pcs->selected)
 		return error;             //12.12.2008 WW
 
-	error = m_pcs->ExecuteNonLinear(loop_process_number);
+	CTimeDiscretization* tim = m_pcs->Tim;
+	int subtimesteps = m_pcs->Tim->subtimesteps;
+	current_time -= dt;
+	dt /= subtimesteps;
+
+	std::vector<double> init_values = std::vector<double>(m_pcs->m_msh->GetNodesNumber(false));
+	for (size_t l = 0; l < m_pcs->m_msh->GetNodesNumber(false); l++)
+	{
+		init_values[l] = m_pcs->GetNodeValue(l, 0);
+
+			//if(l%1000 == 0)
+			//std::cout << l << " " << m_pcs->GetNodeValue(l, 1)<< "\n";
+			 m_pcs->SetNodeValue(l, 1, (m_pcs->GetNodeValue(l, 1) +  (subtimesteps - 1) * m_pcs->GetNodeValue(l, 0) )/ subtimesteps);
+	}
+
+	for(subtimestepnumber = 1; subtimestepnumber <= subtimesteps; ++subtimestepnumber)
+	{
+		current_time += dt;
+		aktuelle_zeit = current_time;
+		std::cout << "\t================================================\n";
+		std::cout << "\tSub time step: " << subtimestepnumber << "| Time: " <<
+				aktuelle_zeit << "| Time step size: " << dt << '\n';
+
+		error = m_pcs->ExecuteNonLinear(loop_process_number);
+
+		// update
+		for (size_t l = 0; l < m_pcs->m_msh->GetNodesNumber(false); l++)
+			m_pcs->SetNodeValue(l, 0, m_pcs->GetNodeValue(l, 1));
+	}
+
+	for (size_t l = 0; l < m_pcs->m_msh->GetNodesNumber(false); l++)
+		m_pcs->SetNodeValue(l, 0, init_values[l]);
+
+	dt *= subtimesteps;
+
 	if (m_pcs->TimeStepAccept())
 		PCSCalcSecondaryVariables();
+
+	m_pcs->CalIntegrationPointValue();
+
 	return error;
 }
 

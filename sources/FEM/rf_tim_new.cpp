@@ -32,6 +32,8 @@ double aktuelle_zeit;
 size_t aktueller_zeitschritt = 0;
 double dt = 0.0;
 int rwpt_numsplits = -1;                          //JT 2010
+
+int subtimestepnumber;
 //==========================================================================
 std::vector<CTimeDiscretization*>time_vector;
 /**************************************************************************
@@ -92,6 +94,7 @@ CTimeDiscretization::CTimeDiscretization(void)
 	dampening = 0;
 	pay_no_mind_to_output = false; // JOD 2014-11-26
 	correction_factor = 1.;
+	subtimesteps = 1;
 
 }
 
@@ -621,6 +624,15 @@ std::ios::pos_type CTimeDiscretization::Read(std::ifstream* tim_file)
 	    //....................................................................
 		if(line_string.find("$PAY_NO_MIND_TO_OUTPUT")!=string::npos) { // subkeyword found JOD 2015-11-26  provisional
 			pay_no_mind_to_output = true;
+			continue;
+		}
+
+		//....................................................................
+		if(line_string.find("$SUBTIMESTEPS")!=string::npos) { // subkeyword found
+			line.str(GetLineFromFile1(tim_file));
+			//
+			line >> subtimesteps;
+			line.clear();
 			continue;
 		}
 

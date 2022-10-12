@@ -170,6 +170,8 @@ string project_title("New project");              //OK41
 
 bool hasAnyProcessDeactivatedSubdomains = false;  //NW
 extern double gravity_constant;
+
+extern int subtimestepnumber;
 //--------------------------------------------------------
 // Coupling Flag. WW
 bool T_Process = false;					// Heat
@@ -2842,7 +2844,7 @@ void CRFProcess::ConfigGroundwaterFlow()
    pcs_eval_unit[7] = "m^2";
 	//----------------------------------------------------------------------
 	// Secondary variables
-	pcs_number_of_secondary_nvals = 5;
+	pcs_number_of_secondary_nvals = 4;
 	pcs_secondary_function_name[0] = "FLUX";
 	pcs_secondary_function_unit[0] = "m3/s";
 	pcs_secondary_function_timelevel[0] = 1;
@@ -2852,14 +2854,13 @@ void CRFProcess::ConfigGroundwaterFlow()
 	pcs_secondary_function_name[2] = "COUPLING"; //JOD
 	pcs_secondary_function_unit[2] = "m/s";
 	pcs_secondary_function_timelevel[2] = 0;
-	pcs_secondary_function_name[3] = "COUPLING"; //JOD
-	pcs_secondary_function_unit[3] = "m/s";
+	//pcs_secondary_function_name[3] = "COUPLING"; //JOD
+	//pcs_secondary_function_unit[3] = "m/s";
+	//pcs_secondary_function_timelevel[3] = 1;
+	pcs_secondary_function_name[3] = "STORE"; //JOD  for subtiming 4.7.10
+	pcs_secondary_function_unit[3] = "m";
 	pcs_secondary_function_timelevel[3] = 1;
-	pcs_secondary_function_name[4] = "STORE"; //JOD  for subtiming 4.7.10
-	pcs_secondary_function_unit[4] = "m";
-	pcs_secondary_function_timelevel[4] = 1;
 
-	pcs_number_of_secondary_nvals = 5;    //WW
 	//WW
 	pcs_secondary_function_name[pcs_number_of_secondary_nvals] = "VELOCITY_X1";
 	pcs_secondary_function_unit[pcs_number_of_secondary_nvals] = "m/s";
@@ -6414,6 +6415,7 @@ void CRFProcess::CalIntegrationPointValue()
 	case FiniteElement::TES: //HS, TN
 	case FiniteElement::HEAT_TRANSPORT: //JOD 2014-11-10
 	case FiniteElement::MASS_TRANSPORT: // JOD 2014-11-10
+	case FiniteElement::OVERLAND_FLOW:
 		cal_integration_point_value = true;
 		break;
 	default:
@@ -8849,7 +8851,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			  {   // only if not switched off
 				  if(m_st->isConnectedGeometry())  // JOD 2/2015
 				  {
-					  IncorporateConnectedGeometries(value, cnodev, m_st); //(this->getProcessType(), this->getProcessPrimaryVariable()); // ?????
+					  IncorporateConnectedGeometries(value, cnodev, m_st, this); //(this->getProcessType(), this->getProcessPrimaryVariable()); // ?????
 				  }
 				  else // use coupled (with $DISTYPE_CONDITION) only if not connected (to combine both with BOREHOLE)
 					GetNODValue(value, cnodev, m_st);
@@ -10731,7 +10733,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 							else
 								num_fail = 0;
 							//
-							if(num_fail > 1) diverged = true; // require 2 consecutive failures
+							if(num_fail > m_num->nonlinear_allowed_failures) diverged = true; // require 2 consecutive failures
 							last_error = nonlinear_iteration_error;
 						}
 						break;
@@ -17660,229 +17662,304 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 	// get an element
 	nodes.clear();
-	nodes.push_back(ToNode); // just take one of the nodes to get an element 
+	nodes.push_back(ToNode); // just take one of the nodes to get an element
 	m_msh->GetConnectedElements(nodes, elements_at_node);
-	CElem *elem = m_msh->ele_vector[elements_at_node[0]]; // to get to fem_ele_std
+	CElem *elem = m_msh->ele_vector[0];//elements_at_node[0]]; // to get to fem_ele_std
 	if(elem == NULL)
 		throw std::runtime_error("ERROR in CRFProcess::IncorporateNodeConnectionSourceTerms: Did not get element");
 
 	fem->ConfigElement(elem, m_num->ele_gauss_points, false);
 
-	switch (m_st->getConnectedGeometryMode())
+
+
+	if(convertProcessTypeToString(this->getProcessType()) == "OVERLAND_FLOW")//m_st->getProcessType() == FiniteElement::OVERLAND_FLOW)
 	{
-	  case -1:
-		  if(m_st->connected_geometry_verbose_level > 0)
-			  std::cout << "\t\tNo connection (mode -1)\n";
-		break;
-  	  case 0:  // NNNC symmetric
-		  if(m_st->connected_geometry_verbose_level > 0)
-		  {
-			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
-			  else
-			  	std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
-		  }
-		  if(m_st->connected_geometry_verbose_level > 1)
-		  {		
-			std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
-				"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
-		  }
-  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
-  		  {
-  			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
-  			value = alpha_value * GetNodeValue(FromNode, 1);
-  		  }
-  			  //throw std::runtime_error("Error - Node connection not supported");
-  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
-  		  {
-			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
-			value = 0.;
-				
-			if(m_st->borehole_mode > -1)
-			{
-				const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
-				double alpha_value_total = alpha_value;
-				if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
-					alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+		const double gamma = 9.81 * mfp_vector[0]->Density() ;
+		//const double alpha_value2 = alpha_value * gamma;
+		if(m_st->getConnectedGeometryVerbosity() > 1)
+			std::cout << "\t\tIncorporate: From " << FromNode  << " To " << ToNode <<  " with coefficient " << alpha_value << "\n";
 
-				Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, (alpha_value > 0) ? FromNode : ToNode,  // for output
-					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
-					m_msh->nod_vector[AQNode]->getData()[0], 
-					m_msh->nod_vector[AQNode]->getData()[1], 
-					m_msh->nod_vector[AQNode]->getData()[2]};
-			}
-  		  }
-  		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-		  {
-			fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
-			value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
+		const double epsilon = m_num->overland_epsilon;
 
-			if(m_st->borehole_mode > -1)
-			{
-				const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
-				double alpha_value_total = alpha_value;
-				if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
-					alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+		CRFProcess* m_pcs_LIQUID = PCSGet("LIQUID_FLOW");
+		const double p_LF = ( subtimestepnumber * m_pcs_LIQUID->GetNodeValue(FromNode, 1) +
+				(Tim->subtimesteps - subtimestepnumber) * m_pcs_LIQUID->GetNodeValue(FromNode, 0)) / Tim->subtimesteps ;// + m_pcs_LIQUID->m_msh->nod_vector[FromNode]->getData()[2]* gamma;// + 10.;
 
-				Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // for output
-					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
-					m_msh->nod_vector[AQNode]->getData()[0], 
-					m_msh->nod_vector[AQNode]->getData()[1], 
-					m_msh->nod_vector[AQNode]->getData()[2]};
-			}
-		  }
-  		  else
-  			throw std::runtime_error("Error - Node connection not supported");
-		  break;
-	  case 1 : // NNNC non-symmetric - downstream fixed
-		  if(m_st->connected_geometry_verbose_level > 0)
-		  {
-			  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-			  	std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << falpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
-			  else
-			  	std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
-		  }
-		  if(m_st->connected_geometry_verbose_level > 1)
-		  {		
-			std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
-				"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
-				"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
-		  }
+		//const double p_LF = m_pcs_LIQUID->GetNodeValue(FromNode, 1);
 
-  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
-  		  {
-  			  // ?????
-  			  value = alpha_value * GetNodeValue(FromNode, 1);  // implicit  ?????
-			if(m_st->borehole_mode > -1)
-				throw std::runtime_error("not implemented");
-  		  }
-  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
-  		  {
-			  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);//, /* advective */ true);
-			  value = 0.;
-			
-			if(m_st->borehole_mode > -1)
-			{
-			 	const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
-				double falpha_value_total = falpha_value;
-				if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
-					falpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+		const double p_OF = (GetNodeValue(ToNode, 1) - 2 * m_msh->nod_vector[ToNode]->getData()[2] +
+				 m_msh->nod_vector[ToNode]->getData()[0]) * gamma;// + m_pcs_LIQUID->m_msh->nod_vector[FromNode]->getData()[2];  // !!!
 
-			 	Borehole_values_kept[m_st->geo_name][AQNode] = { falpha_value_total, (alpha_value > 0) ? FromNode : ToNode,  // for output 
-					std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(), 
-					m_msh->nod_vector[AQNode]->getData()[0], 
-					m_msh->nod_vector[AQNode]->getData()[1], 
-					m_msh->nod_vector[AQNode]->getData()[2]};
-			}
-  		  }
-  		  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-  		  {
-			if(alpha_value < 0)
-				throw std::runtime_error("Error in node connection: alpha_value > 0 required");
+		//const double p_OF = (GetNodeValue(ToNode, 1))*  mfp_vector[0]->Density() * GRAVITY_CONSTANT;
+		const double p_OF_epsilon = (GetNodeValue(ToNode, 1) - 2 * m_msh->nod_vector[ToNode]->getData()[2] +
+				 m_msh->nod_vector[ToNode]->getData()[0] + epsilon)*gamma;// + m_pcs_LIQUID->m_msh->nod_vector[FromNode]->getData()[2];
 
-std::cout <<  "from: " << FromNode << "\n";
-			//fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value*1, false);
-			value = falpha_value * 1. * (m_st->GetBoreholeData().value);  // for RHS
+		//const double p_OF_epsilon = (GetNodeValue(ToNode, 1)+epsilon) *  mfp_vector[0]->Density() * GRAVITY_CONSTANT;
 
-			if(m_st->borehole_mode > -1)
-			{
-				const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
-				double falpha_value_total = falpha_value;
-				if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
-					falpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+		const double relPerm = 1.;//m_st->GetRelativeInterfacePermeability(this, h_OF, ToNode);
+		const double relPerm_epsilon = 1;//m_st->GetRelativeInterfacePermeability(this, h_OF + epsilon, ToNode);
 
-				Borehole_values_kept[m_st->geo_name][AQNode] = { falpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // forputput
-					m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(), 
-					m_msh->nod_vector[AQNode]->getData()[0], 
-					m_msh->nod_vector[AQNode]->getData()[1], 
-					m_msh->nod_vector[AQNode]->getData()[2]};
-			}
-  		  }
-  		  else
-  			  throw std::runtime_error("Error - Node connection not supported");
-		  break;
 
-	  case 2 : // NNNC variable - dependent on velocity in reference element
-  		  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
-  			  throw std::runtime_error("Error - Node connection not implemented");
-  		  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
-  		  {
-				velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
-				velocity_ref[1] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(1, 0);
-				velocity_ref[2] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(2, 0);
+		value = relPerm * alpha_value * (p_LF - p_OF);
+		const double value_jacobi = (- alpha_value * relPerm_epsilon * (p_LF - p_OF_epsilon) + value) ;
 
-				if (sqrt(velocity_ref[0] * velocity_ref[0] + velocity_ref[1] * velocity_ref[1] + velocity_ref[2] * velocity_ref[2]) > m_st->connected_geometry_minimum_velocity_abs)  // if abs(v) > min_vel
-				{
-					// non-symmetric
-					if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
-					{
-						if (m_st->connected_geometry_verbose_level > 0)
-							std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
-		  				if(m_st->connected_geometry_verbose_level > 1)
-						{
-							std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << "\n\t\t\t\t" << 
-								m_msh->nod_vector[FromNode]->getData()[1] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
-								"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << "\n\t\t\t\t" << 
-								m_msh->nod_vector[ToNode]->getData()[1] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+		fem->IncorporateNodeConnection(-1, ToNode, value_jacobi, false);
 
-			  				std::cout << "\t\t\tFlux: " << falpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
-						}
-						fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false); // non-symmetric in direction of n_ref
-					}
-					else            // swap nodes
-					{
-						if (m_st->connected_geometry_verbose_level > 0)
-							std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << falpha_value << "\n";
-		  				if(m_st->connected_geometry_verbose_level > 1)
-						{
-							std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
-								"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
-								"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
-			  				std::cout << "\t\t\tFlux: " << falpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
-						}
-						fem->IncorporateNodeConnection(ToNode, FromNode, falpha_value, false); // non-symmetric in direction of -n_ref
-					}
+		if(m_st->getConnectedGeometryVerbosity() > 1)
+			std::cout << "\t\t\tp_LF " << p_LF << " p_OF " << p_OF << " value " << value << " relPerm: " << relPerm << '\n';
 
-				}
-				else  // symmetric
-				{
-					if (m_st->connected_geometry_verbose_level > 0)
-					{
-						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
-					}
-		  			if(m_st->connected_geometry_verbose_level > 1)
-					{
-						std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << 
-							"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] << 
-							"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] << 
-							"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << 
-							"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] << 
-							"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
-			  			std::cout << "\t\t\tFlux" << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
-					}
-					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
-				}
+		  SetNodeValue(ToNode,
+		   // coupling flux (m2/s)
+		      GetNodeValueIndex("COUPLING") + 1, -value);
 
-			  	value = 0.;
-  		  }
-  		  else
-  			throw std::runtime_error("Error - Node connection not supported");
-		break;
-	  default :
-		  throw std::runtime_error("Node connection mode not supported");
 	}
+	else
+	{
+
+		CRFProcess* m_pcs_OF = PCSGet("OVERLAND_FLOW");
+		if (m_pcs_OF && convertProcessTypeToString(this->getProcessType()) != "HEAT_TRANSPORT")//m_st->isCoupled())
+		{
+			const double gamma = 9.81 * mfp_vector[0]->Density() ;
+			//const double alpha_value2 = alpha_value * gamma;
+
+			if(m_st->getConnectedGeometryVerbosity() > 1)
+				std::cout << "\t\tIncorporate:  From " << FromNode <<  " To " << ToNode <<  " with coefficient " << alpha_value << "\n";
+
+			//const double h_OF = m_pcs_OF->GetNodeValue(FromNode, 1) -10. - m_msh->nod_vector[ToNode]->getData()[2];
+			const double p_OF = (m_pcs_OF->GetNodeValue(FromNode, 1) -
+					2 * m_pcs_OF->m_msh->nod_vector[FromNode]->getData()[2] + m_pcs_OF->m_msh->nod_vector[FromNode]->getData()[0])*gamma;
+
+			const double p_LF = GetNodeValue(ToNode, 1);// + m_msh->nod_vector[ToNode]->getData()[2];
+
+			const double relPerm = 1;//m_st->GetRelativeInterfacePermeability(m_pcs_OF, m_pcs_OF->GetNodeValue(FromNode, 1), FromNode);
+
+			fem->IncorporateNodeConnection(-1, ToNode, relPerm * alpha_value, false);
+			value = relPerm * alpha_value * p_OF;
+
+			if(m_st->getConnectedGeometryVerbosity() > 1)
+				std::cout << "\t\tp_LF " << p_LF << " p_OF " << p_OF <<  '\n';
+		}
+		else
+		{
+			switch (m_st->getConnectedGeometryMode())
+			{
+			  case -1:
+				  if(m_st->connected_geometry_verbose_level > 0)
+					  std::cout << "\t\tNo connection (mode -1)\n";
+				break;
+			  case 0:  // NNNC symmetric
+				  if(m_st->connected_geometry_verbose_level > 0)
+				  {
+					  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+					  else
+						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
+				  }
+				  if(m_st->connected_geometry_verbose_level > 1)
+				  {
+					std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] <<
+						"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+				  }
+				  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
+				  {
+					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+					value = alpha_value * GetNodeValue(FromNode, 1);
+				  }
+					  //throw std::runtime_error("Error - Node connection not supported");
+				  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
+				  {
+					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+					value = 0.;
+
+					if(m_st->borehole_mode > -1)
+					{
+						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+						double alpha_value_total = alpha_value;
+						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
+							alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+
+						Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, (alpha_value > 0) ? FromNode : ToNode,  // for output
+							std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(),
+							m_msh->nod_vector[AQNode]->getData()[0],
+							m_msh->nod_vector[AQNode]->getData()[1],
+							m_msh->nod_vector[AQNode]->getData()[2]};
+					}
+				  }
+				  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+				  {
+					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+					value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
+
+					if(m_st->borehole_mode > -1)
+					{
+						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+						double alpha_value_total = alpha_value;
+						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
+							alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+
+						Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // for output
+							m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(),
+							m_msh->nod_vector[AQNode]->getData()[0],
+							m_msh->nod_vector[AQNode]->getData()[1],
+							m_msh->nod_vector[AQNode]->getData()[2]};
+					}
+				  }
+				  else
+					throw std::runtime_error("Error - Node connection not supported");
+				  break;
+			  case 1 : // NNNC non-symmetric - downstream fixed
+				  if(m_st->connected_geometry_verbose_level > 0)
+				  {
+					  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << falpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+					  else
+						std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
+				  }
+				  if(m_st->connected_geometry_verbose_level > 1)
+				  {
+					std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] <<
+						"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] <<
+						"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+				  }
+
+				  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
+				  {
+					  // ?????
+					  value = alpha_value * GetNodeValue(FromNode, 1);  // implicit  ?????
+					if(m_st->borehole_mode > -1)
+						throw std::runtime_error("not implemented");
+				  }
+				  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
+				  {
+					  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);//, /* advective */ true);
+					  value = 0.;
+
+					if(m_st->borehole_mode > -1)
+					{
+						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+						double falpha_value_total = falpha_value;
+						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
+							falpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+
+						Borehole_values_kept[m_st->geo_name][AQNode] = { falpha_value_total, (alpha_value > 0) ? FromNode : ToNode,  // for output
+							std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(),
+							m_msh->nod_vector[AQNode]->getData()[0],
+							m_msh->nod_vector[AQNode]->getData()[1],
+							m_msh->nod_vector[AQNode]->getData()[2]};
+					}
+				  }
+				  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
+				  {
+					if(alpha_value < 0)
+						throw std::runtime_error("Error in node connection: alpha_value > 0 required");
+
+		std::cout <<  "from: " << FromNode << "\n";
+					//fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value*1, false);
+					value = falpha_value * 1. * (m_st->GetBoreholeData().value);  // for RHS
+
+					if(m_st->borehole_mode > -1)
+					{
+						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+						double falpha_value_total = falpha_value;
+						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
+							falpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+
+						Borehole_values_kept[m_st->geo_name][AQNode] = { falpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // forputput
+							m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(),
+							m_msh->nod_vector[AQNode]->getData()[0],
+							m_msh->nod_vector[AQNode]->getData()[1],
+							m_msh->nod_vector[AQNode]->getData()[2]};
+					}
+				  }
+				  else
+					  throw std::runtime_error("Error - Node connection not supported");
+				  break;
+
+			  case 2 : // NNNC variable - dependent on velocity in reference element
+				  if(m_st->getConnectedGeometryCouplingType() == 0)  // via RHS
+					  throw std::runtime_error("Error - Node connection not implemented");
+				  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
+				  {
+						velocity_ref[0] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(0, 0);  // select Gauss point 0
+						velocity_ref[1] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(1, 0);
+						velocity_ref[2] = ele_gp_value[m_st->connected_geometry_ref_element_number]->Velocity(2, 0);
+
+						if (sqrt(velocity_ref[0] * velocity_ref[0] + velocity_ref[1] * velocity_ref[1] + velocity_ref[2] * velocity_ref[2]) > m_st->connected_geometry_minimum_velocity_abs)  // if abs(v) > min_vel
+						{
+							// non-symmetric
+							if (PointProduction(velocity_ref, m_st->connected_geometry_reference_direction) > 0) // if (v*n_ref) > 0
+							{
+								if (m_st->connected_geometry_verbose_level > 0)
+									std::cout << "\t\tIncorporate downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
+								if(m_st->connected_geometry_verbose_level > 1)
+								{
+									std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] << "\n\t\t\t\t" <<
+										m_msh->nod_vector[FromNode]->getData()[1] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] <<
+										"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] << "\n\t\t\t\t" <<
+										m_msh->nod_vector[ToNode]->getData()[1] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+
+									std::cout << "\t\t\tFlux: " << falpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+								}
+								fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false); // non-symmetric in direction of n_ref
+							}
+							else            // swap nodes
+							{
+								if (m_st->connected_geometry_verbose_level > 0)
+									std::cout << "\t\tIncorporate downstream: From " << ToNode << " to " << FromNode << " with coefficient " << falpha_value << "\n";
+								if(m_st->connected_geometry_verbose_level > 1)
+								{
+									std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] <<
+										"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] <<
+										"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+									std::cout << "\t\t\tFlux: " << falpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+								}
+								fem->IncorporateNodeConnection(ToNode, FromNode, falpha_value, false); // non-symmetric in direction of -n_ref
+							}
+
+						}
+						else  // symmetric
+						{
+							if (m_st->connected_geometry_verbose_level > 0)
+							{
+								std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
+							}
+							if(m_st->connected_geometry_verbose_level > 1)
+							{
+								std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] <<
+									"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] <<
+									"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[2] <<
+									"\n\t\t\tto (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[0] <<
+									"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[1] <<
+									"\n\t\t\t\t" << m_msh->nod_vector[ToNode]->getData()[2] << "\n";
+								std::cout << "\t\t\tFlux" << alpha_value * (GetNodeValue(FromNode, 1) - GetNodeValue(ToNode, 1)) << "\n";
+							}
+							fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
+						}
+
+						value = 0.;
+				  }
+				  else
+					throw std::runtime_error("Error - Node connection not supported");
+				break;
+			  default :
+				  throw std::runtime_error("Node connection mode not supported");
+			}
+		}
+
+	}
+
 }
 
 
