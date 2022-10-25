@@ -6708,15 +6708,15 @@ void CFiniteElementStd::Cal_Velocity()
 			for (size_t i = 0; i < dim; i++)
 			{
 				vel[i] = 0.0;
-
+//int j=0;
 					for(int j = 0; j < nnodes; j++)
 					//for(int k = 0; k < nnodes; k++)
 					{
 						//if(k != j)
 						{
 							//std::cout << "\n" << NodalVal[j] - NodalVal[k];
-							vel[i] += (NodalVal[j]) * dshapefct[i * nnodes + j];
-							//vel[i] += (NodalVal[j] - NodalVal[k]) * dshapefct[i * nnodes + j];
+								vel[i] += (NodalVal[j]) * dshapefct[i * nnodes + j];
+							//vel[i] += (NodalVal[j] - NodalVal[k]) * dshapefct[i * nnodes + k];
 						}
 					}
 			}
@@ -12421,7 +12421,7 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #if defined(USE_MPI)
 	CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
 	
-	//if(!advective)
+	if(!advective)
 		(*A)(dom_vector[myrank]->GetDOMNode(To), dom_vector[myrank]->GetDOMNode(To)) += factor;
 
 	if(From != -1)
@@ -12429,7 +12429,7 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 #else
 	CSparseMatrix* A = pcs->eqs_new->A;
 
-	//if(!advective)
+	if(!advective)
 		(*A)(To, To) += factor;
 	if(From != -1)  // not given value, otherwise RHS
 		(*A)(To, From) -= factor;
@@ -12437,7 +12437,7 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 
 #else
 
-	//if(!advective)
+	if(!advective)
 		MXInc(To, To, factor ); // ToNode on diagonal
 	if(From != -1)  // not given value, otherwise RHS
 		MXInc(To, From, -factor); //

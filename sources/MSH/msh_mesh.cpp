@@ -1799,6 +1799,8 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 	std::cout << "[CFEMesh::GetNODOnSFC] search with new algorithm ... " << std::flush;
 	begin = clock();
 #endif
+
+
 #if defined(USE_PETSC) // || defined (other parallel linear solver lib). //WW. 05.2012
   if(for_s_term)
   {
@@ -1848,10 +1850,13 @@ void CFEMesh::GetNODOnSFC(const GEOLIB::Surface* sfc,
 	}
 #endif
 
+	const_cast<GEOLIB::Surface*>(sfc)->deleteSurfaceGrid();
 #ifdef TIME_MEASUREMENT
 	end = clock();
 	std::cout << "done, took " << (end-begin)/(double)(CLOCKS_PER_SEC) << " s, " << msh_nod_vector.size() << "nodes found" << "\n";
 #endif
+
+
 }
 
 void CFEMesh::findNodesInPolygon(const double area_orig, const double tol,

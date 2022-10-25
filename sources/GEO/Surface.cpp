@@ -24,7 +24,8 @@ Surface::Surface (const std::vector<Point*> &pnt_vec) :
 
 Surface::~Surface ()
 {
-	delete _sfc_grid;
+	if(_sfc_grid!=NULL)
+		delete _sfc_grid;
 	for (size_t k(0); k < _sfc_triangles.size(); k++)
 		delete _sfc_triangles[k];
 }
@@ -88,6 +89,8 @@ Surface* Surface::createSurface(const Polyline &ply)
 		return NULL;
 	}
 }
+
+void Surface::deleteSurfaceGrid() { delete _sfc_grid; _sfc_grid = NULL; }
 
 size_t Surface::getNTriangles () const
 {

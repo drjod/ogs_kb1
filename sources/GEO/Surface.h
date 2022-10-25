@@ -40,6 +40,8 @@ public:
 	/// Triangulates a new surface based on closed polyline.
 	static Surface* createSurface(const Polyline &ply);
 
+	void deleteSurfaceGrid();
+
 	/**
 	 * returns the number of triangles describing the Surface
 	 * */

@@ -5565,7 +5565,6 @@ double CRFProcess::Execute()
 		if(m_num->getNonLinearErrorMethod() != m_num->getCouplingErrorMethod())				//JT: If CPL error method is different, must call separately
 			pcs_error = CalcIterationNODError(m_num->getNonLinearErrorMethod(),true,false);   //JT2012 // get the NLS error. CPL was obtained before.
 	}
-
 	//----------------------------------------------------------------------
 	// PICARD
 	//----------------------------------------------------------------------
@@ -8617,7 +8616,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 
 		for (i = begin; i < end; i++)
 		{
-
 			time_fac = 1.0;
 			val = 1.0;
 
@@ -8897,7 +8895,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
       else {
         std::cout << gindex << " Warning, no st data found for msh_node " << msh_node << "\n" << flush;
       }
-
 
 		//----------------------------------------------------------------------------------------
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
@@ -17738,6 +17735,17 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 			if(m_st->getConnectedGeometryVerbosity() > 1)
 				std::cout << "\t\tp_LF " << p_LF << " p_OF " << p_OF <<  '\n';
+
+			const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+			double alpha_value_total = alpha_value;
+			if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
+				alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
+
+			Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, (alpha_value > 0) ? FromNode : ToNode,  // for output
+				std::numeric_limits<double>::quiet_NaN(), m_st->getConnectedGeometryCouplingType(),
+				m_msh->nod_vector[AQNode]->getData()[0],
+				m_msh->nod_vector[AQNode]->getData()[1],
+				m_msh->nod_vector[AQNode]->getData()[2]};
 		}
 		else
 		{
@@ -17838,7 +17846,10 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				  }
 				  else if(m_st->getConnectedGeometryCouplingType() == 1)  // via matrix
 				  {
-					  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);//, /* advective */ true);
+					  bool advective = false;
+					  //if(convertProcessTypeToString(this->getProcessType()) == "HEAT_TRANSPORT")
+						//  advective = true;
+					  fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false, advective);//, /* advective */ true);
 					  value = 0.;
 
 					if(m_st->borehole_mode > -1)

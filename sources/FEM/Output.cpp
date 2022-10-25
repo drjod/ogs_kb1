@@ -6153,6 +6153,7 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 			//
 		#endif
 
+		m_pcs = PCSGet(getProcessType());
 
 		//--------------------------------------------------------------------
 		if (aktueller_zeitschritt == 0)
@@ -6161,13 +6162,30 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 		}
 		else
 		{
- 			m_pcs = PCSGet(getProcessType());
-
 			if(m_pcs)
 			{
 				for(std::map<long,borehole_values_type>::iterator it = m_pcs->Borehole_values_kept[geo_name].begin(); it != m_pcs->Borehole_values_kept[geo_name].end(); ++it)
 				{
-					const double value_BH = (it->second.coupling_type == 2)? it->second.value_BH : m_pcs->GetNodeValue(it->second.node_BH, 1);
+					double value_BH;
+					if(it->second.coupling_type == 2)
+					{
+						value_BH = it->second.value_BH;
+					}
+					else
+					{
+						CRFProcess* m_pcs_BH = PCSGet("OVERLAND_FLOW");
+						if(m_pcs_BH == NULL || getProcessType() == FiniteElement::HEAT_TRANSPORT)
+						{
+							m_pcs_BH = PCSGet(getProcessType());
+							value_BH = m_pcs_BH->GetNodeValue(it->second.node_BH, 1);
+						}
+						else
+						{
+							value_BH = m_pcs_BH->GetNodeValue(it->second.node_BH, 1) - 2*  m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[2] +
+								m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[0];
+							value_BH *= 9810;
+						}
+					}
 
 					tec_file << time_current << "\t" << it->first << "\t" <<
 						m_pcs->m_msh->nod_vector[it->first]->getData()[0] << "\t" <<

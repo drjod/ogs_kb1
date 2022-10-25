@@ -18,7 +18,6 @@
 #ifndef NDBEUG
 #include "StringTools.h"
 #endif
-
 namespace GEOLIB {
 
 SurfaceGrid::SurfaceGrid(Surface const*const sfc) :
@@ -283,7 +282,8 @@ bool SurfaceGrid::isPntInSurface(const double* pnt, double eps) const
 
 SurfaceGrid::~SurfaceGrid()
 {
-	delete [] _triangles_in_grid_box;
+	if(_triangles_in_grid_box != NULL)
+		delete [] _triangles_in_grid_box;
 }
 
 } // end namespace GEOLIB

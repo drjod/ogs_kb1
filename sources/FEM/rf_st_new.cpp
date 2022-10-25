@@ -3668,13 +3668,8 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
    if (m_sfc)
    {
-      GEOLIB::Surface const& sfc(
-		*(dynamic_cast<GEOLIB::Surface const*>(m_st->getGeoObj()))
-      );
-      std::cout << "Surface " << m_st->geo_name << ": " << sfc.getNTriangles()  << "\n";
-      SetSurfaceNodeVector(&sfc, sfc_node_ids);
-
-      //SetSurfaceNodeVector(m_sfc, sfc_nod_vector);
+      std::cout << "Surface " << m_st->geo_name << '\n';
+      SetSurfaceNodeVector( m_st->geo_name, m_st->getGeoObj(), sfc_node_ids);
 
       sfc_nod_vector.insert(sfc_nod_vector.begin(),
          sfc_node_ids.begin(), sfc_node_ids.end());
@@ -3709,10 +3704,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		   {
 			   // inlet surface
 			   sfc_node_ids.clear();
-			   GEOLIB::Surface const& inlet_sfc(
-			   		*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_storageRateInlet->getGeoObj()))
-			         );
-			   SetSurfaceNodeVector(&inlet_sfc, sfc_node_ids);
+			   SetSurfaceNodeVector(m_st->storageRate.inlet_geometry_name, m_st->geoInfo_storageRateInlet->getGeoObj(), sfc_node_ids);
 			   m_st->storageRate.inlet_msh_node_numbers.insert(m_st->storageRate.inlet_msh_node_numbers.begin(),
 			         sfc_node_ids.begin(), sfc_node_ids.end());
 
@@ -3727,10 +3719,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
 			   // outlet surface
 			   sfc_node_ids.clear();
-			   GEOLIB::Surface const& outlet_sfc(
-			   		*(dynamic_cast<GEOLIB::Surface const*>(m_st->geoInfo_storageRateOutlet->getGeoObj()))
-			         );
-			   SetSurfaceNodeVector(&outlet_sfc, sfc_node_ids);
+			   SetSurfaceNodeVector(m_st->storageRate.outlet_geometry_name, m_st->geoInfo_storageRateOutlet->getGeoObj(), sfc_node_ids);
 			   m_st->storageRate.outlet_msh_node_numbers.insert(m_st->storageRate.outlet_msh_node_numbers.begin(),
 			         sfc_node_ids.begin(), sfc_node_ids.end());
 
@@ -3901,19 +3890,28 @@ void CSourceTerm::SetNOD()
  Programing:
  11/2007 JOD
  last modification:
+ 11/2021 JOD
  **************************************************************************/
-void CSourceTermGroup::SetSurfaceNodeVector(Surface* m_sfc,
-		std::vector<long>&sfc_nod_vector)
+void CSourceTermGroup::SetSurfaceNodeVector(const std::string geo_name, const GEOLIB::GeoObject* geo_obj,
+		std::vector<size_t>&sfc_nod_vector)
 {
-   const bool for_source = true; 
-   m_msh->GetNODOnSFC(m_sfc, sfc_nod_vector, for_source);
-}
+	Surface* m_surface = GEOGetSFCByName(geo_name);
+	if (m_surface->TIN)
+	{
+		std::vector<long> nodes_vector;
+		m_msh->GetNODOnSFC_TIN(m_surface, nodes_vector);
+		sfc_nod_vector.resize(nodes_vector.size());
+		for(int i=0; i< nodes_vector.size(); ++i)
+			sfc_nod_vector[i] = nodes_vector[i];
+		std::cout << "\tTIN " << geo_name << ": " << nodes_vector.size() << " nodes" << std::endl;
+	}
+	else
+	{
+		const bool for_source = true;
+		GEOLIB::Surface const* sfc(static_cast<const GEOLIB::Surface*> (geo_obj));
+		m_msh->GetNODOnSFC(sfc, sfc_nod_vector, for_source);
+	}
 
-void CSourceTermGroup::SetSurfaceNodeVector(GEOLIB::Surface const* sfc,
-		std::vector<std::size_t> & sfc_nod_vector)
-{
-   const bool for_source = true;
-   m_msh->GetNODOnSFC(sfc, sfc_nod_vector, for_source);
 }
 
 /**************************************************************************
@@ -5414,12 +5412,10 @@ pressure_cond = 	m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 
 				      		cnodev->msh_node_number_conditional << " with pressure " << 
 							pressure_cond<< '\n';
 	                	std::cout << "\t\t\tFluid volumetric heat capacity: " << alpha << '\n';
+	                	std::cout << "\t\t\tFluid flux: " << fluid_flux << '\n';
 					}
 
 					alpha *= fluid_flux;
-
-					if(m_st->getConnectedGeometryVerbosity() > 1)
-						std::cout << "\t\t\tFluid flux: " << fluid_flux << '\n';
 				}
 				else
         	        		throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - Factor for LIQUID_FLOW not kept");

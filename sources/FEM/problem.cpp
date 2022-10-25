@@ -1167,6 +1167,7 @@ void Problem::Euler_TimeDiscretize()
 #endif
 				ScreenMessage("This step is accepted.\n");
 			PostCouplingLoop();
+
 			if (print_result)
 			{
 				if (current_time < end_time)
@@ -1177,6 +1178,7 @@ void Problem::Euler_TimeDiscretize()
 				if (myrank == 0)
 #endif
 					OUTData(current_time, aktueller_zeitschritt, force_output);
+
 			}
 			accepted_times++;
 			for (i = 0; i < (int)active_process_index.size(); i++)
@@ -1682,7 +1684,6 @@ bool Problem::CouplingLoop()
 	//
 	if (!accept)
 		logger.warning("Not accepted");
-
 	return accept;
 }
 

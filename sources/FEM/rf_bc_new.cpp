@@ -1470,26 +1470,11 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				if (m_surface)
 				{
 					nodes_vector.clear();
-
-//					m_msh->GetNODOnSFC(m_surface, nodes_vector);
-//#ifndef NDEBUG
-//					GEOLIB::GEOObjects const& geo_obj(* m_msh->getGEOObjects());
-//					std::string const& geo_project_name (* m_msh->getProjectName());
-//					std::string sfc_name;
-//					geo_obj.getSurfaceVecObj(geo_project_name)->getNameOfElement(sfc, sfc_name);
-//					std::string debug_fname("MeshNodesOld-BC-" + sfc_name + ".gli");
-//					std::ofstream debug_out (debug_fname.c_str());
-//					debug_out << "#POINTS" << "\n";
-//					for (size_t k(0); k<nodes_vector.size(); k++) {
-//						debug_out << k << " " <<
-//							GEOLIB::Point((m_msh->getNodeVector())[nodes_vector[k]]->getData()) <<
-//							" $NAME " << nodes_vector[k] << "\n";
-//					}
-//					debug_out << "#STOP" << "\n";
-//					debug_out.close();
-//#endif
 					std::vector<size_t> msh_nod_vec;
+
 					m_msh->GetNODOnSFC(sfc, msh_nod_vec);
+					std::cout << "\tSFC " << bc->geo_name << ": " << msh_nod_vec.size() << " nodes\n";
+
 #ifndef NDEBUG
 #ifdef DEBUGMESHNODESEARCH
 					{
@@ -1536,7 +1521,7 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 								for (size_t j = 0; j < m_polyline->point_vector.size(); j++)
 									if (bc-> getPointsWithDistribedBC()[i] == m_polyline-> point_vector[j] ->id) {
 										if (fabs(bc-> getDistribedBC()[i]) < MKleinsteZahl) 
-                      bc-> getDistribedBC()[i] = 1.0e-20;
+												bc-> getDistribedBC()[i] = 1.0e-20;
 										m_polyline-> point_vector[j]-> setPropert( bc-> getDistribedBC()[i]);
 										break;
 									}
