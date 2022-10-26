@@ -2960,13 +2960,12 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
    std::string tec_file_name = file_base_name
      + "_sfc_" + geo_name + TEC_FILE_EXTENSION;
 
-   std::fstream tec_file;
 	if (!_new_file_opened)
 		remove(tec_file_name.c_str());
 	else if (time_step_number == 0)  // JOD 2020-05-08
 		return;
 
-	tec_file.open(tec_file_name.data(), ios::app);
+   std::fstream tec_file(tec_file_name.data(), ios::app | ios::out);
 
 	tec_file.setf(ios::scientific, ios::floatfield);
 	tec_file.precision(12);
@@ -3134,7 +3133,6 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 		         << " not found" << "\n";
 
 	_new_file_opened = true;
-	tec_file.close();                     // kg44 close file
 }
 
 
