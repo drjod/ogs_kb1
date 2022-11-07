@@ -1149,8 +1149,6 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
 				m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
 				out_node_vel = true;
-				for (size_t i = 0; i < mesh_ele_vector_size; i++)
-					delete ele_gp_flux[i];
 			}
 		}
 
@@ -1555,8 +1553,6 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
 				// m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
 
-				for (size_t i = 0; i < mesh_ele_vector_size; i++)
-					delete ele_gp_flux[i];
 			}
 			out_element_vel = true;
 			// break;  // CB: allow output of velocity AND other ele values
@@ -3087,6 +3083,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 
 		// CB extend header
 		tec_file << ", N = " << nodes_vector.size() << ", E = " << eledefvec.size() << ", F = FEPOINT, ET = ";
+		std::cout << std::endl;
 		if(eledefvec.size()== 0)
 		{
 			throw std::runtime_error("ERROR in SFC Output");
@@ -5267,9 +5264,6 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 		m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
 		m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
 	}
-
-	for (size_t i = 0; i < mesh_ele_vector_size; i++)
-		delete ele_gp_flux[i];
 
 	// face integration
 	for (long i = 0; i < (long)elements_at_geo.size(); i++) {
