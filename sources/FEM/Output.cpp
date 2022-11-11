@@ -5021,8 +5021,6 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	CRFProcess* m_pcs = PCSGet(getProcessType());
 	if(m_pcs)
 	{
-		bool output = false;
-	
 		//--------------------------------------------------------------------
 		//if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
 		//	factor = 6.283185307; // 2 Pi
@@ -5059,12 +5057,11 @@ void COutput::WriteContent(double time_current, int time_step_number)
 #if defined(USE_PETSC)  // JOD 2015-11-18
 		tec_file_name += "_" + mrank_str;
 #endif
-	
 		tec_file_name += ".txt";
-	
-		 if(!_new_file_opened)
+
+		if(!_new_file_opened)
 			remove(tec_file_name.c_str());
-	
+
 		fstream tec_file(tec_file_name.data(), ios::app | ios::out);
 		tec_file.setf(ios::scientific, ios::floatfield);
 		tec_file.precision(12);
@@ -5077,32 +5074,33 @@ void COutput::WriteContent(double time_current, int time_step_number)
 				tec_file << "\"TIME\"\t\t\"VOLUME\"\n";
 			else
 				tec_file << "\"TIME\"\t\t\"CONTENT\"\n";
+			_new_file_opened = true;
 		}
-		else
-		{
-			if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
+
+		/////
+		bool output = false;
+		if (time_vector.size() == 0 && (nSteps > 0) && (time_step_number % nSteps == 0))
 			  output = true;
 	
-			for (size_t j = 0; j < time_vector.size(); j++)
+		for (size_t j = 0; j < time_vector.size(); j++)
 			if ((fabs(time_current - time_vector[j])) < MKleinsteZahl)
 				output = true;
 	
-			if (output == true)
-			{
-				tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
-						flag_volumeCalculation,
-						domainIntegration_lowerThreshold,
-						domainIntegration_upperThreshold,
-						_nod_value_vector, variable_storage)
-								<< "\n";
-				cout << "Data output: " << convertProcessTypeToString(getProcessType());
-			if (flag_volumeCalculation)
-				cout << " VOLUME " << mmp_index << " " << domainIntegration_lowerThreshold << " " << domainIntegration_upperThreshold << '\n';
-			else
-				cout << " CONTENT " << mmp_index << '\n';
-			}
+		if (output == true)
+		{
+			tec_file << time_current << "    " << factor * m_pcs->AccumulateContent(mmp_index,
+					flag_volumeCalculation,
+					domainIntegration_lowerThreshold,
+					domainIntegration_upperThreshold,
+					_nod_value_vector, variable_storage)
+							<< "\n";
+			cout << "Data output: " << convertProcessTypeToString(getProcessType());
+		if (flag_volumeCalculation)
+			cout << " VOLUME " << mmp_index << " " << domainIntegration_lowerThreshold << " " << domainIntegration_upperThreshold << '\n';
+		else
+			cout << " CONTENT " << mmp_index << '\n';
 		}
-		_new_file_opened = true;
+
 		tec_file.close();
 	
 	}
