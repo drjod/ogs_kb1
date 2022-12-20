@@ -944,6 +944,8 @@ void CFiniteElementStd::SetMaterial(int /*phase*/)
 		FluidProp = mfp_vector[0];
 		FluidProp->Fem_Ele_Std = this;
 	}
+	else
+		throw std::runtime_error("No MFP property");
 	// 03.2009 PCH
 	// or JFNK. 10.08.2010. WW
 	if(pcs->type == 1212 || pcs->type == 1313 || pcs->type == 42
@@ -2253,7 +2255,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	default:
 		break;
 	case EPT_LIQUID_FLOW:                               // Liquid flow
-		tensor = MediaProp->PermeabilityTensor(Index);
+		tensor = MediaProp->PermeabilityTensor(Index, nodes);
 		//AS:08.2012 permeability function eff stress
 		if(MediaProp->permeability_effstress_model>0)
 		{
@@ -2289,13 +2291,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 				for(size_t j = 0; j < dim; j++)
 					tensor[dim * i + j] = global_tensor(i,j);
 		}
-		/* removed by JOD 2016-1-11
-		variables[0] = interpolate(NodalVal1); //OK4709 pressure
-		if(T_Flag)
-		variables[1] = interpolate(NodalValC); //OK4709 temperature
-		else
-			variables[1] = 15;//WX
-		*/
+
 		                                       //OK4709
 		mat_fac = FluidProp->Viscosity();// variables);
 		//OK4709 mat_fac = FluidProp->Viscosity();
@@ -2357,35 +2353,16 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 
 				}
 
-
-
 				kf_correcting_factor_ice = pow(10, -MediaProp->ice_correcting_factor * phi_i * poro);
 
-				/*if (phi_i > 0.0 && phi_i < 1.0)
-				{
-					std::cout << "Temperaure: " << TG << '\n';
-					std::cout << "Porosity: " << poro << '\n';
-					std::cout << "Ice fraction: " << phi_i << '\n';
-					std::cout << "Given Correcting_Factor: " << MediaProp->ice_correcting_factor << '\n';
-					std::cout << "kf_Correcting_Factor: " << kf_correcting_factor_ice << '\n';
-				}*/
-
-				//if (MediaProp->ice_correcting_factor < 1e-2)
-					//MeshElement->MarkingAll(false);
-				//	MediaProp->ice_correcting_factor = 1e-2;
-				//else
-				//{
-					//MeshElement->MarkingAll(true);
 				for (size_t i = 0; i < dim * dim; i++)
 					tensor[i] *= kf_correcting_factor_ice;
-				//}
+
 
 
 			}
 		for(size_t i = 0; i < dim * dim; i++)
 			mat[i] = tensor[i] / mat_fac * perm_effstress;//AS:perm. dependent eff stress.
-
-
 		break;
 	case EPT_GROUNDWATER_FLOW:                               // Groundwater flow
 		/* SB4218 - moved to ->PermeabilityTensor(Index);
@@ -12268,7 +12245,7 @@ Programming:
 double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liquid, double *z_coord,
 		const bool& flag_volumeCalculation, 
 		const double& threshold_lower, const double& threshold_upper, 
-		const bool& variable_storage, const bool& flag_latent_heat)
+		const bool& variable_storage, const bool& flag_delta, const bool& flag_latent_heat)
 {
 
 	int i, gp, gp_r, gp_s, gp_t;
@@ -12282,7 +12259,7 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 
 	for (i = 0; i < nNodes; i++)
 	{
-		if (PcsType == EPT_LIQUID_FLOW)
+		if (PcsType == EPT_LIQUID_FLOW && !flag_delta)
 		{                                           // take hydrostatic gradient into account
 			NodeVal_shifted[i] = NodeVal[i] + FluidProp->Density() * gravity_constant * z_coord[i];
 		}

@@ -122,17 +122,17 @@ public:
 	void WriteTECNodeData(std::fstream&);
 	void WriteTECElementData(std::fstream&, int);
 	void WriteTECBLOCKData(std::fstream&); // BW
-	double NODWritePLYDataTEC(int); 
-	void NODWritePNTDataTEC(int);
+	double NODWritePLYDataTEC(int, bool&);
+	void NODWritePNTDataTEC(int, bool&);
 	void ELEWriteDOMDataTEC();
 	void WriteELEValuesTECHeader(std::fstream&);
 	void WriteELEValuesTECData(std::fstream&);
 	void BLOCKWriteDOMDataTEC();//Write Block Datapacking format of tecplot,10/2014 BW
 	void WriteBLOCKValuesTECHeader(std::fstream&);
 	void WriteBLOCKValuesTECData(std::fstream&);
-	void NODWriteSFCDataTEC(int);
-	void NODWriteSFCAverageDataTEC(int);
-	void NODWritePLYAverageDataTEC(int); //JOD 2020-4-27
+	void NODWriteSFCDataTEC(int, bool&);
+	void NODWriteSFCAverageDataTEC(int, bool&);
+	void NODWritePLYAverageDataTEC(int, bool&); //JOD 2020-4-27
 	void WriteRFO();                      //OK
 	void WriteRFOHeader(std::fstream&);   //OK
 	void WriteRFONodes(std::fstream&);    //OK
@@ -152,13 +152,14 @@ public:
 	void PCONWriteDOMDataTEC();           //MX
 	void WriteTECNodePCONData(std::fstream &); //MX
 
-	void WriteTEC(double, int, bool, size_t); // JOD 2015-11-14
+	void WriteTEC(double, int, bool, size_t, bool&); // JOD 2015-11-14
 	void WriteVTK(double, int, bool, size_t); // JOD 2015-11-14
 	void WritePVD(double, int, bool, size_t); // JOD 2015-11-14
-	void WriteTEC_DOMAIN(int);    // JOD 2015-11-14
-	void WriteTEC_POLYLINE(int);  // JOD 2015-11-14
+	void WriteTEC_DOMAIN(int, bool&);    // JOD 2015-11-14
+	void WriteTEC_POLYLINE(int, bool&);  // JOD 2015-11-14
 	void WriteTEC_POINT(int, int);      // JOD 2015-11-14
-	void WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times, void (COutput::*outputFunction)(int));
+	void WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times,
+			void (COutput::*outputFunction)(int, bool&), bool&);
 	//void WriteTEC_POINT();
 	void WriteVTK(double, int, bool);
 	void WritePVD(double, int, bool);

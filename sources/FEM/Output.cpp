@@ -2187,7 +2187,7 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
    10/2008 OK MFP values
    07/2010 TF substituted GEOGetPLYByName
 **************************************************************************/
-double COutput::NODWritePLYDataTEC(int time_step_number)
+double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
 	//WW  int nidx;
 	long gnode;
@@ -2318,7 +2318,28 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
 	std::vector<int> NodeIndex(no_variables);
 	GetNodeIndexVector(NodeIndex);
 	//--------------------------------------------------------------------
-	// Write header
+
+	for (size_t k = 0; k < no_variables; k++)
+		if(_nod_value_vector[k].find("VELOCITY") != string::npos)
+		{
+			if (fourrierFluxCalculated == false &&
+					(getProcessType() == FiniteElement::HEAT_TRANSPORT)) // 8/2015 JOD
+			{
+				ele_gp_flux.clear();
+				const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
+				for (size_t i = 0; i < mesh_ele_vector_size; i++)
+					ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
+
+				m_pcs->CalIntegrationPointValue();    //  calculate FOURRIER flux
+				m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
+				fourrierFluxCalculated = true;
+				for (size_t i = 0; i < mesh_ele_vector_size; i++)
+					delete ele_gp_flux[i];
+			}
+		}
+
+  //----------------------------------------------------------------------------
+  // Write header
 	
   bool header = false; 
 
@@ -2414,7 +2435,10 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
 	m_msh->setMinEdgeLength(tmp_min_edge_length);
 
 //   std::cout << "size of nodes_vector: " << nodes_vector.size() << ", size of old_nodes_vector: " << old_nodes_vector.size() << "\n";
-	//bool b_specified_pcs = (m_pcs != NULL); //NW m_pcs = PCSGet(pcs_type_name);
+	//bool b_specified_pcs = (m_pcs != NULL); //NW
+
+	m_pcs = PCSGet(getProcessType());
+
 	for (size_t j(0); j < nodes_vector.size(); j++)
 	{
 //		tec_file << m_ply->getSBuffer()[j] << " ";
@@ -2426,7 +2450,7 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
 		{
 			//if(!(_nod_value_vector[k].compare("FLUX")==0))  // removed JOD, does not work for multiple flow processes
 			//if (!b_specified_pcs) //NW
-			if (msh_type_name != "COMPARTMENT") // JOD 4.10.01
+			if (m_pcs == NULL && msh_type_name != "COMPARTMENT") // JOD 4.10.01
 				m_pcs = PCSGet(_nod_value_vector[k], bdummy); // BW, here define which process for what secondary variable
 
 			if (!m_pcs)
@@ -2505,7 +2529,7 @@ double COutput::NODWritePLYDataTEC(int time_step_number)
    12/2005 WW Output stress invariants
    10/2010 TF changed access to process type
 **************************************************************************/
-void COutput::NODWritePNTDataTEC(int time_step_number)
+void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
 
 //#if defined(USE_PETSC)  // JOD 2015-11-17
@@ -2909,7 +2933,7 @@ void COutput::WriteRFO()
 	rfo_file.close();                     // kg44 close file
 }
 
-void COutput::NODWriteSFCDataTEC(int time_step_number)
+void COutput::NODWriteSFCDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
 
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
@@ -2923,23 +2947,21 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
 	m_pcs = PCSGet(getProcessType());
 
 	const size_t nName(_nod_value_vector.size());
-	bool out_node_vel = false;
 
 	for (size_t k = 0; k < nName; k++)
 		if(_nod_value_vector[k].find("VELOCITY") != string::npos)
 		{
-			if (out_node_vel == false &&
-					(getProcessType() == FiniteElement::HEAT_TRANSPORT ||
-							getProcessType() == FiniteElement::MASS_TRANSPORT)) // 8/2015 JOD
+			if (fourrierFluxCalculated == false &&
+					(getProcessType() == FiniteElement::HEAT_TRANSPORT)) // 8/2015 JOD
 			{
 				ele_gp_flux.clear();
 				const size_t mesh_ele_vector_size(m_pcs->m_msh->ele_vector.size());
 				for (size_t i = 0; i < mesh_ele_vector_size; i++)
 					ele_gp_flux.push_back(new ElementValue(m_pcs, m_pcs->m_msh->ele_vector[i]));
 
-				m_pcs->CalIntegrationPointValue();    //  calculate FICK / FOURRIER flux
+				m_pcs->CalIntegrationPointValue();    //  calculate FOURRIER flux
 				m_pcs->Extropolation_GaussValue();    //  and extrapolate to node
-				out_node_vel = true;
+				fourrierFluxCalculated = true;
 				for (size_t i = 0; i < mesh_ele_vector_size; i++)
 					delete ele_gp_flux[i];
 			}
@@ -3148,7 +3170,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number)
    03/2018 JOD rewritten to use FaceIntegration
    	   	   works only for primary variables since index is incremented
 **************************************************************************/
-void COutput::NODWriteSFCAverageDataTEC(int time_step_number)
+void COutput::NODWriteSFCAverageDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
 
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
@@ -3256,7 +3278,7 @@ restrictions:
 	to primary variables (index increased by one)
 	axisymmety ignored
 **************************************************************************/
-void COutput::NODWritePLYAverageDataTEC(int time_step_number)
+void COutput::NODWritePLYAverageDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
 		if (_nod_value_vector.size() == 0)
 		{
@@ -5504,9 +5526,9 @@ Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
 
-void COutput::WriteTEC(double time_current, int time_step_number, bool output_by_steps, size_t no_times)
+void COutput::WriteTEC(double time_current, int time_step_number, bool output_by_steps, size_t no_times, bool& fourrierFluxCalculated)
 {
-	void (COutput::*outputFunction)(int) = NULL;
+	void (COutput::*outputFunction)(int, bool&) = NULL;
 
 	switch (getGeoType())
 	{
@@ -5558,7 +5580,8 @@ void COutput::WriteTEC(double time_current, int time_step_number, bool output_by
 	} // end switch
 	///
 	if (outputFunction != NULL) // not for point, averaged surface since output already written
-		WritePotentially(time_current, time_step_number, output_by_steps, no_times, outputFunction );
+		WritePotentially(time_current, time_step_number, output_by_steps, no_times,
+				outputFunction, fourrierFluxCalculated);
 
 	if (!_new_file_opened)
 		//WW
@@ -5573,7 +5596,7 @@ Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
 
-void COutput::WriteTEC_DOMAIN(int time_step_number)
+void COutput::WriteTEC_DOMAIN(int time_step_number, bool& fourrierFluxCalculated)
 {
 
 #if defined (USE_PETSC) // || defined (other parallel solver lib). 12.2012 WW
@@ -5625,10 +5648,10 @@ Programming:
 8/2015 JOD Introduce function
 **************************************************************************/
 
-void COutput::WriteTEC_POLYLINE(int time_step_number)
+void COutput::WriteTEC_POLYLINE(int time_step_number, bool& fourrierFluxCalculated)
 {
 	double tim_value;
-	tim_value = NODWritePLYDataTEC(time_step_number);
+	tim_value = NODWritePLYDataTEC(time_step_number, fourrierFluxCalculated);
 	if (tim_value > 0.0)
 		//OK
 		TIMValue_TEC(tim_value);
@@ -5657,12 +5680,13 @@ Programming:
 11/2015 JOD Introduce function
 **************************************************************************/
 
-void COutput::WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times, void(COutput::*outputFunction)(int))
+void COutput::WritePotentially(double time_current, int time_step_number, bool output_by_steps, size_t no_times,
+		void(COutput::*outputFunction)(int, bool&), bool& fourrierFluxCalculated)
 {
 	
 	if (output_by_steps)
 	{
-		(this->*(outputFunction))(time_step_number);
+		(this->*(outputFunction))(time_step_number, fourrierFluxCalculated);
 		if (time_vector.size() > 0) 
 		{       // this block added in case initial time is given in output instance (smaller times not permitted)
 			if ( fabs(time_current - time_vector[0])
@@ -5678,7 +5702,7 @@ void COutput::WritePotentially(double time_current, int time_step_number, bool o
 				fabs(time_current - time_vector[j])
 				< MKleinsteZahl) //WW MKleinsteZahl
 			{
-				(this->*(outputFunction))(j + 1);
+				(this->*(outputFunction))(j + 1, fourrierFluxCalculated);
 				time_vector.erase(time_vector.begin() + j);
 			}
 			break;				
@@ -6181,9 +6205,9 @@ void COutput::WriteBoreholeData(const double& time_current, const int& time_step
 						}
 						else
 						{
-							value_BH = m_pcs_BH->GetNodeValue(it->second.node_BH, 1) - 2*  m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[2] +
-								m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[0];
-							value_BH *= 9810;
+							value_BH = m_pcs_BH->GetNodeValue(it->second.node_BH, 1);// - 2*  m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[2] +
+							//	m_pcs_BH->m_msh->nod_vector[it->second.node_BH]->getData()[0];
+							//value_BH *= 9810;
 						}
 					}
 

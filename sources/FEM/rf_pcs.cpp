@@ -5382,6 +5382,7 @@ double CRFProcess::Execute()
 	}
 
 	iter_lin_max = std::max(iter_lin_max, iter_lin);
+
 	//----------------------------------------------------------------------
 	// Linearized Flux corrected transport (FCT) by Kuzmin 2009
 	//----------------------------------------------------------------------
@@ -7393,7 +7394,7 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 					}
 				}
 
-				if(m_bc->isConnected())	// JOD 2020-01-27
+				if(m_bc->isConnected() && !m_bc->isCoupled())	// JOD 2020-01-27
 				{
 					if(m_bc->average_verbosity)
 						std::cout << "\tNode: " << m_bc_node->msh_node_number <<
@@ -7409,6 +7410,16 @@ void CRFProcess::DDCAssembleGlobalMatrix()
 					//  !!! DIS_TYPE CONSTANT becomes offset
 					if(flag_switch_off_BC)
 						continue;
+				}
+
+				if(m_bc->isCoupled())
+				{
+					 CRFProcess* m_pcs_coupled = NULL;
+					   m_pcs_coupled = PCSGet(m_bc->getCoupledProcessName());
+					   bc_value = m_pcs_coupled->GetNodeValue(m_bc_node->msh_node_number_conditional, 1) / 9810 +
+							  m_pcs_coupled->m_msh->nod_vector[m_bc_node->msh_node_number_conditional]->getData()[2] +
+							   2 * m_msh->nod_vector[m_bc_node->msh_node_number]->getData()[2];
+					//bc_value  = 0.;
 				}
 
 				if (m_bc->getProcessDistributionType()  == FiniteElement::CHANGING_GRADIENT)  // JOD 2020-7
@@ -9163,6 +9174,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 			"Warning in CRFProcess::ExecuteLinearSolver() - Maximum iteration number reached"
 			     << "\n";
 			logger.warning("ExecuteLinearSolver() - Maximum iteration number reached");
+			accepted = false;
 			return -1;
 		}
 		iter_sum += iter_count;
@@ -11016,7 +11028,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 				for(k = 0; k < NS; k++)
 					SetNodeValue(i, idx[k], 0.0);
 		}
-		//
+
 		for (i = 0; i < (long)m_msh->ele_vector.size(); i++)
 		{
 			elem = m_msh->ele_vector[i];
@@ -17601,17 +17613,18 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 
 			const CRFProcess* const m_pcs_liquid = PCSGet("LIQUID_FLOW");
 			double nodesVal[8], nodesVal_liquid[8],x_coord[8], z_coord[8];
+			const bool flag_delta = (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0)? true: false;
 
 			for (size_t j = 0; j < elem->GetNodesNumber(m_msh->getOrder()); j++)
 			{
 				CNode* e_node = elem->GetNode(j);
-                                if (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0) // JOD 2021-02-10
+                /*if (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0) // JOD 2021-02-10
 				{
                                         nodesVal[j] = GetNodeValue(e_node->GetIndex(), 1) - GetNodeValue(e_node->GetIndex(), nidx1-1);  
 					// !!! takes always 1 as index
 				} 
-                               else
-					nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+                else */ // removed by JDO 2022-11-11
+				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 				if(m_pcs_liquid)
@@ -17621,7 +17634,7 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 			content += fem->CalculateContent(nodesVal, nodesVal_liquid, z_coord, 
 								flag_contentCalculation,
 								threshold_lower, threshold_upper, 
-								variable_storage, flag_Latent_heat);// * geoArea;
+								variable_storage, flag_delta, flag_Latent_heat);// * geoArea;
 		}
 	}
 
@@ -17687,11 +17700,12 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 		const double p_OF = (GetNodeValue(ToNode, 1) - 2 * m_msh->nod_vector[ToNode]->getData()[2] +
 				 m_msh->nod_vector[ToNode]->getData()[0]) * gamma;// + m_pcs_LIQUID->m_msh->nod_vector[FromNode]->getData()[2];  // !!!
 
-		//const double p_OF = (GetNodeValue(ToNode, 1))*  mfp_vector[0]->Density() * GRAVITY_CONSTANT;
 		const double p_OF_epsilon = (GetNodeValue(ToNode, 1) - 2 * m_msh->nod_vector[ToNode]->getData()[2] +
 				 m_msh->nod_vector[ToNode]->getData()[0] + epsilon)*gamma;// + m_pcs_LIQUID->m_msh->nod_vector[FromNode]->getData()[2];
 
-		//const double p_OF_epsilon = (GetNodeValue(ToNode, 1)+epsilon) *  mfp_vector[0]->Density() * GRAVITY_CONSTANT;
+//		const double p_OF = (GetNodeValue(ToNode, 1)-m_msh->nod_vector[ToNode]->getData()[2]) * gamma;
+//		const double p_OF_epsilon = (GetNodeValue(ToNode, 1)-m_msh->nod_vector[ToNode]->getData()[2] + epsilon)*gamma;
+
 
 		const double relPerm = 1.;//m_st->GetRelativeInterfacePermeability(this, h_OF, ToNode);
 		const double relPerm_epsilon = 1;//m_st->GetRelativeInterfacePermeability(this, h_OF + epsilon, ToNode);
@@ -17722,9 +17736,11 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 			if(m_st->getConnectedGeometryVerbosity() > 1)
 				std::cout << "\t\tIncorporate:  From " << FromNode <<  " To " << ToNode <<  " with coefficient " << alpha_value << "\n";
 
-			//const double h_OF = m_pcs_OF->GetNodeValue(FromNode, 1) -10. - m_msh->nod_vector[ToNode]->getData()[2];
 			const double p_OF = (m_pcs_OF->GetNodeValue(FromNode, 1) -
 					2 * m_pcs_OF->m_msh->nod_vector[FromNode]->getData()[2] + m_pcs_OF->m_msh->nod_vector[FromNode]->getData()[0])*gamma;
+
+			//const double p_OF = (m_pcs_OF->GetNodeValue(FromNode, 1) - m_pcs_OF->m_msh->nod_vector[FromNode]->getData()[2])*gamma;
+
 
 			const double p_LF = GetNodeValue(ToNode, 1);// + m_msh->nod_vector[ToNode]->getData()[2];
 

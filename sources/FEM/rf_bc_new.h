@@ -52,8 +52,11 @@ class CBoundaryCondition :
 	std::string connected_geometry_name;
 	void SetPolylineNodeVectorConnected(std::vector<long>& ply_nod_vector_cond);
 	int average_mode;
+	std::string pcs_type_name_cond;
+	std::string pcs_pv_name_cond;
 
 public:
+	std::string getCoupledProcessName() { return pcs_type_name_cond; }
 	int average_verbosity;
 	bool isConnected() const { return connected_geometry; }
 
@@ -161,6 +164,7 @@ public:
 	std::vector<double> changingBC_z_vec;  // JOD 2020-7
 	std::vector<int> changingBC_curve_vec;
 	int get_average_mode() { return average_mode; }
+	bool isCoupled() { return coupled; }
 
 private:
 
@@ -200,6 +204,7 @@ private:
 	// FCT
 	std::string fct_name;
 	bool conditional;
+	bool coupled;
 
 	LinearFunctionData* dis_linear_f;   //24.8.2011. WW
 
@@ -242,6 +247,7 @@ class CBoundaryConditionNode                      //OK raus
 public:
 	long geo_node_number;
 	long msh_node_number;
+	long msh_node_number_conditional;
 	long msh_node_number_subst;           //WW
     std::vector<long>  msh_vector_conditional; // JOD 2020-01-27
     std::vector<double>  msh_vector_conditional_length; // JOD 2021-11-12

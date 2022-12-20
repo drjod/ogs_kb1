@@ -101,6 +101,9 @@ class CMediumProperties : public Properties
 		int volumetric_heat_capacity_model;  // JOD 2022-05-13
 		int volumetric_heat_capacity_curve_number;
 		double volumetric_heat_capacity, heat_conductivity; // JOD 2021-5-21
+		std::string friction_model;
+		double pipe_diameter; // JOD 2022-12-13
+		double pipe_friction;
 	public:
 		CFiniteElementStd* Fem_Ele_Std;
 		CRFProcess* m_pcs;                    //OK
@@ -246,7 +249,7 @@ class CMediumProperties : public Properties
 		std::ios::pos_type Read(std::ifstream*);
 		void Write(std::fstream*);
 		void WriteTecplot(std::string);
-		double* PermeabilityTensor(long index);
+		double* PermeabilityTensor(const long& index, const long* const nodes = NULL);
 		//CMCD 9/2004 GeoSys 4
 		double Porosity(FiniteElement::CElement* assem = NULL);
 		//CMCD 9/2004 GeoSys 4

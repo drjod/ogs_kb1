@@ -922,6 +922,36 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 				permeability_model = 2; //OK
 				in >> permeability_file;
 				break;
+			case 'D':  // JOD 2022-11-9  Darcy-Weisbach
+				permeability_model = 9;
+				in.clear();
+				in.str(GetLineFromFile1(mmp_file));
+				in >> friction_model;
+
+				if(friction_model == "LEGACY")
+				{ // u = C (dh/dt)^0.5  C: permeability_tensor[0]
+					in >> permeability_tensor[0];
+					std::cout << "Darcy Weisbach - coefficient " << permeability_tensor[0] << '\n';
+				}
+				else if(friction_model == "CONSTANT")
+				{ // u = (2 d / f / rho)^0.5  (dh/dt)^0.5  f: pipe_friction, d: pipe_diameter
+					in >> pipe_friction >> pipe_diameter;
+					std::cout << "Darcy Weisbach - constant friction coefficient " << pipe_friction
+							<< ", pipe diameter" << pipe_diameter << '\n';
+				}
+				else if(friction_model == "BLASIUS")
+				{ // f = 0.3164 / Re^0.25, Re = Re(d)
+					in >> pipe_diameter;
+					std::cout << "Darcy Weisbach - Blasius friction coefficient with pipe diameter " << pipe_diameter << '\n';
+				}
+				else if(friction_model == "PETUKHOV")
+				{ // f = [0.790 ln(Re) -1.64]^-2
+					in >> pipe_diameter;
+					std::cout << "Darcy Weisbach - Petukhov friction coefficient with pipe diameter " << pipe_diameter << '\n';
+				}
+				else
+					throw std::runtime_error("Error in MMPRead: no valid Darcy Weisbach friction model");
+				break;
 			default:
 				throw std::runtime_error("Error in MMPRead: no valid permeability tensor type");
 			}
@@ -4507,7 +4537,7 @@ double CMediumProperties::PorosityEffectiveConstrainedSwellingConstantIonicStren
    last modification:
    10/2010 TF changed access to process type
 **************************************************************************/
-double* CMediumProperties::PermeabilityTensor(long index)
+double* CMediumProperties::PermeabilityTensor(const long& index, const long* const nodes)
 {
 	static double tensor[9];
 	int perm_index = 0;
@@ -4762,6 +4792,91 @@ double* CMediumProperties::PermeabilityTensor(long index)
 			idx_k = m_pcs_tmp->GetElementValueIndex("PERMEABILITY");
 			tensor[0] = m_pcs_tmp->GetElementValue(index, idx_k + 1);
 		}
+		else if(permeability_model ==  9)  // JOD 2022-11-9 Darcy-Weisbach
+		{
+			CFluidProperties* FluidProp;
+
+			if(dependent_fluid_name != "")
+			{
+				FluidProp = MFPGet("LIQUID" + dependent_fluid_name);
+			}
+			else
+			{
+				if(mfp_vector.size() > 0)
+					FluidProp = mfp_vector[0];
+				else
+					throw std::runtime_error("No MFP property");
+			}
+
+			if(nodes == NULL)
+			{
+				throw std::runtime_error("Nodes unknown in CMediumProperties::PermeabilityTensor");
+				return tensor;
+			}
+
+			double pressure[2];  // only line elenments
+			for(int i=0; i<2; ++i)
+			{
+				pressure[i] = m_pcs->GetNodeValue(nodes[i], 1);
+			}
+
+			const double dx = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[0] - m_pcs->m_msh->nod_vector[nodes[1]]->getData()[0]);
+			const double dy = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[1] - m_pcs->m_msh->nod_vector[nodes[1]]->getData()[1]);
+			const double dz = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] - m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]);
+
+			const double delta_x = pow(dx * dx + dy * dy + dz * dz , 0.5);
+
+			const double delta_p = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] -
+					m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) * FluidProp->Density()*9.81;
+
+			double grad_p = std::abs((pressure[0]-pressure[1] + delta_p)/delta_x);
+
+			if(grad_p < 1e-10)
+			{
+				std::cout << "\tWARNING IN DARCY WEISBACH - Gradient is " << grad_p << " - increased to 1e-10\n";
+				grad_p = 1e-10;
+			}
+
+			if(friction_model == "LEGACY")
+			{
+				tensor[0] /= pow(grad_p, 0.5);
+			}
+			else if(friction_model == "CONSTANT")
+			{
+				tensor[0] = std::pow( 2 * pipe_diameter / pipe_friction /  FluidProp->Density() / grad_p, 0.5);
+			}
+			else if(friction_model == "BLASIUS")
+			{
+				const double pipe_diameter_5 = pipe_diameter * pipe_diameter * pipe_diameter * pipe_diameter * pipe_diameter;
+				const double density = FluidProp->Density();
+				const double density_3 = density * density * density;
+				const double grad_p_3 = grad_p * grad_p * grad_p;
+
+				tensor[0] = 2.8681132617822445 * std::pow( pipe_diameter_5  / FluidProp->Viscosity() /
+						density_3 / grad_p_3, 0.14285714285714285); // ^1/7
+			}
+			else if(friction_model == "PETUKHOV")
+			{
+				double fric = 0.2; // initial value
+				for(int i=0; i< 100; ++i)
+				{
+					double fric_old = fric;
+					const double Re = 1.4142135623730951 * std::pow(pipe_diameter, 1.5) *
+							std::pow( grad_p * FluidProp->Density() / fric,  .5)  / FluidProp->Viscosity();
+					fric = std::pow(0.79 * std::log(Re) - 1.64, -2.);
+
+					//std::cout << i << ", Re: " << Re << " " << fric << std::endl;
+					if(std::abs(fric_old - fric) < 1e-5)
+						break;
+				}
+
+				tensor[0] = std::pow( 2 * pipe_diameter / fric /  FluidProp->Density() / grad_p, 0.5);
+			}
+			else
+				throw std::runtime_error("Error in CMediumProperties::PermeabilityTensor: no valid Darcy Weisbach friction model");
+
+			tensor[0] *=  FluidProp->Viscosity();  // because of division by velocity later on
+		}  //  end weisbach
 		// end of K-C relationship-----------------------------------------------------------------------------------
 	}
 
@@ -4911,6 +5026,7 @@ double* CMediumProperties::PermeabilityTensor(long index)
 		}
 		break;
 	}
+
 	return tensor;
 }
 

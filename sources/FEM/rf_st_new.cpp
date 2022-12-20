@@ -3200,11 +3200,14 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
-				CalculatePeaceman(st, m_pcs, ply_nod_vector[i],
+
+				 CalculatePeaceman(st, m_pcs, ply_nod_vector[i],
 						m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
 								ply_nod_vector, m_pcs->m_msh->ele_vector)
 						, factor, radius_e);
 
+				//radius_e = 0.415759;
+				//factor=6.28318e-9;
 				factor /= std::log(radius_e / st->borehole_data.radius);
 				ply_nod_val_vector[i] *= factor;
 				
@@ -4544,7 +4547,7 @@ void CSourceTerm::SetNOD2MSHNOD(std::vector<long>& nodes,
 					double coordinate2[3];
 					coordinate2[0] = -coordinate[2];
 					coordinate2[1] = 0.;
-					coordinate2[2] = 10.;//coordinate[2];
+					coordinate2[2] = 191.;//coordinate[2];
 
 					pnt = GEOLIB::Point(coordinate2);
 			}
@@ -5367,14 +5370,27 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 	// get data from input *.st
 
 	double alpha;
+	CFluidProperties* FluidProp;
+
+	/*if(dependent_fluid_name != "")
+	{
+		FluidProp = MFPGet("LIQUID" + dependent_fluid_name);
+	}
+	else*/
+	{
+		if(mfp_vector.size() > 0)   // !!!!! take first in vector
+			FluidProp = mfp_vector[0];
+		else
+			throw std::runtime_error("No MFP property");
+	}
+
 
 	if(m_st->GetBoreholeMode() == 1)  // advective heat transport
 	{
-
-      	if(mfp_vector[0]->get_flag_volumetric_heat_capacity()) // 1st mfp property for liquid !!!
-      		alpha = mfp_vector[0]->get_volumetric_heat_capacity();
+      	if(FluidProp->get_flag_volumetric_heat_capacity()) // 1st mfp property for liquid !!!
+      		alpha = FluidProp->get_volumetric_heat_capacity();
       	else
-			alpha = mfp_vector[0]->SpecificHeatCapacity() * mfp_vector[0]->Density();
+			alpha = FluidProp->SpecificHeatCapacity() * FluidProp->Density();
 
 		if(m_st->isCoupled())
 		{
@@ -5386,24 +5402,33 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 			if(m_pcs_flow)
 			{
 				const double gamma =   (m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")? 9810.: 1.;
-double pressure_cond;
-if(m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")
-{
-	pressure_cond = m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1) - 2*  m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[2] +
-			m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[0];
-	pressure_cond *= 9810;
-}
-else
-pressure_cond = 	m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1);
+				double pressure_cond;
+				if(m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")
+				{
 
+					pressure_cond = m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1);
+					pressure_cond *= 9810;
+
+					/*
+					pressure_cond = m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1) - 2*  m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[2] +
+							m_pcs_flow2->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[0];
+					pressure_cond *= 9810;
+					*/
+				}
+				else
+					pressure_cond = m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 1);
 
 				//long no = cnodev->msh_node_number;
 				//long no2 = cnodev->msh_node_number_conditional;
 				//std::cout << no <<std::endl;
 				if(m_pcs_flow->ST_factor_kept.find(cnodev->msh_node_number) != m_pcs_flow->ST_factor_kept.end())
 				{
-					const double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] *  // without area to node (value)
+					double fluid_flux = m_pcs_flow->ST_factor_kept[cnodev->msh_node_number] *  // without area to node (value)
 						(pressure_cond - m_pcs_flow->GetNodeValue(cnodev->msh_node_number, 1)) ;
+
+					double values[3];
+					values[0] = m_pcs->GetNodeValue(cnodev->msh_node_number, 1);
+					fluid_flux /= FluidProp->Viscosity(&values[0]);
 
 					if(m_st->getConnectedGeometryVerbosity() > 1)
 					{
@@ -5444,10 +5469,26 @@ pressure_cond = 	m_pcs_flow2->GetNodeValue(cnodev->msh_node_number_conditional, 
         	       	else
         	         	throw std::runtime_error("Error in IncorporateConnectedGeometry for borehole - No LIQUID_FLOW");
 		}
-	}
+	}  // end advective heat transport
 	else
+	{
 		alpha = m_st->connected_geometry_exchange_term; // unit [1/m]
+		if(m_st->getProcessType() == FiniteElement::LIQUID_FLOW)
+		{
+			CRFProcess* m_pcs_heat = PCSGet("HEAT_TRANSPORT");
+			if(m_pcs_heat != NULL)
+			{
+				double values[3];
+				values[0] = m_pcs_heat->GetNodeValue(cnodev->msh_node_number, 1);
+				alpha /= FluidProp->Viscosity(&values[0]);
+			}
+			else
+			{
+				alpha /= FluidProp->Viscosity();
+			}
+		}
 
+	}
 
 	double alpha_value = alpha * value;               // value is area to node (distance between connected nodes can be added into preprocessing SetST())
 
@@ -5949,6 +5990,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
 		{
 			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
+			//if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->X() > m_pcs->m_msh->nod_vector[node_number]->X() + 1e-5)
 			{
 				if(take_elements_below)
 				{
@@ -5960,6 +6002,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 				}
 
 			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() < m_pcs->m_msh->nod_vector[node_number]->Z() - 1e-5)
+			//if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->X() < m_pcs->m_msh->nod_vector[node_number]->X() - 1e-5)
 			{
 				if(take_elements_above)
 				{
@@ -6000,6 +6043,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 				{
 					e_node = elem->GetNode(nodesFace[l]);
 					if(fabs(m_pcs->m_msh->nod_vector[node_number]->Z() - e_node->Z()) < 1.e-5)
+					//if(fabs(m_pcs->m_msh->nod_vector[node_number]->X() - e_node->X()) < 1.e-5)
 						counter++;
 				}
 				if(counter == nfn)
@@ -6043,11 +6087,16 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 		{
 			CNode* node = elem->GetNode(k);
 			if(node->GetEquationIndex() !=  wellNode->GetEquationIndex() &&
+					//std::fabs(node->X() - wellNode->X()) < 1.e-5)
 					std::fabs(node->Z() - wellNode->Z()) < 1.e-5)
 			{
 				const double distance = std::sqrt(
 						(wellNode->X() - node->X()) * (wellNode->X() - node->X()) +
 						(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
+
+				//const double distance = std::sqrt(
+				//			(wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()) +
+				//			(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
 						// +
 						// (wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()));  // !!! mesh must be horizontal
 				const double entry = (*laplace)(well_ndx, k);
@@ -6074,19 +6123,34 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 			{
 				case  FiniteElement::LIQUID_FLOW:
 
-					factor += mmp_vector[group]->PermeabilityTensor(group)[0] /  // x-direction
-								mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+					factor += mmp_vector[group]->PermeabilityTensor(group)[0];  // x-direction
+								// / mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+					// viscosity set later on
 					break;
 
 				case  FiniteElement::HEAT_TRANSPORT:
 				{
+					CFluidProperties* FluidProp;
+
+					if(mmp_vector[group]->dependent_fluid_name != "")
+					{
+						FluidProp = MFPGet("LIQUID" + mmp_vector[group]->dependent_fluid_name);
+					}
+					else
+					{
+						if(mfp_vector.size() > 0)
+							FluidProp = mfp_vector[0];
+						else
+							throw std::runtime_error("No MFP property");
+					}
+
 					const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
 	
 					double heat_conductivity_solid[9];
 					msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
 					const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
 
-					factor += porosity * mfp_vector[0]->HeatConductivity() + // 1st mfp instance is LIQUID
+					factor += porosity * FluidProp->HeatConductivity() + // 1st mfp instance is LIQUID
 							(1-porosity) * heat_conductivity_solid[0];  // one entry
 					break;
 				}

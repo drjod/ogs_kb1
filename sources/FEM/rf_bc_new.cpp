@@ -147,6 +147,7 @@ CBoundaryCondition::CBoundaryCondition() :
 	this->setProcessDistributionType(FiniteElement::INVALID_DIS_TYPE);
 	// FCT
 	conditional = false;
+	coupled = false;
 	time_dep_interpol = false;
 	epsilon = 1e-9;                       //NW
 	time_contr_curve = -1;                //WX
@@ -325,57 +326,84 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 		//PCH
 		if (line_string.find("$DIS_TYPE") != std::string::npos)
 		{
-			in.str(readNonBlankLineFromInputStream(*bc_file));
-			in >> line_string; //sub_line
-			_periodic = false; // JOD
-
-			// Source terms are assign to element nodes directly. 23.02.2009. WW
-			if (line_string.find("DIRECT") != std::string::npos)
+			if (line_string.find("CONDITION") != std::string::npos)
 			{
-				this->setProcessDistributionType(FiniteElement::DIRECT);
-				in >> fname;
-				fname = FilePath + fname;
-				in.clear();
-			}
-
-			if (line_string.find("CONSTANT") != std::string::npos)
-			{
-				this->setProcessDistributionType(FiniteElement::CONSTANT);
-				in >> geo_node_value; //sub_line
-				in.clear();
-			}
-			// If a linear function is given. 25.08.2011. WW
-			if (line_string.find("FUNCTION") != std::string::npos)
-			{
-				setProcessDistributionType(FiniteElement::FUNCTION);
-				in.clear();
-				dis_linear_f = new LinearFunctionData(*bc_file);
-			}
-			if (line_string.find("LINEAR") != std::string::npos)
-			{
-				this->setProcessDistributionType(FiniteElement::LINEAR);
-				// Distribuded. WW
-				size_t nLBC;
-				in >> nLBC; //sub_line
-				in.clear();
-
-				for (size_t i = 0; i < nLBC; i++)
+				in.str(readNonBlankLineFromInputStream(*bc_file)); // CONSTANT -21500.0
+				in >> line_string;
+				if (line_string.find("CONSTANT") != std::string::npos)
 				{
-					in.str(readNonBlankLineFromInputStream(*bc_file));
-					in >> ibuff >> dbuff >> strbuff;
+					this->setProcessDistributionType(FiniteElement::CONSTANT);
+					in >> geo_node_value;
+					in.clear();
+				}
+				/*in.str(readNonBlankLineFromInputStream(*bc_file)); // 0.0 IF HEAD > 0.04
+				std::string pcs_pv_name_cond; // 07/2010 TF temp string
+				in >> node_value_cond >> line_string >> pcs_pv_name_cond
+				>> line_string >> condition;
+				in.clear();*/
+				in.str(readNonBlankLineFromInputStream(*bc_file));
+				in >> line_string >> pcs_type_name_cond;
+				in.clear();
+
+				in.str(readNonBlankLineFromInputStream(*bc_file));
+				in >> pcs_pv_name_cond;
+				in.clear();
+				coupled = true;
+			}
+			else
+			{
+				in.str(readNonBlankLineFromInputStream(*bc_file));
+				in >> line_string; //sub_line
+				_periodic = false; // JOD
+
+				// Source terms are assign to element nodes directly. 23.02.2009. WW
+				if (line_string.find("DIRECT") != std::string::npos)
+				{
+					this->setProcessDistributionType(FiniteElement::DIRECT);
+					in >> fname;
+					fname = FilePath + fname;
+					in.clear();
+				}
+
+				if (line_string.find("CONSTANT") != std::string::npos)
+				{
+					this->setProcessDistributionType(FiniteElement::CONSTANT);
+					in >> geo_node_value; //sub_line
+					in.clear();
+				}
+				// If a linear function is given. 25.08.2011. WW
+				if (line_string.find("FUNCTION") != std::string::npos)
+				{
+					setProcessDistributionType(FiniteElement::FUNCTION);
+					in.clear();
+					dis_linear_f = new LinearFunctionData(*bc_file);
+				}
+				if (line_string.find("LINEAR") != std::string::npos)
+				{
+					this->setProcessDistributionType(FiniteElement::LINEAR);
+					// Distribuded. WW
+					size_t nLBC;
+					in >> nLBC; //sub_line
 					in.clear();
 
-					//           *bc_file>>ibuff>>dbuff;
-					_PointsHaveDistribedBC.push_back(ibuff);
-					_DistribedBC.push_back(dbuff);
-					if (strbuff.size() > 0)
+					for (size_t i = 0; i < nLBC; i++)
 					{
-						_PointsFCTNames.push_back(strbuff);
-						time_dep_interpol = true;
+						in.str(readNonBlankLineFromInputStream(*bc_file));
+						in >> ibuff >> dbuff >> strbuff;
+						in.clear();
+
+						//           *bc_file>>ibuff>>dbuff;
+						_PointsHaveDistribedBC.push_back(ibuff);
+						_DistribedBC.push_back(dbuff);
+						if (strbuff.size() > 0)
+						{
+							_PointsFCTNames.push_back(strbuff);
+							time_dep_interpol = true;
+						}
 					}
+					//        bc_file->ignore(MAX_ZEILE,'\n');
 				}
-				//        bc_file->ignore(MAX_ZEILE,'\n');
-			}
+			}  // end not condition
 		}
 
 		if (line_string.find("GRADIENT") != std::string::npos
@@ -451,28 +479,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			}
 		}
 
-		if (line_string.find("$DIS_TYPE_CONDITION") != std::string::npos)
-		{
-			in.str(readNonBlankLineFromInputStream(*bc_file)); // CONSTANT -21500.0
-			in >> line_string;
-			if (line_string.find("CONSTANT") != std::string::npos)
-			{
-				this->setProcessDistributionType(FiniteElement::CONSTANT);
-				in >> geo_node_value;
-				in.clear();
-			}
-			in.str(readNonBlankLineFromInputStream(*bc_file)); // 0.0 IF HEAD > 0.04
-			std::string pcs_pv_name_cond; // 07/2010 TF temp string
-			in >> node_value_cond >> line_string >> pcs_pv_name_cond
-			>> line_string >> condition;
-			in.clear();
-			in.str(readNonBlankLineFromInputStream(*bc_file)); // PCS OVERLAND_FLOW
-			std::string pcs_type_name_cond;
-			in >> line_string >> pcs_type_name_cond;
-			in.clear();
-			conditional = true;
-		}
-
+		//...................................................................
 		if (line_string.find("$EPSILON") != std::string::npos) // NW
 		{
 			in.str(readNonBlankLineFromInputStream(*bc_file));
@@ -1235,11 +1242,18 @@ void CBoundaryConditionsGroup::Set(CRFProcess* pcs, int ShiftInNodeVector,
 				m_node_value->conditional = cont;
 				m_node_value->CurveIndex = bc->getCurveIndex();
 
+				if(bc->isCoupled())
+				{
+					CRFProcess* m_pcs_connected = PCSGet(bc->pcs_type_name_cond);
+					 m_node_value->msh_node_number_conditional = m_pcs_connected->m_msh->GetNODOnPNT(
+							 static_cast<const GEOLIB::Point*>(bc->geoInfo_connected->getGeoObj()));
+				}
+
 				// Get value from a linear function. 25.08.2011. WW
 				if (bc->getProcessDistributionType() == FiniteElement::FUNCTION)
 				{
-          //a_node = m_msh->nod_vector[m_node_value->geo_node_number];
-          //m_node_value->node_value = bc->dis_linear_f->getValue(a_node->X(),a_node->Y(),a_node->Z());
+					//a_node = m_msh->nod_vector[m_node_value->geo_node_number];
+					//m_node_value->node_value = bc->dis_linear_f->getValue(a_node->X(),a_node->Y(),a_node->Z());
 					double const* const coords(m_msh->nod_vector[m_node_value->geo_node_number]->getData());
 					m_node_value->node_value = bc->dis_linear_f->getValue(coords[0], coords[1], coords[2]);
 				}

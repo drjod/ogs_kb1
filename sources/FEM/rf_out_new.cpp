@@ -236,6 +236,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 	//CRFProcess* m_pcs = NULL; 
 	//CFEMesh* m_msh = NULL;
 	bool OutputBySteps = false;
+	bool fourrierFluxCalculated = false;
 	//double tim_value;
 
 	for (size_t i = 0; i < out_vector.size(); i++)
@@ -275,7 +276,7 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		    || m_out->dat_type_name.compare("MATLAB") == 0 
 		    || m_out->dat_type_name.compare("BINARY") == 0 // 08.2012. WW
            )
-		   m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times); // 8/2015 JOD 
+		   m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times, fourrierFluxCalculated); // 8/2015 JOD
 		
 		//--------------------------------------------------------------------
 		// vtk
