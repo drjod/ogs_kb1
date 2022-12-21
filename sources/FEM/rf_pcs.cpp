@@ -17566,13 +17566,10 @@ Used for LIQUID_FLOW with varying fluid density
 void CRFProcess::StoreInitialValues(std::string variable_name) { 
 
 	//string variable_name = "DELTA_" + convertPrimaryVariableToString(getProcessPrimaryVariable());
-
 	int index = GetNodeValueIndex(variable_name);
 	for (int i = 0; i < (long)m_msh->nod_vector.size(); i++)
 	{
-
 		SetNodeValue(i, GetNodeValueIndex(variable_name), GetNodeValue(i, 0));
-
 	}
 
 }
@@ -17618,13 +17615,13 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 			for (size_t j = 0; j < elem->GetNodesNumber(m_msh->getOrder()); j++)
 			{
 				CNode* e_node = elem->GetNode(j);
-                /*if (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0) // JOD 2021-02-10
+                if (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0) // JOD 2021-02-10
 				{
-                                        nodesVal[j] = GetNodeValue(e_node->GetIndex(), 1) - GetNodeValue(e_node->GetIndex(), nidx1-1);  
+                    nodesVal[j] = GetNodeValue(e_node->GetIndex(), 1) - GetNodeValue(e_node->GetIndex(), nidx1);
 					// !!! takes always 1 as index
 				} 
-                else */ // removed by JDO 2022-11-11
-				nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
+                else
+					nodesVal[j] = GetNodeValue(e_node->GetIndex(), nidx1); // primary variable
 
 				z_coord[j] = m_msh->nod_vector[e_node->GetIndex()]->getData()[2];
 				if(m_pcs_liquid)

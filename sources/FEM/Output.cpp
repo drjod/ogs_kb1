@@ -2756,9 +2756,10 @@ void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalcula
 			{
 				//-----------------------------------------WW
 				double val_n;
-				
 				if (_nod_value_vector[i].find("DELTA") == 0) //JOD 2014-11-10
+				{
 					val_n = m_pcs->GetNodeValue(msh_node_number, 1) - m_pcs->GetNodeValue(msh_node_number, NodeIndex[i]);
+				}
 				else
 				    val_n = m_pcs->GetNodeValue(msh_node_number, NodeIndex[i]);
 				tec_file << val_n << " ";
