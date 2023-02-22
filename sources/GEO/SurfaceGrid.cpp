@@ -269,7 +269,7 @@ bool SurfaceGrid::isPntInSurface(const double* pnt, double eps) const
 	}
 
 	std::vector<Triangle const*> const& triangles(_triangles_in_grid_box[i + j*_n_steps[0]+k*_n_steps[0]*_n_steps[1]]);
-	std::cout <<"size " << triangles.size() << std::endl;
+
 	bool nfound (true);
 	const size_t n_triangles(triangles.size());
 	for (size_t k(0); k < n_triangles && nfound; k++) {
