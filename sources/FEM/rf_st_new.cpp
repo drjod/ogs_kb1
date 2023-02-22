@@ -2229,7 +2229,7 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, const l
 #if defined(USE_MPI)  // JOD 2020-04-08
    //std::cout << "myrank: " << myrank << "; mesh node number: " << mesh_node_number << "; Value: " << value << '\n' ;
    CSparseMatrix* A = dom_vector[myrank]->get_eqs()->get_A();
-   dom_node_index = dom_vector[myrank]->GetDOMNode(mesh_node_number);
+   int dom_node_index = dom_vector[myrank]->GetDOMNode(mesh_node_number);
    //std::cout << "mesh node number: " << mesh_node_number << "; dom_node_index: " << dom_node_index << '\n';
    (*A)(dom_node_index, dom_node_index) -= value;
 #else // not USE_MPI
