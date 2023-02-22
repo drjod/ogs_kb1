@@ -293,7 +293,7 @@ namespace FiniteElement
 			double CalCoefMasstneq(int dof_index);
 			// 03.3.2009 PCH
 			double CalCoefMassPSGLOBAL(int dof_index);
-			void CalCoefLaplace(bool Gravity, int ip = 0);
+			void CalCoefLaplace(bool Gravity, int ip = 0, const bool &velocity_calculation=false);
 			// 10 2008 PCH
 			void CalCoefLaplaceMultiphase(int phase, int ip = 0);
 			void CalCoefLaplace2(bool Gravity, int dof_index);

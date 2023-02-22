@@ -103,7 +103,7 @@ int Signum(double x)
 double GetCurveValue(int kurve, int methode, double punkt, int* gueltig)
 {
 	static long anz;
-	register long i;
+	long i;
 	static StuetzStellen* s;
 
 	if (kurve == 0)
@@ -186,7 +186,7 @@ double GetCurveValue(int kurve, int methode, double punkt, int* gueltig)
 double GetCurveValueInverse(int kurve, int methode, double wert, int* gueltig)
 {
 	static long anz;
-	register long i;
+	long i;
 	static StuetzStellen* s;
 
 #ifdef ERROR_CONTROL
@@ -284,7 +284,7 @@ double GetCurveValueInverse(int kurve, int methode, double wert, int* gueltig)
 double GetCurveDerivative(int kurve, int methode, double punkt, int* gueltig)
 {
 	static long anz;
-	register long i;
+	long i;
 	static StuetzStellen* s;
 	static double w, s1, s2;
 
@@ -390,7 +390,7 @@ double GetCurveDerivative(int kurve, int methode, double punkt, int* gueltig)
 double GetCurveInverseDerivative(int kurve, int methode, double wert, int* gueltig)
 {
 	static long anz;
-	register long i;
+	long i;
 	static StuetzStellen* s;
 	static double w, s1, s2;
 

@@ -136,119 +136,114 @@ void CFaces::Calculate_FaceGravityCentre(const double Point1[3],
 		exit(1);
 	}
 
-	switch (threenodesflag)
+	if(!threenodesflag)
 	{
-		case false:
-		{
-			//FaceGravityCentre is calculated for quadrilateral element by calculating the gravitycentre for each triangle
-			//the gravity-centre of the quadrilateral is the area weighted average of both centres of the triangles
-			//https://lists.cs.columbia.edu/pipermail/acis-alliance/2003-September/000171.html
-			//http://www.matheboard.de/archive/51412/thread.html
-			// Centroid of the first triangle
-			double xc1 = (Point1[0] + Point2[0] + Point3[0]) / 3.;
-			double yc1 = (Point1[1] + Point2[1] + Point3[1]) / 3.;
-			double zc1 = (Point1[2] + Point2[2] + Point3[2]) / 3.;
-			//	vector point2-point1
-			double vec_a[3];
-			vec_a[0] = Point2[0] - Point1[0];
-			vec_a[1] = Point2[1] - Point1[1];
-			vec_a[2] = Point2[2] - Point1[2];
-			//	vector point3-point1
-			double vec_b[3];
-			vec_b[0] = Point3[0] - Point1[0];
-			vec_b[1] = Point3[1] - Point1[1];
-			vec_b[2] = Point3[2] - Point1[2];
-			
-			// Area of the first triangle = half of the cross product of the 2 vectors
-			double a1 = 0.5 *
-			sqrt((vec_a[1] * vec_b[2] - vec_a[2] *
-			vec_b[1]) * (vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1])
-			+ (vec_a[2] * vec_b[0] - vec_a[0] *
-			vec_b[2]) * (vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2])
-			+ (vec_a[0] * vec_b[1] - vec_a[1] *
-			vec_b[0]) * (vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0]));
-			
-			// Centroid of the second triangle
-			
-			///�nderung Bastian Point1 -> Point2 ge�ndert
-	/*		double xc2 = (Point1[0] + Point4[0] + Point3[0]) / 3.;
-			double yc2 = (Point1[1] + Point4[1] + Point3[1]) / 3.;
-			double zc2 = (Point1[2] + Point4[2] + Point3[2]) / 3.;*/
-			double xc2 = (Point2[0] + Point4[0] + Point3[0]) / 3.;
-			double yc2 = (Point2[1] + Point4[1] + Point3[1]) / 3.;
-			double zc2 = (Point2[2] + Point4[2] + Point3[2]) / 3.;
-			//	vector point4-point1
-			double vec_c[3];
-			//vec_c[0] = Point4[0] - Point1[0];
-			//vec_c[1] = Point4[1] - Point1[1];
-			//vec_c[2] = Point4[2] - Point1[2];
-			vec_c[0] = Point2[0] - Point4[0];
-			vec_c[1] = Point2[1] - Point4[1];
-			vec_c[2] = Point2[2] - Point4[2];
-			
-			double vec_d[3];
-			vec_d[0] = Point3[0] - Point4[0];
-			vec_d[1] = Point3[1] - Point4[1];
-			vec_d[2] = Point3[2] - Point4[2];
-			
-			// Area of the second triangle
-			double a2 = 0.5 *
-			sqrt((vec_c[1] * vec_d[2] - vec_c[2] * vec_d[1]) * (vec_c[1] * vec_d[2] - vec_c[2] * vec_d[1])
-			+ (vec_c[2] * vec_d[0] - vec_c[0] * vec_d[2]) * (vec_c[2] * vec_d[0] - vec_c[0] * vec_d[2])
-			+ (vec_c[0] * vec_d[1] - vec_c[1] * vec_d[0]) * (vec_c[0] * vec_d[1] - vec_c[1] * vec_d[0]));
-			
-			//// Centroid of the 4-sided polygon
-			//if ((a1 + a2) > 0)
-			//{
-			this->gravity_centre[0] = (xc1 * a1 + xc2 * a2) / (a1 + a2);
-			this->gravity_centre[1] = (yc1 * a1 + yc2 * a2) / (a1 + a2);
-			this->gravity_centre[2] = (zc1 * a1 + zc2 * a2) / (a1 + a2);
-			this->face_area = a1 + a2;
-			/*			   return true;
+		//FaceGravityCentre is calculated for quadrilateral element by calculating the gravitycentre for each triangle
+		//the gravity-centre of the quadrilateral is the area weighted average of both centres of the triangles
+		//https://lists.cs.columbia.edu/pipermail/acis-alliance/2003-September/000171.html
+		//http://www.matheboard.de/archive/51412/thread.html
+		// Centroid of the first triangle
+		double xc1 = (Point1[0] + Point2[0] + Point3[0]) / 3.;
+		double yc1 = (Point1[1] + Point2[1] + Point3[1]) / 3.;
+		double zc1 = (Point1[2] + Point2[2] + Point3[2]) / 3.;
+		//	vector point2-point1
+		double vec_a[3];
+		vec_a[0] = Point2[0] - Point1[0];
+		vec_a[1] = Point2[1] - Point1[1];
+		vec_a[2] = Point2[2] - Point1[2];
+		//	vector point3-point1
+		double vec_b[3];
+		vec_b[0] = Point3[0] - Point1[0];
+		vec_b[1] = Point3[1] - Point1[1];
+		vec_b[2] = Point3[2] - Point1[2];
+		
+		// Area of the first triangle = half of the cross product of the 2 vectors
+		double a1 = 0.5 *
+		sqrt((vec_a[1] * vec_b[2] - vec_a[2] *
+		vec_b[1]) * (vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1])
+		+ (vec_a[2] * vec_b[0] - vec_a[0] *
+		vec_b[2]) * (vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2])
+		+ (vec_a[0] * vec_b[1] - vec_a[1] *
+		vec_b[0]) * (vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0]));
+		
+		// Centroid of the second triangle
+		
+		///�nderung Bastian Point1 -> Point2 ge�ndert
+		/*double xc2 = (Point1[0] + Point4[0] + Point3[0]) / 3.;
+		double yc2 = (Point1[1] + Point4[1] + Point3[1]) / 3.;
+		double zc2 = (Point1[2] + Point4[2] + Point3[2]) / 3.;*/
+		double xc2 = (Point2[0] + Point4[0] + Point3[0]) / 3.;
+		double yc2 = (Point2[1] + Point4[1] + Point3[1]) / 3.;
+		double zc2 = (Point2[2] + Point4[2] + Point3[2]) / 3.;
+		//	vector point4-point1
+		double vec_c[3];
+		//vec_c[0] = Point4[0] - Point1[0];
+		//vec_c[1] = Point4[1] - Point1[1];
+		//vec_c[2] = Point4[2] - Point1[2];
+		vec_c[0] = Point2[0] - Point4[0];
+		vec_c[1] = Point2[1] - Point4[1];
+		vec_c[2] = Point2[2] - Point4[2];
+		
+		double vec_d[3];
+		vec_d[0] = Point3[0] - Point4[0];
+		vec_d[1] = Point3[1] - Point4[1];
+		vec_d[2] = Point3[2] - Point4[2];
+		
+		// Area of the second triangle
+		double a2 = 0.5 *
+		sqrt((vec_c[1] * vec_d[2] - vec_c[2] * vec_d[1]) * (vec_c[1] * vec_d[2] - vec_c[2] * vec_d[1])
+		+ (vec_c[2] * vec_d[0] - vec_c[0] * vec_d[2]) * (vec_c[2] * vec_d[0] - vec_c[0] * vec_d[2])
+		+ (vec_c[0] * vec_d[1] - vec_c[1] * vec_d[0]) * (vec_c[0] * vec_d[1] - vec_c[1] * vec_d[0]));
+		
+		//// Centroid of the 4-sided polygon
+		//if ((a1 + a2) > 0)
+		//{
+		this->gravity_centre[0] = (xc1 * a1 + xc2 * a2) / (a1 + a2);
+		this->gravity_centre[1] = (yc1 * a1 + yc2 * a2) / (a1 + a2);
+		this->gravity_centre[2] = (zc1 * a1 + zc2 * a2) / (a1 + a2);
+		this->face_area = a1 + a2;
+		/*			   return true;
+		}
+		else
+		return false;*/
+	}
+	else
+	{	// true
+		// Centroid of the triangle
+		double xc = (Point1[0] + Point2[0] + Point3[0]) / 3.;
+		double yc = (Point1[1] + Point2[1] + Point3[1]) / 3.;
+		double zc = (Point1[2] + Point2[2] + Point3[2]) / 3.;
+		//	vector point1-point2
+		double vec_a[3];
+		vec_a[0] = Point2[0] - Point1[0];
+		vec_a[1] = Point2[1] - Point1[1];
+		vec_a[2] = Point2[2] - Point1[2];
+		//	vector point1-point3
+		double vec_b[3];
+		vec_b[0] = Point3[0] - Point1[0];
+		vec_b[1] = Point3[1] - Point1[1];
+		vec_b[2] = Point3[2] - Point1[2];
+		
+		// Area of the first triangle = half of the cross product of the 2 vectors
+		double a = 0.5 *
+		sqrt((vec_a[1] * vec_b[2] - vec_a[2] *
+		vec_b[1]) * (vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1])
+		+ (vec_a[2] * vec_b[0] - vec_a[0] *
+		vec_b[2]) * (vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2])
+		+ (vec_a[0] * vec_b[1] - vec_a[1] *
+		vec_b[0]) * (vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0]));
+		
+		// Centroid of the triangular polygon
+		//if (a > 0)
+		//{
+		this->gravity_centre[0] = xc;
+		this->gravity_centre[1] = yc;
+		this->gravity_centre[2] = zc;
+		this->face_area = a;
+		/*			  return true;
 			}
 			else
 			return false;*/
-			break; 
-		}
-		case true:
-		{
-			// Centroid of the triangle
-			double xc = (Point1[0] + Point2[0] + Point3[0]) / 3.;
-			double yc = (Point1[1] + Point2[1] + Point3[1]) / 3.;
-			double zc = (Point1[2] + Point2[2] + Point3[2]) / 3.;
-			//	vector point1-point2
-			double vec_a[3];
-			vec_a[0] = Point2[0] - Point1[0];
-			vec_a[1] = Point2[1] - Point1[1];
-			vec_a[2] = Point2[2] - Point1[2];
-			//	vector point1-point3
-			double vec_b[3];
-			vec_b[0] = Point3[0] - Point1[0];
-			vec_b[1] = Point3[1] - Point1[1];
-			vec_b[2] = Point3[2] - Point1[2];
-			
-			// Area of the first triangle = half of the cross product of the 2 vectors
-			double a = 0.5 *
-			sqrt((vec_a[1] * vec_b[2] - vec_a[2] *
-			vec_b[1]) * (vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1])
-			+ (vec_a[2] * vec_b[0] - vec_a[0] *
-			vec_b[2]) * (vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2])
-			+ (vec_a[0] * vec_b[1] - vec_a[1] *
-			vec_b[0]) * (vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0]));
-			
-			// Centroid of the triangular polygon
-			//if (a > 0)
-			//{
-			this->gravity_centre[0] = xc;
-			this->gravity_centre[1] = yc;
-			this->gravity_centre[2] = zc;
-			this->face_area = a;
-			/*			  return true;
-				}
-				else
-				return false;*/
-			break; 
-		}
 	}
 }
 /*-------------------------------------------------------------------------
@@ -264,25 +259,20 @@ void CFaces::SetNodes(MeshLib::CNode* Point1,
                       MeshLib::CNode* Point4,
 					  bool threenodesflag)
 {
-	switch (threenodesflag)
+	if(!threenodesflag)
 	{
-		case false:
-		{
 		   this->connected_nodes.push_back(Point1);
 		   this->connected_nodes.push_back(Point2);
 		   this->connected_nodes.push_back(Point3);
 		   this->connected_nodes.push_back(Point4);
 		   this->nnodes = 4;
-		   break; 
-		}
-		case true: 
-		{
+	}
+	else	   
+	{  // true
 		   this->connected_nodes.push_back(Point1);
 		   this->connected_nodes.push_back(Point2);
 		   this->connected_nodes.push_back(Point3);
 		   this->nnodes = 3;
-		   break; 
-		}
 	}
 }
 

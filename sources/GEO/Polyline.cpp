@@ -298,10 +298,10 @@ Location::type Polyline::getLocationOfPoint (size_t k, GEOLIB::Point const & pnt
 
 	GEOLIB::Point const& source (*(_ply_pnts[_ply_pnt_ids[k]]));
 	GEOLIB::Point const& dest (*(_ply_pnts[_ply_pnt_ids[k + 1]]));
-	long double a[2] = {dest[0] - source[0], dest[1] - source[1]}; // vector
-	long double b[2] = {pnt[0] - source[0], pnt[1] - source[1]}; // vector
+	double a[2] = {dest[0] - source[0], dest[1] - source[1]}; // vector
+	double b[2] = {pnt[0] - source[0], pnt[1] - source[1]}; // vector
 
-	long double det_2x2 (a[0] * b[1] - a[1] * b[0]);
+	double det_2x2 (a[0] * b[1] - a[1] * b[0]);
 
 	if (det_2x2 > std::numeric_limits<double>::epsilon())
 		return Location::LEFT;

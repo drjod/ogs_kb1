@@ -1499,7 +1499,7 @@ void CElement::CalcJTC_st_ele(long ele_index, double* JTCoeff, double* sourceter
     double* dbuff_flux = new double[nNodes];
     double* sf = shapefct;
     //MeshLib::CElem* m_ele;
-    CFEMesh* m_msh = fem_msh_vector[0];
+    //CFEMesh* m_msh = fem_msh_vector[0];
     //m_ele = m_msh->ele_vector[ele_index];
     CFluidProperties* m_mfp;
 	if (multi)
@@ -1568,7 +1568,7 @@ Programming:
 void CElement::CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux)
 {
 
-	int i, gp, gp_r, gp_s, gp_t;
+	int i, gp, gp_r=0, gp_s=0, gp_t=0;
 	double fkt = 0.0, det;
 	double Gauss_val_normal_diff_flux, Gauss_val_normal_adv_flux;
 
@@ -2000,9 +2000,10 @@ std::vector<double>&node_value_vector,
 FiniteElement::DistributionType dis_type, FiniteElement::PrimaryVariable prim_val,
 bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
 {
-   long i, j, k, l;
-   long this_number_of_nodes;
-   int elemsCnode;
+   size_t i, j; 
+   int k, l;
+   size_t this_number_of_nodes;
+   size_t elemsCnode;
    int nedges, ii;
    vec<CNode*> e_nodes(3);
    vec<CEdge*> e_edges(12);
@@ -2022,8 +2023,8 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
    CEdge* edge = NULL;
    CNode* node = NULL;
 
-   int nSize = (long) msh->nod_vector.size();
-   this_number_of_nodes = (long) nodes_on_ply.size();
+   size_t nSize = msh->nod_vector.size();
+   this_number_of_nodes = nodes_on_ply.size();
    std::vector<long> G2L(nSize);
    std::vector<double> NVal(this_number_of_nodes);
 
@@ -2038,7 +2039,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
    //}
 
    // Unmakr edges.
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+   for (i = 0; i <  msh->edge_vector.size(); i++)
       msh->edge_vector[i]->SetMark(false);
    for (i = 0; i < nSize; i++)
    {
@@ -2112,7 +2113,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
    };
 #endif
 
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+   for (i = 0; i < msh->edge_vector.size(); i++)
    {
 	   edge = msh->edge_vector[i];
 	   if (!edge->GetMark())
@@ -2253,7 +2254,7 @@ bool flag_ignore_axisymmetry, bool flag_is_bc, int scaling_mode)
       node_value_vector[i] = NVal[i];
       node = msh->nod_vector[nodes_on_ply[i]];
    }
-   for (i = 0; i < (long) msh->edge_vector.size(); i++)
+   for (i = 0; i < msh->edge_vector.size(); i++)
       msh->edge_vector[i]->SetMark(true);
    for (i = 0; i < nSize; i++)
       msh->nod_vector[i]->SetMark(true);

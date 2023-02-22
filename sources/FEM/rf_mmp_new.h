@@ -239,7 +239,7 @@ class CMediumProperties : public Properties
 		//-------------------------------------------
 		// Methods
 		CMediumProperties(void);                    // constructor
-		~CMediumProperties(void);                   // destructor
+		~CMediumProperties(void);                  // destructor
 		CMediumProperties* Get(std::string);
 		CMediumProperties* GetDB(std::string);
 		CMediumProperties* GetByGroupNumber(int);
@@ -249,7 +249,7 @@ class CMediumProperties : public Properties
 		std::ios::pos_type Read(std::ifstream*);
 		void Write(std::fstream*);
 		void WriteTecplot(std::string);
-		double* PermeabilityTensor(const long& index, const long* const nodes = NULL);
+		double* PermeabilityTensor(const long& index, const long* const nodes = NULL, const bool &velocity_calculation=false);
 		//CMCD 9/2004 GeoSys 4
 		double Porosity(FiniteElement::CElement* assem = NULL);
 		//CMCD 9/2004 GeoSys 4

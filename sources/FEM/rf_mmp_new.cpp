@@ -1797,7 +1797,8 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		//------------------------------------------------------------------------
 		//11..PERMEABILITY_DISTRIBUTION
 		//------------------------------------------------------------------------
-		size_t indexChWin, indexChLinux; //WW
+		//size_t indexChWin;
+		size_t indexChLinux; //WW
 		indexChWin = indexChLinux = 0;
 		std::string funfname;
 		//subkeyword found
@@ -2772,7 +2773,7 @@ double CMediumProperties::HeatCapacity(long number, double theta, bool flag_calc
 				sigmoid_derivative = Calcsigmoidderive(T_diff, sigmoid_coeff); //BW
 				break;
 			default:
-				break;
+				throw std::runtime_error("derivative model not set");
 			}
 
 		}
@@ -3057,7 +3058,7 @@ double* CMediumProperties::HeatDispersionTensorNew(int ip)
 	double* heat_conductivity_porous_medium;
 	double vg, D[9];
 	double volumetric_heat_capacity_fluids = 0.0;  // JOD 2018-9-20
-	double fluid_density;
+	//double fluid_density;
 	double alpha_t, alpha_l;
 	long index = Fem_Ele_Std->GetMeshElement()->GetIndex();
 	CFluidProperties* m_mfp;
@@ -4537,7 +4538,7 @@ double CMediumProperties::PorosityEffectiveConstrainedSwellingConstantIonicStren
    last modification:
    10/2010 TF changed access to process type
 **************************************************************************/
-double* CMediumProperties::PermeabilityTensor(const long& index, const long* const nodes)
+double* CMediumProperties::PermeabilityTensor(const long& index, const long* const nodes, const bool &velocity_calculation)
 {
 	static double tensor[9];
 	int perm_index = 0;
@@ -4826,24 +4827,88 @@ double* CMediumProperties::PermeabilityTensor(const long& index, const long* con
 
 			const double delta_x = pow(dx * dx + dy * dy + dz * dz , 0.5);
 
+			CRFProcess const * const m_pcs_heat = PCSGet("HEAT_TRANSPORT");
+			if(m_pcs_heat == NULL)
+				throw std::runtime_error("NO HEAT_TRANSPORT for Weisbach");
+			double values[3];
+			const int index = 1;
+/*			int upwind_index;
+if(aktuelle_zeit <= 15768000)
+	upwind_index = 0;
+else if(aktuelle_zeit > 15768000 && aktuelle_zeit <= 31536000)
+	upwind_index = 1;
+else if(aktuelle_zeit > 31536000 && aktuelle_zeit <= 47304000)
+	upwind_index = 0;
+else if(aktuelle_zeit > 47304000 && aktuelle_zeit <= 63072000)
+	upwind_index = 1;
+else if(aktuelle_zeit > 63072000 && aktuelle_zeit <= 78840000)
+	upwind_index = 0;
+else
+	upwind_index = 1;
+			values[0] = (m_pcs_heat->GetNodeValue(nodes[upwind_index], index) + m_pcs_heat->GetNodeValue(nodes[upwind_index], index))/2;
+*/
+			//values[0] = (358.15 + 286.15)/2;
+			values[0] = m_pcs_heat->GetNodeValue(167752, index);
+			//values[0] = (m_pcs_heat->GetNodeValue(nodes[0], index) + m_pcs_heat->GetNodeValue(nodes[1], index))/2;
+
+			// inlet / outlet temperature
+			//values[0] = m_pcs_heat->GetNodeValue(17743, index);
+			double density = FluidProp->Density(values);
+
+			// gauss
+			/*const double _x = 0.21132486540518713;
+			
+			const double T1 = m_pcs_heat->GetNodeValue(nodes[0], index) * (1-_x) + m_pcs_heat->GetNodeValue(nodes[1], index) * _x;
+			const double T2 = m_pcs_heat->GetNodeValue(nodes[1], index) * (1-_x) + m_pcs_heat->GetNodeValue(nodes[0], index) * _x;
+			values[0] = T1;
+			const double density1 = FluidProp->Density(values);
+			values[0] = T2;
+			const double density2 = FluidProp->Density(values);
+
+			double density = (density1+density2)/2;
+			*/
+
+			///////////////////////////
+			//
 			const double delta_p = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] -
-					m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) * FluidProp->Density()*9.81;
+					m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) * density*9.81;
 
 			double grad_p = std::abs((pressure[0]-pressure[1] + delta_p)/delta_x);
 
-			if(grad_p < 1e-10)
+			//const double z2 = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) / 2;
+			//const double z2 = (m_pcs->m_msh->nod_vector[nodes[upwind_index]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[upwind_index]]->getData()[2]) / 2;
+			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << FluidProp->Density(values) << "\t" << values[0] << "\n"; 
+			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << density << "\t" << T1 << "\t" << T2 << "\n"; 
+
+            		const double grad_p_tol = 1e-10 ;
+			if(grad_p < grad_p_tol)
 			{
-				std::cout << "\tWARNING IN DARCY WEISBACH - Gradient is " << grad_p << " - increased to 1e-10\n";
-				grad_p = 1e-10;
+					const double z = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) / 2;
+					std::cout << "\tWARNING IN DARCY WEISBACH - Gradient is " << grad_p << " - increased to " << grad_p_tol << " at height " <<
+									z << "\n";
+					grad_p = grad_p_tol;
 			}
 
+			////////////////////////////
+			// smoothing
+			/*const double alpha = grad_p_tol;
+			double s = 1 / ( 1+ std::exp(-(grad_p -grad_p_tol)/alpha  )  );
+			const double grad_p2 = grad_p_tol * (1-s) + grad_p * s;
+			
+std::cout << "\tGrad p " << grad_p << " corrected to " << grad_p2 << "\n";
+
+			grad_p = grad_p2;
+*/
 			if(friction_model == "LEGACY")
 			{
 				tensor[0] /= pow(grad_p, 0.5);
 			}
 			else if(friction_model == "CONSTANT")
 			{
-				tensor[0] = std::pow( 2 * pipe_diameter / pipe_friction /  FluidProp->Density() / grad_p, 0.5);
+				tensor[0] = std::pow( 2 * pipe_diameter / pipe_friction /  density, 0.5);
+				//tensor[0] = std::pow( 2 * pipe_diameter / pipe_friction /  FluidProp->Density(), 0.5);
+				if(!velocity_calculation)
+					tensor[0] /= std::pow( grad_p, 0.5);
 			}
 			else if(friction_model == "BLASIUS")
 			{
@@ -4876,6 +4941,7 @@ double* CMediumProperties::PermeabilityTensor(const long& index, const long* con
 				throw std::runtime_error("Error in CMediumProperties::PermeabilityTensor: no valid Darcy Weisbach friction model");
 
 			tensor[0] *=  FluidProp->Viscosity();  // because of division by velocity later on
+			tensor[0] =  1e-6;  // because of division by velocity later on
 		}  //  end weisbach
 		// end of K-C relationship-----------------------------------------------------------------------------------
 	}

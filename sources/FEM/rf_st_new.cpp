@@ -628,7 +628,7 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> connected_geometry_mode;  // 0: NNNC symmetric, 1: NNNC non-symmetric (downwind fixed), 2 NNNC non-symmetric (downwind)
 		  in >> connected_geometry_couplingType; // 0: RHS, 1: matrix entry
-		  if ((connected_geometry_mode == 2))
+		  if (connected_geometry_mode == 2)
 			  in >> connected_geometry_ref_element_number >> connected_geometry_reference_direction[0] >>
 			  connected_geometry_reference_direction[1] >> connected_geometry_reference_direction[2] >>
 			  connected_geometry_minimum_velocity_abs;
@@ -1759,14 +1759,14 @@ void CSourceTermGroup::WriteNodeConnections()
 
   std::vector < string > surfaces;
 
-  for (long i = 0; i < st_vector.size(); i++)
+  for (size_t i = 0; i < st_vector.size(); i++)
   {
     bool found = false;
     source_term=st_vector[i];
       
     // check for this st
     if (/*source_term->connected_gemoetry*/0 == 0){
-      int j;
+      size_t j;
       for (j = 0; j < surfaces.size(); j++){
         if ((surfaces[j].compare(source_term->geo_name) != 0))
         {
@@ -1787,7 +1787,7 @@ void CSourceTermGroup::WriteNodeConnections()
           abort();
         }
         else{  // adapt to conneced geometries
-          for (int k = 0; k < source_term->st_node_ids.size(); k++){
+          for (size_t k = 0; k < source_term->st_node_ids.size(); k++){
             os << source_term->st_node_ids[k] << " " << source_term->st_node_ids[k] << "\n";
           }
           os.close();
@@ -2200,8 +2200,8 @@ CNodeValue* cnodev)
 void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, const long mesh_node_number)//CNodeValue* cnodev)
 {
     //const long mesh_node_number = cnodev->msh_node_number;
-    long eq_index;
-    long dom_node_index;
+    //long eq_index;
+    //long dom_node_index;
     
     //double  poro = 0.0;
     //int material_group;
@@ -2213,7 +2213,7 @@ void GetCouplingNODValueConvectiveForm(double &value, CSourceTerm* m_st, const l
    m_pcs_this = PCSGet(convertProcessTypeToString(m_st->getProcessType()));
    double nodal_val =  m_pcs_this->GetNodeValue(mesh_node_number, 1);
 
-   eq_index = m_pcs_this->m_msh->nod_vector[mesh_node_number]->GetEquationIndex();
+   //eq_index = m_pcs_this->m_msh->nod_vector[mesh_node_number]->GetEquationIndex();
    //std::cout << temperature << ", ";
    //double density_test = mfp_vector[0]->Density();
    //std::cout << " mesh node number: " << mesh_node_number << "; Value: "<< value << '\n';
@@ -2419,176 +2419,6 @@ double CSourceTerm::GetRelativeInterfacePermeability(CRFProcess* pcs, double hea
   return relPerm;
 }
 
-/**************************************************************************
- FEMLib-Method:
- Task: Coupling of overland and soil flow by using water depth as soil boundary
- condition and flux term as overland source term according to
- Morita and Yen, J. Hydr. Eng. 184, 2002
- Programing: prerequisites: constant precipitation with assigned duration,
- phase = 0 in mfp, soil data in mmp_vetor[1] !!!!!
- 06/2007 JOD Implementation
- **************************************************************************/
-//#if !defined(NEW_EQS)
-//&& !defined(USE_PETSC)                                   //WW. 06.11.2008
-void GetCouplingNODValueMixed(double& value, CSourceTerm* m_st,
-CNodeValue* cnodev)
-{
-
-   double cond1, cond0, pressure1, pressure0, bc_value, depth, gamma, sat,
-      area;
-   double leakance, deltaZ;
-   int phase = 0;                                 // RESTRICTION for mfp !!!!!!!
-
-   //WW CElem *m_ele = NULL;
-   long msh_ele;
-   int group, nidx;
-   CRFProcess* m_pcs_cond = NULL;
-   CRFProcess* m_pcs_this = NULL;
-   m_pcs_this = PCSGet(convertProcessTypeToString (m_st->getProcessType()));
-   m_pcs_cond = PCSGet(m_st->pcs_type_name_cond);
-
-   area = value;
-   leakance = m_st->getCoupLeakance();
-   deltaZ = m_st->st_rill_height;
-                                                  // phase  = 0 !!!!
-   gamma = mfp_vector[0]->Density() * GRAVITY_CONSTANT;
-   long msh_node_2nd;
-   double const* const xyz_this (m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->getData());
-//   double y_this = m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->Y();
-//   double z_this = m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->Z();
-
-   msh_node_2nd = -1;                             //WW
-
-   cond0 = leakance * deltaZ;
-   cond1 = cond0;
-
-   if (m_st->getProcessType () == FiniteElement::OVERLAND_FLOW)
-   {
-
-      ///// get number of second mesh node, provisional implementation
-      double epsilon = 1.e-5;
-//      double x_cond = m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->X();
-//      double y_cond = m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->Y();
-//      double z_cond = m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->Z();
-      double const* const xyz_cond (m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData());
-
-      for (size_t i = 0; i < m_pcs_cond->m_msh->nod_vector.size(); i++) {
-			double const* const pnt_i(
-					m_pcs_cond->m_msh->nod_vector[i]->getData());
-			if (pnt_i[0] - xyz_cond[0] < epsilon) {
-				if (pnt_i[1] - xyz_cond[1] < epsilon) {
-					if (pnt_i[2] - (xyz_cond[2] - deltaZ) < epsilon) {
-						msh_node_2nd = i;
-					}
-				}
-			}
-		}
-      //////////////////////////
-
-      nidx = m_pcs_cond->GetNodeValueIndex("PRESSURE1") + 1;
-
-      pressure0 = m_pcs_cond->GetNodeValue(
-         cnodev->msh_node_number_conditional, nidx);
-      pressure1 = m_pcs_cond->GetNodeValue(msh_node_2nd, nidx);
-
-                                                  // only one phase
-      double gamma = mfp_vector[phase]->Density() * GRAVITY_CONSTANT;
-
-      msh_ele
-         = m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getConnectedElementIDs()[0];
-      //WW m_ele = m_pcs_cond->m_msh->ele_vector[msh_ele];
-      group = m_pcs_cond->m_msh->ele_vector[msh_ele]->GetPatchIndex();
-
-      //sat = mmp_vector[group]->SaturationCapillaryPressureFunction( -pressure0, 0);
-      //cond0 *=  mmp_vector[group]->PermeabilitySaturationFunction(sat,0);
-
-      sat = mmp_vector[group]->SaturationCapillaryPressureFunction(-pressure1);
-      cond1 *= mmp_vector[group]->PermeabilitySaturationFunction(sat, phase);
-      // use of relative permeability for second node (absolute perm. for top node !!!!)
-
-      value = (pressure1 - pressure0 - deltaZ * gamma) * (cond0 + cond1)
-         / (2* deltaZ * gamma);
-
-      m_pcs_this->SetNodeValue(cnodev->msh_node_number,
-         m_pcs_this->GetNodeValueIndex("COUPLING") + 1, -value);
-
-      value *= area;
-   }                                              // end overland
-   else { // Richards
-		///// get number of second mesh node, provisional implementation
-		double epsilon = 1.e-5;
-		for (size_t i = 0; i < m_pcs_this->m_msh->nod_vector.size(); i++) {
-			double const* const pnt_i(
-					m_pcs_this->m_msh->nod_vector[i]->getData());
-			if (pnt_i[0] - xyz_this[0] < epsilon) {
-				if (pnt_i[1] - xyz_this[1] < epsilon) {
-					if (pnt_i[2] - (xyz_this[2] - deltaZ) < epsilon) {
-						msh_node_2nd = i;
-					}
-				}
-			}
-		}
-      //////////////////////////
-
-      double inf_cap, supplyRate; //WW, rainfall;
-      long
-         bc_eqs_index =
-         m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->GetEquationIndex();
-      double z_cond = m_pcs_cond->m_msh->nod_vector[cnodev->msh_node_number_conditional]->getData()[2];
-      depth = std::max(0., m_pcs_cond->GetNodeValue(
-         cnodev->msh_node_number_conditional,
-         m_pcs_cond->GetNodeValueIndex("HEAD") + 1) - z_cond);
-
-      nidx = m_pcs_this->GetNodeValueIndex("PRESSURE1") + 1;
-      pressure0 = m_pcs_this->GetNodeValue(cnodev->msh_node_number, nidx);
-      pressure1 = m_pcs_this->GetNodeValue(msh_node_2nd, nidx);
-
-      msh_ele
-         = m_pcs_this->m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs()[0];
-      //WW m_ele = m_pcs_this->m_msh->ele_vector[msh_ele];
-      group = m_pcs_this->m_msh->ele_vector[msh_ele]->GetPatchIndex();
-
-      //sat = mmp_vector[group]->SaturationCapillaryPressureFunction( -pressure0);
-      //cond0 *=  mmp_vector[group]->PermeabilitySaturationFunction(sat,phase);
-
-      sat = mmp_vector[group]->SaturationCapillaryPressureFunction(-pressure1);
-      cond1 *= mmp_vector[group]->PermeabilitySaturationFunction(sat, phase);
-      // use of relative permeability for second node (absolute perm. for top node !!!!)
-
-      // calculate infiltration capacity
-      /* //WW
-      if (aktuelle_zeit < m_st->rainfall_duration)
-         rainfall = m_st->rainfall;
-      else
-         rainfall = 0;
-      */
-      inf_cap = (depth + deltaZ - pressure1 / gamma) * (cond0 + cond1) / (2
-         * deltaZ);
-      supplyRate = m_st->rainfall;                //+ (depth ) / dt; // dt = timeStep
-
-      m_pcs_this->SetNodeValue(cnodev->msh_node_number,
-                                                  // update coupling variable for error estimation
-         m_pcs_this->GetNodeValueIndex("COUPLING") + 1, inf_cap);
-
-      if (inf_cap > supplyRate)
-         bc_value = pressure1 - deltaZ * gamma + gamma * supplyRate * deltaZ
-            * 2 / (cond0 + cond1);
-      else
-         bc_value = pressure1 - deltaZ * gamma + gamma * inf_cap * deltaZ
-            * 2 / (cond0 + cond1);
-      // bc_value = supplyRate * gamma * dt;
-      /*
-#ifndef NEW_EQS && !defined(USE_PETSC)
-      MXRandbed(bc_eqs_index, bc_value, m_pcs_this->getEQSPointer()->b); //getEQSPointer. WW 
-//else ...
-#endif
-*/
-      value = 0;
-
-   }                                              // end Richards
-
-}
-
 
 /**************************************************************************
  FEMLib-Method:
@@ -2655,9 +2485,9 @@ CNodeValue* cnodev)
  02/2006 WW Change argument
  **************************************************************************/
 //double CSourceTermGroup::GetCriticalDepthNODValue(CNodeValue* cnodev,CSourceTerm* m_st, long msh_node)
-void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
+/*void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
 {
-   double value_jacobi;
+   //double value_jacobi;
    double width, flowdepth, flowdepth3, flowdepth3_epsilon;
    long msh_ele;
    double epsilon = 1.e-7;                        // like in pcs->assembleParabolicEquationNewton
@@ -2692,19 +2522,19 @@ void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
 
       value_jacobi = sqrt(GRAVITY_CONSTANT * flowdepth3_epsilon) * width
          + value;
-      /*
-#ifndef NEW_EQS && !defined(USE_PETSC)
-                                                  // write source term into jacobi
-      MXInc(msh_node, msh_node, value_jacobi / epsilon);
+   
+//#ifndef NEW_EQS && !defined(USE_PETSC)
+//                                                  // write source term into jacobi
+//      MXInc(msh_node, msh_node, value_jacobi / epsilon);
 // else ...
-#endif
-*/
+//#endif
+
       m_pcs_this->SetNodeValue(msh_node,
          m_pcs_this->GetNodeValueIndex("FLUX") + 0, -value);
 
    }
 }
-
+*/
 
 /**************************************************************************
  FEMLib-Method:
@@ -2713,14 +2543,15 @@ void GetCriticalDepthNODValue(double &value, CSourceTerm* m_st, long msh_node)
  02/2006 MB JOD Implementation
  06/2007 JOD 2D case with slope in st-file
  **************************************************************************/
-void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
+/*void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
 {
    //WW  int AnzNodes = 0;
    //WW  double Haverage = 0;
    CRFProcess* pcs_this (PCSGet(st->getProcessType()));
    CFEMesh* mesh (pcs_this->m_msh);
 
-   double value_for_jacobi, S_0;
+   //double value_for_jacobi;
+   double S_0;
    double epsilon = 1.e-7;                        // pcs->assembleParabolicEquationNewton !!!!!!!!!
 
    long msh_ele = mesh->nod_vector[msh_node]->getConnectedElementIDs()[0];
@@ -2769,16 +2600,17 @@ void GetNormalDepthNODValue(double &value, CSourceTerm* st, long msh_node)
       value = -pow(flowdepth, depth_exp + 1) * temp;
       value_for_jacobi = pow(flowdepth_epsilon, depth_exp + 1) * temp + value;
    }
-   /*
-#ifndef NEW_EQS && !defined(USE_PETSC)
-                                                  // write source term into jacobi
-   MXInc(msh_node, msh_node, value_for_jacobi / epsilon);
+  
+//#ifndef NEW_EQS && !defined(USE_PETSC)
+//                                                  // write source term into jacobi
+//   MXInc(msh_node, msh_node, value_for_jacobi / epsilon);
 // else
-#endif
-*/
+//#endif
+
    pcs_this->SetNodeValue(msh_node, pcs_this->GetNodeValueIndex("FLUX")
       + 0, -value);
 }
+*/
 //#endif
 
 /**************************************************************************
@@ -2807,13 +2639,13 @@ void GetNODValue(double& value, CNodeValue* cnodev, CSourceTerm* st)
    //		GetRiverNODValue(value, cnodev, st); //MB
    //	if (cnodev->node_distype == 6) // CriticalDepth Condition
                                                   // CriticalDepth Condition
-   if (cnodev->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
-                                                  //MB
-      GetCriticalDepthNODValue(value, st, cnodev->msh_node_number);
+   //if (cnodev->getProcessDistributionType() == FiniteElement::CRITICALDEPTH)
+   //                                               //MB
+   //   GetCriticalDepthNODValue(value, st, cnodev->msh_node_number);
    //	if (cnodev->node_distype == 8) // NormalDepth Condition JOD
-   if (cnodev->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
-                                                  //M
-      GetNormalDepthNODValue(value, st, cnodev->msh_node_number);
+   //if (cnodev->getProcessDistributionType() == FiniteElement::NORMALDEPTH)
+   //                                               //M
+   //   GetNormalDepthNODValue(value, st, cnodev->msh_node_number);
 #endif
    //	if (cnodev->node_distype == 10) // Philip infiltration JOD
    //		GetPhilipNODValue(value, st);
@@ -2964,7 +2796,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if(st->verbosity)
 		{
 			std::cout << "\t" << ply_nod_vector.size() << " nodes with total value of " << std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.) << '\n';
-			for(int i=0; i< ply_nod_vector.size(); i++)
+			for(size_t i=0; i< ply_nod_vector.size(); i++)
 			{
 				std::cout << "\t\t" << i << ": " << ply_nod_vector[i] << " with value " << ply_nod_val_vector[i];
 			  	if (st->isConnectedGeometry() &&
@@ -2977,7 +2809,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		if(st->scaling_verbosity && st->scaling_mode == 1)
 		{
 			std::cout << "Scaling mode: " << st->scaling_mode << '\n';
-			for(long i=0; i < ply_nod_vector.size(); ++i)
+			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
 				std::cout << '\t' << ply_nod_vector[i] << ":\t" << ply_nod_val_vector[i] << '\n'; 
 			}
@@ -3108,7 +2940,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 		  			std::cout << "\tNow " << ply_nod_vector.size() << " nodes with total value of " << 
 						std::accumulate(ply_nod_val_vector.begin(), ply_nod_val_vector.end(), 0.) << '\n';
 		  		  	if(st->verbosity > 1)
-		  				for (int i = 0; i < ply_nod_vector.size(); i++)
+		  				for (size_t i = 0; i < ply_nod_vector.size(); i++)
 		  				{
 				  			std::cout << "\t\t" << i << ": " << ply_nod_vector[i] << " connected to " << ply_nod_vector_cond[i] << " with value "<< ply_nod_val_vector[i] << '\n';
 		  				}
@@ -3156,7 +2988,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 			CRFProcess* pcs_liquid = PCSGet(FiniteElement::LIQUID_FLOW);
 			// warm well 1 - LIQUID_FLOW
-			for(long i=0; i < ply_nod_vector.size(); ++i)
+			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			 {
 				 CNodeValue *nod_val_liquid_well (new CNodeValue());
 				 nod_val_liquid_well->msh_node_number = ply_nod_vector[i];
@@ -3171,7 +3003,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			 }
 
 			// cold well 2 - LIQUID_FLOW
-			for(long i=0; i < ply_nod_vector_well2.size(); ++i)
+			for(size_t i=0; i < ply_nod_vector_well2.size(); ++i)
 			 {
 				 CNodeValue *nod_val_liquid_well (new CNodeValue());
 				 nod_val_liquid_well->msh_node_number = ply_nod_vector_well2[i];
@@ -3395,7 +3227,7 @@ const int ShiftInNodeVector)
  	       		 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
  	       	 }
 
- 	       	 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+ 	       	 for(size_t i=0; i < liquidBC_mesh_nodes.size(); ++i)
  	       	 {
  	       		 CNodeValue *nod_val_liquid_well (new CNodeValue());
  	       		 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
@@ -3428,7 +3260,7 @@ const int ShiftInNodeVector)
  	       		 for(auto& value: liquidBC_mesh_node_values) value /= total_value;
  	       	 }
 
- 	       	 for(long i=0; i < liquidBC_mesh_nodes.size(); ++i)
+ 	       	 for(size_t i=0; i < liquidBC_mesh_nodes.size(); ++i)
  	       	 {
  	       		 CNodeValue *nod_val_liquid_well (new CNodeValue());
  	       		 nod_val_liquid_well->msh_node_number = liquidBC_mesh_nodes[i];
@@ -3478,7 +3310,7 @@ const int ShiftInNodeVector)
 
  	          std::vector<contra::SegmentData> segment_data_vec = st->ogs_contraflow->get_segment_data_vec();
  	          double z = pnt.getData()[2];
- 	          for(int i=0; i < segment_data_vec.size(); ++i)
+ 	          for(size_t i=0; i < segment_data_vec.size(); ++i)
  	          {
  	       	   const int N = segment_data_vec[i].N;
  	       	   const double dz = segment_data_vec[i].L / N;
@@ -3717,7 +3549,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 					   m_st->storageRate.inlet_msh_node_numbers, m_st->storageRate.inlet_msh_node_areas);
 
 			   m_st->storageRate.inlet_totalArea = 0.;
-			   for(int i=0; i < m_st->storageRate.inlet_msh_node_areas.size(); i++)
+			   for(size_t i=0; i < m_st->storageRate.inlet_msh_node_areas.size(); i++)
 				   m_st->storageRate.inlet_totalArea += m_st->storageRate.inlet_msh_node_areas[i];
 
 			   // outlet surface
@@ -3730,7 +3562,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 					   m_st->storageRate.outlet_msh_node_numbers, m_st->storageRate.outlet_msh_node_areas);
 
 			   m_st->storageRate.outlet_totalArea = 0.;
-			   for(int i=0; i < m_st->storageRate.outlet_msh_node_areas.size(); i++)
+			   for(size_t i=0; i < m_st->storageRate.outlet_msh_node_areas.size(); i++)
 				   m_st->storageRate.outlet_totalArea += m_st->storageRate.outlet_msh_node_areas[i];
 		   }
 	   }
@@ -3741,7 +3573,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 	if(m_st->verbosity)
 	{
 		std::cout << "\t" << sfc_nod_vector.size() << " nodes with total value of " << std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.) << '\n';
-		for(int i=0; i< sfc_nod_vector.size(); i++)
+		for(size_t i=0; i< sfc_nod_vector.size(); i++)
 		{
 			std::cout << "\t\t" << i << ": " << sfc_nod_vector[i] << " with value " << sfc_nod_val_vector[i];
 		  	if (m_st->isConnectedGeometry() &&
@@ -3806,7 +3638,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 		  {
 		  	std::cout << "\tNow " << sfc_nod_vector.size() << " nodes with total value of " << std::accumulate(sfc_nod_val_vector.begin(), sfc_nod_val_vector.end(), 0.) << '\n';
 		  	if(m_st->verbosity > 1)
-		  		for (int i = 0; i < sfc_nod_vector.size(); i++)
+		  		for (size_t i = 0; i < sfc_nod_vector.size(); i++)
 		  		{
 					  std::cout << "\t\t" << i << ": " << sfc_nod_vector[i] << " connected to " << sfc_nod_vector_cond[i] << " with value "<< sfc_nod_val_vector[i] << '\n';
 		  		}
@@ -3904,7 +3736,7 @@ void CSourceTermGroup::SetSurfaceNodeVector(const std::string geo_name, const GE
 		std::vector<long> nodes_vector;
 		m_msh->GetNODOnSFC_TIN(m_surface, nodes_vector);
 		sfc_nod_vector.resize(nodes_vector.size());
-		for(int i=0; i< nodes_vector.size(); ++i)
+		for(size_t i=0; i< nodes_vector.size(); ++i)
 			sfc_nod_vector[i] = nodes_vector[i];
 		std::cout << "\tTIN " << geo_name << ": " << nodes_vector.size() << " nodes" << std::endl;
 	}
@@ -5401,7 +5233,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 
 			if(m_pcs_flow)
 			{
-				const double gamma =   (m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")? 9810.: 1.;
+				//const double gamma =   (m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")? 9810.: 1.;
 				double pressure_cond;
 				if(m_st->pcs_type_name_cond2 == "OVERLAND_FLOW")
 				{
@@ -5621,7 +5453,7 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
         //primValsInlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
 
         // averaging over surface, one node in case of point
-        for(int i=0; i < storageRate.inlet_msh_node_numbers.size(); i++)
+        for(size_t i=0; i < storageRate.inlet_msh_node_numbers.size(); i++)
         {
         	primValsInlet[0] += m_pcs->GetNodeValue(storageRate.inlet_msh_node_numbers[i], 1)
         			* storageRate.inlet_msh_node_areas[i];
@@ -5639,7 +5471,7 @@ double CSourceTerm::CalculateFromStorageRate(const double &value, const CNodeVal
         //primValsInlet[2] : concentration in density calculation and saturation in capacity calculation !!!!!
 
         // averaging over surface, one node in case of point
-        for(int i=0; i < storageRate.outlet_msh_node_numbers.size(); i++)
+        for(size_t i=0; i < storageRate.outlet_msh_node_numbers.size(); i++)
         {
         	primValsOutlet[0] += m_pcs->GetNodeValue(storageRate.outlet_msh_node_numbers[i], 1)
         			* storageRate.outlet_msh_node_areas[i];
@@ -5920,7 +5752,7 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 	// calculate a scaling factor for the node
 	double scaling_factor = 0;
 	std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
-	for (long i = 0; i < elements_connected.size(); ++i)
+	for (size_t i = 0; i < elements_connected.size(); ++i)
 	{
 		// permeability
 		const CElem* ele = m_msh->ele_vector[elements_connected[i]];
@@ -5987,7 +5819,7 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 		CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
 					//if (!elem->GetMark())   // !!! do not care about deactivation of elements
 					//	continue;
-		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+		for(int k = 0; k< elem->GetVertexNumber(); ++k)
 		{
 			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
 			//if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->X() > m_pcs->m_msh->nod_vector[node_number]->X() + 1e-5)
@@ -6075,15 +5907,15 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 			laplace->Write();
 
 		CNode* wellNode = NULL;
-		int well_ndx;
-		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+		int well_ndx=-1;
+		for(int k = 0; k< elem->GetVertexNumber(); ++k)
 			if(elem->GetNode(k)->GetEquationIndex() == node_number)
 			{
 				wellNode = elem->GetNode(k);
 				well_ndx = k;
 			}
 
-		for(size_t k = 0; k< elem->GetVertexNumber(); ++k)
+		for(int k = 0; k< elem->GetVertexNumber(); ++k)
 		{
 			CNode* node = elem->GetNode(k);
 			if(node->GetEquationIndex() !=  wellNode->GetEquationIndex() &&

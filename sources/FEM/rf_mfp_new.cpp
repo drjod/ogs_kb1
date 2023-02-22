@@ -1270,8 +1270,8 @@ double CFluidProperties::Density(double* values)
 	double Rho = 0.0;
 	static double density;
 	// static double air_gas_density,vapour_density,vapour_pressure;
-	double* primVal;
-	int density_model_used, i;
+	double* primVal=NULL;
+	int density_model_used=-1, i;
 	long material=-1, index=-1;
 	//--- set primVal -------------------------------------------------------------------
 	if (values)                         // for secondary variable output (on nodes)
@@ -1297,7 +1297,9 @@ double CFluidProperties::Density(double* values)
 				}
 			}
 			else
-				std::cout << "Error in CFluidProperties::Density: No Fem_Ele_Std" << endl;
+			{
+				throw std::runtime_error("Error in CFluidProperties::Density: No Fem_Ele_Std");
+			}
 		}
 	}
 	//--- set density_model_used -------------------------------------------------------------------
@@ -2020,8 +2022,7 @@ double CFluidProperties::GetElementValueFromNodes(long ElementIndex,
 			"The Phase_Transition_Model should be used together with the density and viscosity model 18 !"
 			     << "\n";
 			cout << "The run is terminated now ..." << "\n";
-			system("Pause");
-			exit(0);
+			exit(system("Pause"));
 		}
 
 	m_ele = m_msh->ele_vector[ElementIndex]; // get element
@@ -3036,7 +3037,7 @@ double CFluidProperties::HeatConductivity(double* variables)
 	}
 		break;
 	case 1:                               // c = const
-		heat_conductivity = heat_conductivity;
+		//heat_conductivity = heat_conductivity;
 		break;
 	case 2:
 		heat_conductivity = MATCalcHeatConductivityMethod2(primary_variable[0],

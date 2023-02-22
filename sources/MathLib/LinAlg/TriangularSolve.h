@@ -41,12 +41,18 @@ template <typename FLOAT_TYPE>
 void backwardSolve (const Matrix <FLOAT_TYPE> &U, FLOAT_TYPE* z)
 {
 	size_t m (U.getNRows()), n(U.getNCols());
-	for (int r = m - 1; r >= 0; r--) {
+	for (int r = m - 1; r >= 0; r--) 
+	{
 		FLOAT_TYPE t(0.0);
-		for (size_t c = r + 1; c < n; c++) {
+		for (size_t c = r + 1; c < n; c++) 
+		{
 			t += U(r,c) * z[c];
 		}
-		z[r] = (z[r] - t) / U(r,r);
+		//z[r] = (z[r] - t) / U(r,r);  // JOD 2023-02-21
+		FLOAT_TYPE denom = U(r, r);
+		if(denom < 1e-25 && denom > -1e-25)
+			denom = 1e-25;
+		z[r] = (z[r] - t) / denom;
 	}
 }
 

@@ -128,9 +128,11 @@ std::string getCwd()
     char cwd[FILENAME_MAX];
 
 #ifdef WIN32
-    _getcwd(cwd, FILENAME_MAX);
+    if(_getcwd(cwd, FILENAME_MAX) == NULL)
+	    throw std::runtime_error("error with working directory");
 #else
-    getcwd(cwd, FILENAME_MAX);
+    if(getcwd(cwd, FILENAME_MAX) == NULL)
+	    throw std::runtime_error("error with working directory");
 #endif
 
     return cwd;

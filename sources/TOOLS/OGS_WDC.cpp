@@ -144,17 +144,17 @@ void OGS_WDC::evaluate_simulation_result(const wdc::WellDoubletControl::balancin
 #endif
 	std::cout << "\tWDC - evaluate\n";
 
-	double target_value = parameter_list.begin()->target_value;
+	//double target_value = parameter_list.begin()->target_value;
 
-	if(heat_pump_flag & parameter_list.begin()->powerrate < 0.)
+	if(heat_pump_flag && parameter_list.begin()->powerrate < 0.)
 	{
 		const double T_UA = (balancing_properties.T_UA > 200.)?  balancing_properties.T_UA - 273.15 : balancing_properties.T_UA;
 		const double eta = interpolate(heat_pump_parameter.T_source, heat_pump_parameter.eta, T_UA, true);
 
 		wellDoubletControl->set_heatPump(heat_pump_flag, parameter_list.begin()->temperature_sink, eta);
 
-		if(parameter_list.begin()->indicator == 2)
-			target_value = -interpolate(heat_pump_parameter.T_source, heat_pump_parameter.Delta_T, T_UA, true);
+		//if(parameter_list.begin()->indicator == 2)
+		//	target_value = -interpolate(heat_pump_parameter.T_source, heat_pump_parameter.Delta_T, T_UA, true);
 
 	}
 
@@ -167,7 +167,7 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 		const wdc::WellDoubletControl::balancing_properties_t& balancing_properties,
 		std::vector<size_t> heatExchanger_aquifer_mesh_nodes)
 {
-	double result;
+	double result = 0.;
 	switch(m_pcs->getProcessType())
 	{
 		case FiniteElement::LIQUID_FLOW:
@@ -272,7 +272,7 @@ double OGS_WDC::call_WDC(CRFProcess* m_pcs,
 				}
 				else if(parameter_list.begin()->indicator == 3 && !shut_in) // via ST and BC
 				{ 	// set BC
-					for(int i=0; i < heatExchanger_aquifer_mesh_nodes.size(); i++)
+					for(size_t i=0; i < heatExchanger_aquifer_mesh_nodes.size(); i++)
 						m_pcs->set_BCNode(heatExchanger_aquifer_mesh_nodes[i], parameter_list.begin()->target_value);
 				}
 				else

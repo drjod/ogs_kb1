@@ -32,34 +32,40 @@ void NIST_H2::ReferenceConstants(void){
 }
 
 double NIST_H2::alpha_0(double tau, double delta){
-	const double a[10] = {0,-1.4579856475,1.888076782,1.616,-0.4117,-0.792,0.758,1.217,0,0}; //J.W.Leachmann,2009(Table 4)
-	const double b[10] = {0,0,0,-16.0205159149,-22.6580178006,-60.0090511389,-74.9434303817,-206.9392065168,0,0}; //J.W.Leachmann,2009(Table 4)
+		
+	double res;
+
 	if(NIST_H2::f==1){
 		const double a[10] = {0,-1.4485891134,1.884521239,4.30256,13.0289,-47.7365,50.0013,-18.6261,0.993973,0.536078};
 		const double b[10] = {0,0,0,-15.1496751472,-25.0925982148,-29.4735563787,-35.4059141417,-40.724998482,-163.7925799988,-309.2173173842};
+
+		res=log(delta)+1.5*log(tau)+a[1]+a[2]*tau; //Eq.31
+		for(int i=3;i<8;i++)
+			res+=a[i]*log(1-exp(b[i]*tau));//Eq.31
 	}
-	if(NIST_H2::f==2){
+	else if(NIST_H2::f==2){
 		const double a[10] = {0,-1.4675442336,1.884506886,2.54151,-2.3661,1.00365,1.22447,0,0,0};
 		const double b[10] = {0,0,0,-25.7676098736,-43.4677904877,-66.0445514750,-209.7531607465,0,0,0};
-	}
-	double res=0.0;
-	int i;
-	res=log(delta)+1.5*log(tau)+a[1]+a[2]*tau; //Eq.31
-	for(i=3;i<8;i++)
+
+		res=log(delta)+1.5*log(tau)+a[1]+a[2]*tau; //Eq.31
+		for(int i=3;i<8;i++)
 		res+=a[i]*log(1-exp(b[i]*tau));//Eq.31
+	}
+	else
+	{
+		const double a[10] = {0,-1.4579856475,1.888076782,1.616,-0.4117,-0.792,0.758,1.217,0,0}; //J.W.Leachmann,2009(Table 4)
+		const double b[10] = {0,0,0,-16.0205159149,-22.6580178006,-60.0090511389,-74.9434303817,-206.9392065168,0,0}; //J.W.Leachmann,2009(Table 4)
+
+		res=log(delta)+1.5*log(tau)+a[1]+a[2]*tau; //Eq.31
+		for(int i=3;i<8;i++)
+			res+=a[i]*log(1-exp(b[i]*tau));//Eq.31
+	}
 	return res;
 }
 
 double NIST_H2::alpha_r(double tau, double delta){
+	double res = 0.;
 	//J.W.Leachmann,2009, Table 5 and Table 6
-	const double N[15] = {0,-6.93643,0.01,2.1101,4.52059,0.732564,-1.34086,0.130985,-0.777414,0.351944,-0.0211716,0.0226312,0.032187,-0.0231752,0.0557346};
-	const double t[15] = {0,0.6844,1,0.989,0.489,0.803,1.1444,1.409,1.754,1.311,4.187,5.646,0.791,7.249,2.986};
-	const int d[15] = {0, 1, 4, 1, 1, 2, 2, 3, 1, 3, 2, 1, 3, 1, 1};
-	const int p[10]	= {0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
-	const double phi[15] = {0,0,0,0,0,0,0,0,0,0,-1.685,-0.489,-0.103,-2.506,-1.607};
-	const double beta[15] = {0,0,0,0,0,0,0,0,0,0,-0.171,-0.2245,-0.1304,-0.2785,-0.3967};
-	const double gamma[15] = {0,0,0,0,0,0,0,0,0,0,0.7164,1.3444,1.4517,0.7204,1.5445};
-	const double D[15] = {0,0,0,0,0,0,0,0,0,0,1.506,0.156,1.736,0.67,1.662};
 	if(NIST_H2::f==1){
 		const double N[15] = {0,-7.33375,0.01,2.60375,4.66279,0.68239,-1.47078,0.135801,-1.05327,0.328239,-0.0577833,0.0449743,0.0703464,-0.0401766,0.11951};
 		const double t[15] = {0,0.6855,1,1,0.489,0.774,1.133,1.386,1.619,1.162,3.96,5.276,0.99,6.791,3.19};
@@ -69,8 +75,15 @@ double NIST_H2::alpha_r(double tau, double delta){
 		const double beta[15] = {0,0,0,0,0,0,0,0,0,0,-0.194,-0.2019,-0.0301,-0.2383,-0.3253};
 		const double gamma[15] = {0,0,0,0,0,0,0,0,0,0,0.8048,1.5248,0.6648,0.6832,1.493};
 		const double D[15] = {0,0,0,0,0,0,0,0,0,0,1.5487,0.1785,1.28,0.6319,1.7104};
+
+		for(int i=1;i<8;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i]);	//Eq.32
+		for(int i=8;i<10;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(-pow(delta,p[i]));//Eq.32
+		for(int i=10;i<11;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(phi[i]*(delta-D[i])*(delta-D[i])+beta[i]*(tau-gamma[i])*(tau-gamma[i]));//Eq.32
 	}
-	if(NIST_H2::f==2){
+	else if(NIST_H2::f==2){
 		const double N[15] = {0,-6.83148,0.01,2.11505,4.38353,0.211292,-1.00939,0.142086,-0.87696,0.804927,-0.710775,0.0639688,0.0710858,-0.087654,0.647088};
 		const double t[15] = {0,0.7333,1,1.1372,0.5136,0.5638,1.6248,1.829,2.404,2.105,4.1,7.658,1.259,7.589,3.946};
 		const int d[15] = {0,1,4,1,1,2,2,3,1,3,2,1,3,1,1};
@@ -79,16 +92,32 @@ double NIST_H2::alpha_r(double tau, double delta){
 		const double beta[15] = {0,0,0,0,0,0,0,0,0,0,-0.4555,-0.4046,-0.0869,-0.4415,-0.5743};
 		const double gamma[15] = {0,0,0,0,0,0,0,0,0,0,1.5444,0.6627,0.763,0.6587,1.4327};
 		const double D[15] = {0,0,0,0,0,0,0,0,0,0,0.6366,0.3876,0.9437,0.3976,0.9626};
+
+		for(int i=1;i<8;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i]);	//Eq.32
+		for(int i=8;i<10;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(-pow(delta,p[i]));//Eq.32
+		for(int i=10;i<11;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(phi[i]*(delta-D[i])*(delta-D[i])+beta[i]*(tau-gamma[i])*(tau-gamma[i]));//Eq.32
 	}
-	double res;
-	int i;
-	res=0.0;
-	for(i=1;i<8;i++)
-		res+=N[i]*pow(delta,d[i])*pow(tau,t[i]);	//Eq.32
-	for(i=8;i<10;i++)
-		res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(-pow(delta,p[i]));//Eq.32
-	for(i=10;i<11;i++)
-		res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(phi[i]*(delta-D[i])*(delta-D[i])+beta[i]*(tau-gamma[i])*(tau-gamma[i]));//Eq.32
+	else
+	{
+		const double N[15] = {0,-6.93643,0.01,2.1101,4.52059,0.732564,-1.34086,0.130985,-0.777414,0.351944,-0.0211716,0.0226312,0.032187,-0.0231752,0.0557346};
+		const double t[15] = {0,0.6844,1,0.989,0.489,0.803,1.1444,1.409,1.754,1.311,4.187,5.646,0.791,7.249,2.986};
+		const int d[15] = {0, 1, 4, 1, 1, 2, 2, 3, 1, 3, 2, 1, 3, 1, 1};
+		const int p[10]	= {0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
+		const double phi[15] = {0,0,0,0,0,0,0,0,0,0,-1.685,-0.489,-0.103,-2.506,-1.607};
+		const double beta[15] = {0,0,0,0,0,0,0,0,0,0,-0.171,-0.2245,-0.1304,-0.2785,-0.3967};
+		const double gamma[15] = {0,0,0,0,0,0,0,0,0,0,0.7164,1.3444,1.4517,0.7204,1.5445};
+		const double D[15] = {0,0,0,0,0,0,0,0,0,0,1.506,0.156,1.736,0.67,1.662};
+	
+		for(int i=1;i<8;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i]);	//Eq.32
+		for(int i=8;i<10;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(-pow(delta,p[i]));//Eq.32
+		for(int i=10;i<11;i++)
+			res+=N[i]*pow(delta,d[i])*pow(tau,t[i])*exp(phi[i]*(delta-D[i])*(delta-D[i])+beta[i]*(tau-gamma[i])*(tau-gamma[i]));//Eq.32
+	}
 	return res;
 }
 
@@ -239,7 +268,7 @@ double NIST_H2::dH(double dT){
 
 double NIST_H2::adiabatic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT,Tx,Px;
+	double dT=0.,Tx,Px;
 	NIST_H2::TT=T;
 	NIST_H2::PP=P;
 	NIST_H2::dP=(P1-P)/n;
@@ -261,7 +290,7 @@ double NIST_H2::adiabatic_temperature(double T, double P, double P1, int n){
 
 double NIST_H2::isenthalpic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	double uJT = NIST_H2::uJT(T, P);
 	NIST_H2::TT = T;
 	NIST_H2::PP = P;
@@ -471,7 +500,7 @@ double NIST_N2::dQ(double dT){
 
 double NIST_N2::adiabatic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT,Tx,Px;
+	double dT=0.,Tx,Px;
 	NIST_N2::TT=T;
 	NIST_N2::PP=P;
 	NIST_N2::dP=(P1-P)/n;
@@ -504,7 +533,7 @@ double NIST_N2::adiabatic_temperature_id(double T, double P, double P1){
 
 double NIST_N2::isenthalpic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	double uJT = NIST_N2::uJT(T, P);
 	NIST_N2::TT = T;
 	NIST_N2::PP = P;
@@ -752,7 +781,7 @@ double NIST_CH4::dQ(double dT){
 
 double NIST_CH4::adiabatic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT,Tx,Px;
+	double dT=0.,Tx,Px;
 	NIST_CH4::TT=T;
 	NIST_CH4::PP=P;
 	NIST_CH4::dP=(P1-P)/n;
@@ -785,7 +814,7 @@ double NIST_CH4::adiabatic_temperature_id(double T, double P, double P1){
 
 double NIST_CH4::isenthalpic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	double uJT = NIST_CH4::uJT(T, P);
 	NIST_CH4::TT = T;
 	NIST_CH4::PP = P;
@@ -960,7 +989,7 @@ double NIST_CO2::dpressure(double D){
 }
 
 double NIST_CO2::density(double T, double P){
-	double Ttemp = NIST_CO2::TT, Ptemp = NIST_CO2::PP, res;
+	double Ttemp = NIST_CO2::TT, Ptemp = NIST_CO2::PP, res=0.;
 	double Ps, DV, DL;
 	NIST_CO2::ReferenceConstants();
 	NIST_CO2::TT=T;
@@ -1064,7 +1093,7 @@ double NIST_CO2::dQ(double dT){
 
 double NIST_CO2::adiabatic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT,Tx,Px;
+	double dT=0.,Tx,Px;
 	NIST_CO2::TT=T;
 	NIST_CO2::PP=P;
 	NIST_CO2::dP=(P1-P)/n;
@@ -1144,7 +1173,7 @@ double NIST_CO2::saturated_vapor_density(double T){
 
 double NIST_CO2::isenthalpic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	double uJT = NIST_CO2::uJT(T, P);
 	NIST_CO2::TT = T;
 	NIST_CO2::PP = P;
@@ -1382,7 +1411,7 @@ double NIST_O2::dQ(double dT){
 
 double NIST_O2::adiabatic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT,Tx,Px;
+	double dT=0.,Tx,Px;
 	NIST_O2::TT=T;
 	NIST_O2::PP=P;
 	NIST_O2::dP=(P1-P)/n;
@@ -1414,7 +1443,7 @@ double NIST_O2::adiabatic_temperature_id(double T, double P, double P1){
 
 double NIST_O2::isenthalpic_temperature(double T, double P, double P1, int n){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	double uJT = NIST_O2::uJT(T, P);
 	NIST_O2::TT = T;
 	NIST_O2::PP = P;
@@ -1601,7 +1630,7 @@ double NIST_M::dH(double dT){
 
 double NIST_M::adiabatic_temperature(double T0, double P0, double P1, int n, double mH2, double mN2, double mO2, double mCH4, double mCO2){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	NIST_M::mH2 = mH2;
 	NIST_M::mN2 = mN2;
 	NIST_M::mO2 = mO2;
@@ -1628,7 +1657,7 @@ double NIST_M::adiabatic_temperature(double T0, double P0, double P1, int n, dou
 
 double NIST_M::isenthalpic_temperature(double T0, double P0, double P1, int n, double mH2, double mN2, double mO2, double mCH4, double mCO2){
 	int i;
-	double dT, Tx, Px;
+	double dT=0., Tx, Px;
 	NIST_M::mH2 = mH2;
 	NIST_M::mN2 = mN2;
 	NIST_M::mO2 = mO2;

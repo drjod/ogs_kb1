@@ -1323,9 +1323,9 @@ void KRConfig(const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name)
 
 		const size_t mesh_node_vector_size (m_msh->nod_vector.size());
 		// Initialize vector is_a_CCBC
-    if (is_a_CCBC.size() == 0)
-		for (size_t l = 0; l < mesh_node_vector_size; l++)
-			  is_a_CCBC.push_back(false);
+    		if (is_a_CCBC.size() == 0)
+			for (size_t l = 0; l < mesh_node_vector_size; l++)
+				is_a_CCBC.push_back(false);
 		// Go through specified geometry elements
 		std::string s_geo_name, s_geo_type;
 		size_t s_geo_id;
@@ -3399,7 +3399,7 @@ void KBlobConfig(const GEOLIB::GEOObjects& geo_obj, const std::string& unique_na
 
     // store, which reactions are defined for each blob
     for (size_t k = 0; k < (size_t)KinReactData_vector[0]->NumberReactions; k++){
-      if (KinReact_vector[k]->blob_ID == i)
+      if (KinReact_vector[k]->blob_ID == (int)i)
         m_kb->ReactionIndices.push_back(k);
     }
 
@@ -3976,14 +3976,15 @@ bool KRWrite(std::string const & prot_name)
 void CKinReactData::ExecuteKinReact(void)
 {
 
-  const size_t nnodes(fem_msh_vector[0]->nod_vector.size()); // SB: ToDo hart gesetzt
-noomeshnodes = nnodes;
-int node_idx = 0;
-  if(debugoutflag){
-    debugoutstr.setf(ios::scientific,ios::floatfield);
-    debugoutstr.precision(12);
-    debugoutstr.open(debugoutfilename.c_str());
-  }
+  	const size_t nnodes(fem_msh_vector[0]->nod_vector.size()); // SB: ToDo hart gesetzt
+	noomeshnodes = nnodes;
+	//int node_idx = 0;
+  	if(debugoutflag)
+	{
+    		debugoutstr.setf(ios::scientific,ios::floatfield);
+    		debugoutstr.precision(12);
+    		debugoutstr.open(debugoutfilename.c_str());
+  	}
 
 
 // This function  prepares 
@@ -4331,18 +4332,19 @@ void CKinReactData::Biodegradation( double *m_Conc, long node, double eps, doubl
    double DarcyVelocity = 0.0;
    double mod_Reynolds;
    double beta_4, grain_var; //, grain_expo;
-   double one_three, two_three, four_nine, fife_nine, elev_nine, fife_three;
+   //double one_three, two_three, four_nine, fife_nine, elev_nine, fife_three;
+   double one_three, two_three;
    double Peclet, Delta;
    double NAPLcontent = 1;
    double NAPLsaturation = 1;
    double WATERcontent = 1;
   double Sat, Poro;
-  double tstart, tend, dt = 0.0;
+  double tstart, tend;// dt = 0.0;
   double baditerations;
    CRFProcess* m_pcs = NULL;
    int idxS = 0;
    int shidx;
-  CTimeDiscretization* m_tim = NULL;
+  //CTimeDiscretization* m_tim = NULL;
   string speciesname = " dummy";
   float garage = 0;
   bool success = false;
@@ -4357,9 +4359,9 @@ void CKinReactData::Biodegradation( double *m_Conc, long node, double eps, doubl
   //double B = 0; //Daq(T) PCE
   bool CO2diss = false;
   double Cmin = 0;
-  int cvi = 0;
-  double H = 1;
-  double xi = 1;
+  //int cvi = 0;
+  //double H = 1;
+  //double xi = 1;
 
 
 	CKinReact* m_kr = NULL;
@@ -4459,7 +4461,7 @@ void CKinReactData::Biodegradation( double *m_Conc, long node, double eps, doubl
      newVolume = dvector(0,Number_of_blobs);
      // initialize
      for (r = 0; r < Number_of_blobs; r++)
-       oldVolume[r] = oldMass[r] = newVolume[r] = newVolume[r] = oldtotMoles[r] = 0.0;
+       oldVolume[r] = oldMass[r] = newVolume[r] = oldtotMoles[r] = 0.0;
      // 1) Here, calculate current Mass and old Volume of NAPL for each blob
      //    - Mass is required for computing current Csat in 2)
      //    - old Volume is required for updating Interfacial Area in postprocessing
@@ -4610,10 +4612,10 @@ void CKinReactData::Biodegradation( double *m_Conc, long node, double eps, doubl
         beta_4       = 0.518+0.114*Delta+0.1*m_kb->UI ; // for Powers 1994
         one_three    = 1.00/3.00;
         two_three    = 2.00/3.00;
-        four_nine    = 4.00/9.00;
-        fife_nine    = 5.00/9.00;
-        elev_nine    = 11.00/9.00;
-        fife_three   = 5.00/3.00;
+        //four_nine    = 4.00/9.00;
+        //fife_nine    = 5.00/9.00;
+        //elev_nine    = 11.00/9.00;
+        //fife_three   = 5.00/3.00;
 
         switch(shidx)
         {
@@ -5537,8 +5539,9 @@ double CKinReactData::GetPhaseVolumeAtNode(long node_number, int phase)
 double CKinReactData::GetReferenceVolume(int comp, long index)
 {
 	// Get process
-	CRFProcess const* const pcs (cp_vec[comp]->getProcess());
-	double theta (pcs->m_num->ls_theta), refvol=0;
+	//CRFProcess const* const pcs (cp_vec[comp]->getProcess());
+	//double theta (pcs->m_num->ls_theta);
+	double refvol=0;
 	long phase = cp_vec[comp]->transport_phase;
 
 	if (phase == 0)
@@ -5824,16 +5827,16 @@ double CKinReact::GetMaxSolubility(long node, double density){
 
   double Csatmax=0;
   int Sp1		= ex_species[0]+1;                //Sp1 = NAPL-species
-  double Temperature = 0, TempC = 0;
+  double Temperature = 0;// TempC = 0;
   double logK = 0;
   double R = 8.314472; // gas constant = R 8.314472(15) J/K/mol  
   double Rg = 8.20574587e-5; // gas constant =  m³g atm / K / mol  
   double Pwv = 0;            // water vapor pressure
   double Ph = 0 ;            // hydrostatic pressure
   double Pc = 0 ;            // capillary pressure
-  double grav = 9.80665;
-  double z = 1;
-  double sigma = 0;
+  //double grav = 9.80665;
+  //double z = 1;
+  //double sigma = 0;
 
   if (typeflag_CO2gasdissolution == 1){
     if(REACTINT_vec.size()>0) 
@@ -5847,7 +5850,7 @@ double CKinReact::GetMaxSolubility(long node, double density){
     return Csatmax;
   }
   
-  double arg = 0.0;
+  //double arg = 0.0;
   if(T_dependence == false)
     Csatmax = cp_vec[Sp1-1]->max_solubility;       
   else if (T_dependence == true){
@@ -6313,7 +6316,7 @@ double CKinReact::TDForcing(double *c, long node, double *AP, double Temperature
       C = c[idx] * unitfactor_l;
       
       for (size_t j = 0; j < FixedActivityhelp.size(); j++){
-        if (FixedActivityhelp[j]->speciesnumber == idx - 1){
+        if (FixedActivityhelp[j]->speciesnumber == (int)idx - 1){
           C = FixedActivityhelp[j]->concentration;
           break;
         }
@@ -6508,7 +6511,7 @@ void jacobn(double t, double c[], double dfdt[], double** dfdc, int n,
 	int Sp1, Sp2, SpX, surfaceID = -1, surfaceID2, blob;
    double maxkap, speccap, BacteriaMass, sumX=0., BacGrowth, maxVelocity, *d2X_dtdS;
 	double CMonodSpecies, MonodConcentration, CInhibitionSpecies,
-    InhibitionConcentration, Yield, MonodConcentration_save, Concentration ;
+    InhibitionConcentration, Yield, MonodConcentration_save, Concentration=-1. ;
 	double porosity1, porosity2, exch, kd, density1, saturation2;
 	double totalSurface, adsorb, exponent ;
 	//SBtodo	double occupiedSurface[maxSurfaces+1];
@@ -7557,10 +7560,10 @@ void CalcNewNAPLSat()
 {
 
   long i, j, k, l;
-  int idx0=0;
-  int  idxS1, idxS2, idxC;
+  //int idx0=0;
+  int  idxS1, idxS2=-1, idxC;
   int idxD2 = 0;
-  int idxD3, idxS3;
+  int idxD3=-1, idxS3=-1;
   long nnodes, nNAPLcomps;
   double conc, conc2;
   double rho_N_new, rho_N_old, rho_G_new;
@@ -7716,18 +7719,16 @@ void CalcNewNAPLSat()
 
       
       conc = conc2 = 0;
-      rho_N_new = rho_N_old = rho_N_new = 0;
+      rho_N_new = rho_N_old = 0;
       satu_NW_new = satu_NW_old = mass_n_n = mass_n_o = volume_n = 0;
       rho_G_new = satu_G_new = mass_g_n = mass_g_o = volume_g = 0;
       mole_g_o = mole_g_n = 0;
       satu_W_new = 0;
 
-      int m = 0;
-
       // determine the old and new NAPL density rho_N_old and rho_N_neu at current node
       for (j = 0; j < nNAPLcomps; j++) {
         l = napl_comps_pcs_idx_vector[j];
-        m = napl_comps_cp_vec_idx_vector[j];
+        //int m = napl_comps_cp_vec_idx_vector[j];
         idxC = pcs_vector[l]->GetNodeValueIndex(pcs_vector[l]->pcs_primary_function_name[0]);
         conc = pcs_vector[l]->GetNodeValue(i, idxC);// idxC = old timelevel
         conc2 = pcs_vector[l]->GetNodeValue(i, idxC + 1);// idxC+1 = new timelevel
@@ -8291,26 +8292,26 @@ double CKinReact::GetNodePoreVelocity(long node_number)
 	CRFProcess* pcs(PCSGetFlow());
 	//CFEMesh const* const msh(fem_msh_vector[0]); //SB: ToDo hart gesetzt
 
-   //long group;
-   //long el, elem;
-   long idxVx, idxVy, idxVz, idxs1;
-   double vel_nod[3]; //, coord[3], vel_ele[3];
-   //double distance, sum_w, weight;
-   //double* grav_c;
+   	//long group;
+   	//long el, elem;
+   	long idxVx, idxVy, idxVz, idxs1;
+   	double vel_nod[3]; //, coord[3], vel_ele[3];
+   	//double distance, sum_w, weight;
+   	//double* grav_c;
 	double PoreVel(0), poro(0), satu = 1.0; // default
-	double theta = pcs->m_num->ls_theta;
+	//double theta = pcs->m_num->ls_theta;
 
 	// Get node saturation of mobile (water) phase
-   if (pcs->getProcessType () == FiniteElement::PS_GLOBAL)
-   {
-    idxs1 = pcs->GetNodeValueIndex("SATURATION1"); // Sat of water phase
-    satu = pcs->GetNodeValue(node_number, idxs1); 
-   }
-   else if (pcs->getProcessType () == FiniteElement::MULTI_PHASE_FLOW)
-   {
-    idxs1 = pcs->GetNodeValueIndex("SATURATION1"); // Sat of water phase
-    satu = pcs->GetNodeValue(node_number, idxs1); 
-   }
+   	if (pcs->getProcessType () == FiniteElement::PS_GLOBAL)
+   	{
+    		idxs1 = pcs->GetNodeValueIndex("SATURATION1"); // Sat of water phase
+    		satu = pcs->GetNodeValue(node_number, idxs1); 
+   	}
+   	else if (pcs->getProcessType () == FiniteElement::MULTI_PHASE_FLOW)
+   	{
+    		idxs1 = pcs->GetNodeValueIndex("SATURATION1"); // Sat of water phase
+    		satu = pcs->GetNodeValue(node_number, idxs1); 
+   	}
 	else if (pcs->getProcessType() == FiniteElement::TWO_PHASE_FLOW)
 	{
 		if (pcs->pcs_type_number == 0)
@@ -8377,10 +8378,10 @@ double CKinReact::GetNodeDarcyVelocity(long node)
 	long i;
 	long idxVx, idxVy, idxVz;
 	double vel_nod[3];
-   double DarcyVel,   theta;//poro,satu,
+   	double DarcyVel;//   theta;//poro,satu,
 
 	m_pcs = PCSGetFlow();
-   theta = m_pcs->m_num->ls_theta;
+   	//theta = m_pcs->m_num->ls_theta;
 
 	// initialize data structures
 	for(i=0;i<3;i++)
@@ -8472,7 +8473,7 @@ void CKinReactData::PhaseVoluminaPreprocessing(){
   size_t idx = 0, idx_s, idx_b;
   long elem; //OK411
   double distance, weight, sum_w = 0;
-  double vol_poro = 0, vol_matrix = 0, vol_bio = 0;
+  //double vol_poro = 0, vol_matrix = 0, vol_bio = 0;
   double poro = 0, matrix = 0, bio = 0;
   REACTINT *m_rei = NULL;
   CMediumProperties* m_mat_mp(mmp_vector[0]);
@@ -9680,8 +9681,8 @@ void SetIniNAPLSatAndDens()
 
   long i, j, k, l;
   int idxD2 = 0;
-  int  idxS1, idxS2, idxC;
-  int idxD3, idxS3;
+  int  idxS1, idxS2=-1, idxC;
+  int idxD3=-1, idxS3=-1;
 
   long nnodes, nNAPLcomps;
   double conc, conc2, rho_N_new;

@@ -28,9 +28,8 @@
 /**************************************************************************/
 void DisplayStartMsg ( void )
 {
-	int i, pad_len;
-	char buf[128];
-
+	//int i, pad_len;
+	//char buf[128];
 	char version[] = OGS_VERSION;
 
 	printf("\n");

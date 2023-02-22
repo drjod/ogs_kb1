@@ -721,15 +721,15 @@ void CRFProcess::Create()
 			bool densityModel23Used = false;
 			if (m_mfp->density_model == 23)
 				densityModel23Used = true;
-			for (int j = 0; j < m_mfp->density_model_mat.size(); j++) // density depends on material group
+			for (size_t j = 0; j < m_mfp->density_model_mat.size(); j++) // density depends on material group
 			    if (m_mfp->density_model_mat[j] == 23)
 				  densityModel23Used = true;
-			for (int j = 0; j < m_mfp->density_model_idx.size(); j++)
+			for (size_t j = 0; j < m_mfp->density_model_idx.size(); j++)
 			  if (m_mfp->density_model_idx[j] == 23)
 				  densityModel23Used = true;
 			//
 		    if (densityModel23Used == true)
-		  	   for (int j = 0; j < m_msh->GetNodesNumber(false); j++) // now allocate
+		  	   for (size_t j = 0; j < m_msh->GetNodesNumber(false); j++) // now allocate
 				   m_mfp->Con_CO2_vector.push_back(1.0e-12);
 		
 		}
@@ -4997,7 +4997,6 @@ void CRFProcess::ConfigNODValues1(void)
 			}
 		pcs_nval++;
 	}
-	pcs_nval_data = pcs_nval_data;
 }
 
 /*************************************************************************
@@ -8357,7 +8356,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				}
 				else
 				{
-					for(size_t j(node_id-1);j>this->m_msh->xy_change[k-1]+1;j--)	//look in range from top to bottom (but skip top node)
+					for(int j(node_id-1);j>this->m_msh->xy_change[k-1]+1;j--)	//look in range from top to bottom (but skip top node)
 					{
 						
 						if(this->GetNodeValue(this->m_msh->sorted_nodes[j],val_idx) > 0)	//look for first node with p>0
@@ -8402,7 +8401,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		double value = 0, fac = 1.0, time_fac;
 		int interp_method = 0;
 		int curve, valid = 0;
-		long msh_node, shift;
+		long msh_node, shift=0;
 		MshElemType::type EleType; //ii
 		double q_face = 0.0;
 		CElem* elem = NULL;
@@ -9027,7 +9026,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		// set RHS for all nodes with scaling
 		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
 
-		for (int i = 0; i < scaling_vec.size(); ++i)
+		for (size_t i = 0; i < scaling_vec.size(); ++i)
 		{
 			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value / 
 							fabs(scaling_vec_sum[scaling_vec[i].group_number]);
@@ -9624,7 +9623,9 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		//	if (type == 42)
 		//		CalcSecondaryVariablesUnsaturatedFlow(initial);
 		//	break;
-		case FiniteElement::DEFORMATION_FLOW || FiniteElement::DEFORMATION_DYNAMIC || FiniteElement::DEFORMATION :
+		case FiniteElement::DEFORMATION_FLOW:
+		case FiniteElement::DEFORMATION_DYNAMIC:
+		case FiniteElement::DEFORMATION:
 			if (type == 42) //H2M                                                  //WW
 				CalcSecondaryVariablesUnsaturatedFlow(initial);
 			break;
@@ -11808,7 +11809,7 @@ Programming:
 	CFluidProperties* m_mfp = NULL;
 	
 	//BW 24.03.2020: update for two fluids option -> JOD, please revise whether this is a good way for this
-	for (int i = 0; i < mfp_vector.size(); i++)
+	for (size_t i = 0; i < mfp_vector.size(); i++)
     {
         if (mfp_vector[i]->name == "LIQUID")
 	    {
@@ -11825,7 +11826,7 @@ Programming:
 		   break;
 		}
 	}*/
-	CRFProcess* m_pcs = NULL;
+	//CRFProcess* m_pcs = NULL;
 	vector<int> processNDXs;
 	int ndx_dens = GetNodeValueIndex("DENSITY1");
 	// get mfp instance for LIQUID --------------------------------------------
@@ -11838,7 +11839,7 @@ Programming:
 
 		for (int i = 0; i < numberOfVariables; i++)
 		{
-			for (int j = 0; j < pcs_vector.size(); j++)
+			for (size_t j = 0; j < pcs_vector.size(); j++)
 			{
 				if (m_mfp->density_pcs_name_vector[i].compare(pcs_vector[j]->pcs_primary_function_name[0]) == 0)
 				{
@@ -11876,10 +11877,10 @@ Programming:
 void CRFProcess::CalcSecondaryVariablesViscosity()
 {
 	CFluidProperties* m_mfp = NULL;
-	CRFProcess* m_pcs = NULL;
+	//CRFProcess* m_pcs = NULL;
 	vector<int> processNDXs;
 	int ndx_visc = GetNodeValueIndex("VISCOSITY1");
-	for (int i = 0; i < mfp_vector.size(); i++)
+	for (size_t i = 0; i < mfp_vector.size(); i++)
 	{
 		if (mfp_vector[i]->name == "LIQUID")
 		{
@@ -11898,7 +11899,7 @@ void CRFProcess::CalcSecondaryVariablesViscosity()
 		{
 			for (int i = 0; i < numberOfVariables; i++)
 			{
-				for (int j = 0; j < pcs_vector.size(); j++)
+				for (size_t j = 0; j < pcs_vector.size(); j++)
 				{
 					if (m_mfp->viscosity_pcs_name_vector[i].compare(pcs_vector[j]->pcs_primary_function_name[0]) == 0)
 					{
@@ -12168,20 +12169,20 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
 		switch(pcsT)
 		{
 		case 0:                   //Liquid_Flow
-			if(m_pcs = PCSGet(FiniteElement::LIQUID_FLOW))
-             if(m_pcs->napl_dissolution) 
-			    {
-				  idx = m_pcs->GetNodeValueIndex(var_name) ;
-				  cplpcs = m_pcs;
-			    }
+			if(m_pcs == PCSGet(FiniteElement::LIQUID_FLOW))
+             			if(m_pcs->napl_dissolution) 
+			    	{
+					idx = m_pcs->GetNodeValueIndex(var_name);
+				  	cplpcs = m_pcs;
+			    	}
 			break;
 		case 1:                   //Groundwater Flow
-			if(m_pcs = PCSGet(FiniteElement::LIQUID_FLOW))
-             if(m_pcs->napl_dissolution) 
-			    {
-				  idx = m_pcs->GetNodeValueIndex(var_name) ;
-				  cplpcs = m_pcs;
-			    }
+			if(m_pcs == PCSGet(FiniteElement::LIQUID_FLOW))
+             			if(m_pcs->napl_dissolution) 
+			    	{
+				  	idx = m_pcs->GetNodeValueIndex(var_name);
+				  	cplpcs = m_pcs;
+			    	}
 			break;
 		case 66:                  //Overland Flow
 			break;
@@ -12937,9 +12938,9 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
 					vec_nodes_edge.push_back(m_edg->GetNode(0));
 					vec_nodes_edge.push_back(m_edg->GetNode(1));
 					//loop over the nodes of the edge to check if all of them are on the polyline
-					for (int k = 0; k < int(vec_nodes_edge.size()); k++) {
+					for (size_t k = 0; k < vec_nodes_edge.size(); k++) {
 						Point_on_Geo = false;
-						for (int l = 0; l < int(nod_vector_at_geo.size()); l++) {
+						for (size_t l = 0; l < nod_vector_at_geo.size(); l++) {
 							if (vec_nodes_edge[k]->GetIndex() == nod_vector_at_geo[l]) {
 								Point_on_Geo = true;
 								l = nod_vector_at_geo.size();
@@ -13191,10 +13192,10 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
 						vec_nodes_edge.push_back(m_edg->GetNode(0));
 						vec_nodes_edge.push_back(m_edg->GetNode(1));
 						//loop over the nodes of the edge to check if all of them are on the polyline
-						for (int k = 0; k < int(vec_nodes_edge.size()); k ++)
+						for (size_t k = 0; k < vec_nodes_edge.size(); k ++)
 						{
 							Point_on_Geo = false;
-							for (int l = 0; l < int(nod_vector_at_geo.size()); l ++)
+							for (size_t l = 0; l < nod_vector_at_geo.size(); l ++)
 							{
 								if (vec_nodes_edge[k]->GetIndex() == nod_vector_at_geo[l])
 								{
@@ -13659,8 +13660,9 @@ void CRFProcess::CalcSecondaryVariablesIcefraction()  // BW merged 2022-05-12
 						 */
 					}
 				}
-				if(m_edg->GetMark())
-					break;
+				//if(m_edg->GetMark())
+				//	break;
+				break;
 			//----------------------------------------------------------------
 			// ToDo
 			default:
@@ -16559,8 +16561,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 				{
 					cout << "Density calculation of water was not possible" <<
 					"\n";
-					system("Pause");
-					exit(0);
+					exit(system("Pause"));
 				}
 				//calculate new moles of H2O
 				//c_H2OinLiquid = (Density_liquid - c_CO2inLiquid * Molweight_CO2 * 1e-3 - c_NaClinLiquid * Molweight_NaCl * 1e-3) / (Molweight_H2O * 1e-3);	//[mol]
@@ -16640,8 +16641,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 				{
 					cout << "Density calculation of gas was not possible" <<
 					"\n";
-					system("Pause");
-					exit(0);
+					exit(system("Pause"));
 				}
 				//set new density to nodes
 				variable_index = m_pcs->GetNodeValueIndex("DENSITY2");
@@ -16675,7 +16675,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 		// get the variable indicies for ogs
 		int P_old_index;
 		//int P_new_index;
-		int Sat_g_index, Sat_w_index;
+		int Sat_g_index, Sat_w_index=-1;
 		if (multi_phase == true)
 		{
 			P_old_index = h_pcs->GetNodeValueIndex("PRESSURE2");    // old timestep
@@ -16824,12 +16824,12 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 					NodeValues[m_ele->GetNodeIndex(j)] += sourceterm_data[j];
 				}
 
-				delete sourceterm_data;
-				delete JTCoeff;
-				delete p_data;
-				delete t_data;
-				delete s_data;
-				delete kr_data;
+				delete[] sourceterm_data;
+				delete[] JTCoeff;
+				delete[] p_data;
+				delete[] t_data;
+				delete[] s_data;
+				delete[] kr_data;
 			}
 
 			for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
@@ -16862,7 +16862,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 	**************************************************************************/
 	void CRFProcess::IncorporateJouleThomsonEffect(void)
 	{
-		const clock_t start = clock();
+		//const clock_t start = clock();
 		bool multi_phase = true;
 		// get the flow process
 		CRFProcess* h_pcs = PCSGet("MULTI_PHASE_FLOW");
@@ -16920,8 +16920,8 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 
 		CalcHeatST_JT(h_pcs, heat_st_mpf, multi_phase); // calcualte change in heat and write data to rhs
 
-		const clock_t finish = clock();
-		const double time = (static_cast<double>(finish)-static_cast<double>(start)) / CLOCKS_PER_SEC;
+		//const clock_t finish = clock();
+		//const double time = (static_cast<double>(finish)-static_cast<double>(start)) / CLOCKS_PER_SEC;
 		//std::cout << "        Total time for IncorporateJouleThomsonEffect: " << time << " seconds." << "\n";
 	}
 
@@ -17267,8 +17267,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 				     << "\n";
 				cout << "Before: " << Volume_eff << " After: " << gas.volume +
 				liquid.volume << "\n";
-				system("Pause");
-				exit(0);
+				exit(system("Pause"));
 			}
 
 			//set new densities to nodes
@@ -17566,8 +17565,8 @@ Used for LIQUID_FLOW with varying fluid density
 void CRFProcess::StoreInitialValues(std::string variable_name) { 
 
 	//string variable_name = "DELTA_" + convertPrimaryVariableToString(getProcessPrimaryVariable());
-	int index = GetNodeValueIndex(variable_name);
-	for (int i = 0; i < (long)m_msh->nod_vector.size(); i++)
+	//int index = GetNodeValueIndex(variable_name);
+	for (size_t i = 0; i < m_msh->nod_vector.size(); i++)
 	{
 		SetNodeValue(i, GetNodeValueIndex(variable_name), GetNodeValue(i, 0));
 	}
@@ -17597,7 +17596,7 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 
 	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
 	{
-		if (m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
+		if ((int)m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
 		{ // -1 : take all
 			CElem* elem = m_msh->ele_vector[i];
 			//if (!elem->GetMark())
@@ -17609,7 +17608,7 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 			//geoArea = elem->GetFluxArea();
 
 			const CRFProcess* const m_pcs_liquid = PCSGet("LIQUID_FLOW");
-			double nodesVal[8], nodesVal_liquid[8],x_coord[8], z_coord[8];
+			double nodesVal[8], nodesVal_liquid[8], z_coord[8];
 			const bool flag_delta = (_nod_value_vector.size() == 1 && _nod_value_vector[0].find("DELTA") == 0)? true: false;
 
 			for (size_t j = 0; j < elem->GetNodesNumber(m_msh->getOrder()); j++)
@@ -17664,7 +17663,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 
 	double velocity_ref[3];
 	std::vector<long> nodes, elements_at_node;
-	bool flag_symmetric = false;
+	//bool flag_symmetric = false;
 	const double falpha_value = fabs(alpha_value);
 
 	// get an element
@@ -18042,7 +18041,7 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 	switch(average_mode)
 	{
 		case 0:  // average over node values
-			for(int i=0; i< nodes_vector.size(); ++i)
+			for(size_t i=0; i< nodes_vector.size(); ++i)
 			{
 
 				value += GetNodeValue(nodes_vector[i], 1); // implicit
@@ -18057,7 +18056,7 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 
 			break;
 		case 1:  // average over node values and weight with geometry area
-			for(int i=0; i< nodes_vector.size(); ++i)
+			for(size_t i=0; i< nodes_vector.size(); ++i)
 			{
 				value += GetNodeValue(nodes_vector[i], 1) *  // implicit
 						length_vector[i];
@@ -18074,7 +18073,7 @@ double CRFProcess::calculateNodeValueFromConnectedNodes(const std::vector<long>&
 			if(m_pcs_liquid)
 			{
 				double ST_values_total = 0.;
-				for(int i=0; i< nodes_vector.size(); ++i)
+				for(size_t i=0; i< nodes_vector.size(); ++i)
 				{  // !!! LIQUID_FLOW has to keep source / sink term values
 					if(m_pcs_liquid->ST_values_kept.find(nodes_vector[i]) != m_pcs_liquid->ST_values_kept.end())
 					{

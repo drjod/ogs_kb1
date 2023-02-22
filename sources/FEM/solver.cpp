@@ -389,7 +389,7 @@ int SpJOR(double* b, double* x, long n)
 	static double eps;
 	int k = 0, max_iter = 0;
 	static double r0norm, b0norm, x0norm;
-	register long i;
+	long i;
 	static double h;
 
 	/* Ggf. starten der Vorkonditionierung */
@@ -546,7 +546,7 @@ int SpSOR(double* b, double* x, long n)
 	static double eps;
 	int k = 0, max_iter = 0;
 	static double r0norm, b0norm, x0norm;
-	register long i, j;
+	long i, j;
 	static double h, sum;
 
 	/* Ggf. starten der Vorkonditionierung */
@@ -700,7 +700,7 @@ void Gauss(double* matrix, double* vecb, double* vecx, int g)
 	   matrix[i][j] -> matrix[i*g+j] */
 	static int* s;
 	static double z, hilf;
-	register int k, i, j, sk;
+	int k, i, j, sk;
 	s = (int*) Malloc(sizeof(int) * (g - 1));
 	/* LR-Faktorisierung */
 	for (k = 0; k < (g - 1); k++)
@@ -1383,7 +1383,7 @@ int SpBICG(double* b, double* x, long n)
 	/* Variablen */
 	static double* r, * rs, * p, * ps, * v, * tmp;
 	static double alpha, beta, rho, rho1, eps;
-	register int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
+	int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
 	int k = 0, max_iter = 0;
 	static double r0norm, b0norm, x0norm;
 
@@ -1589,7 +1589,7 @@ int SpBICGSTAB(double* b, double* x, long n)
 	double* r, * r2, * rs, * p, * s, * t, * v;
 #endif
 	double alpha, beta, omega, rho, rho1, eps = 0.;
-	register long i;                      /* schnellere Vektoroperationen, Ra, 3/2000 */
+	long i;                      /* schnellere Vektoroperationen, Ra, 3/2000 */
 	int k = 0, max_iter = 0, repeat = 0;
 	double r0norm = 0., b0norm = 0., x0norm = 0., tt, ts, rsv;
 	//WW double error_rel;
@@ -1843,7 +1843,7 @@ int SpQMRCGSTAB(double* b, double* x, long n)
 	static double* r, * rs, * d, * ds, * p, * s, * t, * v, * xs;
 	static double alpha, beta, omega, rho, rho1, eps;
 	static double tau, teta, eta, taus, tetas, etas, c;
-	register int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
+	int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
 	int k = 0, max_iter = 0;
 	static double r0norm, b0norm, x0norm;
 
@@ -2233,7 +2233,7 @@ int SpCG(double* b, double* x, long n)
 	static double* d, * r,* s, * tmp;
 	static double alpha, beta, tmpr, eps;
 	int k = 0, max_iter = 0;
-	register int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
+	int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
 	static double r0norm, b0norm, x0norm;
 
 	/* Ggf. starten der Vorkonditionierung */
@@ -2394,7 +2394,7 @@ int SpCGNR(double* b, double* x, long n)
 	static double* d, * r,* s, * tmp, * h = NULL;
 	static double alpha, beta, tmpr, tmpr1, eps;
 	int k = 0, max_iter = 0;
-	register int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
+	int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
 	static double r0norm, b0norm, x0norm;
 
 	/* Ggf. starten der Vorkonditionierung */
@@ -2564,7 +2564,7 @@ int SpCGS(double* b, double* x, long n)
 	static double alpha, beta, rho, rho1;
 	static double eps;
 	static double r0norm, b0norm, x0norm;
-	register int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
+	int i;                       /* schnellere Vektoroperationen, Ra, 3/2000 */
 	int k = 0, max_iter = 0;
 
 	/* Ggf. starten der Vorkonditionierung */
@@ -2749,7 +2749,7 @@ int SpGauss(double* vecb, double* vecx, long g)
 	   matrix[i][j] -> matrix[i*g+j] */
 	static int* s;
 	static double z, hilf;
-	register int k, i, j, sk;
+	int k, i, j, sk;
 #ifdef TESTLOES
 	DisplayMsgLn("SpGAUSS");
 #endif

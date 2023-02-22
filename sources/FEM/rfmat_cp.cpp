@@ -1215,7 +1215,6 @@ int CompProperties::GetNumberDiffusionValuesCompProperties(int diffusion_model)
 		n = 0;
 		break;                    /* Keine Diffusion */
 	case 0:                               /* curve */
-		n = 1;
 	case 1:
 		n = 1;
 		break;                    /* Konstanter Diffusionswert */
@@ -1328,9 +1327,8 @@ int CompProperties::GetNumberIsothermValuesCompProperties(int isotherm)
 	switch (isotherm)
 	{
 	case -1: n = 0;                       /* no isotherm */
-	case 0:
-		n = 1;
-		break;                    /* get KD from curve derivative */
+		 break;
+	case 0: 			  /* get KD from curve derivative */
 	case 1:
 		n = 1;
 		break;                    /* Henry Isotherm */

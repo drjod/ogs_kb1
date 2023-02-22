@@ -547,9 +547,7 @@ extern CSourceTerm* STGet(const std::string&, const std::string&, const std::str
 extern double GetAnalyticalSolution(long node_number, CSourceTerm* m_st);
 //extern  void GetRiverNODValue(double& value, CNodeValue* cnodev, const CSourceTerm* m_st);
 extern double GetConditionalNODValue(CSourceTerm* m_st, CNodeValue* cnodev);
-//MB
-extern void GetCriticalDepthNODValue(double& value, CSourceTerm*, long msh_node);
-// JOD
+//extern void GetCriticalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 extern void GetCouplingNODValue(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
 // JOD
 extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
@@ -557,7 +555,7 @@ extern void GetCouplingNODValueNewton(double& value, CSourceTerm* m_st, CNodeVal
 // && !defined(NEW_EQS) // && defined(other parallel libs)//03~04.3012. WW
 //#ifndef NEW_EQS                                   //WW. 06.11.2008
                                                   //MB JOD
-extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
+//extern void GetNormalDepthNODValue(double& value, CSourceTerm*, long msh_node);
 // JOD
 extern void GetCouplingNODValuePicard(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
 extern void GetCouplingNODValueConvectiveForm(double& value, CSourceTerm* m_st, const long mesh_node_number);//, CNodeValue* cnodev);  // JOD 2020-03-25
@@ -568,8 +566,6 @@ extern double CalcCouplingValue(double factor,
                                 double h_cond,
                                 double z_cond,
                                 CSourceTerm* m_st);
-// JOD
-extern void GetCouplingNODValueMixed(double& value, CSourceTerm* m_st, CNodeValue* cnodev);
 // JOD
 extern void GetCouplingFieldVariables(CRFProcess* m_pcs_this,  
                                       CRFProcess* m_pcs_cond,

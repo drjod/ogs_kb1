@@ -142,8 +142,8 @@ int M3KreuzProdukt(double* vec1, double* vec2, double* vec)
 double MSkalarprodukt(double* vec1, double* vec2, long g)
 {
 #ifndef CBLAS_MSkalarprodukt
-	register long i;
-	register double sammy = 0.0;
+	long i;
+	double sammy = 0.0;
 #ifdef SX
 #pragma cdir nodep
 #endif

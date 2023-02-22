@@ -424,6 +424,7 @@ namespace SolidProp
 						in_sd.clear();
 						conductivity_pcs_name_vector.push_back("TEMPERATURE1");
 						//conductivity_pcs_name_vector.push_back("SATURATION1");
+						break;
 					}
 					case 7:       //  thermal conductivity soil and ice merged from BW 2022-05-12
 						data_Conductivity = new Matrix(3);

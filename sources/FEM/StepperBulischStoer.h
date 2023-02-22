@@ -233,77 +233,77 @@ public:
 				else // Store result in tableau.
 					for (size_t i=0;i<n;i++)
 						table(k-1,i)=yseq[i];
-					// debug
-					// std::cout << table;
-					if (k  !=  0)  
+				// debug
+				// std::cout << table;
+				if (k  !=  0)  
+				{
+					polyextr(k,table,y); // Perform extrapolation.
+					err=0.0; // Compute normalized error estimate errk.
+				
+					for (size_t i=0;i<n;i++)
 					{
-						polyextr(k,table,y); // Perform extrapolation.
-						err=0.0; // Compute normalized error estimate errk.
-					
-						for (size_t i=0;i<n;i++)
-						{
-							scale[i]=atol+rtol*std::max(fabs(ysav[i]),fabs(y[i]));
-							err+=SQR((y[i]-table(0,i))/scale[i]);
-						}
-					
-						err=sqrt(err/n);
-						double  expo=1.0/(2*k+1); // Compute optimal step size for this order.
-						double  facmin=pow(STEPFAC3,expo);
-					
-						if (err  ==  0.0)
-							fac=1.0/facmin;
-						else
-						{
-							fac = STEPFAC2/pow(err/STEPFAC1,expo);
-							fac = std::max(facmin/STEPFAC4, std::min(1.0/facmin,fac));
-						}
-					
-						hopt[k]=fabs(h*fac);
-						work[k]=cost[k]/hopt[k];  // Work per unit step (17.3.13).
-					
-						if ((first_step ||  last_step)  &&  err  <=  1.0)
+						scale[i]=atol+rtol*std::max(fabs(ysav[i]),fabs(y[i]));
+						err+=SQR((y[i]-table(0,i))/scale[i]);
+					}
+				
+					err=sqrt(err/n);
+					double  expo=1.0/(2*k+1); // Compute optimal step size for this order.
+					double  facmin=pow(STEPFAC3,expo);
+				
+					if (err  ==  0.0)
+						fac=1.0/facmin;
+					else
+					{
+						fac = STEPFAC2/pow(err/STEPFAC1,expo);
+						fac = std::max(facmin/STEPFAC4, std::min(1.0/facmin,fac));
+					}
+				
+					hopt[k]=fabs(h*fac);
+					work[k]=cost[k]/hopt[k];  // Work per unit step (17.3.13).
+				
+					if ((first_step ||  last_step)  &&  err  <=  1.0)
+						break;
+					if  (k  ==  k_targ-1  &&  !prev_reject &&  !first_step  &&  !last_step)  
+					{
+						if  (err  <=  1.0) // Converged within order window.
 							break;
-						if  (k  ==  k_targ-1  &&  !prev_reject &&  !first_step  &&  !last_step)  
+						else if (err > SQR(nseq[k_targ]*nseq[k_targ+1]/(nseq[0]*nseq[0])))
 						{
-							if  (err  <=  1.0) // Converged within order window.
-								break;
-							else if (err > SQR(nseq[k_targ]*nseq[k_targ+1]/(nseq[0]*nseq[0])))
-							{
-								reject=true; // Criterion (17.3.17) predicts step will fail.
-								k_targ=k;
-								if  (k_targ>1  &&  work[k-1]<KFAC1*work[k])
-									k_targ--;
-							
-								hnew=hopt[k_targ];
-								break;
-							}
-						}
-					
-						if  (k == k_targ)  {
-							if  (err  <=  1.0)
-								break; // Converged within order window.
-							else if (err > SQR(nseq[k+1]/nseq[0]))
-							{
-								reject=true; // Criterion (17.3.20) predicts step will fail.
-								if  (k_targ>1 && work[k-1]<KFAC1*work[k])
-									k_targ--;
-								hnew=hopt[k_targ];
-								break;
-							}
-						}
-					
-						if  ( k == k_targ+1 )
-						{
-							if  ( err > 1.0 )
-							{
-								reject=true;
-								if  (k_targ>1  &&  work[k_targ-1]<KFAC1*work[k_targ])
-									k_targ--;
-								hnew=hopt[k_targ];
-							}
+							reject=true; // Criterion (17.3.17) predicts step will fail.
+							k_targ=k;
+							if  (k_targ>1  &&  work[k-1]<KFAC1*work[k])
+								k_targ--;
+						
+							hnew=hopt[k_targ];
 							break;
 						}
 					}
+				
+					if  (k == k_targ)  {
+						if  (err  <=  1.0)
+							break; // Converged within order window.
+						else if (err > SQR(nseq[k+1]/nseq[0]))
+						{
+							reject=true; // Criterion (17.3.20) predicts step will fail.
+							if  (k_targ>1 && work[k-1]<KFAC1*work[k])
+								k_targ--;
+							hnew=hopt[k_targ];
+							break;
+						}
+					}
+				
+					if  ( k == k_targ+1 )
+					{
+						if  ( err > 1.0 )
+						{
+							reject=true;
+							if  (k_targ>1  &&  work[k_targ-1]<KFAC1*work[k_targ])
+								k_targ--;
+							hnew=hopt[k_targ];
+						}
+						break;
+					}
+				}
 			} // Go back and try next k.
 		
 			if (reject) // Arrive here from any break in for loop.

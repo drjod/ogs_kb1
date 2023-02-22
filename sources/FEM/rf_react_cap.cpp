@@ -641,24 +641,24 @@ Extended for MPI Parallelization DL, CB 05/06/2014
 */
 void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
 
-  double pressure, density, volume, compressibility, entropy, internal_energy, enthalpy, gibbs, helmholtz, Cv, Cp, themperature;
-  double Tx, Px, Dx;
+  //double pressure, density, volume, compressibility, entropy, internal_energy, enthalpy, gibbs, helmholtz, Cv, Cp, themperature;
+  //double Tx, Px, Dx;
   //CAP_MODE=2; // now from input file
   CAP_icount = 1;
   CAP_Time = 0;
   CAP_Node = 0;
 
-  int ii, ok = 0, ik = 0;
+  int ii, ok = 0;// ik = 0;
   this->myrank = 0;
   int position = 0;
   int ns = 0; // (int)species_name.size();
   int nos = 0; // (int)pcs_ospecies_idx.size();
   int nns = 0; // (int)pcs_nspecies_idx.size();
   int nidx = 0;
-  int entrypoint = 0;
+  //int entrypoint = 0;
   CRFProcess* m_pcs = NULL;
   double *Concentration;  // concentration of all result
-  double *nod_HKF_logK, *nod_SAC, *nod_KIN_logK;
+  double *nod_HKF_logK=NULL, *nod_SAC=NULL, *nod_KIN_logK=NULL;
   double *CAPtimes = NULL;  
   int nHKF = 0, nKIN = 0;
   int nComponents;
@@ -883,16 +883,16 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
   //***********************************************************
 
   int widx = 0;
-  for (int i = 0; i < (size_t)ns; i++)
+  for (int i = 0; i < ns; i++)
   if (species_phase[i] == 2)   // liquid phase
   if (strcmp(species_name[i], "H2O") == 0 || strcmp(species_name[i], "H2O_liquid") == 0 || strcmp(species_name[i], "water_liquid") == 0)
     widx = i; // save the species index of watre species
 
 
   // loop over ranks / over number of nodelist vectors
-  for (ii = 0; ii < ranknodeliststore.size(); ii++){
+  for (ii = 0; ii < (int)ranknodeliststore.size(); ii++){
     // loop over the nodelist for a single rank
-    for (int jj = 0; jj < ranknodeliststore[ii].size(); jj++){
+    for (size_t jj = 0; jj < ranknodeliststore[ii].size(); jj++){
       
       // get start position of concentration vector for this node in Concentration data array
       nidx = ranknodeliststore[ii][jj];
@@ -903,7 +903,7 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
         continue;
 
       // regular species
-      for (int i = 0; i < (size_t)ns; i++){ //mol/m³
+      for (int i = 0; i < ns; i++){ //mol/m³
         if (species_dormant[ns - i - 1] == 0){  // non dormant
           m_pcs = pcs_vector[pcs_mass_idx[ns - i - 1]];
           if (species_phase[ns - i - 1] == 0){       // solid phase
@@ -923,13 +923,13 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
       }//push back chemical equilibrium values
 
       //return species value at this node and time step, if pcs_ospecies_idx.size>0  22.01.2009
-      for (int i = 0; i < (size_t)nos; i++){
+      for (int i = 0; i < nos; i++){
         m_pcs = pcs_vector[pcs_ospecies_idx[i]];
         m_pcs->SetNodeValue(nidx, 1, Concentration[position + ns + i]);
       }//end return species value
 
       //return nlog value of species at this node, if pcs_nspecies_idx.size>0
-      for (int i = 0; i < (size_t)nns; i++){
+      for (int i = 0; i < nns; i++){
         m_pcs = pcs_vector[pcs_nspecies_idx[i]];
         m_pcs->SetNodeValue(nidx, 1, Concentration[position + ns + nos + i]);
       }
@@ -2021,7 +2021,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 
   //return pcs rename pre 
   // in new version, set in problem.cpp ?
-  for(i=0;i<(int)pcs_rename_idx0_pre.size();i++){
+  for(i=0;i<pcs_rename_idx0_pre.size();i++){
 	value=0.0;
 	for(ix=0;ix<(int)pcs_rename_idx1_pre[i].size();ix++){
 		m_pcs= pcs_vector[pcs_rename_idx1_pre[i][ix]];
@@ -2768,7 +2768,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 		//	}		
 
 		//return species value at this node and time step, if pcs_ospecies_idx.size>0  22.01.2009
-		for(i=0;i<(int)pcs_ospecies_idx.size();i++){
+		for(i=0;i<pcs_ospecies_idx.size();i++){
 		  m_pcs=pcs_vector[pcs_ospecies_idx[i]];
 		  CAP_tqinpc((char *)m_pcs->pcs_primary_function_name[0], 2, &ipc, &noerr);
 		  CAP_tqgetr((char *)"a", 2, ipc, &value, &noerr);
@@ -2777,7 +2777,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 		}//end return species value
 
         //return nlog value of species at this node, if pcs_nspecies_idx.size>0
-		for(i=0;i<(int)pcs_nspecies_idx.size();i++){
+		for(i=0;i<pcs_nspecies_idx.size();i++){
 			m_pcs=pcs_vector[pcs_nspecies_idx[i]];
 			if(species_nlog_phase[nspecies_idx[i]]==0)
             //TQGETR 	5 	Gets calculated equilibrium results
@@ -2794,7 +2794,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
         //return redox Eh value of given reaction at this node
         if(pcs_redox>-1){
 		  value1=0.0;
-          for (i = 2; i<(int)species_redox_name.size(); i++){
+          for (i = 2; i<species_redox_name.size(); i++){
 			  if(species_redox_phase[i]==0)
               //TQGETR 	5 	Gets calculated equilibrium results
 				  CAP_tqgetr((char *)"ac", species_redox_idx[i], 0, &value, &noerr);
@@ -2823,7 +2823,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
   }
 
   //return pcs rename
-  for(i=0;i<(int)pcs_rename_idx0.size();i++){
+  for(i=0;i<pcs_rename_idx0.size();i++){
 	value=0.0;
 	for(ix=0;ix<(int)pcs_rename_idx1[i].size();ix++){
 
@@ -2914,14 +2914,14 @@ void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodel
   vector<double> a, b, x;
   vector<double> species_value_s;
 
-  int rank=0;
-  double t1 = 0;
+  //int rank=0;
+  //double t1 = 0;
 
   ff = f; // if ff=0-->initial calculation,  ff=1->full geochemical system, ff=-1->for liquid system
   fg = f;
   f = 1;  //old time level or new time level
 
-  for (ii = 0; ii < ranknodelist.size(); ii++) if (this->rateflag[ ranknodelist[ii] ] != 0) ik++;
+  for (ii = 0; ii < (int)ranknodelist.size(); ii++) if (this->rateflag[ ranknodelist[ii] ] != 0) ik++;
   cout << " Calculating geochemical equilibrium at " << ik << " nodes" ;
 #if /*defined(USE_MPI) &&*/ defined(USE_MPI_KRC)	
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -3253,19 +3253,19 @@ void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodel
             if (first_time && fg == 0){ // do when the first node is called
               //TQCE 	5 	Calculates the chemical equilibrium
               if (ii == 0)
-                CAP_tqce(" ", 0, 0, vals, &noerr);
+                CAP_tqce((char*)" ", 0, 0, vals, &noerr);
               else 
-                CAP_tqce(" ", 0, 0, vals, &noerr);
+                CAP_tqce((char*)" ", 0, 0, vals, &noerr);
               first_time = false;
             }
             else {
               if (ii == 1 || ii == 4 || ii == 6 /*|| ii==12 || ii==16 || ii==20 */){
                 //TQCE 	5 	Calculates the chemical equilibrium
-                CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+                CAP_tqce((char*)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
               }
               else{
                 //TQCE 	5 	Calculates the chemical equilibrium
-                CAP_tqce(" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
+                CAP_tqce((char*)" ", 0, 0, vals, &noerr); // this is faster, using previuos result as start for iteration
               }
             }
 			  
@@ -3324,7 +3324,7 @@ void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodel
                 noerr = 0;
                 if (first_time && fg == 0){ // do when the first node is called
                   //TQCE 	5 	Calculates the chemical equilibrium
-                  CAP_tqce(" ", 0, 0, vals, &noerr);
+                  CAP_tqce((char*)" ", 0, 0, vals, &noerr);
                   first_time = false;
                 }
                 else {
@@ -3778,7 +3778,7 @@ void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodel
           //return redox Eh value of given reaction at this node
           if (pcs_redox>-1){
             value1 = 0.0;
-            for (i = 2; i<(int)species_redox_name.size(); i++){
+            for (i = 2; i<species_redox_name.size(); i++){
               if (species_redox_phase[i] == 0)
                 //TQGETR 	5 	Gets calculated equilibrium results
                 CAP_tqgetr((char *)"ac", species_redox_idx[i], 0, &value, &noerr);

@@ -72,7 +72,7 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 			b += d;
 		else
 			b += SIGN(tol1,xm);
-			fb=func(b);
+		fb=func(b);
 	}
 	throw("Maximum number of iterations exceeded in zbrent");
 	return 0.0;

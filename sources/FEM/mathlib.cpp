@@ -187,8 +187,8 @@ VoidFuncDXCDX GradShapeFunction = NULL;
 
 double MBtrgVec(double* vec, long n)
 {
-	register long i;
-	register double zwo = 0.0;
+	long i;
+	double zwo = 0.0;
 	for (i = 0; i < n; i++)
 		zwo += vec[i] * vec[i];
 	return sqrt(zwo);
@@ -995,8 +995,8 @@ double MAngleVectors(double* v1, double* v2)
 
 void MNormiere(double* vec, long n)
 {
-	register long i;
-	register double vl;
+	long i;
+	double vl;
 	vl = MBtrgVec(vec, n);
 	for (i = 0; i < n; i++)
 		vec[i] = vec[i] / vl;
@@ -1042,8 +1042,8 @@ double M2Determinante(double* matrix)
 
 double Mxg2Determinante(double* matrix, long m, long n)
 {
-	register long i, k, sprung;
-	register double depp = 0.0, dussel;
+	long i, k, sprung;
+	double depp = 0.0, dussel;
 #ifdef ERROR_CONTROL
 	if (m != n)
 	{
@@ -1108,8 +1108,8 @@ double Mxg2Determinante(double* matrix, long m, long n)
 
 void MTranspoVec(double* vec, long g)
 {
-	register long i;
-	register double zwiebel;
+	long i;
+	double zwiebel;
 	for (i = 0; i < g / 2; i++)
 	{
 		zwiebel = vec[i];
@@ -1137,7 +1137,7 @@ void MTranspoVec(double* vec, long g)
 
 void MTranspoMat(double* mat1, long m, long n, double* mat2)
 {
-	register long i, k;
+	long i, k;
 	for (i = 0; i < n; i++)
 		for (k = 0; k < m; k++)
 			mat2[i * m + k] = mat1[k * n + i];
@@ -1163,8 +1163,8 @@ void MTranspoMat(double* mat1, long m, long n, double* mat2)
 
 void M2InvertiereUndTransponiere(double* m)
 {
-	register double eddet, zecke;
-	register int i;
+	double eddet, zecke;
+	int i;
 	eddet = m[0] * m[3] - m[1] * m[2];
 	if (fabs(eddet) >  MKleinsteZahl)
 		eddet = 1.0 / eddet;
@@ -1201,8 +1201,8 @@ void M2InvertiereUndTransponiere(double* m)
 
 void M2Invertiere(double* m)
 {
-	register double eddet, zecke;
-	register int i;
+	double eddet, zecke;
+	int i;
 	eddet = m[0] * m[3] - m[1] * m[2];
 	if (fabs(eddet) >  MKleinsteZahl)
 		eddet = 1.0 / eddet;
@@ -1232,8 +1232,8 @@ void M2Invertiere(double* m)
 void M3Invertiere(double* m)
 {
 	double z[9];
-	register double d;
-	register int i;
+	double d;
+	int i;
 	d = m[0] * (m[4] * m[8] - m[7] * m[5]) \
 	    + m[3] * (m[7] * m[2] - m[1] * m[8]) \
 	    + m[6] * (m[1] * m[5] - m[4] * m[2]);
@@ -1270,7 +1270,7 @@ void M3Invertiere(double* m)
 **************************************************************************/
 void MInvertiere(double* mat, long m, long n)
 {
-	register long i, j, k;
+	long i, j, k;
 
 #ifdef ERROR_CONTROL
 	if (m != n)
@@ -1324,7 +1324,7 @@ int MAddVektoren(double* restrict v1, double* restrict v2, double* restrict vout
 int MAddVektoren(double* v1, double* v2, double* vout, long g)
 #endif
 {
-	register long i;
+	long i;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -1353,7 +1353,7 @@ int MAddMatrizen(double* restrict m1, double* restrict m2, double* restrict mout
 int MAddMatrizen(double* m1, double* m2, double* mout, long m, long n)
 #endif
 {
-	register long i;
+	long i;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -1381,7 +1381,7 @@ int MMultVecSkalar(double* restrict vec, double skal, long g)
 int MMultVecSkalar(double* vec, double skal, long g)
 #endif
 {
-	register long i;
+	long i;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -1409,7 +1409,7 @@ int MMultMatSkalar(double* restrict matrix, double skal, long m, long n)
 int MMultMatSkalar(double* matrix, double skal, long m, long n)
 #endif
 {
-	register long i;
+	long i;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -1767,7 +1767,7 @@ double* MMachMat(long m, long n)
 
 void MNullMat(double* zwerg, long m, long n)
 {
-	register long i;
+	long i;
 #ifdef ERROR_CONTROL
 	if (zwerg == NULL)
 		DisplayErrorMsg("Fehler in MNullMat");
@@ -1814,7 +1814,7 @@ void MLoeschMat(double* mat)
 
 void MKopierMat(double* matq, double* matz, long m, long n)
 {
-	register long i;
+	long i;
 	for (i = 0; i < m * n; i++)
 		matz[i] = matq[i];
 }                                                 /* MKopierMat */
@@ -1907,8 +1907,8 @@ void MZeigMat(double* mat, long m, long n, char* text)
 **************************************************************************/
 double MVekNormMax(double* x, long n)
 {
-	register long i;
-	register double erg = fabs(x[0]);
+	long i;
+	double erg = fabs(x[0]);
 	for (i = 1l; i < n; i++)
 		if (fabs(x[i]) > erg)
 			erg = fabs(x[i]);
@@ -2873,7 +2873,9 @@ double MCalcDistancePointToPlane(double const* const pt,double* e1,double* e2,do
 
 	/* Flaeche auf der Ebene */
 	area = MBtrgVec(normal, 3);
-
+//std::cout << "e1: "<< e1[0] << " " << e1[1] << " " << e1[2] << std::endl;
+//std::cout << "e2: "<< e2[0] << " " << e2[1] << " " << e2[2] << std::endl;
+//std::cout << "e3: "<< e3[0] << " " << e3[1] << " " << e3[2] << std::endl;
 #ifdef ERROR_CONTROL
 	if (area < MKleinsteZahl)
 	{
@@ -2976,7 +2978,7 @@ double MRange(double a, double b, double c)
 
 void MNulleVec(double* vec, long g)
 {
-	register long i;
+	long i;
 	for (i = 0; i < g; i++)
 		vec[i] = 0.0;
 }
@@ -2997,7 +2999,7 @@ void MNulleVec(double* vec, long g)
 
 void MNulleMat(double* mat, long m, long n)
 {
-	register long i;
+	long i;
 	for (i = 0; i < m * n; i++)
 		mat[i] = 0.0;
 }
@@ -3026,8 +3028,8 @@ void MNulleMat(double* mat, long m, long n)
 **************************************************************************/
 double MVekNorm1(double* x, long n)
 {
-	register long i;
-	register double erg = 0.0;
+	long i;
+	double erg = 0.0;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -3055,8 +3057,8 @@ double MVekNorm1(double* x, long n)
 **************************************************************************/
 double MVekNorm2(double* x, long n)
 {
-	register long i;
-	register double erg = 0.0;
+	long i;
+	double erg = 0.0;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -3094,7 +3096,7 @@ void MVekSum(double* restrict x, double alpha, double* restrict y, long n)
 void MVekSum(double* x,double alpha,double* y,long n)
 #endif
 {
-	register long i;
+	long i;
 #ifdef SX
 #pragma cdir nodep
 #endif
@@ -3131,7 +3133,7 @@ void MVekSum(double* x,double alpha,double* y,long n)
 void MVekGle(double alpha, double* x, double beta, double* y,
              double* z, long n)
 {
-	register long i;
+	long i;
 	for (i = 0l; i < n; i++)
 		z[i] = alpha * x[i] + beta * y[i];
 }
@@ -3209,7 +3211,7 @@ void MNullVec(double* restrict zwerg, long g)
 void MNullVec(double* zwerg, long g)
 #endif
 {
-	register long i;
+	long i;
 	zwerg = (double*) Malloc(sizeof(double) * g);
 #ifdef ERROR_CONTROL
 	if (zwerg == NULL)
@@ -3244,7 +3246,7 @@ void MKopierVec(double* restrict vecquelle, double* restrict vecziel, long g)
 void MKopierVec(double* vecquelle, double* vecziel, long g)
 #endif
 {
-	register long i;
+	long i;
 #ifdef ERROR_CONTROL
 	if ((vecquelle == NULL) || (vecziel == NULL))
 		DisplayErrorMsg("Fehler in MLoeschVec");
@@ -3302,7 +3304,7 @@ int MAddSkalVektoren(double* restrict v1,
 int MAddSkalVektoren(double* v1, double m1, double* v2, double m2, double* vout, long g)
 #endif
 {
-	register long i;
+	long i;
 	//WW    if ((m1==1.)&&(m2==1.))
 	if ((fabs(m1 - 1.) < MKleinsteZahl) && (fabs(m2 - 1.) < MKleinsteZahl))
 #ifdef SX
@@ -3360,7 +3362,7 @@ int MMultVecVec(double* vec1, long gv1,
                 double* vec2, long gv2,
                 double* mato, long mo, long no)
 {
-	register long i, j;
+	long i, j;
 
 #ifdef ERROR_CONTROL
 	const bool check_err = true;
@@ -3419,7 +3421,7 @@ int MMultVecMat(double* vec, long gv,
                 double* veco, long go)
 #endif
 {
-	register long i, j;
+	long i, j;
 #ifdef ERROR_CONTROL
 	const bool check_err = true;
 #else
@@ -3477,7 +3479,7 @@ int MMultMatVec(                                  /* Matrix */
 /* Vektor fuer das Ergebnis */
         double* veco, long r)
 {
-	register long i, k;
+	long i, k;
 
 #ifdef ERROR_CONTROL
 	const bool check_err = true;
@@ -3556,7 +3558,7 @@ int MMultMatMat(double* mat1, long m1, long n1,
 	enum CBLAS_TRANSPOSE TransA = CblasNoTrans;
 	enum CBLAS_TRANSPOSE TransB = CblasNoTrans;
 #else
-	register int i, j, ih1, ih2;
+	int i, j, ih1, ih2;
 #endif
 
 #ifdef ERROR_CONTROL

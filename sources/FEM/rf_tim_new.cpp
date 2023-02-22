@@ -814,7 +814,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 {
 	double tval, next;
 	int no_time_steps = (int)time_step_vector.size();
-    	bool adapt = false;
+    	//bool adapt = false;
 	//
 	// TIME STEP VECTOR
 	// -----------------------------------
@@ -828,39 +828,28 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	// -----------------------------------
 	if(time_control_type == TimeControlType::NEUMANN || time_control_type == TimeControlType::SELF_ADAPTIVE)
 	{
-    		adapt = true;
+    		//adapt = true;
     		if(aktuelle_zeit - time_start < MKleinsteZahl && repeat == false)
     		{
-			time_step_length = FirstTimeStepEstimate();
+    			time_step_length = FirstTimeStepEstimate();
     		}
     		else if( time_control_type == TimeControlType::NEUMANN)
     		{
-			time_step_length = NeumannTimeControl();
+    			time_step_length = NeumannTimeControl();
     		}
     		else if(time_control_type == TimeControlType::SELF_ADAPTIVE)
     		{
-    			if(repeat)
-    			{
-    				time_step_length *= correction_factor;
-    				std::cout << "Time step corrected to: " << time_step_length << '\n';
-					//if (time_step_length < min_time_step)
-					//{
-					//	time_step_length = min_time_step;
-					//	std::cout << "Time step corrected to the minimum time step in NUM : " << time_step_length << '\n';
-					//}
-    			}
-    			else
-    				time_step_length = SelfAdaptiveTimeControl();
+    			time_step_length = SelfAdaptiveTimeControl();
     		}
 	}
 	else if(time_control_type == TimeControlType::STABLE_ERROR_ADAPTIVE)
 	{
-    		adapt = true;
+    		//adapt = true;
 		time_step_length = StableErrorAdaptive();
 	}
 	else if(time_control_type == TimeControlType::ERROR_CONTROL_ADAPTIVE)
 	{
-    		adapt = true;
+    		//adapt = true;
 		if(aktuelle_zeit < MKleinsteZahl)
 		{
 			time_step_length = AdaptiveFirstTimeStepEstimate();
@@ -872,14 +861,14 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 	}
 	else if(time_control_type == TimeControlType::PI_AUTO_STEP_SIZE)
 	{
-    		adapt = true;
+    		//adapt = true;
 		time_step_length = this_stepsize;
 	}
 	else if(time_control_type == TimeControlType::DYNAMIC_COURANT
 			|| time_control_type == TimeControlType::DYNAMIC_PRESSURE
 			|| time_control_type == TimeControlType::DYNAMIC_VARIABLE)
 	{ // JT2012: Soon to come.
-    		adapt = true;
+    		//adapt = true;
 		if(!last_dt_accepted)
 		{
 			time_step_length *= dt_failure_reduction_factor;
@@ -894,7 +883,7 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
 		//else if(this->time_control_name == "MAX_PV_CHANGE"){ //KB0315
 		//else if (this->time_type_name == "MAX_PV_CHANGE"){ //KB0315
 		// activate other process
-    		adapt = true;
+    		//adapt = true;
 		this->time_active = false; // set this process false, i.e. it is not calculated
 		CRFProcess* m_pcs = PCSGet(this->max_pv_change_pcs_name);
 		if(aktuelle_zeit < MKleinsteZahl)
@@ -958,6 +947,11 @@ double CTimeDiscretization::CalcTimeStep(double current_time)
   if(current_time + time_step_length > time_end)  // JOD 2021-08-02
 	  time_step_length = time_end - current_time;
 
+  if(repeat)
+  {
+		time_step_length *= correction_factor;
+		std::cout << "Time step corrected to: " << time_step_length << '\n';
+  }
   //
   next_active_time = current_time + time_step_length;
   return time_step_length;
@@ -1083,14 +1077,14 @@ void TIMDelete(std::string pcs_type_name)
 **************************************************************************/
 double CTimeDiscretization::FirstTimeStepEstimate(void)
 {
-	CMediumProperties* m_mmp = NULL;
-	CRFProcess* m_pcs = NULL;
-	MeshLib::CElem* elem = NULL;
-	int idxS;
-	long group;
-	double GP[3];
-	static double Node_Sat[8];
-	double buffer;
+	//CMediumProperties* m_mmp = NULL;
+	//CRFProcess* m_pcs = NULL;
+	//MeshLib::CElem* elem = NULL;
+	//int idxS;
+	//long group;
+	//double GP[3];
+	//static double Node_Sat[8];
+	//double buffer;
 	//WW int no_time_steps;
 	//WW  int no_processes =(int)pcs_vector.size();
 //	CFluidProperties* m_mfp = NULL; // 2012-08 TF not used
@@ -1466,7 +1460,7 @@ double CTimeDiscretization::StableErrorAdaptive ( void )
 	last_time_step_length = time_step_length;
 
 	double multiplier(1);
-	if ( ( aktueller_zeitschritt == 0 ) )
+	if(aktueller_zeitschritt == 0)
 	{
 		//check validity of given parameters on very first time step
 		if ( (rejected_step_count < 1) && SEA_parameters_are_bad() )

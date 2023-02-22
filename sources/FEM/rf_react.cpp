@@ -299,7 +299,7 @@ void REACT::ExecuteReactionsPHREEQCNew(void)
   int idx;
   bool firstinput = true;
   //for (idx = 0; idx < this->nodenumber; idx++){
-  for (i = 0; i < ranknodeliststore[myrank].size(); i++){
+  for (i = 0; i < (int)ranknodeliststore[myrank].size(); i++){
     idx = ranknodeliststore[myrank][i];
     if (this->rateflag[idx] > 0)
     {
@@ -344,9 +344,9 @@ void REACT::ExecuteReactionsPHREEQCNew(void)
 
   // return data to mass transport processes
   // loop over ranks / over number of nodelist vectors
-  for (int kk = 0; kk < ranknodeliststore.size(); kk++){
+  for (size_t kk = 0; kk < ranknodeliststore.size(); kk++){
     // loop over the nodelist for a single rank
-    for (int jj = 0; jj < ranknodeliststore[kk].size(); jj++){
+    for (size_t jj = 0; jj < ranknodeliststore[kk].size(); jj++){
 
       // get start position of concentration vector for this node in Concentration data array
       int nidx = ranknodeliststore[kk][jj];
@@ -1062,8 +1062,8 @@ int REACT::ReadReactionModel(FILE* File)
 					if (strstr(str, "# comp"))
 					{
 						StringReadStr(&sub, str, &p);
-						if (!strcmp(sub,
-						            "pH") == 0 && !strcmp(sub, "pe") == 0)
+						if ((!strcmp(sub,
+						            "pH")) == 0 && (!strcmp(sub, "pe")) == 0)
 							n_master_species += 1;
 					}
 					if (strstr(str, "# temp"))
@@ -2984,7 +2984,7 @@ char str[4000];
 double dval, dval1;
 string speciesname;
 //WW CRFProcess* m_pcs = NULL;
-int n1, n2, n3, n4, n5, n6, dix=0;
+int n1, n2, n3, n4, n5, n6;
 CTimeDiscretization* m_tim = NULL;
 double unitfactor_l = 1, unitfactor_s = 1;
   bool initial = false;
@@ -3024,7 +3024,7 @@ anz = this->rcml_number_of_pqcsteps;
 
 ein.getline(str,zeilenlaenge);        /* lies header-Zeile */
 
-  for (int nn = 0; nn < ranknodelist.size(); nn++)
+for (size_t nn = 0; nn < ranknodelist.size(); nn++)
 {
 
     // get start position of concentration vector for this node in Concentration data array

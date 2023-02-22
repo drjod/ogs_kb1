@@ -65,6 +65,7 @@ Surface* Surface::createSurface(const Polyline &ply)
 		             list_of_simple_polygons.begin());
 		     simple_polygon_it != list_of_simple_polygons.end(); ++simple_polygon_it)
 		{
+		     //(*simple_polygon_it)->write(std::cout);
 			std::list<GEOLIB::Triangle> triangles;
 			std::cout << "triangulation of surface: ... " << std::flush;
 			MathLib::EarClippingTriangulation(*simple_polygon_it, triangles);

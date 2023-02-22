@@ -684,7 +684,7 @@ REACTINT* REACTINT::GetREACTINT(void)
  **************************************************************************/
 void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string& unique_name){
 
-  long i,j;
+  size_t i,j;
   double poro = 0;  
   int nc = (int)cp_vec.size();
   vector<int> id;
@@ -926,7 +926,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 	 m_mfp = MFPGet( "LIQUID" );
   double variables[3];
   
-  for (int i = 0; i < m_mfp->density_pcs_name_vector.size(); i++) // JOD 2016-2-8
+  for (size_t i = 0; i < m_mfp->density_pcs_name_vector.size(); i++) // JOD 2016-2-8
   {
 	  if ( m_mfp->density_pcs_name_vector[i] == "PRESSURE1")  
 		  variables[i] = GetPressure(0); // value at node 0
@@ -948,7 +948,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 
   // set up vectors sp_pcs and sp_varind, taken from KinReactData
   //if(unitconversion){
-    for(i=0;i<nc;i++) {
+    for(i=0;(int)i<nc;i++) {
       sp_name = cp_vec[i]->compname;
       //idummy = -1;
       //m_pcs = PCSGet("MASS_TRANSPORT",sp_name);// CB HS update
@@ -966,10 +966,10 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
     if(constantdensity == false){
       for(j=0;j<10;j++) id.push_back(0);
       // set up and initialize matrix for water concentration computation
-      for(i=0;i<nc;i++){ // set the species relevant for water concentration
-        for(j=0;j<(int)id.size();j++) id[j]=0;
+      for(i=0;(int)i<nc;i++){ // set the species relevant for water concentration
+        for(j=0;j<id.size();j++) id[j]=0;
         // search in list, if species is relevant
-        for(j=0;j<int(water_conc_species.size());j++) {
+        for(j=0;j<water_conc_species.size();j++) {
           if(cp_vec[i]->compname.compare(water_conc_species[j])==0 && cp_vec[i]->transport_phase==0 ) {// species found
             if(cp_vec[i]->iupac_formula[0]) // a formula has been defined
               id=formula2index(cp_vec[i]->iupac_formula);
@@ -982,9 +982,16 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
         // Test
         if(cp_vec[i]->iupac_formula[0]) cout << cp_vec[i]->iupac_formula << ": " << "\n"; 
         else  cout << cp_vec[i]->compname << ": " << "\n"; 
-        for(j=0;j<(int)id.size();j++) cout << " " << j ;    cout << "\n"; 
-        for(j=0;j<(int)id.size();j++) cout << " " << id[j]; cout << "\n";
-
+        for(j=0;j<id.size();j++) 
+	{
+		cout << " " << j ;    
+		cout << "\n";
+	}	
+        for(j=0;j<id.size();j++) 
+	{
+		cout << " " << id[j]; 
+		cout << "\n";
+	}
         // now store the id vector
         ElementInSpecies.push_back(id);
       }
@@ -1005,9 +1012,9 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
   if(vle_flag == true){
     cout << " VLE " << "\n";
     int cond;
-    for(i=0;i<long(this->VLE_conditions.size());i++){
+    for(i=0;i<this->VLE_conditions.size();i++){
 	    cond=0;
-	    for(j=0;j<(int)pcs_vector.size();j++){
+	    for(j=0;j<pcs_vector.size();j++){
 		    if(pcs_vector[j]->pcs_primary_function_name[0] == VLE_conditions[i].aq_name){
 			    VLE_conditions[i].aq_idx=j;
 			    cout << " " << VLE_conditions[i].aq_name;
@@ -1019,7 +1026,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 		    exit(0);
 	    }		  
 	    cond=0;
-	    for(j=0;j<(int)pcs_vector.size();j++){
+	    for(j=0;j<pcs_vector.size();j++){
 		    if(pcs_vector[j]->pcs_primary_function_name[0] == VLE_conditions[i].vp_name){
 			    VLE_conditions[i].vp_idx=j;
 			    cout << " " << VLE_conditions[i].vp_name;
@@ -1039,9 +1046,9 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
   if(vle_p_flag == true){
   cout << " VLE_P " << "\n";
   int cond;
-  for(i=0;i<(long)this->VLE_pressure.size();i++){
+  for(i=0;i<this->VLE_pressure.size();i++){
 	  cond=0;
-	  for(j=0;j<(int)pcs_vector.size();j++){
+	  for(j=0;j<pcs_vector.size();j++){
 		  if(pcs_vector[j]->pcs_primary_function_name[0] == VLE_pressure[i].aq_name){
 			  VLE_pressure[i].aq_idx=j;
 			  cout << " " << VLE_pressure[i].aq_name;
@@ -1053,7 +1060,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 		  exit(0);
 	  }		  
 	  cond=0;
-	  for(j=0;j<(int)pcs_vector.size();j++){
+	  for(j=0;j<pcs_vector.size();j++){
 		  if(pcs_vector[j]->pcs_primary_function_name[0] == VLE_pressure[i].vp_name){
 			  VLE_pressure[i].vp_idx=j;
 			  cout << " " << VLE_pressure[i].vp_name;
@@ -1073,7 +1080,8 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 
 
 //DL 2011.10.05  for pcs rename operation
-  	int ii, ix, jx, is_idx, no_pcs;
+  	size_t ii, ix, jx, is_idx;
+	int no_pcs;
 	double value;
 	vector<int> idx_tmp;
  no_pcs = (int)pcs_vector.size();
@@ -1082,28 +1090,28 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 		  cout << "\n" << " PCS_RENAME_INIT " << "\n";	
 	  this->pcs_rename0_idx_init.clear();
 	  this->pcs_rename1_idx_init.clear();
-	  for(j=0;j<(int)pcs_rename0_init.size();j++){
+	  for(j=0;j<pcs_rename0_init.size();j++){
 		  idx_tmp.clear();
-		  for(jx=0;jx<(int)pcs_rename1_init[j].size();jx++)
+		  for(jx=0;jx<pcs_rename1_init[j].size();jx++)
 			  idx_tmp.push_back(-1);
 		  pcs_rename1_idx_init.push_back(idx_tmp);
 		  pcs_rename0_idx_init.push_back(-1);
 	  }
-	  for(i=0;i<no_pcs;i++){
+	  for(i=0;(int)i<no_pcs;i++){
 		  m_pcs = pcs_vector[i];
-		  for(j=0;j<(int)pcs_rename0_init.size();j++){
+		  for(j=0;j<pcs_rename0_init.size();j++){
 			  if(m_pcs->pcs_primary_function_name[0] == pcs_rename0_init[j])
 				  pcs_rename0_idx_init[j]=i;
-			  for(jx=0;jx<(int)pcs_rename1_init[j].size();jx++)
+			  for(jx=0;jx<pcs_rename1_init[j].size();jx++)
 				  if(m_pcs->pcs_primary_function_name[0] == pcs_rename1_init[j][jx])
 			 		  pcs_rename1_idx_init[j][jx]=i;
 		  }
 	  }
-	  for(i=0;i<(int)pcs_rename0_init.size();i++){
+	  for(i=0;i<pcs_rename0_init.size();i++){
 		  is_idx=1;
 		  if(pcs_rename0_idx_init[i]==-1)
 			  is_idx=0;
-		  for(jx=0;jx<(int)pcs_rename1_init[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_init[i].size();jx++)
 			  if(pcs_rename1_idx_init[i][jx]==-1)
 				  is_idx=0;
 		  if(is_idx==0){
@@ -1111,7 +1119,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 			  exit(0);
 		  }	
 		  cout << " " << setw(12) << pcs_rename0_init[i] << " <--- ";
-		  for(jx=0;jx<(int)pcs_rename1_init[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_init[i].size();jx++)
 			  cout << "    "  << pcs_rename1_stoi_init[i][jx] << "  " << pcs_rename1_init[i][jx];
 		  cout << "\n";
 	  }
@@ -1122,28 +1130,28 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 	  cout << "\n" << " PCS_RENAME_PRE " << "\n";	
 	  this->pcs_rename0_idx_pre.clear();
 	  this->pcs_rename1_idx_pre.clear();
-	  for(j=0;j<(int)pcs_rename0_pre.size();j++){
+	  for(j=0;j<pcs_rename0_pre.size();j++){
 		  idx_tmp.clear();
-		  for(jx=0;jx<(int)pcs_rename1_pre[j].size();jx++)
+		  for(jx=0;jx<pcs_rename1_pre[j].size();jx++)
 			  idx_tmp.push_back(-1);
 		  pcs_rename1_idx_pre.push_back(idx_tmp);
 		  pcs_rename0_idx_pre.push_back(-1);
 	  }
-	  for(i=0;i<no_pcs;i++){
+	  for(i=0;(int)i<no_pcs;i++){
 		  m_pcs = pcs_vector[i];
-		  for(j=0;j<(int)pcs_rename0_pre.size();j++){
+		  for(j=0;j<pcs_rename0_pre.size();j++){
 			  if(m_pcs->pcs_primary_function_name[0] == pcs_rename0_pre[j])
 				  pcs_rename0_idx_pre[j]=i;
-			  for(jx=0;jx<(int)pcs_rename1_pre[j].size();jx++)
+			  for(jx=0;jx<pcs_rename1_pre[j].size();jx++)
 				  if(m_pcs->pcs_primary_function_name[0] == pcs_rename1_pre[j][jx])
 			 		  pcs_rename1_idx_pre[j][jx]=i;
 		  }
 	  }
-	  for(i=0;i<(int)pcs_rename0_pre.size();i++){
+	  for(i=0;i<pcs_rename0_pre.size();i++){
 		  is_idx=1;
 		  if(pcs_rename0_idx_pre[i]==-1)
 			  is_idx=0;
-		  for(jx=0;jx<(int)pcs_rename1_pre[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_pre[i].size();jx++)
 			  if(pcs_rename1_idx_pre[i][jx]==-1)
 				  is_idx=0;
 		  if(is_idx==0){
@@ -1151,7 +1159,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 			  exit(0);
 		  }	
 		  cout << " " << setw(12) << pcs_rename0_pre[i] << " <--- ";
-		  for(jx=0;jx<(int)pcs_rename1_pre[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_pre[i].size();jx++)
 			  cout << "    "  << pcs_rename1_stoi_pre[i][jx] << "  " << pcs_rename1_pre[i][jx];
 		  cout << "\n";
 	  }
@@ -1162,28 +1170,28 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
    cout << "\n" << " PCS_RENAME_POST " << "\n";	
 	  this->pcs_rename0_idx_post.clear();
 	  this->pcs_rename1_idx_post.clear();
-	  for(j=0;j<(int)pcs_rename0_post.size();j++){
+	  for(j=0;j<pcs_rename0_post.size();j++){
 		  idx_tmp.clear();
-		  for(jx=0;jx<(int)pcs_rename1_post[j].size();jx++)
+		  for(jx=0;jx<pcs_rename1_post[j].size();jx++)
 			  idx_tmp.push_back(-1);
 		  pcs_rename1_idx_post.push_back(idx_tmp);
 		  pcs_rename0_idx_post.push_back(-1);
 	  }
-	  for(i=0;i<no_pcs;i++){
+	  for(i=0;(int)i<no_pcs;i++){
 		  m_pcs = pcs_vector[i];
-		  for(j=0;j<(int)pcs_rename0_post.size();j++){
+		  for(j=0;j<pcs_rename0_post.size();j++){
 			  if(m_pcs->pcs_primary_function_name[0] == pcs_rename0_post[j])
 				  pcs_rename0_idx_post[j]=i;
-			  for(jx=0;jx<(int)pcs_rename1_post[j].size();jx++)
+			  for(jx=0;jx<pcs_rename1_post[j].size();jx++)
 				  if(m_pcs->pcs_primary_function_name[0] == pcs_rename1_post[j][jx])
 			 		  pcs_rename1_idx_post[j][jx]=i;
 		  }
 	  }
-	  for(i=0;i<(int)pcs_rename0_post.size();i++){
+	  for(i=0;i<pcs_rename0_post.size();i++){
 		  is_idx=1;
 		  if(pcs_rename0_idx_post[i]==-1)
 			  is_idx=0;
-		  for(jx=0;jx<(int)pcs_rename1_post[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_post[i].size();jx++)
 			  if(pcs_rename1_idx_post[i][jx]==-1)
 				  is_idx=0;
 		  if(is_idx==0){
@@ -1191,13 +1199,13 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
 			  exit(0);
 		  }	
 		  cout << " " << setw(12) << pcs_rename0_post[i] << " <--- ";
-		  for(jx=0;jx<(int)pcs_rename1_post[i].size();jx++)
+		  for(jx=0;jx<pcs_rename1_post[i].size();jx++)
 			  cout << "    "  << pcs_rename1_stoi_post[i][jx] << "  " << pcs_rename1_post[i][jx];
 		  cout << "\n";
 	  }
  }
 
-	for(i=0;i<no_pcs;i++){
+	for(i=0;(int)i<no_pcs;i++){
 		m_pcs = pcs_vector[i];
 		if(m_pcs->getProcessType()==FiniteElement::MASS_TRANSPORT){
 			this->nodenumber = (long) m_pcs->m_msh->GetNodesNumber(false);
@@ -1208,11 +1216,11 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
  if(pcs_rename_init_flag == true){
 	  int f=1, ic;
 	  //return pcs rename init, do rename operation
-	  for(ii=0;ii<this->nodenumber;ii++){ //node loop
+	  for(ii=0;(int)ii<this->nodenumber;ii++){ //node loop
 		  ic=0;
-		  for(i=0;i<(int)pcs_rename0_idx_init.size();i++){
+		  for(i=0;i<pcs_rename0_idx_init.size();i++){
 			  value=0.0;
-			  for(ix=0;ix<(int)pcs_rename1_idx_init[i].size();ix++){
+			  for(ix=0;ix<pcs_rename1_idx_init[i].size();ix++){
 				  m_pcs= pcs_vector[pcs_rename1_idx_init[i][ix]];
 				  if(pcs_rename1_stoi_init[i][ix]==999999)
 					  value *= m_pcs->GetNodeValue(ii,f);
@@ -1252,7 +1260,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
  MeshLib::CElem* m_snele = NULL;
  MeshLib::CNode* m_dnnod = NULL;
  MeshLib::CNode* m_nod = NULL;
- MeshLib::CElem* m_ele = NULL;
+ //MeshLib::CElem* m_ele = NULL;
  std::vector<int> ReactNeighborNodes;
  vec<long> secnnodesindices(8);
  vec<long> primnnodesindices(8);
@@ -1263,7 +1271,7 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
    ReactDeactFlag = true;
  if (ReactDeactFlag)
  {
-   for (size_t l = 0; l < nodenumber; l++)
+   for (int l = 0; l < nodenumber; l++)
    {
      // initialize all nodes as active
      ReactDeact.push_back(false);
@@ -1335,10 +1343,10 @@ void REACTINT::InitREACTINT(const GEOLIB::GEOObjects& geo_obj, const std::string
    //  cout << "\n";
    //}
    concentrationmatrix = (double**)malloc(((long)nodenumber) * sizeof(double*));
-   for (size_t ix = 0; ix < nodenumber; ix++)
+   for (int ix = 0; ix < nodenumber; ix++)
      concentrationmatrix[ix] = (double*)malloc((nc)* sizeof(double));
-   for (size_t ix = 0; ix < nodenumber; ix++)
-     for (size_t ixx = 0; ixx < nc; ixx++)
+   for (int ix = 0; ix < nodenumber; ix++)
+     for (int ixx = 0; ixx < nc; ixx++)
        concentrationmatrix[ix][ixx] = 0;
  } // if (ReactDeactFlag)
 
@@ -1751,7 +1759,7 @@ void REACTINT::Heatpump_2DhTO2Dv_Mapping(bool forward){
     // now check for each node the corresponding map node on center line
     for(i=0;i<nnode;i++){
       for(j=0;j<long(Temp_GHP_xyz.size());j++)
-        if((XYZ[i][0]==Temp_GHP_xyz[j][0])) // x cordinate matches -> only regular mesh so far
+        if(XYZ[i][0]==Temp_GHP_xyz[j][0]) // x cordinate matches -> only regular mesh so far
           Temp_GHP_mapidx.push_back(Temp_GHP_nod_idx[j]);
     }
   }

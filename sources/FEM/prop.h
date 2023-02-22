@@ -13,6 +13,7 @@ protected:
 	MeshLib::CFEMesh* _mesh; //OK
 
 public:
+	virtual ~Properties() {}
 	std::string permeability_file;        //SB //OK/MB string permeability_dis_type_file,BW: X Direction; taken by JOD 2020-3-20
 	std::string permeability_Y_file;        //SB //OK/MB string permeability_dis_type_file,BW: Y Direction
 	std::string permeability_Z_file;        //SB //OK/MB string permeability_dis_type_file,BW: Z Direction;

@@ -2218,7 +2218,7 @@ double CFiniteElementStd::CalCoefContent()
    01/2007 OK Two-phase flow
    10/2008 PCH Two-phase flow modified
 **************************************************************************/
-void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
+void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip, const bool &velocity_calculation)
 {
 	double dens_arg[3];                   //AKS
 	double mat_fac = 1.0;
@@ -2228,21 +2228,22 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	double humi = 1.0;
 	double rhow = 0.0;
 	double* tensor = NULL;
-	double Hav,manning,chezy,expp,chezy4,Ss,arg;
-	static double Hn[9],z[9];
-	double GradH[3],Gradz[3],w[3],v1[3],v2[3];
-	int nidx1;
+	//double Hav,manning,chezy,expp,chezy4,Ss,arg;
+	//static double Hn[9],z[9];
+	//double GradH[3],Gradz[3],w[3],v1[3],v2[3];
+	double w[3];
+	//int nidx1;
 	int Index = MeshElement->GetIndex();
 	double k_rel;
 	ComputeShapefct(1);                   //  12.3.2007 WW
-	double variables[3];                  //OK4709
+	//double variables[3];                  //OK4709
 	int tr_phase = 0;                     // SB, BG
 	double perm_effstress=1.;//AS:08.2012
 	//WX:12.2012 perm depends on p or strain, same as CalCoefLaplace2
 	CFiniteElementStd *h_fem;
 	h_fem = this;
 	double fac_perm = 1.0;
-	double lambda_solid, lambda_ice, lambda_water; // heat conductivity of solid, ice and water
+	//double lambda_solid, lambda_ice, lambda_water; // heat conductivity of solid, ice and water
 	double phi_i; // ice volume fraction
 	double sigmoid_coeff; // freezing model coefficient
 	double kf_correcting_factor_ice = 0.0;
@@ -2255,7 +2256,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 	default:
 		break;
 	case EPT_LIQUID_FLOW:                               // Liquid flow
-		tensor = MediaProp->PermeabilityTensor(Index, nodes);
+		tensor = MediaProp->PermeabilityTensor(Index, nodes, velocity_calculation);
 		//AS:08.2012 permeability function eff stress
 		if(MediaProp->permeability_effstress_model>0)
 		{
@@ -2428,10 +2429,9 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
                }
             }
             //TK/NW 10.10.2011
-            for(size_t i = 0; i < dim * dim; i++)
-				//16.10.2009 .WW
+            for(size_t i = 0; i < dim * dim; i++) //16.10.2009 .WW
                 mat[i] = tensor[i]*time_unit_factor*k_rel;
-		break;
+	    break;
 	//..................................................................
 	case EPT_TWOPHASE_FLOW:                               // Two-phase flow
 		// PCH Rewriting...
@@ -2683,7 +2683,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip)
 		double h[4];
 		const double friction_coefficient = MediaProp->friction_coefficient;
 		const double friction_exp_slope = MediaProp->friction_exp_slope;
-		const double friction_exp_depth = MediaProp->friction_exp_depth;
+		//const double friction_exp_depth = MediaProp->friction_exp_depth;
 
 		for(int i = 0; i < nnodes; i++)
 		{
@@ -5074,8 +5074,8 @@ void CFiniteElementStd::CalcLaplace(const bool& ignore_material)
 
 	if(ignore_material)
 	{
-		for(size_t i=0; i<nnodes; ++i)
-			for(size_t j=0; j<nnodes; ++j)
+		for(int i=0; i<nnodes; ++i)
+			for(int j=0; j<nnodes; ++j)
 				(*Laplace)(i, j) = 0.;
 	}
 
@@ -5497,6 +5497,8 @@ void CFiniteElementStd::CalcAdvection()
 		vel[0] = mat_factor * MediaProp->get_velocity()[0];
 		vel[1] = mat_factor * MediaProp->get_velocity()[1];
 		vel[2] = mat_factor * MediaProp->get_velocity()[2];
+
+
 		// std::cout << "Vel: " << vel[0] << " " << vel[1] << " " << vel[2] << '\n';
 	}
 	else
@@ -5513,6 +5515,8 @@ void CFiniteElementStd::CalcAdvection()
        	 		vel[1] = mat_factor * ele_gp_value[Index]->Velocity(1, gp);
        	 		vel[2] = mat_factor * ele_gp_value[Index]->Velocity(2, gp);
        	 	}
+	//	 if(MediaProp->permeability_model ==  9)
+	//std::cout <<  ele_gp_value[Index]->Velocity(0, gp)  << " " << ele_gp_value[Index]->Velocity(1, gp)  << " " << ele_gp_value[Index]->Velocity(2, gp)  << "\n";
 	}
         // CB _ctx_ : modify v if _ctx_ flux needs to be included
         //if(_ctx_){
@@ -6033,6 +6037,17 @@ void CFiniteElementStd::Assemble_Gravity()
 		}
 		else
 		{
+                     if(nnodes == 2)//MediaProp->permeability_model ==  9)  !!!!!
+                                                {
+                                                        CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+                                                        double T0[3], T1[3];
+                                                        T0[0] = pcs_heat->GetNodeValue(nodes[0], 1);
+                                                        T1[0] = pcs_heat->GetNodeValue(nodes[1], 1);
+
+                                                        rho = (FluidProp->Density(T0) + FluidProp->Density(T1))/2;
+                                                        //std::cout << rho << " ";
+                                                }
+                                                else
 			rho = FluidProp->Density();
 			if(gp == 0)  // JOD 1018-8-15 for element output
 				ele_gp_value[Index]->density = rho;
@@ -6624,7 +6639,12 @@ void CFiniteElementStd::Cal_Velocity()
 		{
 			NodalVal[i] = pcs->GetNodeValue(nodes[i], idx1);
 			NodalVal1[i] = NodalVal[i];
+//if(MediaProp->permeability_model ==  9)
+//	std::cout << NodalVal[i] << "\t";
+
 		}
+//if(MediaProp->permeability_model ==  9)
+//	std::cout << NodalVal[1] - NodalVal[0] << "\t";
 
 	}
 	//
@@ -6667,7 +6687,10 @@ void CFiniteElementStd::Cal_Velocity()
 			flag_cpl_pcs = true;
 		// Material
 		if(dof_n == 1)
-			CalCoefLaplace(true);
+		{
+			bool velocity_calculation = false;
+			CalCoefLaplace(true, velocity_calculation);
+		}
 		else if (dof_n==4 && PcsType==EPT_THERMAL_NONEQUILIBRIUM)
 			CalCoefLaplaceTNEQ(0);
 		else if (dof_n==3 && PcsType==EPT_TES)
@@ -6744,7 +6767,19 @@ void CFiniteElementStd::Cal_Velocity()
 					if(pcs->is_folded && MeshElement->gravity_center[2] > pcs->folded_zCoord) // JOD 1018-12-18
 						coef = -gravity_constant * FluidProp->Density();
 					else
+					{
+						if(nnodes == 2)//MediaProp->permeability_model ==  9) !!!!!
+						{
+							CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+							double T0[3], T1[3];
+							T0[0] = pcs_heat->GetNodeValue(nodes[0], 1);
+							T1[0] = pcs_heat->GetNodeValue(nodes[1], 1);
+
+							coef = gravity_constant * (FluidProp->Density(T0) + FluidProp->Density(T1))/2;
+						}
+						else
 						coef = gravity_constant * FluidProp->Density();
+					}
 				}
 				if (dim == 3 && ele_dim == 2)
 				{
@@ -6794,6 +6829,12 @@ void CFiniteElementStd::Cal_Velocity()
 			}
 		}
 		// end gravity term
+
+		 /*if(MediaProp->permeability_model ==  9)
+		 {
+			 for(int i=0; i<3;++i)
+				 vel[i] = std::pow( vel[i], 0.5);
+		 }*/
 
 		if(PcsType == EPT_MULTIPHASE_FLOW)
 		{
@@ -6855,9 +6896,14 @@ void CFiniteElementStd::Cal_Velocity()
 					        mat[dim * i + j] * vel_g[j] / time_unit_factor;
 		}
 		//
+		//
+	//if(MediaProp->permeability_model ==  9)
+	//	std::cout << tmp_gp_velocity(0, gp) << " " << tmp_gp_velocity(1, gp) << " " << tmp_gp_velocity(2, gp) << '\n';
+	//	std::cout << ", " << FluidProp->Density() << " " << FluidProp->Density()*9.81  << ", "  
 	}
 	gp_ele->Velocity = tmp_gp_velocity;
 	//
+
 	if(pcs->Write_Matrix)
 	{
 		(*pcs->matrix_file) << "### Element: " << Index << "\n";
@@ -7155,8 +7201,7 @@ string CFiniteElementStd::Cal_GP_Velocity_DuMux(int* i_ind, CRFProcess* m_pcs, i
 						cout <<
 						"The program is canceled because there is a phase used which is not considered yet!"
 						     << "\n";
-						system("Pause");
-						exit(0);
+						exit(system("Pause"));
 					}
 				}
 			}
@@ -7522,8 +7567,7 @@ string CFiniteElementStd::Cal_GP_Velocity_ECLIPSE(string tempstring,
 					cout <<
 						" ERROR: The program is canceled because there is a phase used which is not considered yet!"
 						<< "\n";
-					system("Pause");
-					exit(0);
+					exit(system("Pause"));
 				}
 			}
 
@@ -10080,7 +10124,6 @@ void CFiniteElementStd::CalcSatution()
     // CB_merge_0513
 	tens = MediaProp->PermeabilityTensor(Index);
 	//
-	sign = -1.0;
 	idx_cp = pcs->GetNodeValueIndex("PRESSURE1") + 1;
 	idx_S =  pcs->GetNodeValueIndex("SATURATION1",true);
 	// Dual Richards
@@ -10090,10 +10133,15 @@ void CFiniteElementStd::CalcSatution()
 		idx_S =  pcs->GetNodeValueIndex("SATURATION2") + 1;
 	}
 	if(pcs->type == 1212 || pcs->type == 42)
-    {
+    	{
 		sign = 1.0;
-        idx_S2 = pcs->GetNodeValueIndex("SATURATION2",true);    // WTP: moved calculation of Saturation2 from output function
-    }
+        	idx_S2 = pcs->GetNodeValueIndex("SATURATION2",true);    // WTP: moved calculation of Saturation2 from output function
+    	}
+	else
+	{
+		sign = -1.0;
+		idx_S2 = -1;
+	}
 	//
 	for(i = 0; i < nnodes; i++)
 	{
@@ -12253,7 +12301,7 @@ double CFiniteElementStd::CalculateContent(double *NodeVal, double *NodeVal_liqu
 
 	Config();
 	setOrder(Order);
-	const double det = MeshElement->GetVolume();
+	//const double det = MeshElement->GetVolume();
 	//if(MeshElement->GetIndex() == 64)
 	//	std:cout << "Elementindex " << MeshElement->GetIndex();
 

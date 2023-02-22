@@ -81,7 +81,7 @@ bool lineSegmentIntersect (const GEOLIB::Point& a, const GEOLIB::Point& b,
 	mat(1,1) = c_cpy[1] - d_cpy[1];
 
 	// check if vectors are parallel
-	double eps (sqrt(std::numeric_limits<double>::min()));
+	const double eps (sqrt(std::numeric_limits<double>::min()));
 	if (fabs(mat(1,1)) < eps)
 	{
 		// vector (D-C) is parallel to x-axis
@@ -91,17 +91,20 @@ bool lineSegmentIntersect (const GEOLIB::Point& a, const GEOLIB::Point& b,
 	} else {
 		// vector (D-C) is not parallel to x-axis
 		if (fabs(mat(0,1)) >= eps)
+		{
+			if(fabs(mat(1, 1)) < eps)
+				throw std::runtime_error("division by zero in function lineSegmentIntersect");
 			// vector (B-A) is not parallel to x-axis
 			// \f$(B-A)\f$ and \f$(D-C)\f$ are parallel iff there exists
 			// a constant \f$c\f$ such that \f$(B-A) = c (D-C)\f$
 			if (fabs (mat(0,0) / mat(0,1) - mat(1,0) / mat(1,1)) < eps * fabs (mat(0,0) / mat(0,1)))
 				return false;
+		}
 	}
 
 	double* rhs (new double[2]);
 	rhs[0] = c_cpy[0] - a_cpy[0];
 	rhs[1] = c_cpy[1] - a_cpy[1];
-
 	GaussAlgorithm<double> lu_solver (mat);
 	lu_solver.execute (rhs);
 	if (0 <= rhs[0] && rhs[0] <= 1.0 && 0 <= rhs[1] && rhs[1] <= 1.0) {

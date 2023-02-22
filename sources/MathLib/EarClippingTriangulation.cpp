@@ -37,6 +37,12 @@ EarClippingTriangulation::EarClippingTriangulation(const GEOLIB::Polygon* polygo
 	clipEars ();
 
 	std::vector<GEOLIB::Point*> const& ref_pnts_vec (polygon->getPointsVec());
+	/*std::cout << "size: " << ref_pnts_vec.size() << std::endl;
+	for(int i=0; i< ref_pnts_vec.size(); ++i)
+	{
+	        ref_pnts_vec[i]->write(std::cout);
+	        std::cout << " ";
+	}*/
 	std::list<GEOLIB::Triangle>::const_iterator it (_triangles.begin());
 	if (_original_orient == MathLib::CW)
 		while (it != _triangles.end())

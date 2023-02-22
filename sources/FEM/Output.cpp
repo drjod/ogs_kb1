@@ -1343,7 +1343,7 @@ void COutput::WriteTECHeader(fstream &tec_file,int e_type, string e_type_name)
 				no_elements++;
 	//--------------------------------------------------------------------
 	// Write Header I: variables
-	CRFProcess* pcs = NULL;               //WW
+	//CRFProcess* pcs = NULL;               //WW
 	const size_t nName (_nod_value_vector.size());
 	tec_file << "VARIABLES  = \"X\",\"Y\",\"Z\"";
 	for (size_t k = 0; k < nName; k++)
@@ -1656,7 +1656,7 @@ Programing:
 **************************************************************************/
 void COutput::BLOCKWriteDOMDataTEC()
 {
-	int te = 0;
+	//int te = 0;
 	string eleType;
 	string tec_file_name;
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL)
@@ -1768,7 +1768,7 @@ void COutput::WriteBLOCKValuesTECHeader(fstream &tec_file) //BW: 23.03.2020 plea
 	no_elements = mesh_ele_vector_size;
 	//--------------------------------------------------------------------
 	// Write Header I: variables
-	CRFProcess* pcs = NULL;               //WW
+	//CRFProcess* pcs = NULL;               //WW
 	const size_t nName(_nod_value_vector.size());
 	tec_file << "VARIABLES = \"X\",\"Y\",\"Z\"";
 	for (size_t k = 0; k < nName; k++)
@@ -1879,7 +1879,7 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
 	vector<int> NodeIndex(nName);
 	string nod_value_name;                //OK
 	CNode *node = NULL;
-	CRFProcess *deform_pcs = NULL; // 23.01.2012. WW. nulltpr
+	//CRFProcess *deform_pcs = NULL; // 23.01.2012. WW. nulltpr
 
 	int timelevel;
 	//	m_msh = GetMSH();
@@ -1891,14 +1891,14 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
 		if (m_pcs != NULL)
 		{
 			NodeIndex[k] = m_pcs->GetNodeValueIndex(_nod_value_vector[k], true); // JT Latest.
-			if ((m_pcs->getProcessType() == FiniteElement::DEFORMATION)
+			/*if ((m_pcs->getProcessType() == FiniteElement::DEFORMATION)
 				|| (m_pcs->getProcessType() == FiniteElement::DEFORMATION_DYNAMIC)
 				|| (m_pcs->getProcessType() == FiniteElement::DEFORMATION_FLOW)
 				|| (m_pcs->getProcessType() == FiniteElement::DEFORMATION_H2)
 				)
 			{
 				deform_pcs = m_pcs;
-			}
+			}*/
 		}
 	}
 
@@ -2033,7 +2033,7 @@ void COutput::WriteBLOCKValuesTECData(fstream &tec_file) //BW: 23.03.2020 please
 
 
 	MeshLib::CElem* m_ele = NULL;
-	FiniteElement::ElementValue* gp_ele = NULL;
+	//FiniteElement::ElementValue* gp_ele = NULL;
 	//MMP values
 	size_t no_mmp_values = mmp_value_vector.size();
 	CMediumProperties* m_mmp;
@@ -2346,7 +2346,7 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
   if (aktueller_zeitschritt == 0)
     header = true;
   if (aktueller_zeitschritt > 0){
-    if (aktueller_zeitschritt == nSteps)
+    if ((int)aktueller_zeitschritt == nSteps)
       header = true;
     else if (time_vector.size()>0)
       if(fabs(aktuelle_zeit - time_vector[0]) < MKleinsteZahl) //WW MKleinsteZahl
@@ -3067,7 +3067,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number, bool& fourrierFluxCalcula
 				int n = 0; // reset counter
 
 				// check if all nodes of a face are in the list of surface nodes
-				for (size_t l = 0; l < n_face_node; l++) // AB SB
+				for (int l = 0; l < n_face_node; l++) // AB SB
 				{
 				  //get global Node index for comparison
 				  faceNodeIndex_glo[l] = m_ele->GetNodeIndex(faceNodeIndex_loc[l]);
@@ -3086,7 +3086,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number, bool& fourrierFluxCalcula
 				  // check if face in surface
 				  if (n == n_face_node)
 				  {
-					for (size_t l = 0; l < n_face_node; l++)
+					for (int l = 0; l < n_face_node; l++)
 					{
 					  eledef.push_back(1 + faceNodeIndex_lis[l]);
 					}
@@ -3227,7 +3227,7 @@ void COutput::NODWriteSFCAverageDataTEC(int time_step_number, bool& fourrierFlux
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file << "Time "; // << "\n";
-			for(int n = 0; n < _nod_value_vector.size(); n++)
+			for(size_t n = 0; n < _nod_value_vector.size(); n++)
 				tec_file << _nod_value_vector[n] << " ";
 			tec_file << "\n";
 		}
@@ -3246,17 +3246,17 @@ void COutput::NODWriteSFCAverageDataTEC(int time_step_number, bool& fourrierFlux
 				m_pcs->m_num->ele_gauss_points);
 
 		total_area = 0.;
-		for(int i = 0; i<nodes_vector.size(); i++)
+		for(size_t i = 0; i<nodes_vector.size(); i++)
 		{
 			total_area += nodes_area_vector[i];
 		}
 
 		tec_file << aktuelle_zeit;
 
-		for(int n = 0; n < _nod_value_vector.size(); n++)
+		for(size_t n = 0; n < _nod_value_vector.size(); n++)
 		{
 			average_value = 0;
-			for(int i = 0; i<nodes_vector.size(); i++)
+			for(size_t i = 0; i<nodes_vector.size(); i++)
 			{
 				average_value += m_pcs->GetNodeValue(nodes_vector[i],
 						m_pcs->GetNodeValueIndex(_nod_value_vector[n]) + 1)   // index increased by one - new value taken
@@ -3332,7 +3332,7 @@ void COutput::NODWritePLYAverageDataTEC(int time_step_number, bool& fourrierFlux
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file << "Time "; // << "\n";
-			for(int n = 0; n < _nod_value_vector.size(); n++)
+			for(size_t n = 0; n < _nod_value_vector.size(); n++)
 				tec_file << _nod_value_vector[n] << " ";
 			tec_file << "\n";
 		}
@@ -3360,17 +3360,17 @@ void COutput::NODWritePLYAverageDataTEC(int time_step_number, bool& fourrierFlux
 
 
 		total_area = 0.;
-		for(int i = 0; i<nodes_vector.size(); i++)
+		for(size_t i = 0; i<nodes_vector.size(); i++)
 		{
 			total_area += nodes_area_vector[i];
 		}
 
 		tec_file << aktuelle_zeit;
 
-		for(int n = 0; n < _nod_value_vector.size(); n++)
+		for(size_t n = 0; n < _nod_value_vector.size(); n++)
 		{
 			average_value = 0;
-			for(int i = 0; i<nodes_vector.size(); i++)
+			for(size_t i = 0; i<nodes_vector.size(); i++)
 			{
 				average_value += m_pcs->GetNodeValue(nodes_vector[i],
 						m_pcs->GetNodeValueIndex(_nod_value_vector[n]) + 1)   // index increased by one - new value taken
@@ -4729,7 +4729,7 @@ void COutput::NODWritePointsCombined(double time_current, int time_step_number)
 
 		tec_file << geo_name << " ";
 		std::string nod_value_name;
-		int nidx = m_pcs_out->GetNodeValueIndex(nod_value_name) + 1;
+		//int nidx = m_pcs_out->GetNodeValueIndex(nod_value_name) + 1;
 		double val_n;
 
 	for (size_t i = 0; i < _nod_value_vector.size(); i++) {
@@ -4830,7 +4830,7 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 			if (m_sfc)
 				m_msh->GetNODOnSFC(m_sfc, nodes_vector);
 
-				for (long i = 0; i < (long)nodes_vector.size(); i++)
+			for (long i = 0; i < (long)nodes_vector.size(); i++)
 				if (convertProcessTypeToString(getProcessType()) == "MULTI_COMPONENTIAL_FLOW")  // PRESSURE1, TEMPERATURE1, CONCENTRATION1 
 					tec_file << m_msh->nod_vector[i]->GetIndex() << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 1) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 3) << "        " << m_pcs_out->GetNodeValue(m_msh->nod_vector[i]->GetIndex(), 5) << "\n";
 				else
@@ -4842,7 +4842,7 @@ void COutput::NODWritePrimaryVariableList(double time_current, int time_step_num
 
 				m_polyline = GEOGetPLYByName(geo_name);
 				if (ply) {
-					double min_edge_length(m_msh->getMinEdgeLength());
+					//double min_edge_length(m_msh->getMinEdgeLength());
 					m_msh->setMinEdgeLength(m_polyline->epsilon);
 					m_msh->GetNODOnPLY(ply, nodes_vector);
 				}
@@ -4997,7 +4997,7 @@ void COutput::SetTotalFluxNodesPLY(std::vector<long>& nodes_vector)
 
 	if (ply) {
 		CGLPolyline* m_polyline = GEOGetPLYByName(geo_name);
-		double min_edge_length(m_msh->getMinEdgeLength()); // ?????
+		//double min_edge_length(m_msh->getMinEdgeLength());
 		m_msh->setMinEdgeLength(m_polyline->epsilon);
 		m_msh->GetNODOnPLY(ply, nodes_vector, true);
 	}
@@ -5035,7 +5035,7 @@ Programing:
 
 void COutput::WriteContent(double time_current, int time_step_number)
 {
-	CFEMesh* m_msh = NULL;
+	//CFEMesh* m_msh = NULL;
 	m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
 	double factor = 1.;
 	//if (_nod_value_vector.size() > 0) 2021-02-10  removed by JOD
@@ -5906,7 +5906,7 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 				// write results
 				std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
 				stru3::DVec T_s = stru3::DVec(nodes_vec.size());
-				for(int j=0; j < nodes_vec.size(); ++j)
+				for(size_t j=0; j < nodes_vec.size(); ++j)
 				{
 					T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
 				}
@@ -5918,13 +5918,13 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 				double z = 0;
 
 
-				int j = 0, k = 0;
+				size_t j = 0, k = 0;
 				double L_ele = 0.;
 				int N = segment_data_vec[0].N;
 				double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
 				double R_1_Delta = result.resistances_vec[0].R_1_Delta;
 
-				for(int i=0; i < nodes_vec.size(); ++i)
+				for(size_t i=0; i < nodes_vec.size(); ++i)
 				{
 					if(k == 1)
 					{
@@ -5932,7 +5932,7 @@ void COutput::WriteContraflow(double time_current, int time_step_number)
 						R_0_Delta = result.resistances_vec[j].R_0_Delta;
 						R_1_Delta = result.resistances_vec[j].R_1_Delta;
 					}
-					if(k == N)
+					if((int)k == N)
 					{
 						R_0_Delta /= 2;
 						R_1_Delta /= 2;
@@ -6059,7 +6059,7 @@ void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 				// write results
 				std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
 				stru3::DVec T_s = stru3::DVec(nodes_vec.size());
-				for(int j=0; j < nodes_vec.size(); ++j)
+				for(size_t j=0; j < nodes_vec.size(); ++j)
 				{
 					T_s[j] = m_pcs->GetNodeValue(nodes_vec[j], 1);
 				}
@@ -6071,13 +6071,13 @@ void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 				double z = 0;
 
 
-				int j = 0, k = 0;
+				size_t j = 0, k = 0;
 				double L_ele = 0.;
 				int N = segment_data_vec[0].N;
 				double R_0_Delta = result.resistances_vec[0].R_0_Delta;  // segment allocation not verified
 				double R_1_Delta = result.resistances_vec[0].R_1_Delta;
 
-				for(int i=0; i < nodes_vec.size(); ++i)
+				for(size_t i=0; i < nodes_vec.size(); ++i)
 				{
 
 					if(k == 1)
@@ -6086,7 +6086,7 @@ void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 						R_0_Delta = result.resistances_vec[j].R_0_Delta;
 						R_1_Delta = result.resistances_vec[j].R_1_Delta;
 					}
-					if(k == N)
+					if((int)k == N)
 					{
 						R_0_Delta /= 2;
 						R_1_Delta /= 2;
@@ -6237,7 +6237,7 @@ Programing:
 
 void COutput::WriteLatentHeat(double time_current, int time_step_number)  // BW 2022-05-12 merged
 {
-        CFEMesh* m_msh = NULL;
+        //CFEMesh* m_msh = NULL;
         m_msh = FEMGet(convertProcessTypeToString(getProcessType()));
         CRFProcess* m_pcs = NULL;
         double factor = 1.;

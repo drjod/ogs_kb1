@@ -2015,7 +2015,7 @@ inline double Problem::MultiPhaseFlow()
 {
 	double error = 1.0e+8;
 	int success = 0;                      // BG
-	int index = -1;
+	//int index = -1;
 	CRFProcess* m_pcs = total_processes[4];
 	//	CRFProcess* m_pcs2 = NULL;
 	if (ClockTimeVec.size() > 0)
@@ -2072,8 +2072,7 @@ inline double Problem::MultiPhaseFlow()
 		if (success == 0)
 		{
 			std::cout << "Error running Eclipse!" << "\n";
-			system("Pause");
-			exit(0);
+			exit(system("Pause"));
 		}
 	}
 	else if (m_pcs->simulator.compare("DUMUX") == 0)
@@ -2103,8 +2102,7 @@ inline double Problem::MultiPhaseFlow()
 					"If the Phase_Transition_Model is used the density model and the viscosity model should be 18!"
 					<< "\n";
 				std::cout << "The run is terminated now ..." << "\n";
-				system("Pause");
-				exit(0);
+				exit(system("Pause"));
 			}
 			FluidProp = MFPGet("GAS");
 			if ((FluidProp->density_model != 18) || (FluidProp->viscosity_model != 18))
@@ -2113,8 +2111,7 @@ inline double Problem::MultiPhaseFlow()
 					"If the Phase_Transition_Model is used the density model and the viscosity model should be 18!"
 					<< "\n";
 				std::cout << "The run is terminated now ..." << "\n";
-				system("Pause");
-				exit(0);
+				exit(system("Pause"));
 			}
 		}
 		if (m_pcs->Phase_Transition_Model == 1)
@@ -3327,7 +3324,7 @@ inline double Problem::OverlandFlow()
 	if (!m_pcs->selected)
 		return error;             //12.12.2008 WW
 
-	CTimeDiscretization* tim = m_pcs->Tim;
+	//CTimeDiscretization* tim = m_pcs->Tim;
 	int subtimesteps = m_pcs->Tim->subtimesteps;
 	current_time -= dt;
 	dt /= subtimesteps;
@@ -3351,7 +3348,7 @@ inline double Problem::OverlandFlow()
 				aktuelle_zeit << "| Time step size: " << dt << '\n';
 
 		error = m_pcs->ExecuteNonLinear(loop_process_number);
-
+std::cout << std::flush;
 		// update
 		for (size_t l = 0; l < m_pcs->m_msh->GetNodesNumber(false); l++)
 			m_pcs->SetNodeValue(l, 0, m_pcs->GetNodeValue(l, 1));
@@ -3363,9 +3360,10 @@ inline double Problem::OverlandFlow()
 	dt *= subtimesteps;
 
 	if (m_pcs->TimeStepAccept())
+	{
 		PCSCalcSecondaryVariables();
-
-	m_pcs->CalIntegrationPointValue();
+		m_pcs->CalIntegrationPointValue();
+	}
 
 	return error;
 }
@@ -3445,8 +3443,8 @@ inline double Problem::HeatTransport()
 inline double Problem::MassTrasport()
 {
 	double error = 1.0e+8;
-	bool capvec = false;
-	bool prqvec = false;
+	//bool capvec = false;
+	//bool prqvec = false;
 	CRFProcess* m_pcs = total_processes[11];
 	//
 	if (!m_pcs->selected)
@@ -3532,16 +3530,16 @@ inline double Problem::MassTrasport()
 inline double Problem::PostMassTrasport()
 {
 	//  COMPUTE TRACER   JOD 2016-2-16
-	double error;  // error not used !!!!!
-	for (int i = 0; i < (int)transport_processes.size(); i++)
-		if (CPGetMobil(transport_processes[i]->pcs_component_number) > 0 &&
-			cp_vec[transport_processes[i]->pcs_component_number]->tracer_flag == true)
-			error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
-// REACTIONS
-	bool capvec = false;
-	bool prqvec = false;
+	//double error;  // error not used !!!!!
+	//for (int i = 0; i < (int)transport_processes.size(); i++)
+	//	if (CPGetMobil(transport_processes[i]->pcs_component_number) > 0 &&
+	//		cp_vec[transport_processes[i]->pcs_component_number]->tracer_flag == true)
+	//		error = transport_processes[i]->ExecuteNonLinear(loop_process_number);  // tracer found (error not used)
+	// REACTIONS
+	//bool capvec = false;
+	//bool prqvec = false;
 	//
-	if (REACT_CAP_vec.size() > 0) capvec = true;
+	//if (REACT_CAP_vec.size() > 0) capvec = true;
 
 	//if( (KinReactData_vector.size() > 0) || (REACT_vec.size()>0) ||  capvec || (REACT_PRQ_vec.size()>0) )  //CB merge CAP 0311
 	if (REACTINT_vec.size() > 0)
@@ -4537,7 +4535,7 @@ void GetHeterogeneousFields()
 		return;
 	//----------------------------------------------------------------------
 	//Schleife über alle Gruppen
-	for (int i = 0; i < (int)mmp_vector.size(); i++)
+	for (size_t i = 0; i < mmp_vector.size(); i++)
 	{
 		prop = mmp_vector[i];
 		//....................................................................
@@ -4639,9 +4637,9 @@ void SetDistributedELEProperties(Properties* prop, const std::string& file_name,
 	std::stringstream in;
 	//CB
 	vector<double> garage;
-	int mat_vec_size = 0;
-	int por_index = 0;
-	int vol_bio_index = 0;
+	//int mat_vec_size = 0;
+	//int por_index = 0;
+	//int vol_bio_index = 0;
 	string outfile;
 	int k;
 	bool stop_reached = false;  // JOD 2021-12-16

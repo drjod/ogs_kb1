@@ -655,7 +655,7 @@ void* M2CreateMatrix(long param1, long param2, long /*param3*/)
 void* M34CreateMatrix(long param1, long param2, long /*param3*/)
 {
 	Modell34* w = NULL;
-	register long i;
+	long i;
 
 #ifdef ERROR_CONTROL
 	if (param1 < 0)
@@ -766,7 +766,7 @@ void* M2DestroyMatrix(void)
 /**** Modell 3, 4 *********************************************************/
 void* M34DestroyMatrix(void)
 {
-	register long i;
+	long i;
 	Modell34* w = (Modell34*) wurzel;
 	if (w == NULL)
 		return NULL;
@@ -903,7 +903,7 @@ void M2ResizeMatrix(long dimension)
 /**** Modell 3, 4 *********************************************************/
 void M34ResizeMatrix(long dimension)
 {
-	register long i;
+	long i;
 	Modell34* w = (Modell34*) wurzel;
 
 #ifdef ERROR_CONTROL
@@ -951,7 +951,7 @@ void M34ResizeMatrix(long dimension)
 void M1InitMatrix(void)
 {
 	Modell1* w = (Modell1*) wurzel;
-	register long i, j = dim * dim;
+	long i, j = dim * dim;
 	for (i = 0; i < j; i++)
 		Matrix1[i] = 0.0;
 	w->NumDif = 0;
@@ -960,8 +960,8 @@ void M1InitMatrix(void)
 /**** Modell 2 ************************************************************/
 void M2InitMatrix(void)
 {
-	register long i;
-	register int j;
+	long i;
+	int j;
 	Modell2* w = (Modell2*) wurzel;
 	for (i = 0; i < dim; i++)
 	{
@@ -978,7 +978,7 @@ void M2InitMatrix(void)
 /**** Modell 3,4 **********************************************************/
 void M34InitMatrix(void)
 {
-	register long i;
+	long i;
 	Modell34* w = (Modell34*) wurzel;
 	for (i = 0; i < dim; i++)
 	{
@@ -1036,7 +1036,7 @@ int M1Set(long i, long j, double aij)
 int M2Set(long i, long j, double aij)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register int k = 0;
+	int k = 0;
 
 #ifdef ERROR_CONTROL
 	if ((i >= dim) || (j >= dim) || (i < 0) || (j < 0))
@@ -1078,8 +1078,8 @@ int M2Set(long i, long j, double aij)
 /**** Modell 3,4 **********************************************************/
 int M34Set(long i1, long k1, double aik)
 {
-	register int j = 0;
-	register long i = i1, k = k1;
+	int j = 0;
+	long i = i1, k = k1;
 	int u = 0, j1;
 	Modell34* w = (Modell34*) wurzel;
 
@@ -1174,7 +1174,7 @@ int M1Inc(long i, long j, double aij_inc)
 int M2Inc(long i, long j, double aij_inc)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register int k = 0;
+	int k = 0;
 
 #ifdef ERROR_CONTROL
 	if ((i >= dim) || (j >= dim) || (i < 0) || (j < 0))
@@ -1199,8 +1199,8 @@ int M2Inc(long i, long j, double aij_inc)
 /**** Modell 3, 4 *********************************************************/
 int M34Inc(long i1, long k1, double aik)
 {
-	register int j = 0;
-	register long i = i1, k = k1;
+	int j = 0;
+	long i = i1, k = k1;
 	int u = 0;
 	Modell34* w = (Modell34*) wurzel;
 
@@ -1294,7 +1294,7 @@ int M1Mul(long i, long j, double aij_mul)
 int M2Mul(long i, long j, double aij_mul)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register int k = 0;
+	int k = 0;
 
 #ifdef ERROR_CONTROL
 	if ((i >= dim) || (j >= dim) || (i < 0) || (j < 0))
@@ -1317,8 +1317,8 @@ int M2Mul(long i, long j, double aij_mul)
 int M34Mul(long i1, long k1, double aik)
 {
 	Modell34* w = (Modell34*) wurzel;
-	register int j = 0;
-	register long i = i1, k = k1;
+	int j = 0;
+	long i = i1, k = k1;
 	int u = 0;
 
 #ifdef ERROR_CONTROL
@@ -1409,7 +1409,7 @@ double M1Get(long i, long j)
 double M2Get(long i, long j)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register int k = 0;
+	int k = 0;
 
 #ifdef ERROR_CONTROL
 	if ((i >= dim) || (j >= dim) || (i < 0) || (j < 0))
@@ -1432,8 +1432,8 @@ double M2Get(long i, long j)
 double M34Get(long i1, long k1)
 {
 	Modell34* w = (Modell34*) wurzel;
-	register int j = 0;
-	register long i = i1, k = k1;
+	int j = 0;
+	long i = i1, k = k1;
 	int u = 0;
 
 #ifdef ERROR_CONTROL
@@ -1593,7 +1593,7 @@ int M2CopyToAMG1R5Structure(double* A,
 	long NNA = 0, NIA = 0;
 	double a;
 	Modell2* w = (Modell2*) wurzel;
-	register int k;
+	int k;
 
 	for (i = 0; i < dim; i++)
 	{
@@ -1716,7 +1716,7 @@ void MX_Trans(long i, long j, long ii, long jj)
 void M1MatVek(double* vektor, double* ergebnis)
 {
 	Modell1* w = (Modell1*) wurzel;
-	register long i, k;
+	long i, k;
 
 #ifdef ERROR_CONTROL
 	if ((vektor == NULL) || (ergebnis == NULL))
@@ -2033,8 +2033,8 @@ void transM2toM6(void)
 void M2MatVek(double* vektor, double* ergebnis)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register long k;
-	register int i;
+	long k;
+	int i;
 #ifdef CBLAS_M2MatVek
 	double* help;
 
@@ -2164,8 +2164,8 @@ void H_MX34_mul(double* x, double* r, int o)
  */
 {
 	Modell34* w = (Modell34*) wurzel;
-	register long k, i;
-	register int j;
+	long k, i;
+	int j;
 	int u = 1 - o;                        /* o=0: normal, o=1: mit Transponierter */
 
 #ifdef ERROR_CONTROL
@@ -2221,7 +2221,7 @@ void M34MatVek(double* vektor, double* ergebnis)
 void M1MatTVek(double* vektor, double* ergebnis)
 {
 	Modell1* w = (Modell1*) wurzel;
-	register long i, k;
+	long i, k;
 
 #ifdef ERROR_CONTROL
 	if ((vektor == NULL) || (ergebnis == NULL))
@@ -2240,8 +2240,8 @@ void M1MatTVek(double* vektor, double* ergebnis)
 void M2MatTVek(double* vektor, double* ergebnis)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register long k;
-	register int i;
+	long k;
+	int i;
 
 #ifdef ERROR_CONTROL
 	if ((vektor == NULL) || (ergebnis == NULL))
@@ -2332,7 +2332,7 @@ void MXResiduum(double* x, double* b, double* ergebnis)
 *** Unterscheidung nach Modell innerhalb der Prozedur! ******************/
 void MXRandbed(long ir, double Ri, double* ReSei)
 {
-	register long i=0, ip, im;
+	long i=0, ip, im;
 	long p, q;
 	int k;
 	double diag;
@@ -3000,7 +3000,7 @@ void MXEliminateIrrNode(long index, int anz_nachbarn, long* nachbarn_index, doub
 double H_M1skprod(double* a, long da, double* b, long n)
 {
 	double s = 0.0;
-	register long j, i = 0;
+	long j, i = 0;
 	for (j = 0; j < n; j++)
 	{
 		s += a[i] * b[j];
@@ -3013,8 +3013,8 @@ double H_M1skprod(double* a, long da, double* b, long n)
 void M1Vorkond(int aufgabe, double* x, double* b)
 {
 	Modell1* w = (Modell1*) wurzel;
-	register long i, k;
-	register double h;
+	long i, k;
+	double h;
 	static double* x0, * r0, * Gik = NULL;
 
 #ifdef ERROR_CONTROL
@@ -3131,6 +3131,7 @@ void M1Vorkond(int aufgabe, double* x, double* b)
 				diag -= dim + 1;
 			}             /* i */
 		}                         /* Modus iLDU, (zerlegen und) aufloesen */
+		 // no break ?????
 	case 3:                               /* Linkstransformation des Gesamtsystems x <= L(t)*b */
 		if VK_Modus
 		        (VK_iLDU)
@@ -3158,8 +3159,8 @@ void M1Vorkond(int aufgabe, double* x, double* b)
 void M2Vorkond(int aufgabe, double* x, double* b)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register long k;
-	register int i;
+	long k;
+	int i;
 	static double* x0, * r0, h;
 
 #ifdef ERROR_CONTROL
@@ -3238,8 +3239,8 @@ void M34Vorkond(int aufgabe, double* x, double* b)
 {
 	Modell34* w = (Modell34*) wurzel;
 	long i, k, l;
-	register long zk;
-	register int ji, jk;
+	long zk;
+	int ji, jk;
 	int j, u = w->usym, o = 0;
 	double Oik, Uki = 0.0, Dkk, r;
 	static double* x0, * r0, h;
@@ -3396,8 +3397,8 @@ void M34Vorkond(int aufgabe, double* x, double* b)
 void M5Vorkond(int aufgabe, double* x, double* b)
 {
 	Modell2* w = (Modell2*) wurzel;
-	register long k;
-	register int i;
+	long k;
+	int i;
 	static double* x0, * r0, h;
 	long ii;                              //, count1;
 	double v_diag = 0.0;
@@ -3554,7 +3555,7 @@ void M5Vorkond(int aufgabe, double* x, double* b)
 *** benutzt keine modellspezifischen Dinge ******************************/
 void MXDumpGLS(const char* name, int modus, double* rechts, double* ergebnis)
 {
-	register long i, j;
+	long i, j;
 	long NonZeroMatrix = 0, NonZeroRHS = 0;
 	FILE* dumpfile;
 
@@ -3683,7 +3684,7 @@ void MXDumpGLS(const char* name, int modus, double* rechts, double* ergebnis)
 *************************************************************************/
 void MXEstimateStartVector(double* ReSei, double* x0)
 {
-	register long i;
+	long i;
 
 	if (VK_Modus(VK_iLDU) && matrix_type != 2)
 		MXVorkond(2, x0, ReSei);  /* Startvektor aus ILU-Zerlegung */

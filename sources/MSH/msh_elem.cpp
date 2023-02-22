@@ -347,13 +347,13 @@ CElem::~CElem()
 		delete transform_tensor;
 	transform_tensor = NULL;
 	if(angle)
-		delete [] angle;
+		delete angle;
 	angle = NULL;
 	transform_tensor = NULL;
 	if (normal_vector)
 		delete [] normal_vector;
 	normal_vector = NULL;
-	delete [] angle;
+	delete angle;
 
 #if defined(USE_PETSC) // || defined(using other parallel scheme). WW
         if(g_index)

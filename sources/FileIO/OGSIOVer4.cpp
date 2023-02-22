@@ -51,7 +51,7 @@ std::string readPoints(std::istream &in, std::vector<Point*>* pnt_vec,
 {
 	std::string line;
 	size_t cnt(0);
-	int pnt_nr = 0;
+	size_t pnt_nr = 0;
 	getline(in, line);
 	// geometric key words start with the hash #
 	// while not found a new key word do ...
@@ -211,6 +211,9 @@ std::string readPolyline(std::istream &in,
 				std::cerr << "*** polyline is an arc *** reading not implemented" << "\n";
 				errors.push_back ("[readPolyline] reading polyline as an arc is not implemented");
 			}
+			//for(int i=0; i < ply->getNumberOfPoints(); ++i)
+			//std::cout <<  ply->getPointID(i) << " ";
+			//std::cout << "\n";
 			// empty line or the keyword or subkeyword or end of file
 		}
 		//....................................................................
@@ -460,11 +463,12 @@ std::string readSurface(std::istream &in,
 	if (!name.empty())
 		sfc_names.insert(std::pair<std::string,size_t>(name,sfc_vec.size()));
 
+	    //!!!!!std::cout << "plyid: " << ply_id << std::endl;
 	if (sfc)
 		// surface create by TIN
 		sfc_vec.push_back (sfc);
 	else
-    {
+    	{
         // surface created by polygon
         if (ply_id != std::numeric_limits<size_t>::max() && ply_id != ply_vec.size())
         {

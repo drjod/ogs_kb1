@@ -1961,8 +1961,7 @@ int CECLIPSEData::AnalyzeDataFromInputFile(CReadTextfiles_ECL* eclDataFile, CRFP
 		{
 			// The software is not checked if water is not the wetting phase
 			std::cout << " ERROR: The program is canceled because no water phase is defined in ECLIPSE!" << "\n";
-			system("Pause");
-			exit(0);
+			exit(system("Pause"));
 		}
 
 		if (Oil_phase_exists == true)
@@ -4123,7 +4122,7 @@ bool CECLIPSEData::CompareElementsGeosysEclipse()
     {
         //check if number of elements is equal
         //WB: number of OGS mesh == total number of corresponding OGS element regarding Eclipse Cell 
-        for (size_t i = 0; i < long(this->eclgrid.size()); i++)
+        for (size_t i = 0; i < this->eclgrid.size(); i++)
         {
             this->eclgridelenum += this->eclgrid[i]->correspondingelenum;
         }
@@ -4134,7 +4133,7 @@ bool CECLIPSEData::CompareElementsGeosysEclipse()
         }
 
         //Compare element/cell-wise data:node index,node coordinates
-		for (size_t i = 0; long(i < this->eclgrid.size()); i++)
+		for (size_t i = 0; i < this->eclgrid.size(); i++)
         {
             bool ElementIsEqual = true;
             // loop over all corresponding ele
@@ -5694,14 +5693,14 @@ void CECLIPSEData::InterpolateDataFromFacesToNodes(long ele_nr,
 			choose = false;
 
 			/*if (m_face->connected_elements[0] == ele_nr)*/
-			for (size_t i = 0; i < this->eclgrid[this->faces[m_face->index]->connected_blocks[0]]->correspondingelenum; i++)
+			for (int i = 0; i < this->eclgrid[this->faces[m_face->index]->connected_blocks[0]]->correspondingelenum; i++)
 			if (this->eclgrid[this->faces[m_face->index]->connected_blocks[0]]->correspondingeleindex[i] == ele_nr)
 				choose = true;  //check if face is part of the element
 
 
 			//if (m_face->connected_elements.size() > 1)
 			if (this->faces[m_face->index]->connected_blocks.size() > 1)
-			for (size_t i = 0; i < this->eclgrid[this->faces[m_face->index]->connected_blocks[1]]->correspondingelenum; i++)
+			for (int i = 0; i < this->eclgrid[this->faces[m_face->index]->connected_blocks[1]]->correspondingelenum; i++)
 			if (this->eclgrid[this->faces[m_face->index]->connected_blocks[1]]->correspondingeleindex[i] == ele_nr)
 				choose = true;  //check if face is part of the element
 
@@ -5819,7 +5818,7 @@ void CECLIPSEData::InterpolateDataFromBlocksToNodes(CRFProcess* m_pcs,
 	double time;
 	CFEMesh* m_msh = fem_msh_vector[0]; //SB: ToDo hart gesetzt
 	CECLIPSEBlock* m_block = NULL;
-	MeshLib::CNode* m_node = NULL;
+	//MeshLib::CNode* m_node = NULL;
 	//CFaces *m_face=NULL;
 	//WW double distance;
 	double volume;
@@ -5922,7 +5921,7 @@ void CECLIPSEData::InterpolateDataFromBlocksToNodes(CRFProcess* m_pcs,
 	for (unsigned long i = 0; i < m_msh->nod_vector.size(); i++)
 	{
 		//Get the node
-		m_node = m_msh->nod_vector[i];
+		//MeshLib::CNode* m_node = m_msh->nod_vector[i];
 		// set all local variables to defaults
 		phase_pressure = 0.0;
 		phase_visc = 0.0;
@@ -6540,9 +6539,9 @@ void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path)
 
 	// Sb redo wtp
 	// CB_merge_0513
-	REACTINT *m_rei = NULL;
-	if (REACTINT_vec.size() > 0)
-		m_rei = REACTINT_vec[0];
+	//REACTINT *m_rei = NULL;
+	//if (REACTINT_vec.size() > 0)
+	//	m_rei = REACTINT_vec[0];
 
 	const clock_t start = clock();
 	if (verbosity > 2)
@@ -6582,7 +6581,7 @@ void CECLIPSEData::WriteDataToGeoSys(CRFProcess* m_pcs, const std::string path)
 			std::cout <<
 				" ERROR: GAS-WATER systems can not be considered with E100 and GeoSys" <<
 				"\n";
-            std::cout << flush;
+            		std::cout << flush;
 			//system("Pause");
 			exit(0);
 		}
@@ -7555,9 +7554,9 @@ bool CECLIPSEData::SaveEclipseInputFiles(std::string folder, std::string project
 	std::string extension;
 	std::string laenge;
 
-	double time;
-	clock_t start, finish;
-	start = clock();
+	//double time;
+	//clock_t start, finish;
+	//start = clock();
 
 	if (verbosity > 2)
 		std::cout << "        SaveEclipseInputFiles()";
@@ -7658,7 +7657,7 @@ bool CECLIPSEData::CalculateDeltaGeoSysECL(CRFProcess* m_pcs)
 	int indexConcentration_Oil = -99;
 	//get no of nodes in mesh
 	long nnodes = fem_msh_vector[0]->GetNodesNumber(false);
-	int phase1, phase2, phase3 = -1; // SB redo wtp
+	int phase1, phase2=-1, phase3 = -1; // SB redo wtp
 
 	// Determine the phase
 	switch (static_cast<int>(this->Phases.size()))
@@ -8197,7 +8196,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 	double weight = -1.;
 	const double epsilon = 1e-7;
 	int variable_index_FVF_Liquid = -1;
-	int variable_index_RS = -1;
+	//int variable_index_RS;
 
 	// Get all general keyword indices for the Eclipse data
 	int variable_index_porevolume = this->GetVariableIndex("RPORV");
@@ -8226,7 +8225,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
 	{
 		// get the index for the liquid formation volume factor to convert RS back to surface values
 		variable_index_FVF_Liquid = this->GetVariableIndex("BO");
-		variable_index_RS = this->GetVariableIndex("RS");
+		//variable_index_RS = this->GetVariableIndex("RS");
 	}
 
 	// start the general element loop
@@ -8927,8 +8926,7 @@ int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadText
 					std::cout <<
 						" ERROR: Number of MLSC data entries does not match element count!"
 						<< "\n";
-					system("Pause");
-					return 0;
+					return system("Pause");
 				}
 				for (long i = 0; i < this->elements; i = i + 4)
 				{
@@ -9015,7 +9013,7 @@ int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadText
 		{
 			//for (long i = 0; i < vec_PRESS1.size(); i++)
 			//{
-			for (long l = 0; l < this->eclgrid.size(); l++)
+			for (size_t l = 0; l < this->eclgrid.size(); l++)
 			{
 				if (this->eclgrid[l]->row == 1)
 
@@ -9235,8 +9233,8 @@ int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadText
 			return 0;
 		}
 	}
-    if (T_Process == true)
-        GetHeatDataFromOGS(1);
+    	if (T_Process == true)
+        	GetHeatDataFromOGS(1);
     	
 
 	// clearing the vectors

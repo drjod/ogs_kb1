@@ -249,9 +249,9 @@ PrimaryVariable convertPrimaryVariable ( const std::string& pcs_pv_string )
 		return CARBON1;
 	if (pcs_pv_string.compare ("WATER1") == 0)
 		return WATER1;
-		if (pcs_pv_string.compare ("METHANE1") == 0)
+	if (pcs_pv_string.compare ("METHANE1") == 0)
 		return METHANE1;
-			if (pcs_pv_string.compare ("NITROGEN1") == 0)
+	if (pcs_pv_string.compare ("NITROGEN1") == 0)
 		return NITROGEN1;
 	//else
 	//{

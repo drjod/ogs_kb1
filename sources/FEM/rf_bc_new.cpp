@@ -410,9 +410,9 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 				&& line_string.find("CHANGING") == std::string::npos) // 6/2012  JOD
 		{
 			this->setProcessDistributionType(FiniteElement::GRADIENT);
-		    in >> gradient_ref_depth;
-            in >> gradient_ref_depth_value;
-            in >> gradient_ref_depth_gradient;
+		    	in >> gradient_ref_depth;
+            		in >> gradient_ref_depth_value;
+            		in >> gradient_ref_depth_gradient;
 			in.clear();
 		}
 
@@ -558,7 +558,7 @@ std::ios::pos_type CBoundaryCondition::Read(std::ifstream* bc_file,
 			{
 				temp.constrainedVariable = convertConstrainedVariable(tempst);
 				temp.constrainedDirection = convertConstrainedType(tempst2);
-				temp.constrainedValue = std::numeric_limits<size_t>::max();
+				temp.constrainedValue = std::numeric_limits<double>::max();
 				temp.constrainedPrimVar = FiniteElement::INVALID_PV;
 				temp.constrainedProcessType = FiniteElement::INVALID_PROCESS;
 				if ( !(temp.constrainedDirection == ConstrainedType::POSITIVE || temp.constrainedDirection == ConstrainedType::NEGATIVE))

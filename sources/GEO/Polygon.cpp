@@ -240,6 +240,7 @@ void Polygon::calculateAxisAlignedBoundingBox ()
 
 void Polygon::ensureCWOrientation ()
 {
+//return;
 	// *** pre processing: rotate points to xy-plan
 	// *** copy points to vector - last point is identical to the first
 	size_t n_pnts (this->getNumberOfPoints() - 1);
@@ -317,6 +318,7 @@ void Polygon::splitPolygonAtIntersection (std::list<Polygon*>::iterator polygon_
 		                                                 idx0,
 		                                                 idx1,
 		                                                 *intersection_pnt));
+		//continue;
 		if (!is_simple)
 		{
 			// adding intersection point to pnt_vec
