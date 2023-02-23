@@ -7342,7 +7342,7 @@ void CECLIPSEData::ExecuteEclipse(CReadTextfiles_ECL* eclDataFile, CReadTextfile
    Programming: 09/2009 BG
    Modification: 04/2014 WTP minor changes
    -------------------------------------------------------------------------*/
-bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectname, long Timestep, CRFProcess* m_pcs)
+bool CECLIPSEData::CleanUpEclipseFiles(std::string folder, std::string projectname, CRFProcess* m_pcs)
 {
 	std::string systemcommand;
 	std::string system_delete;
@@ -8800,7 +8800,7 @@ bool CECLIPSEData::InterpolateDeltaGeoSysECL(CRFProcess* m_pcs)
    04/2014 WTP added support for 3phases
    07/2014 KB added support for 1 phase and deformation feedback
    -------------------------------------------------------------------------*/
-int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string folder)
+int CECLIPSEData::WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs)
 {
 	std::string Filename;
 	//MeshLib::CElem* m_element = NULL;
@@ -9595,7 +9595,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 					<< "\n";
 			}
             //else
-			if (this->WriteDataBackToEclipse(eclFFile, eclDataFile, m_pcs, pathECLFolder) == 0)
+			if (this->WriteDataBackToEclipse(eclFFile, eclDataFile, m_pcs) == 0)
             {
                 std::cout <<
 					" ERROR: WriteDataBackToEclipse() was not finished properly!"
@@ -9665,7 +9665,7 @@ int CECLIPSEData::RunEclipse(long Timestep, CRFProcess* m_pcs)
 
 	if (UsePrecalculatedFiles == false || UseSaveEclipseDataFiles == true)
 	{
-			CleanUpEclipseFiles(pathECLFolder, pathECLProject, Timestep, m_pcs);
+			CleanUpEclipseFiles(pathECLFolder, pathECLProject, m_pcs);
 	}
 
 	const clock_t finish = clock();

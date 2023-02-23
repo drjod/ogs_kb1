@@ -8872,7 +8872,7 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 					  value = m_st->CheckThreshold(value, cnodev);
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->ogs_WDC != nullptr)
-					  value = m_st->apply_wellDoubletControl(value, cnodev, aktuelle_zeit, this);
+					  value = m_st->apply_wellDoubletControl(value, aktuelle_zeit, this);
 				  //----------------------------------------------------------------------------------------
 				  if(m_st->ogs_contraflow != nullptr)
 					  value = m_st->apply_contraflow(value, aktuelle_zeit, this, eqs_rhs);
@@ -14829,7 +14829,9 @@ CRFProcess* PCSGetMass(size_t component_number)
 
         bool need_eqs = false;      //WW 02.2023. Pardiso
         bool need_eqs_dof = false;  //WW 02.2023. Pardiso
-		int dof = 1;
+#if defined(USE_MPI)
+	int dof = 1;
+#endif
 		//
         //size_t dof_nonDM (1);     //WW 02.2023. Pardiso
         size_t dof_nonDM (0);
@@ -14840,14 +14842,18 @@ CRFProcess* PCSGetMass(size_t component_number)
 			if(m_pcs->type == 1212) //Important for parallel computing. 24.1.2011 WW
 			{
 				dof_nonDM = m_pcs->GetPrimaryVNumber();
+#if defined(USE_MPI)
 				dof = dof_nonDM;
+#endif
 			}
 			if(m_pcs->type == 4 || m_pcs->type / 10 == 4) // Deformation
 			{
 				dof_DM = m_pcs->GetPrimaryVNumber();
+#if defined(USE_MPI)
 				dof = dof_DM;
 				if(m_pcs->type == 42)
 					dof = m_pcs->m_msh->GetMaxElementDim();
+#endif
 			}
 			else          // Monolithic scheme for the process with linear elements
             {
@@ -14867,12 +14873,12 @@ CRFProcess* PCSGetMass(size_t component_number)
               if( m_pcs->GetPrimaryVNumber() > 1)
               {
                 dof_nonDM =  m_pcs->GetPrimaryVNumber();
-                dof = dof_nonDM;
+                //dof = dof_nonDM;
                 need_eqs_dof = true;
               }
               else
               {
-                dof = 1;
+                //dof = 1;
                 need_eqs = true;
               } //WW 02.2023. Pardiso
             }
@@ -16675,7 +16681,7 @@ void CRFProcess::CalGPVelocitiesfromECLIPSE(string path,
 		// get the variable indicies for ogs
 		int P_old_index;
 		//int P_new_index;
-		int Sat_g_index, Sat_w_index=-1;
+		int Sat_g_index=0, Sat_w_index=-1;
 		if (multi_phase == true)
 		{
 			P_old_index = h_pcs->GetNodeValueIndex("PRESSURE2");    // old timestep

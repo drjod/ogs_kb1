@@ -2346,7 +2346,8 @@ CNodeValue* cnodev)
 #ifndef NEW_EQS
    MXInc(cnodev->msh_node_number, cnodev->msh_node_number, value_jacobi 
       / epsilon);
-   // else ...
+#else
+   (void) value_jacobi; // to surpress warning
 #endif
 
 
@@ -2791,7 +2792,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 						static_cast<const GEOLIB::Point*>(st->geoInfo_storageRateOutlet->getGeoObj())));
 	    }
 
-		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_vector_cond, ply_nod_val_vector);
+		SetPolylineNodeValueVector(st, ply_nod_vector, ply_nod_val_vector);
 
 		if(st->verbosity)
 		{
@@ -2827,7 +2828,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 				&& (st->pcs_type_name_cond != "OVERLAND_FLOW" &&  st->pcs_type_name_cond2 != "OVERLAND_FLOW"))
 		{
 
-			  st->SetPolylineNodeVectorConnected(ply_nod_vector, ply_nod_vector_cond);
+			  st->SetPolylineNodeVectorConnected(ply_nod_vector_cond);
 
 			  if(st->average_mode == 1)
 			  {
@@ -2894,7 +2895,7 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 				  std::vector<double> ply_nod_val_vector_cond_original;
 
 
-				  SetPolylineNodeValueVector(st, ply_nod_vector_cond, ply_nod_vector_cond /* nod used */, ply_nod_val_vector_cond_original);
+				  SetPolylineNodeValueVector(st, ply_nod_vector_cond, ply_nod_val_vector_cond_original);
 
 		  		  const double total_val_cond_original = std::accumulate(ply_nod_val_vector_cond_original.begin(), ply_nod_val_vector_cond_original.end(), 0.);
 
@@ -2960,7 +2961,6 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			std::vector<double> well2_mesh_node_values;
 
 			SetPolylineNodeValueVector(st, ply_nod_vector_well2,
-					ply_nod_vector_well2, // cond (not used)
 					well2_mesh_node_values);
 
 			double total_value = std::accumulate(ply_nod_val_vector.begin(),
@@ -3515,7 +3515,7 @@ void CSourceTermGroup::SetSFC(CSourceTerm* m_st, const int ShiftInNodeVector)
 
 	  if (m_st->isConnectedGeometry() &&   // JOD 2/2015
 			  m_st->getConnectedGeometryCouplingType() != 2) // not borehole with given primary variable
-		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector, sfc_nod_vector_cond);
+		  m_st->SetSurfaceNodeVectorConnected(sfc_nod_vector_cond);
 	   if(m_st->hasThreshold()) // JOD 2018-03-7  - copyed from SetPnt
 	   {  // only point supported
 		   m_st->msh_node_number_threshold = m_msh->GetNODOnPNT(
@@ -3858,7 +3858,6 @@ void CSourceTerm::InterpolatePolylineNodeValueVector(
 // 09/2010 TF
 void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 		std::vector<long> const & ply_nod_vector,
-		std::vector<long> const & ply_nod_vector_cond,
 		std::vector<double>& ply_nod_val_vector) const
 {
 	size_t number_of_nodes(ply_nod_vector.size());
@@ -3958,7 +3957,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
 	}
 
 	if (st->isCoupled() && st->node_averaging)
-		AreaAssembly(st, ply_nod_vector_cond, ply_nod_val_vector);
+		AreaAssembly(ply_nod_val_vector);
 
 	if (distype==FiniteElement::RECHARGE)	//MW
 	{
@@ -3978,9 +3977,7 @@ void CSourceTermGroup::SetPolylineNodeValueVector(CSourceTerm* st,
  04/2020 JOD deactivated
  last modification:
  **************************************************************************/
-void CSourceTermGroup::AreaAssembly(const CSourceTerm* const st,
-const std::vector<long>& ply_nod_vector_cond,
-std::vector<double>& ply_nod_val_vector) const
+void CSourceTermGroup::AreaAssembly(std::vector<double>& ply_nod_val_vector) const
 {
    if (pcs_type_name == "RICHARDS_FLOW" || pcs_type_name == "MULTI_PHASE_FLOW")
    {
@@ -4107,7 +4104,7 @@ void CSourceTermGroup::DistributeVolumeFlux(CSourceTerm* st, std::vector<long> c
     st->geo_node_value = 1;
 
 	if(st->getGeoType () == GEOLIB::POLYLINE)
-	  SetPolylineNodeValueVector(st, nod_vector, nod_vector, nod_val_vector_area);
+	  SetPolylineNodeValueVector(st, nod_vector, nod_val_vector_area);
 	else if(st->getGeoType () == GEOLIB::SURFACE)
 	{
 	   Surface* m_sfc = NULL;
@@ -5146,8 +5143,7 @@ Programing:
 02/2015 JOD
 last modification: 10 / 2018 use GeoObj
 **************************************************************************/
-void CSourceTerm::SetSurfaceNodeVectorConnected(std::vector<long>&sfc_nod_vector,
-	std::vector<long>&sfc_nod_vector_cond)
+void CSourceTerm::SetSurfaceNodeVectorConnected(std::vector<long>&sfc_nod_vector_cond)
 {
 	std::vector<std::size_t> sfc_node_cond_ids;
 	CFEMesh* m_msh(FEMGet(convertProcessTypeToString(getProcessType())));
@@ -5171,8 +5167,7 @@ Programing:  same as CSourceTerm::SetSurfaceNodeVectorConnected()
 10/2018 JOD
 last modification:
 **************************************************************************/
-void CSourceTerm::SetPolylineNodeVectorConnected(std::vector<long>&ply_nod_vector,
-	std::vector<long>&ply_nod_vector_cond)
+void CSourceTerm::SetPolylineNodeVectorConnected(std::vector<long>&ply_nod_vector_cond)
 {
 	std::vector<std::size_t> ply_node_cond_ids;
 	CFEMesh* m_msh(FEMGet(convertProcessTypeToString(getProcessType())));
@@ -5532,8 +5527,7 @@ heat capacity (pressure, temperature) when point heat source /sink term for heat
 only heat capacity and density of fluid is considered (mfp_vector[0])
 
 **************************************************************************/
-double CSourceTerm::apply_wellDoubletControl(double value,
-				const CNodeValue* cnodev, const double& aktuelle_zeit, CRFProcess* m_pcs)
+double CSourceTerm::apply_wellDoubletControl(double value, const double& aktuelle_zeit, CRFProcess* m_pcs)
 {
 	if(!m_pcs)
 		throw std::runtime_error("WellDoubletControl - No PCS");
@@ -5731,7 +5725,7 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 
 // JOD 2021-12-06
 void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
-		const long& msh_node,  // of local processor in case of MPI
+		long msh_node,  // of local processor in case of MPI
 		const CFEMesh* const m_msh, const double& value,
 		// the following are updated
 		std::vector<scaling_type>& scaling_vec,
@@ -5744,6 +5738,8 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 	scaling.node_number = cnodev->msh_node_number;
 #if defined(USE_MPI)
 	scaling.node_number_local = msh_node;
+#else
+	(void)msh_node; // surpress warning
 #endif
 	scaling.group_number = GetScalingNodeGroup();
 	scaling.keep_value = keep_values;

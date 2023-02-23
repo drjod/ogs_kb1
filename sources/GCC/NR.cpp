@@ -17,7 +17,7 @@ double NR::zbrent(double func(double), const double x1, const double x2, const d
 {
 	const int ITMAX=100;
 	const double EPS=numeric_limits<double>::epsilon();
-	double a=x1,b=x2,c=x2,d,e=0.0,fa=func(a),fb=func(b),fc,p,q,r,s,tol1,xm;
+	double a=x1,b=x2,c=x2,d=0,e=0.0,fa=func(a),fb=func(b),fc=0,p=0,q=0,r=0,s=0,tol1=0,xm=0;
 	//cout << "   x1  " << a  << "   x1  " << b << endl;
 	//cout << " f(x1) " << fa << " f(x2) " << fb << endl;
 	if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0))

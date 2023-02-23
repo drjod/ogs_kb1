@@ -2531,6 +2531,7 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 **************************************************************************/
 void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
+	(void)fourrierFluxCalculated;  // surpress warning
 
 //#if defined(USE_PETSC)  // JOD 2015-11-17
 //	std::cout << "point_" + mrank_str;
@@ -3173,6 +3174,7 @@ void COutput::NODWriteSFCDataTEC(int time_step_number, bool& fourrierFluxCalcula
 **************************************************************************/
 void COutput::NODWriteSFCAverageDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
+	(void)fourrierFluxCalculated;  // surpress warning
 
 	/*   CB:   Extended for 2D-Element projection along a regular surface   */
 		if (_nod_value_vector.size() == 0)
@@ -3281,6 +3283,7 @@ restrictions:
 **************************************************************************/
 void COutput::NODWritePLYAverageDataTEC(int time_step_number, bool& fourrierFluxCalculated)
 {
+	(void)fourrierFluxCalculated;  // surpress warning
 		if (_nod_value_vector.size() == 0)
 		{
 			std::cout << "Warning - No nodes for polyline " << geo_name << "\n";
@@ -4293,7 +4296,7 @@ std::cout << "fffffffffff" << std::endl;
 #endif
 		//
 		WriteTECHeader(tec_file,te,eleType);
-		WriteTECNodePCONData(tec_file);
+		//WriteTECNodePCONData(tec_file);
 		WriteTECElementData(tec_file,te);
 		tec_file.close();         // kg44 close file
 		//--------------------------------------------------------------------
@@ -4431,10 +4434,10 @@ std::cout << "fffffffffff" << std::endl;
    Programing:
    08/2008 MX Implementation
 **************************************************************************/
+/*  removed by JOD due to warning
 void COutput::WriteTECNodePCONData(fstream &tec_file)
 {
-// removed by JOD due to warning
-/*
+
 	const size_t nName (_pcon_value_vector.size());
 	int nidx_dm[3];
 	std::vector<int> PconIndex(nName);
@@ -4488,8 +4491,9 @@ void COutput::WriteTECNodePCONData(fstream &tec_file)
 #endif
 		tec_file << "\n";
 	}
-*/
+
 }
+*/
 
 void COutput::checkConsistency ()
 {
@@ -5251,12 +5255,12 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 {
 
 	int nfaces, nfn, nodesFace[8], count;
-	double fac, nodesFVal[8], nodesFVal_adv[8];
+	double nodesFVal[8], nodesFVal_adv[8];
 	int j, k, Axisymm = 1;                               // ani-axisymmetry
 	if (m_pcs->m_msh->isAxisymmetry())
 		Axisymm = -1;                               // Axisymmetry is true
 	CNode* e_node;
-	CElem *elem = NULL, *e_nei = NULL, *face = new CElem(1);
+	CElem *elem = NULL, *face = new CElem(1);
 	FiniteElement::CElement* element = new FiniteElement::CElement(Axisymm * m_pcs->m_msh->GetCoordinateFlag());
 	//CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, m_pcs->m_msh->GetCoordinateFlag());
 	vector<long> nodes_on_geo, elements_at_geo;
@@ -5297,7 +5301,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 		
 		for (j = 0; j < nfaces; j++) {
 
-			e_nei = elem->GetNeighbor(j);
+			//e_nei = elem->GetNeighbor(j);
 			nfn = elem->GetElementFaceNodes(j, nodesFace);
 			// is element face on surface? 1st check
 			if (elem->selected < nfn)
@@ -5313,9 +5317,9 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			if (count != nfn)
 				continue;
 			// --------
-			fac = 1.0;
-			if (elem->GetDimension() == e_nei->GetDimension())
-				fac = 0.5;   // Not a surface face
+			//fac = 1.0;
+			//if (elem->GetDimension() == e_nei->GetDimension())
+			//	fac = 0.5;   // Not a surface face
 			face->SetFace(elem, j);
 			face->SetOrder(m_pcs->m_msh->getOrder());
 			face->ComputeVolume();
@@ -5326,7 +5330,7 @@ void COutput::AccumulateTotalFlux(CRFProcess* m_pcs, double* normal_flux_diff, d
 			//face->ComputeVolume();    
 			NODCalcFlux(m_pcs, elem, face, nodesFace, nfn, nodesFVal, nodesFVal_adv);
 			element->CalculateFluxThroughFace(elements_at_geo[i],
-					fac, nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
+					nodesFVal, nodesFVal_adv, normal_flux_diff, normal_flux_adv);
 		} // end j, faces
 	} // end i, elements at surface
 
@@ -5599,6 +5603,8 @@ Programming:
 
 void COutput::WriteTEC_DOMAIN(int time_step_number, bool& fourrierFluxCalculated)
 {
+	(void)fourrierFluxCalculated;  // surpress warning
+	(void)time_step_number;
 
 #if defined (USE_PETSC) // || defined (other parallel solver lib). 12.2012 WW
 	if (dat_type_name.compare("BINARY") == 0) // 08.2012. WW
@@ -5720,7 +5726,7 @@ Programing:
 06/2018 JOD Implementation
 **************************************************************************/
 
-void COutput::WriteWellDoubletControl(double time_current, int time_step_number)
+void COutput::WriteWellDoubletControl(double time_current)
 {	// a_pcs???
 	std::cout << "Data output: WDC\n";
 	m_pcs = PCSGet(getProcessType());
@@ -5852,7 +5858,7 @@ Programing:
 08/2019 JOD Implementation
 **************************************************************************/
 
-void COutput::WriteContraflow(double time_current, int time_step_number)
+void COutput::WriteContraflow(double time_current)
 {	// a_pcs???
 	std::cout << "Data output: Contraflow\n";
 	m_pcs = PCSGet(getProcessType());
@@ -6006,7 +6012,7 @@ Programing:
 04/2020 JOD Implementation
 **************************************************************************/
 
-void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
+void COutput::WriteContraflowPolyline(double time_current)
 {	// a_pcs???
 	std::cout << "Data output: Contraflow\n";
 	m_pcs = PCSGet(getProcessType());
@@ -6151,7 +6157,7 @@ void COutput::WriteContraflowPolyline(double time_current, int time_step_number)
 }
 
 
-void COutput::WriteBoreholeData(const double& time_current, const int& time_step_number)
+void COutput::WriteBoreholeData(const double& time_current)
 {
 		std::string tec_file_name = file_base_name + "_"
 				 + std::string(convertProcessTypeToString(getProcessType()))

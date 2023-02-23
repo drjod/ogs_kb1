@@ -160,10 +160,8 @@ public:
 	// used only in sourcetermgroup
 	void SetSurfaceNodeVectorConditional(std::vector<long> & sfc_nod_vector,
 	                                     std::vector<long> & sfc_nod_vector_cond);
-	void SetSurfaceNodeVectorConnected(std::vector<long> & sfc_nod_vector,
-		std::vector<long> & sfc_nod_vector_cond);                       // JOD 2/2015
-	void SetPolylineNodeVectorConnected(std::vector<long> & sfc_nod_vector,
-		std::vector<long> & sfc_nod_vector_cond);                       // JOD 10/2018
+	void SetSurfaceNodeVectorConnected(std::vector<long> & sfc_nod_vector_cond);                       // JOD 2/2015
+	void SetPolylineNodeVectorConnected(std::vector<long> & sfc_nod_vector_cond);                       // JOD 10/2018
 	// used only once in sourcetermgroup
 	void InterpolatePolylineNodeValueVector(CGLPolyline* m_ply,
 	                                        std::vector<double> & Distribed,
@@ -175,7 +173,7 @@ public:
 	void SetNodeValues(const std::vector<long> &, const std::vector<long> &, const std::vector<double>&,
 	                   const std::vector<double> &, const int&); // used only in sourcetermgroup
 
-	void CalculateScalingForNode(const CNodeValue* const, const long& msh_node, const CFEMesh* const, const double&,
+	void CalculateScalingForNode(const CNodeValue* const, long msh_node, const CFEMesh* const, const double&,
 			std::vector<scaling_type>&, std::map<int, double>&, std::map<int, double>&);
 
 	void SetNOD();
@@ -262,8 +260,7 @@ public:
 
 	double CheckThreshold(const double &value, const CNodeValue* cnodev) const;  // JOD 2018-1-31
 	double CalculateFromStorageRate(const double &value, const CNodeValue* cnodev) const;
-	double apply_wellDoubletControl(double value, const CNodeValue* cnodev,
-			const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
+	double apply_wellDoubletControl(double value, const double& aktuelle_zeit, CRFProcess* m_pcs);  // JOD 2018-06-14
 	double apply_contraflow(const double &value, const double& aktuelle_zeit, CRFProcess* m_pcs, double* eqs_rhs);  // JOD 2019-7-30
 	bool channel, channel_width, air_breaking;
 	double air_breaking_factor, air_breaking_capillaryPressure, air_closing_capillaryPressure;
@@ -478,9 +475,8 @@ private:
 	                                      std::vector<size_t>& ply_nod_vector,
 	                                      std::vector<size_t>& ply_nod_vector_cond);
 
-    void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
-    		  const std::vector<long>& ply_nod_vector,
-    		  std::vector<long>& ply_nod_vector_cond, std::vector<double>& ply_nod_val_vector);
+    	//void SetPolylineNodeValueVector(CSourceTerm* st, CGLPolyline * old_ply,
+    	//		  const std::vector<long>& ply_nod_vector, std::vector<double>& ply_nod_val_vector);
 
 	/**
 	 * 09/2010 / 03/2011 TF
@@ -491,7 +487,6 @@ private:
 	 */
 	void SetPolylineNodeValueVector(CSourceTerm* st,
 	                                std::vector<long> const & ply_nod_vector,
-	                                std::vector<long> const & ply_nod_vector_cond,
 	                                std::vector<double>& ply_nod_val_vector) const;
 
 	// JOD
@@ -502,8 +497,7 @@ private:
 	                                Surface* m_sfc,
 	                                std::vector<long> const &sfc_nod_vector,
 	                                std::vector<double>&sfc_nod_val_vector);
-	void AreaAssembly(const CSourceTerm* const st, const std::vector<long>& ply_nod_vector_cond,
-	                  std::vector<double>&  ply_nod_val_vector) const;
+	void AreaAssembly(std::vector<double>&  ply_nod_val_vector) const;
 	void DistributeVolumeFlux(CSourceTerm* st, std::vector<long> const & ply_nod_vector, // 5.3.07 
 		                      std::vector<double>& ply_nod_val_vector);
   

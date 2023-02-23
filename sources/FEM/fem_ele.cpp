@@ -1390,7 +1390,7 @@ Programming:
 
 **************************************************************************/
 
-void CElement::FaceNormalFluxIntegration(long element_index, double *NodeVal, double *NodeVal_adv, int* nodesFace, CElem* face, CRFProcess* m_pcs, double* normal_vector)
+void CElement::FaceNormalFluxIntegration(long element_index, double *NodeVal, double *NodeVal_adv, CRFProcess* m_pcs, double* normal_vector)
 {
 
 	int gp, gp_r, gp_s;
@@ -1565,7 +1565,7 @@ Programming:
 
 **************************************************************************/
 
-void CElement::CalculateFluxThroughFace(long element_index, double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux)
+void CElement::CalculateFluxThroughFace(double factor, double *NodeVal, double *NodeVal_adv, double* normal_diff_flux, double* normal_adv_flux)
 {
 
 	int i, gp, gp_r=0, gp_s=0, gp_t=0;

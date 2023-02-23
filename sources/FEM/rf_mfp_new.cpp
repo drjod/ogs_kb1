@@ -1375,8 +1375,7 @@ double CFluidProperties::Density(double* values)
 		break;
 	case 8:                   // M14 von JdJ
 		density = MATCalcFluidDensityMethod8(primVal[0],
-			primVal[1],
-			primVal[2]);
+			primVal[1]);
 		break;
 	case 10:                  // Get density from temperature-pressure values from fct-file NB
 		if (!T_Process)
@@ -2110,7 +2109,7 @@ double CFluidProperties::GetElementValueFromNodes(long ElementIndex,
    09/2004   CMCD  Inclusion in GeoSys vs. 4
 
 *************************************************************************/
-double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK, double Conc)
+double CFluidProperties::MATCalcFluidDensityMethod8(double Press, double TempK)
 {
 	/*int c_idx;*/
 	double rho_0;

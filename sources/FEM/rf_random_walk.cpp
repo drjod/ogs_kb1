@@ -1121,12 +1121,13 @@ void RandomWalk::InterpolateVelocityOfTheParticleByBilinear(int option, Particle
 				  //Todo
 #elif defined(NEW_EQS)
 
-					double* x;
-					int size = m_msh->nod_vector.size();
-					x = new double[size];
 #if defined(LIS)
+					double* x;
+					const int size = m_msh->nod_vector.size();
+					x = new double[size];
 					m_pcs->EQSSolver(x); // an option added to tell FLUID_MOMENTUM for sparse matrix system.
 					cout << "Solver passed in FLUID_MOMENTUM." << "\n";
+					delete[] x; 
 #endif
 #else
 					m_pcs->ExecuteLinearSolver(m_pcs->getEQSPointer());

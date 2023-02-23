@@ -77,7 +77,7 @@ namespace FiniteElement
    Programmaenderungen:
    01/2005   WW    Erste Version
 **************************************************************************/
-CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order)//, bool _2D_mesh_with_line_elements)
+CFiniteElementStd:: CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad)//, bool _2D_mesh_with_line_elements)
 	: CElement(C_Sys_Flad)/*, order, _2D_mesh_with_line_elements)*/, phase(0), comp(0), SolidProp(NULL),
 	  FluidProp(NULL), MediaProp(NULL),
 	  pcs(Pcs), dm_pcs(NULL), HEAD_Flag(false)

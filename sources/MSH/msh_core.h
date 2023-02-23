@@ -81,13 +81,16 @@ public:
 		os << "\n";
 	}
     // variable min_vol - used to switch off elements with very small volumes, as these cause a Jacobi of 0,
-    bool min_vol; //SB AB
 protected:
 	// Properties
 	size_t index;
 	char boundary_type;
 	bool mark;                                // e.g. marked to be refined or active
 	bool quadratic;                           // higher order
+public:
+    bool min_vol; //SB AB
+
 };
 }                                                 // namespace MeshLib
 #endif
+

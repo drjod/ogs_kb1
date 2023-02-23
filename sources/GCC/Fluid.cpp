@@ -1564,7 +1564,7 @@ double NIST_M::density(double T, double P, double mH2, double mN2, double mO2, d
 	return res;
 }
 
-double NIST_M::entropy(double T, double P, double mH2, double mN2, double mO2, double mCH4, double mCO2){
+double NIST_M::entropy(double T,/* double P,*/ double mH2, double mN2, double mO2, double mCH4, double mCO2){
 	double res,mM,P1,P2,P3,P4,P5;
 	mM = mH2 + mN2 + mO2 + mCH4 + mCO2;
 	P1 = mH2 / mM;

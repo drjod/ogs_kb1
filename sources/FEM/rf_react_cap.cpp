@@ -659,7 +659,7 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
   CRFProcess* m_pcs = NULL;
   double *Concentration;  // concentration of all result
   double *nod_HKF_logK=NULL, *nod_SAC=NULL, *nod_KIN_logK=NULL;
-  double *CAPtimes = NULL;  
+  //double *CAPtimes = NULL;  
   int nHKF = 0, nKIN = 0;
   int nComponents;
   std::vector<int> ranknodelistvec;
@@ -842,11 +842,11 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
   MPI_Bcast(&nNodes, 1, MPI_LONG, 0, MPI_COMM_WORLD);
 
   if (f == 1)
-    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff);
   else if (f == -1)
-    this->LoopNodeReact_Liquid_VaporNew(1, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+    this->LoopNodeReact_Liquid_VaporNew(nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff);
   else if (f == 0)
-    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff, CAPtimes_buff);
+    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration_buff, nod_KIN_logK_buff, nod_SAC_buff, nod_HKF_logK_buff);
 
   // Get MPI results
   MPI_Barrier(MPI_COMM_WORLD);
@@ -865,15 +865,15 @@ void REACT_CAP::ExecuteReactionsChemAppNew(int f, int nodeflag){
 
   if (f == 1){  // standard case, full equilibrium
     //this->LoopNodeReact(1, nodeflag);
-    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+    this->LoopNodeReactNew(1, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK);
   }
   else if (f == -1){ // liquid speciation only, preprocessing for kinetics
     //this->LoopNodeReact_Liquid_Vapor(1, nodeflag);
-    this->LoopNodeReact_Liquid_VaporNew(1, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+    this->LoopNodeReact_Liquid_VaporNew(nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK);
   }
   else if (f == 0){ // initial equilibration, no update of solid phase concentrations
     //this->LoopNodeReact(0, nodeflag);   //CB MPI required for each CAP instance
-    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK, CAPtimes);
+    this->LoopNodeReactNew(0, nodeflag, ranknodeliststore[myrank], Concentration, nod_KIN_logK, nod_SAC, nod_HKF_logK);
   }
 
 #endif  
@@ -2865,7 +2865,7 @@ for(ii=0;ii<this->nodenumber;ii++){	//ii==0 as boundary point without reaction c
 } // end of function loopnodereact
 
 
-void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodelist, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim){
+void REACT_CAP::LoopNodeReactNew(int f, int nodeflag, std::vector<int> ranknodelist, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF){
 
   int ff;
   int ii, isc, ix, widx = 0, fg;
@@ -3882,7 +3882,7 @@ void REACT_CAP::LoopNodeReact_Liquid_Vapor(int /*f*/, int nodeflag){
 }
 
 
-void REACT_CAP::LoopNodeReact_Liquid_VaporNew(int f, int nodeflag, std::vector<int > list, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim){
+void REACT_CAP::LoopNodeReact_Liquid_VaporNew(int nodeflag, std::vector<int > list, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF){
   LI i, noerr = 0;
   cout << "\n" << " --> Liquid Vapor Reactions " << "\n";
 
@@ -3901,7 +3901,7 @@ void REACT_CAP::LoopNodeReact_Liquid_VaporNew(int f, int nodeflag, std::vector<i
   //#endif  
   //
 
-  this->LoopNodeReactNew(-1, nodeflag, list, m_Conc, m_KIN, m_SAC, m_HKF, CAPtim);
+  this->LoopNodeReactNew(-1, nodeflag, list, m_Conc, m_KIN, m_SAC, m_HKF);
 
   //CB MPI required for each CAP instance
   // return all solid phase species to geochemical system ...

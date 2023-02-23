@@ -204,8 +204,8 @@ class REACT_CAP{
         void KinParamUpdataHKFNew(int, double T, double P, int err, double *m_HKF);
 	void LoopNodeReact_Liquid_Vapor(int, int);
 	void LoopNodeReact_Liquid_Solid(int, int);
-  void LoopNodeReactNew(int, int, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim);
-  void LoopNodeReact_Liquid_VaporNew(int f, int nodeflag, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF, double *CAPtim);
+  void LoopNodeReactNew(int, int, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF);
+  void LoopNodeReact_Liquid_VaporNew(int nodeflag, std::vector<int>, double *m_Conc, double *m_KIN, double *m_SAC, double *m_HKF);
 
 	void ExecuteReactionsChemApp(int, int); //DL 28,10,08
   void ExecuteReactionsChemAppNew(int, int); // CB parallel MPI

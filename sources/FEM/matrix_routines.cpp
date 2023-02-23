@@ -3131,7 +3131,27 @@ void M1Vorkond(int aufgabe, double* x, double* b)
 				diag -= dim + 1;
 			}             /* i */
 		}                         /* Modus iLDU, (zerlegen und) aufloesen */
-		 // no break ?????
+		 // the following part exactly as case 3
+		if VK_Modus
+		        (VK_iLDU)
+		{                         /*  Gauss anstelle L(D)U-Zerlegung */
+			long ia = 0, diag = dim * dim - 1;
+			/* Nur aufloesen, Matrix ist immer schon zerlegt! */
+			for (i = 0; i < dim; i++)
+			{             /*  vorwaerts einsetzen mit Oik */
+				x[i] = b[i] - H_M1skprod(&Gik[ia], 1l, x, i);
+				ia += dim;
+			}
+
+			ia--;         /* rechts neben letztem Diagonalelement */
+			for (i = dim; i > 0; i--)
+			{             /* rueckwaerts einsetzen mit Uik */
+				x[i - 1] -= H_M1skprod(&Gik[ia], 1l, &x[i], dim - i);
+				x[i - 1] *= Gik[diag];
+				diag -= dim + 1;
+			}             /* i */
+		}                         /* Modus iLDU, aufloesen mit L(t) */
+		break;
 	case 3:                               /* Linkstransformation des Gesamtsystems x <= L(t)*b */
 		if VK_Modus
 		        (VK_iLDU)
@@ -3152,6 +3172,9 @@ void M1Vorkond(int aufgabe, double* x, double* b)
 				diag -= dim + 1;
 			}             /* i */
 		}                         /* Modus iLDU, aufloesen mit L(t) */
+		break;
+	default:
+		throw std::runtime_error("M1 Vorkond: Predconditioner task not supported");
 	}                                     /* aufgabe */
 }                                                 /* M1Vorkond */
 
@@ -3313,8 +3336,81 @@ void M34Vorkond(int aufgabe, double* x, double* b)
 	case 3:                               /* Linkstransformation des Gesamtsystems x <= L(t)*b */
 		u = 0;
 		o = w->usym;
-	/* kein break! "Fall through" nach Aufgabe 2 */
+		// the following part exactly as case 2:
+		if (VK_Modus (VK_iLDU))   /* incomplete L(D)U-Zerlegung */
+		{
+			if (w->stat < 2) /* Matrix ist noch nicht zerlegt */
+			{
+				for (k = 0; k < dim; k++) /* Spalten reduzieren */
+				{
+					for (j = 0; j < Sp34(k).anz; j++)
+					{
+						Oik = Aik34(k, j, o);
+						if (u)
+							Uki = Aik34(k, j, u);
+						i = Ind34(k, j);
 
+						/* Skalarprodukte abziehen */
+						jk = 0;
+						zk = Ind34(k, jk); /* oberstes Element Spalte k */
+						for (ji = 0; ji < Sp34(i).anz; ji++)
+						{
+							while (Ind34(i, ji) > zk)
+								zk = Ind34(k, ++jk);  /* zk existiert! */
+							if (zk == Ind34(i, ji))
+							{
+								Oik -= Bik34(i, ji, u) * Bik34(k,
+								                               jk,
+								                               o);
+								if (u)
+									Uki -=
+									        Bik34(i, ji,
+									              o) * Bik34(k,
+									                         jk,
+									                         u);
+							}
+						} /* Ende ji Skalarprodukt */
+						Bik34(k, j, o) = Oik;
+						if (u)
+							Bik34(k, j, u) = Uki;
+					} /* j, Spaltenelemente staffeln */
+
+					/* Diagonale extrahieren mit Sk.prod. fuer Diagonalelement */
+					Dkk = w->Diag[k];
+					for (jk = 0; jk < Sp34(k).anz; jk++)
+					{
+						Oik = Bik34(k, jk, o);
+						zk = Ind34(k, jk);
+						Bik34(k, jk, o) *= w->PreD[zk];
+						if (u)
+							Bik34(k, jk, u) *= w->PreD[zk];
+						Dkk -= Bik34(k, jk, u) * Oik;
+					}
+					if (fabs(Dkk) < fastNull)
+						/*sign */
+						Dkk = (Dkk < 0.0) ? -fastNull : fastNull;
+					w->PreD[k] = 1.0 / Dkk; /* Kehrwert speichern */
+				}
+				w->stat = 2; /* merken! */
+			}             /* Ende der Zerlegung */
+			/* genaeherte Loesung von  A*x = b. Ergebnis: x */
+			for (k = 0; k < dim; k++) /* vorwaerts einsetzen mit Untermatrix */
+			{
+				r = b[k];
+				for (j = 0; j < Sp34(k).anz; j++)
+					r -= Bik34(k, j, u) * x[Ind34(k, j)];
+				x[k] = r;
+			}
+			for (k = 0; k < dim; k++)
+				x[k] *= w->PreD[k];  /* Diagonal-Normierung */
+			for (k = dim - 1; k > 0; k--) /* rueckwaerts einsetzen mit Obermatrix */
+			{
+				r = x[k];
+				for (j = 0; j < Sp34(k).anz; j++)
+					x[Ind34(k, j)] -= Bik34(k, j, o) * r;
+			}
+		}                         /* Ende ILU-Vorkonditionierer */
+		break;
 	case 2:                               /* Linkstransformation  x <= L*b */
 		if (VK_Modus (VK_iLDU))   /* incomplete L(D)U-Zerlegung */
 		{
@@ -3389,6 +3485,9 @@ void M34Vorkond(int aufgabe, double* x, double* b)
 					x[Ind34(k, j)] -= Bik34(k, j, o) * r;
 			}
 		}                         /* Ende ILU-Vorkonditionierer */
+		break;
+	default:
+		throw std::runtime_error("M43-Vorkond: Preconditioner task not supported");
 	}                                     /* switch aufgabe */
 }                                                 /*M34Precond */
 

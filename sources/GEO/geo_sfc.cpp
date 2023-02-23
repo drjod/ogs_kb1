@@ -1288,7 +1288,7 @@ void Surface::WriteTIN(const std::string &file_path)
    03/2004 OK Implementation
    last modification:08/2005 CC
 **************************************************************************/
-void GEOCreateLayerSurfaceTINs(int nb_prism_layers, double thickness_prism_layers)
+/*void GEOCreateLayerSurfaceTINs(int nb_prism_layers, double thickness_prism_layers)
 {
 	long i,j;
 	long no_TIN_Triangles;
@@ -1349,6 +1349,7 @@ void GEOCreateLayerSurfaceTINs(int nb_prism_layers, double thickness_prism_layer
 		surface_vector.push_back(m_surface_new);
 	}
 }
+*/
 /**************************************************************************
    GeoLib-Method:
    Task:

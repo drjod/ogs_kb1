@@ -29,7 +29,7 @@ namespace FiniteElement
 {class CFiniteElementStd;
  class CFiniteElementVec;
 }
-using  ::CRFProcess;
+//using  ::CRFProcess;
 using  process::CRFProcessDeformation;
 using  FiniteElement::CFiniteElementStd;
 using  FiniteElement::CFiniteElementVec;

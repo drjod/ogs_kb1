@@ -150,7 +150,7 @@ public:
 	void TIMValues_TEC(double tim_value[5], std::string *header, int dimension);   //BG 04/2011 added for more than 1 value per time
 	double NODFlux(long);                 //OK
 	void PCONWriteDOMDataTEC();           //MX
-	void WriteTECNodePCONData(std::fstream &); //MX
+	//void WriteTECNodePCONData(std::fstream &); //MX
 
 	void WriteTEC(double, int, bool, size_t, bool&); // JOD 2015-11-14
 	void WriteVTK(double, int, bool, size_t); // JOD 2015-11-14
@@ -167,10 +167,10 @@ public:
 	void WriteTotalFlux(double, int);	// JOD 11/2014 
 	void WriteContent(double, int);     // JOD 2/2015
 	void WriteLatentHeat(double, int);     // BW 2022-05-12
-	void WriteWellDoubletControl(double, int);  // JOD 2018-06-27
-	void WriteContraflow(double, int);  // JOD 2019-08-23
-	void WriteContraflowPolyline(double, int);  // JOD 2020-04-30
-	void WriteBoreholeData(const double&, const int&); // JOD-2022-02-15
+	void WriteWellDoubletControl(double);  // JOD 2018-06-27
+	void WriteContraflow(double);  // JOD 2019-08-23
+	void WriteContraflowPolyline(double);  // JOD 2020-04-30
+	void WriteBoreholeData(const double&); // JOD-2022-02-15
 
 	void NODWritePointsCombined(double, int);	// 6/2012 JOD
 	void NODWritePrimaryVariableList(double, int);	// JOD 2014-11-10

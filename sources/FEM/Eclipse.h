@@ -373,7 +373,7 @@ public:
 
 	bool ReplaceWellRate(CReadTextfiles_ECL* eclDataFile);
 
-	int WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs, std::string projectname);
+	int WriteDataBackToEclipse(CReadTextfiles_ECL* eclFFile, CReadTextfiles_ECL* eclDataFile, CRFProcess* m_pcs);
 
     bool CalculateDeltaGeoSysECL(CRFProcess* m_pcs);
 
@@ -439,7 +439,7 @@ public:
 	
 	void SaveEclipseDataFile(long Timestep, CRFProcess* m_pcs); // WTP function to save a copy of the .data file 
 
-	bool CleanUpEclipseFiles(std::string folder, std::string projectname, long Timestep, CRFProcess* m_pcs);
+	bool CleanUpEclipseFiles(std::string folder, std::string projectname, CRFProcess* m_pcs);
 
 	bool SaveEclipseInputFiles(std::string folder, std::string projectname);
 

@@ -289,7 +289,7 @@ public:
 	//unit g/dm^3
 	static double density(double T, double P, double mH2, double mN2, double mO2, double mCH4, double mCO2);
 	//unit J
-	static double entropy(double T, double P, double mH2, double mN2, double mO2, double mCH4, double mCO2);
+	static double entropy(double T, /*double P,*/ double mH2, double mN2, double mO2, double mCH4, double mCO2);
 	//total heat capacity, J/K
 	static double isochoric_heat_capacity(double T, double P, double mH2, double mN2, double mO2, double mCH4, double mCO2);
 	//total heat capacity, J/K

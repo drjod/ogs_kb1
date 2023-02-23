@@ -66,7 +66,7 @@ namespace FiniteElement
 	class CFiniteElementStd : public CElement
 	{
 		public:
-			CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad, const int order = 1);//, bool _2D_mesh_with_line_elements=false);
+			CFiniteElementStd(CRFProcess* Pcs, const int C_Sys_Flad);//, bool _2D_mesh_with_line_elements=false);
 			~CFiniteElementStd();
 
 			// Set material data

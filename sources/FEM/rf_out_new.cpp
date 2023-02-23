@@ -299,13 +299,13 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)
 			m_out->NODWritePrimaryVariableList(time_current, time_step_number); //JOD 2014-11-10
 		else if (m_out->dat_type_name.compare("WELL_DOUBLET_CONTROL") == 0)
-					m_out->WriteWellDoubletControl(time_current, time_step_number); // 2018-06-27 JOD
+					m_out->WriteWellDoubletControl(time_current); // 2018-06-27 JOD
 		else if (m_out->dat_type_name.compare("CONTRAFLOW") == 0)
-					m_out->WriteContraflow(time_current, time_step_number); // JOD 2019-08-23
+					m_out->WriteContraflow(time_current); // JOD 2019-08-23
 		else if (m_out->dat_type_name.compare("CONTRAFLOW_POLYLINE") == 0)
-					m_out->WriteContraflowPolyline(time_current, time_step_number); // JOD 2020-04-30
+					m_out->WriteContraflowPolyline(time_current); // JOD 2020-04-30
 		else if(m_out->dat_type_name.compare("BOREHOLE") == 0)
-					m_out->WriteBoreholeData(time_current, time_step_number);
+					m_out->WriteBoreholeData(time_current);
         else if (m_out->dat_type_name.compare("LATENT_HEAT") == 0)
                  m_out->WriteLatentHeat(time_current, time_step_number); //BW 2022-05-12
 		// ELE values, only called if ele values are defined for output, 05/2012 BG
