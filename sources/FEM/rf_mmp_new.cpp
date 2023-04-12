@@ -149,7 +149,7 @@ CMediumProperties::CMediumProperties() :
 
 	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
 
-	heat_conductivity = -1.;
+	heat_conductivity_model = 1.;
 	velocity_given = false;
 	volumetric_heat_capacity_model = -1;
 }
@@ -1721,7 +1721,22 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 		if (line_string.find("$HEAT_CONDUCTIVITY") != std::string::npos)
 		{
 			in.str(GetLineFromFile1(mmp_file));
-			in >> heat_conductivity;
+			in >> heat_conductivity_model;
+			switch(heat_conductivity_model)
+			{
+				case 1:
+					in >> heat_conductivity;
+					break;
+				case 2:
+				{
+					std::string matrix_file_name;
+					in >> matrix_file_name;
+					dataMatrix = DataMatrixRead(matrix_file_name);
+					break;
+				}
+				default:
+					throw std::runtime_error("Error in CMediumProperties::Read: no valid heat conductivity model");
+			}
 			in.clear();
 			continue;
 		}
@@ -2875,7 +2890,7 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 	CFluidProperties* m_mfp;              //WW
 	// long group = Fem_Ele_Std->GetMeshElement()->GetPatchIndex();
 
-	if (heat_conductivity == -1)  // not given as mmp-property
+	if (heat_conductivity_model == -1)  // not given as mmp-property
 	{
 		m_mfp = Fem_Ele_Std->FluidProp;       //WW
 
@@ -2974,6 +2989,84 @@ double* CMediumProperties::HeatConductivityTensor(int number)
 	}
 	else
 	{	// given as mmp-property - JOD 2022-03-12
+		if(heat_conductivity_model == 2)  // lambda(T, z) JOD 2023-04-05
+		{
+			std::vector<size_t> node_indices;
+			m_pcs->m_msh->ele_vector[number]->getNodeIndices(node_indices);
+
+			///////////////////////////////
+			// dim0
+			double T = 0.;
+			for(size_t i=0; i < node_indices.size(); ++i)
+			{
+				T += m_pcs->GetNodeValue(node_indices[i], 1);
+			}
+			T /= node_indices.size();
+
+			// get ndx0
+			// estimation
+			const int number_0 = dataMatrix.support_0.size();
+			int ndx_0 = (T-dataMatrix.support_0[0]) / (dataMatrix.support_0[number_0-1] - dataMatrix.support_0[0]) * (number_0-1);
+
+			for(;;)  // shift ndx_0 such that T is between support_0[ndx_0] and support_0[ndx_0 + 1]
+			{
+				if(T < dataMatrix.support_0[ndx_0])
+					ndx_0--;
+				else if(T > dataMatrix.support_0[ndx_0+1])
+					ndx_0++;
+				else
+					break;
+				if(ndx_0 <0 || ndx_0>=number_0)
+						throw std::runtime_error("Error in heat conductivity calculation - T outside range");
+			}
+
+			////////////////////////////////////
+			// dim1
+
+			//const double z = m_pcs->m_msh->ele_vector[number]->ComputeGravityCenter()[2];
+			double z = 0;
+			for(size_t i=0; i < node_indices.size(); ++i)
+			{
+				z += m_pcs->m_msh->nod_vector[node_indices[i]]->getData()[2];
+			}
+			z /= node_indices.size();
+			// get ndx1
+			// estimation
+			const int number_1 = dataMatrix.support_1.size();
+			int ndx_1 = (z-dataMatrix.support_1[0]) / (dataMatrix.support_1[number_1-1] - dataMatrix.support_1[0]) * (number_1-1);
+
+			for(;;)  // shift ndx_0 such that T is between support_0[ndx_0] and support_0[ndx_0 + 1]
+			{
+				if(z < dataMatrix.support_1[ndx_1])
+					ndx_1--;
+				else if(z > dataMatrix.support_1[ndx_1+1])
+					ndx_1++;
+				else
+					break;
+
+				if(ndx_1 <0 || ndx_1>=number_1)
+				{
+					std::cout  << ndx_1 << std::endl;
+					throw std::runtime_error("Error in heat conductivity calculation - z outside range");}
+			}
+			/////////////
+			// calculate conductivity value
+			const size_t dim_0 = dataMatrix.support_0.size();
+			const int matrix_ndx = ndx_0 + ndx_1 * dim_0;
+
+			const double value_z0 = dataMatrix.values[matrix_ndx] +
+					(dataMatrix.values[matrix_ndx+1] - dataMatrix.values[matrix_ndx]) * (T- dataMatrix.support_0[ndx_0]) /
+					(dataMatrix.support_0[ndx_0+1]- dataMatrix.support_0[ndx_0]);
+
+			const double value_z1 = dataMatrix.values[matrix_ndx+dim_0] +
+					(dataMatrix.values[matrix_ndx+1+dim_0] - dataMatrix.values[matrix_ndx+dim_0]) * (T- dataMatrix.support_0[ndx_0]) /
+					(dataMatrix.support_0[ndx_0+1]- dataMatrix.support_0[ndx_0]);
+
+			heat_conductivity = value_z0 + (value_z1-value_z0) * (z- dataMatrix.support_1[ndx_1]) / (dataMatrix.support_1[ndx_1+1]-dataMatrix.support_1[ndx_1]);
+
+			//std::cout << z << " " << T << " " << heat_conductivity << std::endl;
+		}
+
 		dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
 		for (i = 0; i < dimen * dimen; i++)
 			heat_conductivity_tensor[i] = 0.0;
@@ -4880,7 +4973,7 @@ else
 			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << FluidProp->Density(values) << "\t" << values[0] << "\n"; 
 			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << density << "\t" << T1 << "\t" << T2 << "\n"; 
 
-            		const double grad_p_tol = 1e-10 ;
+            const double grad_p_tol = 1e-10 ;
 			if(grad_p < grad_p_tol)
 			{
 					const double z = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) / 2;
@@ -4941,7 +5034,6 @@ std::cout << "\tGrad p " << grad_p << " corrected to " << grad_p2 << "\n";
 				throw std::runtime_error("Error in CMediumProperties::PermeabilityTensor: no valid Darcy Weisbach friction model");
 
 			tensor[0] *=  FluidProp->Viscosity();  // because of division by velocity later on
-			tensor[0] =  1e-6;  // because of division by velocity later on
 		}  //  end weisbach
 		// end of K-C relationship-----------------------------------------------------------------------------------
 	}

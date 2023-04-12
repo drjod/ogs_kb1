@@ -18,10 +18,14 @@
 // GeoLib
 #include "GeoType.h"
 #include "makros.h" // JT
+#include "files0.h"
 
 // PCSLib
 #include "rf_pcs.h"
 #include "prop.h"
+#include <vector>
+
+struct DataMatrix;
 
 struct FluidVelocity  // JOD 2018-5-4
 {
@@ -101,9 +105,11 @@ class CMediumProperties : public Properties
 		int volumetric_heat_capacity_model;  // JOD 2022-05-13
 		int volumetric_heat_capacity_curve_number;
 		double volumetric_heat_capacity, heat_conductivity; // JOD 2021-5-21
+		int heat_conductivity_model;
 		std::string friction_model;
 		double pipe_diameter; // JOD 2022-12-13
 		double pipe_friction;
+		DataMatrix dataMatrix; // JOD 2023-05-04
 	public:
 		CFiniteElementStd* Fem_Ele_Std;
 		CRFProcess* m_pcs;                    //OK

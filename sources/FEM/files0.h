@@ -5,11 +5,20 @@
 #define FPD_GESAMT     4
 #define FPD_NACHKOMMA  14
 
+
 /* Andere oeffentlich benutzte Module */
 #include "Configure.h"
 #include <cstdio>
 #include <string>
+#include <vector>
 //#include <fstream>
+
+struct DataMatrix // JOD 2023-05-04
+{
+	std::vector<double> support_0;
+	std::vector<double> support_1;
+	std::vector<double> values;
+};
 
 typedef int (*FctTestInt)( int*, FILE* );
 typedef int (*FctTestLong)( long*, FILE* );
@@ -113,7 +122,8 @@ extern void GetRFINodesData ();
 /*MX*/
 extern int StrOnlyReadStr ( char* x, char* s, FILE* f, /*FctTestString func,*/ int* pos );
 
-extern std::string get_sub_string(const std::string&,const std::string&,int,int*);
+//extern std::string get_sub_string(const std::string&,const std::string&,int,int*);
+extern std::string get_sub_string(std::string buffer, std::string delimiter, int pos1, int* pos2);
 extern void remove_white_space(std::string*);
 //extern std::string get_sub_string2(std::string buffer,std::string delimiter,std::string cut_string);
 extern std::string get_sub_string2(const std::string&,const std::string&,std::string*);
@@ -126,4 +136,6 @@ extern std::string GetLineFromFile1(std::ifstream*);
 extern std::string GetUncommentedLine(std::string);
 //extern std::string NumberToString(long);
 extern void is_line_empty(std::string*);          //OK
+
+DataMatrix DataMatrixRead(const std::string& matrix_file_name); // JOD 2023-05-04
 #endif

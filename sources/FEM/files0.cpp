@@ -38,7 +38,7 @@
 //#include "solver.h"
 //#endif
 //#include "rf_pcs.h"
-//#include "rf_mmp_new.h"
+
 #include "FileTools.h"
 #include "rf_bc_new.h"
 #include "rf_ic_new.h"
@@ -1147,4 +1147,124 @@ std::string GetUncommentedLine(std::string line)
 	}
 
 	return zeile;
+}
+
+/**************************************************************************
+   FEMLib-Method:
+   04/2007 OK Implementation
+**************************************************************************/
+DataMatrix DataMatrixRead(const std::string& data_file_name)
+{
+	DataMatrix dataMatrix;
+	char line[100000];
+	std::string line_str;
+	std::stringstream line_sstr;
+
+	std::string data_file =  FilePath + data_file_name;
+	std::ifstream data_stream (data_file.c_str(),std::ios::in);
+
+	int ibuffer, dim0, dim1;
+	std::string sbuffer;
+
+	if (!data_stream.good())
+		throw std::runtime_error("Cannot open file for data matrix");
+
+	for(;;)
+	{
+		line_str.clear();
+		line_sstr.clear();
+
+		data_stream.getline(line, 100000);
+		line_str = line;
+
+		if(line_str.find("#STOP") != std::string::npos)
+			break;
+
+		if(line_str.find("DIMENSIONS") != std::string::npos)
+		{
+			line_sstr.str(line_str);
+			line_sstr >> sbuffer >> dim0 >> dim1;
+			dataMatrix.support_0.resize(dim0);
+			dataMatrix.support_1.resize(dim1);
+			dataMatrix.values.resize(dim0*dim1);
+			// dim0
+			line_str.clear();
+			line_sstr.clear();
+			data_stream.getline(line, 100000);
+			line_str = line;
+			line_sstr.str(line_str);
+
+			for(int i=0; i< dim0; ++i)
+			{
+				line_sstr >> ibuffer;
+				dataMatrix.support_0[i] = ibuffer;
+			}
+			// dim1
+			line_str.clear();
+			line_sstr.clear();
+			data_stream.getline(line, 100000);
+			line_str = line;
+			line_sstr.str(line_str);
+
+			for(int i=0; i< dim1; ++i)
+			{
+				line_sstr >> ibuffer;
+				dataMatrix.support_1[i] = ibuffer;
+			}
+		}  // end DIMENSIONS
+
+		if(line_str.find("VALUES") != std::string::npos)
+		{
+			for(int i=0; i< dim1; ++i)
+			{
+				line_str.clear();
+				line_sstr.clear();
+				data_stream.getline(line, 100000);
+				line_str = line;
+				line_sstr.str(line_str);
+
+				for(int j=0; j< dim0; ++j)
+				{
+					line_sstr >> ibuffer;
+					dataMatrix.values[i*dim0 + j] = ibuffer;
+				}
+			}
+		}  // end values
+	}
+
+	std::cout << "\n\tRead matrix values: " << dataMatrix.support_0.size() << " " <<
+			dataMatrix.support_1.size() << " " << dataMatrix.values.size() << '\n';
+	////////////////////////////////////////////
+	// write data in file - just for checking
+	data_file =  FilePath + "_matrix.txt";
+	std::ofstream data_stream_out (data_file.c_str(),std::ios::out);
+
+	if (!data_stream_out.good())
+		throw std::runtime_error("Cannot open file for data matrix debug");
+
+	data_stream_out << "DIMENSIONS " << dim0 << " " << dim1 << '\n';
+
+	for(int i=0; i< dim0; ++i)
+	{
+		data_stream_out << dataMatrix.support_0[i] << " ";
+	}
+	data_stream_out << std::endl;
+
+	for(int i=0; i< dim1; ++i)
+	{
+		data_stream_out << dataMatrix.support_1[i] << " ";
+	}
+	data_stream_out << std::endl << "VALUES" << std::endl;
+
+	for(int i=0; i< dim1; ++i)
+	{
+		for(int j=0; j< dim0; ++j)
+		{
+			data_stream_out << dataMatrix.values[i*dim0+j] << " ";
+		}
+		data_stream_out  << std::endl;
+	}
+	data_stream_out << "#STOP" << std::endl;
+
+	return dataMatrix;
 }

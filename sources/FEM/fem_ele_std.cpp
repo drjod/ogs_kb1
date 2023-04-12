@@ -2546,7 +2546,7 @@ void CFiniteElementStd::CalCoefLaplace(bool Gravity, int ip, const bool &velocit
 	case EPT_COMPONENTAL_FLOW:                               // Componental flow
 		break;
 	case EPT_HEAT_TRANSPORT:                               // heat transport
-		if(MediaProp->heat_conductivity == -1)
+		if(MediaProp->heat_conductivity_model == -1)
 		{
 			if(SolidProp->GetConductModel() == 1)
 			{

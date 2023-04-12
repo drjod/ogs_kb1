@@ -1159,6 +1159,7 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 	// MSH
 	for (size_t k = 0; k < nName; k++)
 	{
+		m_pcs = PCSGet(getProcessType());
 		if (m_pcs == NULL)
 			m_pcs = PCSGet(_nod_value_vector[k], true);
 		if (m_pcs != NULL)
@@ -1253,9 +1254,9 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 			}
 		else
 		{
-			m_pcs = PCSGet(getProcessType());
 			for (size_t k = 0; k < nName; k++)
 			{
+				m_pcs = PCSGet(getProcessType());
 				if (m_pcs == NULL)
 					m_pcs = GetPCS(_nod_value_vector[k]);
 				if (m_pcs != NULL) { //WW
@@ -1273,6 +1274,8 @@ void COutput::WriteTECNodeData(fstream &tec_file)
 						////
 					}
 				}
+				else
+					throw std::runtime_error("Error in Domain output - PCS unknown");
 			}
 			//OK4704
 			for (size_t k = 0; k < mfp_value_vector.size(); k++)
@@ -1477,21 +1480,19 @@ void COutput::WriteELEValuesTECHeader(fstream &tec_file)
 		if (_ele_value_vector[i].find("VELOCITY") != string::npos)
 		{
 			tec_file << ",\"VELOCITY1_X\",\"VELOCITY1_Y\",\"VELOCITY1_Z\"";
-			break;
 		}
-
-		if (_ele_value_vector[i].find("DENSITY1") != string::npos)
+		else if (_ele_value_vector[i].find("DENSITY1") != string::npos)
 		{
 			tec_file << ",\"DENSITY1\"";
-			break;
 		}
-
-        if (_ele_value_vector[i].find("PHI_I") != string::npos)  // BW 2022-05-12
+		else if (_ele_value_vector[i].find("PHI_I") != string::npos)  // BW 2022-05-12
         {
                 tec_file << ",\"Ice_Fraction\"";
-                break;
         }
-
+		else if (_ele_value_vector[i].find("VOLUME") != string::npos)  // JOD 2022-04-04
+        {
+                tec_file << ",\"Volume\"";
+        }
 	}
 	tec_file << "\n";
 	// Write Header II: zone
@@ -1615,9 +1616,16 @@ void COutput::WriteELEValuesTECData(fstream &tec_file)
 		{
 			if (skip[j]) // CB: allow output of velocity AND other ele values
 			{
-				tec_file
-					<< m_pcs_2->GetElementValue(i, ele_value_index_vector[j])
-					<< " ";
+				if(_ele_value_vector[j].find("VOLUME") != string::npos) // JOD 2022-04-04
+		        {
+					tec_file << m_ele->calcVolume() << " ";
+				}
+				else
+				{
+					tec_file
+						<< m_pcs_2->GetElementValue(i, ele_value_index_vector[j])
+						<< " ";
+				}
 			}
 		}
 		/*
@@ -2191,7 +2199,6 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 {
 	//WW  int nidx;
 	long gnode;
-	bool bdummy = false;
 	int stress_i[6], strain_i[6];
 	double ss[6];
 	double val_n = 0.;                    //WW
@@ -2242,38 +2249,13 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 	tec_file.rdbuf()->pubsetbuf(mybuffer,MY_IO_BUFSIZE * MY_IO_BUFSIZE);
 	//
 #endif
-	//----------------------------------------------------------------------
-	// Tests
-	//......................................................................
-	// GEO
-//   CGLPolyline* m_ply = GEOGetPLYByName(geo_name);//CC
-//   if (!m_ply)
-//   {
-//      cout << "Warning in COutput::NODWritePLYDataTEC - no GEO data" << "\n";
-//      tec_file << "Warning in COutput::NODWritePLYDataTEC - no GEO data: "
-//         << geo_name << "\n";
-//      tec_file.close();
-//      return 0.0;
-//   }
-
-	// MSH
-	//	CFEMesh* m_msh = GetMSH();
-	//	m_msh = GetMSH();
 	if (!m_msh)
-		cout << "Warning in COutput::NODWritePLYDataTEC - no MSH data" << "\n";
-	//OKtec_file << "Warning in COutput::NODWritePLYDataTEC - no MSH data: " << geo_name << "\n";
-	//OKtec_file.close();
-	//OKToDo return;
+		throw std::runtime_error("Error in polyline output - No MSH");
 	else
 		m_msh->SwitchOnQuadraticNodes(false);  //WW
 
-	// PCS
-	//if (getProcessType() == FiniteElement::INVALID_PROCESS)
-	//	m_pcs = NULL;
-	//else
 	//m_pcs = PCSGet();//getProcessType());
 
-	m_pcs = GetPCS();
 
 	CRFProcess* dm_pcs = NULL;            //WW
 	for (size_t i = 0; i < pcs_vector.size(); i++)
@@ -2283,35 +2265,6 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 			break;
 		}
 
-	/* //WW
-	   // VEL
-	   int v_eidx[3];
-	   CRFProcess* m_pcs_flow (PCSGetFlow());
-	   //m_pcs_flow = PCSGet("GROUNDWATER_FLOW"); //OKToDo
-	   if (!m_pcs_flow)
-	   {
-	   //WW cout << "Warning in COutput::NODWritePLYDataTEC() - no PCS flow data" << "\n";
-	   //tec_file << "Warning in COutput::NODWritePLYDataTEC() - no PCS flow data " << "\n";
-	   //tec_file.close();
-	   //return 0.0;
-	   }
-	   else
-	   {
-	   v_eidx[0] = m_pcs_flow->GetElementValueIndex("VELOCITY1_X");
-	   v_eidx[1] = m_pcs_flow->GetElementValueIndex("VELOCITY1_Y");
-	   v_eidx[2] = m_pcs_flow->GetElementValueIndex("VELOCITY1_Z");
-	   }
-	 */
-
-//   for (size_t i = 0; i < 3; i++)
-//   {
-//      if (v_eidx[i] < 0)
-//      {
-//         //WW cout << "Warning in COutput::NODWritePLYDataTEC() - no PCS flow data" << "\n";
-//         //tec_file << "Warning in COutput::NODWritePLYDataTEC() - no PCS flow data " << "\n";
-//         //tec_file.close();
-//      }
-//   }
 	//--------------------------------------------------------------------
 	// NIDX for output variables
 	size_t no_variables (_nod_value_vector.size());
@@ -2437,8 +2390,6 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 //   std::cout << "size of nodes_vector: " << nodes_vector.size() << ", size of old_nodes_vector: " << old_nodes_vector.size() << "\n";
 	//bool b_specified_pcs = (m_pcs != NULL); //NW
 
-	m_pcs = PCSGet(getProcessType());
-
 	for (size_t j(0); j < nodes_vector.size(); j++)
 	{
 //		tec_file << m_ply->getSBuffer()[j] << " ";
@@ -2448,43 +2399,36 @@ double COutput::NODWritePLYDataTEC(int time_step_number, bool& fourrierFluxCalcu
 		gnode = nodes_vector[j];
 		for (size_t k = 0; k < no_variables; k++)
 		{
-			//if(!(_nod_value_vector[k].compare("FLUX")==0))  // removed JOD, does not work for multiple flow processes
-			//if (!b_specified_pcs) //NW
-			if (m_pcs == NULL && msh_type_name != "COMPARTMENT") // JOD 4.10.01
-				m_pcs = PCSGet(_nod_value_vector[k], bdummy); // BW, here define which process for what secondary variable
+			//if (m_pcs == NULL && msh_type_name != "COMPARTMENT") // JOD 4.10.01
+			//	m_pcs = PCSGet(_nod_value_vector[k], bdummy); // BW, here define which process for what secondary variable
+			m_pcs = PCSGet(getProcessType());
+			if (m_pcs == NULL)
+				m_pcs = GetPCS(_nod_value_vector[k]);
 
 			if (!m_pcs)
 			{
-				cout << "Warning in COutput::NODWritePLYDataTEC - no PCS data"
-				     << "\n";
-				tec_file
-				<< "Warning in COutput::NODWritePLYDataTEC - no PCS data"
-				<< "\n";
-				return 0.0;
+				throw std::runtime_error("Error in polyline output - PCS unknown");
 			}
-			// WW
-//			double old_val_n = m_pcs->GetNodeValue(old_gnode, NodeIndex[k]);
-			if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
-				val_n = m_pcs->GetNodeValue(gnode, 1) - m_pcs->GetNodeValue(gnode, NodeIndex[k]);
 			else
-			    val_n = m_pcs->GetNodeValue(gnode, NodeIndex[k]);
-//			tec_file << old_val_n << " ";
-			tec_file << val_n << " ";
-			// WTP
-			//if (m_pcs->type == 1212 && (_nod_value_vector[k].find("SATURATION")
-			//                            != string::npos))
-			//	tec_file << 1. - val_n << " ";
-
-			if (_nod_value_vector[k].compare("FLUX") == 0)
 			{
-				if (aktueller_zeitschritt == 0) //OK
-					flux_nod = 0.0;
+				if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
+					val_n = m_pcs->GetNodeValue(gnode, 1) - m_pcs->GetNodeValue(gnode, NodeIndex[k]);
 				else
-					flux_nod = NODFlux(gnode);
-				tec_file << flux_nod << " ";
-				//flux_sum += abs(m_pcs->eqs->b[gnode]);
-				flux_sum += abs(flux_nod);
-				//OK cout << gnode << " " << flux_nod << " " << flux_sum << "\n";
+					val_n = m_pcs->GetNodeValue(gnode, NodeIndex[k]);
+
+				tec_file << val_n << " ";
+
+				if (_nod_value_vector[k].compare("FLUX") == 0)
+				{
+					if (aktueller_zeitschritt == 0) //OK
+						flux_nod = 0.0;
+					else
+						flux_nod = NODFlux(gnode);
+					tec_file << flux_nod << " ";
+					//flux_sum += abs(m_pcs->eqs->b[gnode]);
+					flux_sum += abs(flux_nod);
+					//OK cout << gnode << " " << flux_nod << " " << flux_sum << "\n";
+				}
 			}
 		}
 		if (dm_pcs) //WW
@@ -2533,13 +2477,9 @@ void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalcula
 {
 	(void)fourrierFluxCalculated;  // surpress warning
 
-//#if defined(USE_PETSC)  // JOD 2015-11-17
-//	std::cout << "point_" + mrank_str;
-//#endif
-
 	long msh_node_number(m_msh->GetNODOnPNT(
 	                             static_cast<const GEOLIB::Point*> (getGeoObj())));
-        if(msh_node_number < 0)  //11.06.2012. WW
+    if(msh_node_number < 0)  //11.06.2012. WW
 	  return;
 
 	CRFProcess* dm_pcs = NULL;
@@ -2598,11 +2538,9 @@ void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalcula
 	if (time_step_number == 0)            //WW  Old: if(time_step_number==1)
 	{
 		//project_title;
+		const std::string project_title_string ("Time curves in points");
+		tec_file << " TITLE = \"" << project_title_string << "\"" << "\n";
 		
-			const std::string project_title_string ("Time curves in points");
-			tec_file << " TITLE = \"" << project_title_string << "\"" << "\n";
-		
-
 		tec_file << " VARIABLES = \"TIME \" ";
 
 		//    if(pcs_type_name.compare("RANDOM_WALK")==0)
@@ -2735,21 +2673,21 @@ void COutput::NODWritePNTDataTEC(int time_step_number, bool& fourrierFluxCalcula
 		for (size_t i = 0; i < _nod_value_vector.size(); i++)
 		{
 			// PCS
-			if (!(_nod_value_vector[i].compare("COUPLING") == 0)
+			/*if (!(_nod_value_vector[i].compare("COUPLING") == 0)
 				|| getProcessType() == FiniteElement::OVERLAND_FLOW) //JOD separate infiltration flux output in overland flow
 
 				m_pcs = GetPCS(_nod_value_vector[i]);
 			else
-				m_pcs = GetPCS();
+				m_pcs = GetPCS();*/
+			m_pcs = PCSGet(getProcessType());
+			if (m_pcs == NULL)
+				m_pcs = GetPCS(_nod_value_vector[i]);
+
 			if (!m_pcs)
 			{
-				cout << "Warning in COutput::NODWritePLYDataTEC - no PCS data"
-				     << "\n";
-				tec_file
-				<< "Warning in COutput::NODWritePLYDataTEC - no PCS data"
-				<< "\n";
-				return;
+				throw std::runtime_error("Error in pnt output - PCS unknown");
 			}
+
 			//..................................................................
 			// PCS
 			if (!(_nod_value_vector[i].compare("FLUX") == 0)
@@ -3128,8 +3066,10 @@ void COutput::NODWriteSFCDataTEC(int time_step_number, bool& fourrierFluxCalcula
 				tec_file << pnt_i[2] << " ";
 				for (size_t k = 0; k < _nod_value_vector.size(); k++)
 				{
-					if(m_pcs == NULL)
-						m_pcs = PCSGet(_nod_value_vector[k], true); // AB SB
+					m_pcs = PCSGet(getProcessType());
+					if (m_pcs == NULL)
+						m_pcs = GetPCS(_nod_value_vector[k]);
+
 					int nidx = m_pcs->GetNodeValueIndex(_nod_value_vector[k]) + 1;
 
 					if (_nod_value_vector[k].find("DELTA") == 0) // JOD 2014-11-10
