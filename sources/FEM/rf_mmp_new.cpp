@@ -149,7 +149,7 @@ CMediumProperties::CMediumProperties() :
 
 	dependent_fluid_name = ""; // JOD 2018-1-10  default: fluid properties independent of material
 
-	heat_conductivity_model = 1.;
+	heat_conductivity_model = -1;
 	velocity_given = false;
 	volumetric_heat_capacity_model = -1;
 }
