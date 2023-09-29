@@ -1740,7 +1740,8 @@ double CFiniteElementStd::CalCoefMass(EnumProcessType _pcs_type) //BW: 23.03.202
 	//....................................................................
 	case EPT_HEAT_TRANSPORT:                               // Heat transport
 		TG = interpolate(NodalVal1);
-		if(MediaProp->volumetric_heat_capacity_model == -1|| flag_calcContent)//BW 05.2022 for the right calculation of Heat Content
+		if(MediaProp->volumetric_heat_capacity_model == -1)
+		  // || flag_calcContent)//BW 05.2022 for the right calculation of Heat Content, removed by JOD 2023-09-09
 		{
 			val = MediaProp->HeatCapacity(Index,pcs->m_num->ls_theta, flag_calcContent, this);
 		}
@@ -6037,18 +6038,25 @@ void CFiniteElementStd::Assemble_Gravity()
 		}
 		else
 		{
-                     if(nnodes == 2)//MediaProp->permeability_model ==  9)  !!!!!
-                                                {
-                                                        CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
-                                                        double T0[3], T1[3];
-                                                        T0[0] = pcs_heat->GetNodeValue(nodes[0], 1);
-                                                        T1[0] = pcs_heat->GetNodeValue(nodes[1], 1);
-
-                                                        rho = (FluidProp->Density(T0) + FluidProp->Density(T1))/2;
-                                                        //std::cout << rho << " ";
-                                                }
-                                                else
-			rho = FluidProp->Density();
+			if(MediaProp->get_gravity_central())
+			{
+				CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
+				if(pcs_heat != NULL)
+				{
+					rho = 0.;
+					for(int i=0; i< nnodes; ++i)
+					{
+						double T[3];
+						T[0] = pcs_heat->GetNodeValue(nodes[i], 1);
+						rho += FluidProp->Density(T);
+					}
+					rho /= nnodes;
+				}
+				else
+					throw std::runtime_error("GRAVITY_CENTRAL requires HEAT_TRANSPORT, which is not found");
+			}
+			else
+				rho = FluidProp->Density();
 			if(gp == 0)  // JOD 1018-8-15 for element output
 				ele_gp_value[Index]->density = rho;
 		}
@@ -6768,17 +6776,28 @@ void CFiniteElementStd::Cal_Velocity()
 						coef = -gravity_constant * FluidProp->Density();
 					else
 					{
-						if(nnodes == 2)//MediaProp->permeability_model ==  9) !!!!!
+						double rho;
+						if(MediaProp->get_gravity_central())
 						{
 							CRFProcess* pcs_heat = PCSGet("HEAT_TRANSPORT");
-							double T0[3], T1[3];
-							T0[0] = pcs_heat->GetNodeValue(nodes[0], 1);
-							T1[0] = pcs_heat->GetNodeValue(nodes[1], 1);
-
-							coef = gravity_constant * (FluidProp->Density(T0) + FluidProp->Density(T1))/2;
+							if(pcs_heat != NULL)
+							{
+								rho = 0.;
+								for(int i=0; i< nnodes; ++i)
+								{
+									double T[3];
+									T[0] = pcs_heat->GetNodeValue(nodes[i], 1);
+									rho += FluidProp->Density(T);
+								}
+								rho /= nnodes;
+							}
+							else
+								throw std::runtime_error("GRAVITY_CENTRAL requires HEAT_TRANSPORT, which is not found");
 						}
 						else
-						coef = gravity_constant * FluidProp->Density();
+							rho = FluidProp->Density();
+
+						coef = gravity_constant * rho;
 					}
 				}
 				if (dim == 3 && ele_dim == 2)

@@ -17602,7 +17602,8 @@ double CRFProcess::AccumulateContent(const int& mmp_index, const bool& flag_cont
 
 	for (size_t i = 0; i < m_msh->ele_vector.size(); i++)
 	{
-		if ((int)m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0)
+		if (m_msh->ele_vector[i]->GetMark() && m_msh->ele_vector[i]->GetExcavState() == -1 && m_msh->ele_vector[i]->min_vol &&
+				((int)m_msh->ele_vector[i]->GetPatchIndex() == mmp_index || mmp_index < 0))
 		{ // -1 : take all
 			CElem* elem = m_msh->ele_vector[i];
 			//if (!elem->GetMark())
@@ -17708,10 +17709,8 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 //		const double p_OF = (GetNodeValue(ToNode, 1)-m_msh->nod_vector[ToNode]->getData()[2]) * gamma;
 //		const double p_OF_epsilon = (GetNodeValue(ToNode, 1)-m_msh->nod_vector[ToNode]->getData()[2] + epsilon)*gamma;
 
-
 		const double relPerm = 1.;//m_st->GetRelativeInterfacePermeability(this, h_OF, ToNode);
 		const double relPerm_epsilon = 1;//m_st->GetRelativeInterfacePermeability(this, h_OF + epsilon, ToNode);
-
 
 		value = relPerm * alpha_value * (p_LF - p_OF);
 		const double value_jacobi = (- alpha_value * relPerm_epsilon * (p_LF - p_OF_epsilon) + value) ;
@@ -17777,11 +17776,11 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				  if(m_st->connected_geometry_verbose_level > 0)
 				  {
 					  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << alpha_value << ", given upstream value\n";
 					  else
 						std::cout << "\t\tIncorporate symmetrically: From " << FromNode << " to " << ToNode << " with coefficient " << alpha_value << "\n";
 				  }
-				  if(m_st->connected_geometry_verbose_level > 1)
+				  else if(m_st->connected_geometry_verbose_level > 1)
 				  {
 					std::cout << "\t\t\tfrom (x, y, z)\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[0] <<
 						"\n\t\t\t\t" << m_msh->nod_vector[FromNode]->getData()[1] <<
@@ -17818,17 +17817,31 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				  else if(m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
 				  {
 					fem->IncorporateNodeConnection(FromNode, ToNode, alpha_value, true);
-					value = alpha_value * m_st->GetBoreholeData().value;  // for RHS
+
+					const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+					double value_z;
+					if(m_st->GetBoreholeData().value_mode == 0)
+						value_z = m_st->GetBoreholeData().value0;  // for RHS
+					else if(m_st->GetBoreholeData().value_mode == 1)
+					{
+						value_z = m_st->GetBoreholeData().value0 +
+								(m_msh->nod_vector[AQNode]->getData()[2] - m_st->GetBoreholeData().z0) *
+								(m_st->GetBoreholeData().value1 - m_st->GetBoreholeData().value0) *
+								(m_st->GetBoreholeData().z1 - m_st->GetBoreholeData().z0);
+					}
+					else
+						throw std::runtime_error("Error - Borehole value mode not supported");
+
+					value = alpha_value * value_z;
 
 					if(m_st->borehole_mode > -1)
 					{
-						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
 						double alpha_value_total = alpha_value;
 						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
 							alpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
 
 						Borehole_values_kept[m_st->geo_name][AQNode] = { alpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // for output
-							m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(),
+							value_z, m_st->getConnectedGeometryCouplingType(),
 							m_msh->nod_vector[AQNode]->getData()[0],
 							m_msh->nod_vector[AQNode]->getData()[1],
 							m_msh->nod_vector[AQNode]->getData()[2]};
@@ -17841,7 +17854,7 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 				  if(m_st->connected_geometry_verbose_level > 0)
 				  {
 					  if (m_st->getConnectedGeometryCouplingType() == 2)  // borehole with given primary variable
-						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << falpha_value << ", given upstream value " << m_st->GetBoreholeData().value << "\n";
+						std::cout << "\t\tIncorporate: To " << ToNode <<  " with coefficient " << falpha_value << ", given upstream value\n";
 					  else
 						std::cout << "\t\tIncorporate fixed downstream: From " << FromNode << " to " << ToNode << " with coefficient " << falpha_value << "\n";
 				  }
@@ -17889,19 +17902,32 @@ void CRFProcess::IncorporateNodeConnectionSourceTerms(const long& FromNode, cons
 					if(alpha_value < 0)
 						throw std::runtime_error("Error in node connection: alpha_value > 0 required");
 
-		std::cout <<  "from: " << FromNode << "\n";
-					//fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value*1, false);
-					value = falpha_value * 1. * (m_st->GetBoreholeData().value);  // for RHS
+					std::cout <<  "from: " << FromNode << "\n";
+					//fem->IncorporateNodeConnection(FromNode, ToNode, falpha_value, false);
+					double value_z;
+					const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
+					if(m_st->GetBoreholeData().value_mode == 0)
+						value_z = m_st->GetBoreholeData().value0;  // for RHS
+					else if(m_st->GetBoreholeData().value_mode == 1)
+					{
+						value_z = m_st->GetBoreholeData().value0 +
+								(m_msh->nod_vector[AQNode]->getData()[2] - m_st->GetBoreholeData().z0) *
+								(m_st->GetBoreholeData().value1 - m_st->GetBoreholeData().value0) *
+								(m_st->GetBoreholeData().z1 - m_st->GetBoreholeData().z0);
+					}
+					else
+						throw std::runtime_error("Error - Borehole value mode not supported");
+
+					value = falpha_value * value_z;  // for RHS
 
 					if(m_st->borehole_mode > -1)
 					{
-						const long AQNode = (alpha_value > 0) ? ToNode : FromNode;
 						double falpha_value_total = falpha_value;
 						if(Borehole_values_kept[m_st->geo_name].find(AQNode) != Borehole_values_kept[m_st->geo_name].end())
 							falpha_value_total += Borehole_values_kept[m_st->geo_name][AQNode].factor;
 
 						Borehole_values_kept[m_st->geo_name][AQNode] = { falpha_value_total, std::numeric_limits<long>::quiet_NaN(),  // forputput
-							m_st->GetBoreholeData().value, m_st->getConnectedGeometryCouplingType(),
+							value_z, m_st->getConnectedGeometryCouplingType(),
 							m_msh->nod_vector[AQNode]->getData()[0],
 							m_msh->nod_vector[AQNode]->getData()[1],
 							m_msh->nod_vector[AQNode]->getData()[2]};

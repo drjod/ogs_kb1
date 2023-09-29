@@ -1078,16 +1078,16 @@ void Problem::Euler_TimeDiscretize()
 	ScreenMessage("\n\n***Start time steps\n");
 	//
 	// Output zero time initial values
-#if defined(USE_MPI)  || defined(USE_MPI_KRC) 
-	if (mrank == 0)
-	{
-#endif
+//#if defined(USE_MPI)  || defined(USE_MPI_KRC)  // removed by JOD  2023-08-14
+//	if (mrank == 0)
+//	{
+//#endif
 		aktuelle_zeit = current_time;
 		if (!flag_block_output_of_initial_values)
 			OUTData(current_time, aktueller_zeitschritt, true);
-#if defined(USE_MPI) || defined(USE_MPI_KRC) 
-	}
-#endif
+//#if defined(USE_MPI) || defined(USE_MPI_KRC)
+//	}
+//#endif
 
 	// check if this is a steady state simulation
 	bool isSteadySimulation = true;
@@ -1174,9 +1174,9 @@ void Problem::Euler_TimeDiscretize()
 					force_output = false;
 				else // JT: Make sure we printout on last time step
 					force_output = true;
-#if defined(USE_MPI) || defined(USE_MPI_KRC) 
-				if (myrank == 0)
-#endif
+//#if defined(USE_MPI) || defined(USE_MPI_KRC)  // removed by JOD 2023-08-14
+//				if (myrank == 0)
+//#endif
 					OUTData(current_time, aktueller_zeitschritt, force_output);
 
 			}

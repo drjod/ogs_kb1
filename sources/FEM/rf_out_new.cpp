@@ -228,9 +228,6 @@ void OUTWrite(string base_file_name)
 **************************************************************************/
 void OUTData(double time_current, int time_step_number, bool force_output)
 {
-#if defined(USE_MPI) // JT2012
-	if(myrank != 0) return;
-#endif
 	//
 	COutput* m_out = NULL;
 	//CRFProcess* m_pcs = NULL; 
@@ -271,46 +268,53 @@ void OUTData(double time_current, int time_step_number, bool force_output)
 		if (time_step_number == 0 || force_output) //WW//JT
 			OutputBySteps = true;
 		//======================================================================
-		// TECPLOT
-		if (m_out->dat_type_name.compare("TECPLOT") == 0
-		    || m_out->dat_type_name.compare("MATLAB") == 0 
-		    || m_out->dat_type_name.compare("BINARY") == 0 // 08.2012. WW
-           )
-		   m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times, fourrierFluxCalculated); // 8/2015 JOD
 		
-		//--------------------------------------------------------------------
-		// vtk
-		else if (m_out->dat_type_name.compare("VTK") == 0)
-		{
-			m_out->WriteVTK(time_current, time_step_number, OutputBySteps, no_times);
-		}                           // PVD (ParaView)
-		else if (m_out->dat_type_name.find("PVD") != string::npos)
-		{
-			m_out->WritePVD(time_current, time_step_number, OutputBySteps, no_times);
-		}
-		else if (m_out->dat_type_name.compare("TOTAL_FLUX") == 0)
-			m_out->WriteTotalFlux(time_current, time_step_number); // 6/2012 JOD, MW 
-		else if (m_out->dat_type_name.compare("CONTENT") == 0)
-			m_out->WriteContent(time_current, time_step_number); //JOD 2/2015
-		else if (m_out->dat_type_name.compare("VOLUME") == 0)
-			m_out->WriteContent(time_current, time_step_number); //JOD 2020-1-16
-		else if (m_out->dat_type_name.compare("COMBINE_POINTS") == 0) 
-			m_out->NODWritePointsCombined(time_current, time_step_number);	// 6/2012 for calibration JOD
-		else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)
-			m_out->NODWritePrimaryVariableList(time_current, time_step_number); //JOD 2014-11-10
-		else if (m_out->dat_type_name.compare("WELL_DOUBLET_CONTROL") == 0)
-					m_out->WriteWellDoubletControl(time_current); // 2018-06-27 JOD
-		else if (m_out->dat_type_name.compare("CONTRAFLOW") == 0)
-					m_out->WriteContraflow(time_current); // JOD 2019-08-23
-		else if (m_out->dat_type_name.compare("CONTRAFLOW_POLYLINE") == 0)
-					m_out->WriteContraflowPolyline(time_current); // JOD 2020-04-30
-		else if(m_out->dat_type_name.compare("BOREHOLE") == 0)
+		if(m_out->dat_type_name.compare("BOREHOLE") == 0)
 					m_out->WriteBoreholeData(time_current);
-        else if (m_out->dat_type_name.compare("LATENT_HEAT") == 0)
-                 m_out->WriteLatentHeat(time_current, time_step_number); //BW 2022-05-12
-		// ELE values, only called if ele values are defined for output, 05/2012 BG
-		if (m_out->getElementValueVector().size() > 0)
-			m_out->CalcELEFluxes();
+		else
+		{
+#if defined(USE_MPI) // JT2012
+	if(myrank != 0) continue;
+#endif
+			// TECPLOT
+			if (m_out->dat_type_name.compare("TECPLOT") == 0
+				|| m_out->dat_type_name.compare("MATLAB") == 0
+				|| m_out->dat_type_name.compare("BINARY") == 0 // 08.2012. WW
+			   )
+			   m_out->WriteTEC(time_current, time_step_number, OutputBySteps, no_times, fourrierFluxCalculated); // 8/2015 JOD
+
+			//--------------------------------------------------------------------
+			// vtk
+			else if (m_out->dat_type_name.compare("VTK") == 0)
+			{
+				m_out->WriteVTK(time_current, time_step_number, OutputBySteps, no_times);
+			}                           // PVD (ParaView)
+			else if (m_out->dat_type_name.find("PVD") != string::npos)
+			{
+				m_out->WritePVD(time_current, time_step_number, OutputBySteps, no_times);
+			}
+			else if (m_out->dat_type_name.compare("TOTAL_FLUX") == 0)
+				m_out->WriteTotalFlux(time_current, time_step_number); // 6/2012 JOD, MW
+			else if (m_out->dat_type_name.compare("CONTENT") == 0)
+				m_out->WriteContent(time_current, time_step_number); //JOD 2/2015
+			else if (m_out->dat_type_name.compare("VOLUME") == 0)
+				m_out->WriteContent(time_current, time_step_number); //JOD 2020-1-16
+			else if (m_out->dat_type_name.compare("COMBINE_POINTS") == 0)
+				m_out->NODWritePointsCombined(time_current, time_step_number);	// 6/2012 for calibration JOD
+			else if (m_out->dat_type_name.compare("PRIMARY_VARIABLES") == 0)
+				m_out->NODWritePrimaryVariableList(time_current, time_step_number); //JOD 2014-11-10
+			else if (m_out->dat_type_name.compare("WELL_DOUBLET_CONTROL") == 0)
+						m_out->WriteWellDoubletControl(time_current); // 2018-06-27 JOD
+			else if (m_out->dat_type_name.compare("CONTRAFLOW") == 0)
+						m_out->WriteContraflow(time_current); // JOD 2019-08-23
+			else if (m_out->dat_type_name.compare("CONTRAFLOW_POLYLINE") == 0)
+						m_out->WriteContraflowPolyline(time_current); // JOD 2020-04-30
+			else if (m_out->dat_type_name.compare("LATENT_HEAT") == 0)
+					 m_out->WriteLatentHeat(time_current, time_step_number); //BW 2022-05-12
+			// ELE values, only called if ele values are defined for output, 05/2012 BG
+			if (m_out->getElementValueVector().size() > 0)
+				m_out->CalcELEFluxes();
+		}
 
 	}                                     // OUT loop
     

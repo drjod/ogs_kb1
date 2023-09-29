@@ -87,7 +87,9 @@ typedef struct
 
 struct borehole_type
 {
-	double value;
+	int value_mode;
+	double z0, z1;
+	double value0, value1;
 	double radius;
 };
 
@@ -126,10 +128,12 @@ class CSourceTerm : public ProcessInfo, public GeoInfo, public DistributionInfo
 	int borehole_mode;	// JOD 2020-12-07
 	borehole_type borehole_data;
 	double borehole_modified_aquifer_parameter;  // JOD 2022-06-17
+	std::vector<int> borehole_mmpgroups;
 public:
 	int verbosity;  // JOD 2022-02-23 
 	borehole_type get_borehole_data() const { return borehole_data; }
 	double get_borehole_modified_aquifer_parameter() const { return borehole_modified_aquifer_parameter; }
+	std::vector<int> get_borehole_mmpgroups() const { return borehole_mmpgroups; }
 	CSourceTerm();
 	CSourceTerm(const SourceTerm* st);
 	~CSourceTerm();
@@ -585,7 +589,7 @@ void IncorporateConnectedGeometries(double& value, CNodeValue* cnodev, CSourceTe
 extern void GetNODHeatTransfer(double& value, CSourceTerm* st, long geo_node); //TN
 
 void CalculatePeaceman(const CSourceTerm* const, CRFProcess*,
-		const long&, const std::vector<size_t>&, double&, double&);
+		const long&, const std::vector<size_t>&, double&, double&/*, const double=1e-10, const double=1e-10*/);
 
 //double get_average(CRFProcess* m_pcs, std::vector<long> vec, long ndx);
 

@@ -953,7 +953,8 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
       //....................................................................
 	  if (line_string.find("$BOREHOLE") != std::string::npos && // JOD 2021-12-06
 			  line_string.find("GIVEN_VALUE") == std::string::npos &&
-			  line_string.find("CONDUCTIVITY") == std::string::npos)
+			  line_string.find("MODIFIED_AQUIFER_PARAMETER") == std::string::npos &&
+			  line_string.find("MMP_GROUPS") == std::string::npos)
 	  {
 		in.str(readNonBlankLineFromInputStream(*st_file));
 		in >> borehole_mode;
@@ -998,11 +999,29 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 	  if (line_string.find("$BOREHOLE_GIVEN_VALUE") != std::string::npos) // JOD 2022-02-10
 	  {
 		in.str(readNonBlankLineFromInputStream(*st_file));
-		in >> borehole_data.value;
+		in >> borehole_data.value_mode;
+		switch(borehole_data.value_mode)
+		{
+			case 0:
+				in.clear();
+				in.str(readNonBlankLineFromInputStream(*st_file));
+				in >> borehole_data.value0;
+				break;
+			case 1:
+				in.clear();
+				in.str(readNonBlankLineFromInputStream(*st_file));
+				in >> borehole_data.z0 >> borehole_data.value0;
+				in.clear();
+				in.str(readNonBlankLineFromInputStream(*st_file));
+				in >> borehole_data.z1 >> borehole_data.value1;
+				break;
+			default:
+				throw std::runtime_error("Borehole given value mode not supported");
+		}
 		connected_geometry_couplingType = 2; // for given source / sink term via RHS
 		in.clear();
 
-		std::cout << "\tBorehole - No coupling, but given primary value: " << borehole_data.value << '\n';
+		std::cout << "\tBorehole - No coupling, but given primary value\n";
 		continue;
 	  }
 	  //....................................................................
@@ -1013,6 +1032,24 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		in.clear();
 
 		std::cout << "\tBorehole - Modified aquifer parameter: " << borehole_modified_aquifer_parameter << '\n';
+		continue;
+	  }
+	  //....................................................................
+	  if (line_string.find("$BOREHOLE_MMP_GROUPS") != std::string::npos) // JOD 2023-19-7
+	  {
+		int number_of_mmpgroups;
+		in.str(readNonBlankLineFromInputStream(*st_file));
+		in >> number_of_mmpgroups;
+		std::cout << "\t" << number_of_mmpgroups << " Borehole mmp groups\n\t\t";
+		for(int i=0; i<number_of_mmpgroups;++i)
+		{
+			int mmpgroup;
+			in >> mmpgroup;
+			borehole_mmpgroups.push_back(mmpgroup);
+			std::cout << mmpgroup << " ";
+		}
+		in.clear();
+		std::cout << '\n';
 		continue;
 	  }
 	  //....................................................................
@@ -3032,17 +3069,26 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 
 			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
+				/*double borehole_node_z_distance_above = 1e10;
+				double borehole_node_z_distance_below = 1e10;
+				for(size_t j=0; j < ply_nod_vector.size(); ++j)
+				{
+					const double dist = m_pcs->m_msh->nod_vector[ply_nod_vector[j]]->Z() - m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->Z();
+					if(dist > 1e-10 && dist < borehole_node_z_distance_above)
+						borehole_node_z_distance_above = dist;
+					if(dist < -1e-10 && -dist < borehole_node_z_distance_below)
+						borehole_node_z_distance_below = -dist;
+
+				}*/
 
 				 CalculatePeaceman(st, m_pcs, ply_nod_vector[i],
 						m_pcs->m_msh->nod_vector[ply_nod_vector[i]]->getConnectedElementOnPolyineIDs(
 								ply_nod_vector, m_pcs->m_msh->ele_vector)
-						, factor, radius_e);
+						, factor, radius_e/*, borehole_node_z_distance_above, borehole_node_z_distance_below*/);
 
-				//radius_e = 0.415759;
-				//factor=6.28318e-9;
-				factor /= std::log(radius_e / st->borehole_data.radius);
+				 if(factor != 0.)
+					 factor /= std::log(radius_e / st->borehole_data.radius);
 				ply_nod_val_vector[i] *= factor;
-				
          			// to use advective HEAT_TRANSPORT with conductive (peaceman) LIQUID_FLOW 
 				if(m_pcs->ST_factor_kept.find(ply_nod_vector[i]) != m_pcs->ST_factor_kept.end())
                                        	m_pcs->ST_factor_kept[ply_nod_vector[i]] = m_pcs->ST_factor_kept[ply_nod_vector[i]] + factor;
@@ -3337,6 +3383,7 @@ const int ShiftInNodeVector)
 	
 		factor /= std::log(radius_e / st->borehole_data.radius);
 		nod_val->node_value *= factor;
+
 	 	// to use advective HEAT_TRANSPORT with conductive (peaceman) LIQUID_FLOW 
 	 	if(pcs->ST_factor_kept.find(nod_val->geo_node_number) != pcs->ST_factor_kept.end())
 	 		pcs->ST_factor_kept[nod_val->geo_node_number] = pcs->ST_factor_kept[nod_val->geo_node_number] + factor;
@@ -5793,85 +5840,93 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 
 // JOD 2022/2 Implementation
 void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const long& node_number,
-		const std::vector<size_t>& elements_connected, double& factor, double& radius_e)
+		const std::vector<size_t>& elements_connected, double& factor /* return value */, double& radius_e
+		//, const double borehole_node_z_distance_above, const double borehole_node_z_distance_below
+		)
 {
+		CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, 21); // 2D: X, Y,  m_pcs->m_msh->GetCoordinateFlag() // coord flag:
 
-	CElem* face = new CElem(1);
-	CFiniteElementStd* fem = new CFiniteElementStd(m_pcs, 21); // 2D: X, Y,  m_pcs->m_msh->GetCoordinateFlag() // coord flag:
-	face->SetFace();
+		double sum = 0.;
+		double sum_ln = 0.;
+		factor = 0.;
+		int number_of_taken_elements = 0;
 
-	double sum = 0.;
-	double sum_ln = 0.;
-	factor = 0.;
-	bool take_elements_above = false;  // to avoid that face occurs twice
-	bool take_elements_below = false;
-	int number_of_taken_elements = 0;
+		std::vector<double> element_factor(elements_connected.size(), 1.);  // irrelevant elements and double elements get factor 0., 0.5, respectively, others 1.
+		std::vector<CElem*> faces(elements_connected.size());
 
-	for (size_t j = 0; j < elements_connected.size(); ++j)
-	{
-		// for r_e
-		bool neglect_element = false;
-
-		CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
-					//if (!elem->GetMark())   // !!! do not care about deactivation of elements
-					//	continue;
-		for(int k = 0; k< elem->GetVertexNumber(); ++k)
+		// for 3D case:
+		// identify relevant elements (set element_factor) and their element faces at z-plane (set facenumber)
+		// element_factor becomes 0 if element irrelevant (wrong mmp group)
+		//               		  0.5 if element relevant, but face at z-plane exists twice
+		//               		  1 if element relevant and face at z-plane exists once
+		for (size_t j = 0; j < elements_connected.size(); ++j)
 		{
-			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() > m_pcs->m_msh->nod_vector[node_number]->Z() + 1e-5)
-			//if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->X() > m_pcs->m_msh->nod_vector[node_number]->X() + 1e-5)
+			CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
+			if(elem->GetDimension() == 2)
 			{
-				if(take_elements_below)
+				number_of_taken_elements++;
+				continue;
+			}
+
+			const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
+
+			// check that element material group is in mmp_group-vector, mmp_group-vector has entries
+			if(m_st->get_borehole_mmpgroups().size())
+				if(std::find(m_st->get_borehole_mmpgroups().begin(), m_st->get_borehole_mmpgroups().end(), group) ==
+						m_st->get_borehole_mmpgroups().end())
 				{
-					neglect_element = true;
+					element_factor[j] = 0.;
 					continue;
 				}
-				else
-					take_elements_above = true;
-				}
 
-			if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->Z() < m_pcs->m_msh->nod_vector[node_number]->Z() - 1e-5)
-			//if(m_pcs->m_msh->nod_vector[elem->GetNode(k)->GetEquationIndex()]->X() < m_pcs->m_msh->nod_vector[node_number]->X() - 1e-5)
-			{
-				if(take_elements_above)
-				{
-					neglect_element = true;
-					continue;
-				}
-				else
-					take_elements_below = true;
-            }
-		}
+			number_of_taken_elements++;
 
-		if(neglect_element)
-			continue;
-
-		number_of_taken_elements++;
-
-		if(elem->GetDimension() == 2)
-		{
-			elem->SetOrder(m_pcs->m_msh->getOrder());
-			elem->ComputeVolume();
-			//fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
-		}
-		else if(elem->GetDimension() == 3)  // pris & hex
-		{
+			// find face at z-plane
 			int nfaces, nfn, nodesFace[8];
-
 			CNode* e_node;
-
 			nfaces = elem->GetFacesNumber();
-			elem->SetOrder(m_pcs->m_msh->getOrder()); // ?
+			elem->SetOrder(m_pcs->m_msh->getOrder());
 
 			int facenumber = -1;
+
+			double largest_z_distance_for_closest_face = 1.e10;
+
 			for (int k = 0; k < nfaces; k++)
+			{
+				nfn = elem->GetElementFaceNodes(k, nodesFace);
+
+				double element_largest_z_distance = 0.;
+				for (int l = 0; l < nfn; l++)
+				{
+					e_node = elem->GetNode(nodesFace[l]);
+					const double dist = std::abs(e_node->Z() - m_pcs->m_msh->nod_vector[node_number]->Z());
+
+					if(dist > element_largest_z_distance)
+					{
+						element_largest_z_distance = dist;
+					}
+				}
+
+				if(element_largest_z_distance < largest_z_distance_for_closest_face)
+				{
+					facenumber = k;
+					largest_z_distance_for_closest_face = element_largest_z_distance;
+				}
+			}
+
+			// look for nodes that are within half distance in z-direction to next well node
+			/*for (int k = 0; k < nfaces; k++)
 			{
 				nfn = elem->GetElementFaceNodes(k, nodesFace);
 				int counter = 0;
 				for (int l = 0; l < nfn; l++)
 				{
 					e_node = elem->GetNode(nodesFace[l]);
-					if(fabs(m_pcs->m_msh->nod_vector[node_number]->Z() - e_node->Z()) < 1.e-5)
-					//if(fabs(m_pcs->m_msh->nod_vector[node_number]->X() - e_node->X()) < 1.e-5)
+					const double dist = e_node->Z() - m_pcs->m_msh->nod_vector[node_number]->Z();
+
+					if(dist > -1e-10 && dist < borehole_node_z_distance_above / 2)  // include dist=0, distance smaller than half way to next node in borehole
+						counter++;
+					else if(dist < 1e-10 && - dist < borehole_node_z_distance_below / 2)
 						counter++;
 				}
 				if(counter == nfn)
@@ -5879,131 +5934,198 @@ void CalculatePeaceman(const CSourceTerm* const m_st, CRFProcess* m_pcs, const l
 					facenumber = k;
 					break;
 				}
-			}
+
+			}*/
+
 			if(facenumber == -1)
 				throw std::runtime_error("Error in borehole ST - Element face not found");
+
+			CElem* face = new CElem(1);
+			face->SetFace();
 
 			face->SetFace(elem, facenumber);
 			face->SetOrder(m_pcs->m_msh->getOrder());
 			face->ComputeVolume();
-			elem = face;
+			faces[j] = face;
+
+			// look if face exists already from other element
+			// if yes, average later on
+			double x = 0., y = 0., z = 0.;
+			for(int k = 0; k< face->GetVertexNumber(); ++k)
+			{
+				const int node_number = face->GetNode(k)->GetEquationIndex();
+				x += m_pcs->m_msh->nod_vector[node_number]->getData()[0];
+				y += m_pcs->m_msh->nod_vector[node_number]->getData()[1];
+				z += m_pcs->m_msh->nod_vector[node_number]->getData()[2];
+			}
+			x /= face->GetVertexNumber();  // in case that number of nodes vary between faces
+			y /= face->GetVertexNumber();
+			z /= face->GetVertexNumber();
+
+			for (size_t i = 0; i < j; ++i)
+			{
+				if(element_factor[i] == 0.)
+					continue;
+
+				double x_other = 0., y_other = 0., z_other = 0;
+				for(int k = 0; k< faces[i]->GetVertexNumber(); ++k)
+				{
+					const int node_number = faces[i]->GetNode(k)->GetEquationIndex();
+					x_other += m_pcs->m_msh->nod_vector[node_number]->getData()[0];
+					y_other += m_pcs->m_msh->nod_vector[node_number]->getData()[1];
+					z_other += m_pcs->m_msh->nod_vector[node_number]->getData()[2];
+				}
+				x_other /= faces[i]->GetVertexNumber();
+				y_other /= faces[i]->GetVertexNumber();
+				z_other /= faces[i]->GetVertexNumber();
+
+				if( fabs(x-x_other) < 1.e-10 && fabs(y-y_other) < 1.e-10 && fabs(z-z_other) < 1.e-10)
+				{
+					element_factor[j] = 0.5;
+					element_factor[i] = 0.5;
+					continue;
+				}
+			}
+		}  // end for elements_connected
+		// now elements and faces are identified
+
+		for (size_t j = 0; j < elements_connected.size(); ++j)
+		{
+			if(element_factor[j] == 0.)
+				continue;
+
+			CElem* elem = m_pcs->m_msh->ele_vector[elements_connected[j]];
+
+			// 3D
+			if(elem->GetDimension() == 2)
+			{
+				elem->SetOrder(m_pcs->m_msh->getOrder());
+				elem->ComputeVolume();
+				//fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
+			}
+			else if(elem->GetDimension() == 3)
+			{
+				elem = faces[j];
+			}
+			else
+				throw std::runtime_error("Error in Borehole ST: elements must be 2 or 3D");
+
+
+			fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
+			fem->SetMemory();
+			fem->SetMaterial();
+			fem->CalcLaplace(true);
+
+			Math_Group::Matrix* laplace = fem->get_Laplace();
+
+			if(m_st->getConnectedGeometryVerbosity() > 2)
+				laplace->Write();
+
+			CNode* wellNode = NULL;
+			int well_ndx=-1;
+			for(int k = 0; k< elem->GetVertexNumber(); ++k)
+				if(elem->GetNode(k)->GetEquationIndex() == node_number)
+				{
+					wellNode = elem->GetNode(k);
+					well_ndx = k;
+				}
+
+			for(int k = 0; k< elem->GetVertexNumber(); ++k)
+			{
+				CNode* node = elem->GetNode(k);
+				if(node->GetEquationIndex() !=  wellNode->GetEquationIndex())
+					//&& std::fabs(node->Z() - wellNode->Z()) < 1.e-5)
+				{
+					const double distance = std::sqrt(
+							(wellNode->X() - node->X()) * (wellNode->X() - node->X()) +
+							(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
+
+					const double entry = (*laplace)(well_ndx, k) * element_factor[j];
+
+					if(m_st->getConnectedGeometryVerbosity() > 0)
+						std::cout << "\t\tWell node " << node_number << ", other element node "<< node->GetEquationIndex() << " with x-y-distance: " <<  distance <<
+						", z-distance: " <<  entry << " (" << entry/distance  << " %)\n";
+					if(m_st->getConnectedGeometryVerbosity() > 1)
+					{
+						std::cout << "\t\t\t" << node_number << ": " << wellNode->X() << ", " << wellNode->Y() << ", "<< wellNode-> Z() << '\n';
+						std::cout << "\t\t\t" << node->GetEquationIndex() << ": " << node->X() << ", " << node->Y() << ", "<< node-> Z() << '\n';
+					}
+					if(distance > 1e-5)
+					{
+						sum -= entry;
+						sum_ln -= entry * std::log(distance);
+					}
+				}
+			}
+
+			if(m_st->get_borehole_modified_aquifer_parameter() == -1)
+			{
+				/////////////////////////////////////////////////////////////////
+				// factor
+				const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
+
+				switch(m_st->getProcessType())
+				{
+					case  FiniteElement::LIQUID_FLOW:
+
+						factor += mmp_vector[group]->PermeabilityTensor(group)[0];  // x-direction
+									// / mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
+						// viscosity set later on
+						break;
+
+					case  FiniteElement::HEAT_TRANSPORT:
+					{
+						CFluidProperties* FluidProp;
+
+						if(mmp_vector[group]->dependent_fluid_name != "")
+						{
+							FluidProp = MFPGet("LIQUID" + mmp_vector[group]->dependent_fluid_name);
+						}
+						else
+						{
+							if(mfp_vector.size() > 0)
+								FluidProp = mfp_vector[0];
+							else
+								throw std::runtime_error("No MFP property");
+						}
+
+						const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
+
+						double heat_conductivity_solid[9];
+						msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
+						const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
+
+						factor += porosity * FluidProp->HeatConductivity() + // 1st mfp instance is LIQUID
+								(1-porosity) * heat_conductivity_solid[0];  // one entry
+						break;
+					}
+					default:
+						throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
+				}
+			}
+
+			delete (faces[j]);
+		}  // elements_connected
+
+		if(number_of_taken_elements)
+		{
+			if(m_st->get_borehole_modified_aquifer_parameter() != -1)
+				factor = 6.283185307179586 * m_st->get_borehole_modified_aquifer_parameter();
+			else
+				factor *= 6.283185307179586 / number_of_taken_elements;
+
+			radius_e = std::exp( (sum_ln - 6.283185307179586) / sum  );  // peaceman
+
+			if(m_st->getConnectedGeometryVerbosity())
+				std::cout << "\tPeaceman r_e: " << radius_e  << " at node " << node_number << '\n';
 		}
 		else
-			throw std::runtime_error("Error in Borehole ST: elements must be 2 or 3D");
-
-		fem->ConfigElement(elem, m_pcs->m_num->ele_gauss_points, false);
-		fem->SetMemory();
-		fem->SetMaterial();
-		fem->CalcLaplace(true);
-
-		Math_Group::Matrix* laplace = fem->get_Laplace();
-
-
-		if(m_st->getConnectedGeometryVerbosity() > 1)
-			laplace->Write();
-
-		CNode* wellNode = NULL;
-		int well_ndx=-1;
-		for(int k = 0; k< elem->GetVertexNumber(); ++k)
-			if(elem->GetNode(k)->GetEquationIndex() == node_number)
-			{
-				wellNode = elem->GetNode(k);
-				well_ndx = k;
-			}
-
-		for(int k = 0; k< elem->GetVertexNumber(); ++k)
 		{
-			CNode* node = elem->GetNode(k);
-			if(node->GetEquationIndex() !=  wellNode->GetEquationIndex() &&
-					//std::fabs(node->X() - wellNode->X()) < 1.e-5)
-					std::fabs(node->Z() - wellNode->Z()) < 1.e-5)
-			{
-				const double distance = std::sqrt(
-						(wellNode->X() - node->X()) * (wellNode->X() - node->X()) +
-						(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
-
-				//const double distance = std::sqrt(
-				//			(wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()) +
-				//			(wellNode->Y() - node->Y()) * (wellNode->Y() - node->Y()));
-						// +
-						// (wellNode->Z() - node->Z()) * (wellNode->Z() - node->Z()));  // !!! mesh must be horizontal
-				const double entry = (*laplace)(well_ndx, k);
-
-				if(m_st->getConnectedGeometryVerbosity() > 1)
-					std::cout << "\tNodes " << node_number << " "<< node->GetEquationIndex() << " with distance " <<  distance <<
-					" (" << well_ndx<< ", "<< k << "): " <<  entry << std::endl;
-
-				if(distance > 1e-5)
-				{
-					sum -= entry;
-					sum_ln -= entry * std::log(distance);
-				}
-			}
+			std::cout << "Peaceman, no element for node " << node_number << '\n';
+			radius_e = -1.;
+			factor = 0.;
 		}
 
-		if(m_st->get_borehole_modified_aquifer_parameter() == -1)
-		{
-			/////////////////////////////////////////////////////////////////
-			// factor
-			const int group = m_pcs->m_msh->ele_vector[elements_connected[j]]->GetPatchIndex();
-
-			switch(m_st->getProcessType())
-			{
-				case  FiniteElement::LIQUID_FLOW:
-
-					factor += mmp_vector[group]->PermeabilityTensor(group)[0];  // x-direction
-								// / mfp_vector[0]->Viscosity();  // 1st mfp instance is LIQUID
-					// viscosity set later on
-					break;
-
-				case  FiniteElement::HEAT_TRANSPORT:
-				{
-					CFluidProperties* FluidProp;
-
-					if(mmp_vector[group]->dependent_fluid_name != "")
-					{
-						FluidProp = MFPGet("LIQUID" + mmp_vector[group]->dependent_fluid_name);
-					}
-					else
-					{
-						if(mfp_vector.size() > 0)
-							FluidProp = mfp_vector[0];
-						else
-							throw std::runtime_error("No MFP property");
-					}
-
-					const int dimen = m_pcs->m_msh->GetCoordinateFlag() / 10;
-	
-					double heat_conductivity_solid[9];
-					msp_vector[group]->HeatConductivityTensor(dimen, heat_conductivity_solid, group, j);
-					const double porosity = mmp_vector[group]->porosity_model_values[0];  // !!!
-
-					factor += porosity * FluidProp->HeatConductivity() + // 1st mfp instance is LIQUID
-							(1-porosity) * heat_conductivity_solid[0];  // one entry
-					break;
-				}
-				default:
-					throw std::runtime_error("Error in Borehole ST - PCS unknown or not supported");
-			}
-		}
-
-
-	}  // elements_connected
-
-
-	if(m_st->get_borehole_modified_aquifer_parameter() != -1)
-		factor = 6.283185307179586 * m_st->get_borehole_modified_aquifer_parameter();
-	else
-		factor *= 6.283185307179586 / number_of_taken_elements;
-	
-
-	radius_e = std::exp( (sum_ln - 6.283185307179586) / sum  ) ;  // peaceman
-
-	if(m_st->getConnectedGeometryVerbosity())
-		std::cout << "\tPeaceman r_e: " << radius_e  << " at node " << node_number << std::endl;
-
-	delete face;
-	delete fem;
-
+		delete fem;
 }
 

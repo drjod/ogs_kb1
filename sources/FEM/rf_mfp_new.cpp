@@ -2857,7 +2857,7 @@ double MFPCalcFluidsHeatCapacity(bool flag_calcContent, CFiniteElementStd* assem
 		if (m_pcs->type == 1212)  // non-isothermal multi-phase flow
 		{
 			m_mfp = mfp_vector[1];
-			if (t_pcs->auto_water_vapor) // WTP 02/15
+		if (t_pcs->auto_water_vapor) // WTP 02/15
 		{
 			// Capillary pressure
 			PG = assem->interpolate(assem->NodalValC1);

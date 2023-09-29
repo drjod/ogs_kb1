@@ -110,6 +110,8 @@ class CMediumProperties : public Properties
 		double pipe_diameter; // JOD 2022-12-13
 		double pipe_friction;
 		DataMatrix dataMatrix; // JOD 2023-05-04
+		bool gravity_central;  // JOD 2023-06-27
+		int darcy_weisbach_density_node_number;  // JOD 2023-07-04
 	public:
 		CFiniteElementStd* Fem_Ele_Std;
 		CRFProcess* m_pcs;                    //OK
@@ -325,6 +327,8 @@ class CMediumProperties : public Properties
 		 * @return a value of the enum GEOLIB::GEOTYPE
 		 */
 		GEOLIB::GEOTYPE getGeoType() const { return _geo_type; }
+
+		bool get_gravity_central() { return gravity_central; }
 };
 
 class CMediumPropertiesGroup                      //YD

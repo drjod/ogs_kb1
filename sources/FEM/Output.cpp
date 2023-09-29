@@ -4989,7 +4989,7 @@ void COutput::WriteContent(double time_current, int time_step_number)
 	if(m_pcs)
 	{
 		//--------------------------------------------------------------------
-		//if (m_msh->isAxisymmetry() && !_ignore_axisymmetry)
+		//if (m_pcs->m_msh->isAxisymmetry() && !_ignore_axisymmetry)
 		//	factor = 6.283185307; // 2 Pi
 		//else
 		//	factor = 1.;
@@ -6099,9 +6099,15 @@ void COutput::WriteContraflowPolyline(double time_current)
 
 void COutput::WriteBoreholeData(const double& time_current)
 {
+#if defined(USE_MPI) // JT2012
+	std::string tec_file_name = file_base_name + "_"
+					 + std::string(convertProcessTypeToString(getProcessType()))
+					 + "_Borehole_" + geo_name + "_" + std::to_string(myrank) + TEC_FILE_EXTENSION;
+#else
 		std::string tec_file_name = file_base_name + "_"
 				 + std::string(convertProcessTypeToString(getProcessType()))
 				 + "_Borehole_" + geo_name + TEC_FILE_EXTENSION;
+#endif
 		// open file
 		std::fstream tec_file;
 		if (aktueller_zeitschritt == 0)

@@ -152,6 +152,8 @@ CMediumProperties::CMediumProperties() :
 	heat_conductivity_model = -1;
 	velocity_given = false;
 	volumetric_heat_capacity_model = -1;
+	gravity_central = false;
+	darcy_weisbach_density_node_number = -1;
 }
 
 /**************************************************************************
@@ -2055,6 +2057,21 @@ std::ios::pos_type CMediumProperties::Read(std::ifstream* mmp_file)
 			continue;
 		}
 		//------------------------------------------------------------------------
+		//subkeyword found
+		if (line_string.find("$GRAVITY_CENTRAL") != std::string::npos)  // JOD 2023-06-27
+		{
+			gravity_central = true;
+			continue;
+		}
+		//------------------------------------------------------------------------
+		//subkeyword found
+		if (line_string.find("$DARCY_WEISBACH_DENSITY_NODE_NUMBER") != std::string::npos)  // JOD 2023-07-04
+		{
+			in.str(GetLineFromFile1(mmp_file));
+			in >> darcy_weisbach_density_node_number;
+			in.clear();
+			continue;
+		}
 	}
 	return position;
 }
@@ -4908,7 +4925,7 @@ double* CMediumProperties::PermeabilityTensor(const long& index, const long* con
 				return tensor;
 			}
 
-			double pressure[2];  // only line elenments
+			double pressure[2];  // only line elenments !!!
 			for(int i=0; i<2; ++i)
 			{
 				pressure[i] = m_pcs->GetNodeValue(nodes[i], 1);
@@ -4920,58 +4937,36 @@ double* CMediumProperties::PermeabilityTensor(const long& index, const long* con
 
 			const double delta_x = pow(dx * dx + dy * dy + dz * dz , 0.5);
 
+			// density eiher constant or density-dependant !!!
+			double density;
 			CRFProcess const * const m_pcs_heat = PCSGet("HEAT_TRANSPORT");
-			if(m_pcs_heat == NULL)
-				throw std::runtime_error("NO HEAT_TRANSPORT for Weisbach");
-			double values[3];
-			const int index = 1;
-/*			int upwind_index;
-if(aktuelle_zeit <= 15768000)
-	upwind_index = 0;
-else if(aktuelle_zeit > 15768000 && aktuelle_zeit <= 31536000)
-	upwind_index = 1;
-else if(aktuelle_zeit > 31536000 && aktuelle_zeit <= 47304000)
-	upwind_index = 0;
-else if(aktuelle_zeit > 47304000 && aktuelle_zeit <= 63072000)
-	upwind_index = 1;
-else if(aktuelle_zeit > 63072000 && aktuelle_zeit <= 78840000)
-	upwind_index = 0;
-else
-	upwind_index = 1;
-			values[0] = (m_pcs_heat->GetNodeValue(nodes[upwind_index], index) + m_pcs_heat->GetNodeValue(nodes[upwind_index], index))/2;
-*/
-			//values[0] = (358.15 + 286.15)/2;
-			values[0] = m_pcs_heat->GetNodeValue(167752, index);
-			//values[0] = (m_pcs_heat->GetNodeValue(nodes[0], index) + m_pcs_heat->GetNodeValue(nodes[1], index))/2;
+			if(m_pcs_heat != NULL)
+			{
+				double values[3];
+				if(darcy_weisbach_density_node_number != -1)
+				{
+					values[0] += m_pcs_heat->GetNodeValue(darcy_weisbach_density_node_number, 1);
+				}
+				else
+				{
+					values[0] = 0.;
+					for(int i=0; i<2; ++i)  // only line elenments !!!
+					{
+						values[0] += m_pcs_heat->GetNodeValue(nodes[i], 1);
+					}
+					values[0] /=2;
+				}
 
-			// inlet / outlet temperature
-			//values[0] = m_pcs_heat->GetNodeValue(17743, index);
-			double density = FluidProp->Density(values);
+				density = FluidProp->Density(values);
+			}
+			else
+				density = FluidProp->Density();
 
-			// gauss
-			/*const double _x = 0.21132486540518713;
-			
-			const double T1 = m_pcs_heat->GetNodeValue(nodes[0], index) * (1-_x) + m_pcs_heat->GetNodeValue(nodes[1], index) * _x;
-			const double T2 = m_pcs_heat->GetNodeValue(nodes[1], index) * (1-_x) + m_pcs_heat->GetNodeValue(nodes[0], index) * _x;
-			values[0] = T1;
-			const double density1 = FluidProp->Density(values);
-			values[0] = T2;
-			const double density2 = FluidProp->Density(values);
 
-			double density = (density1+density2)/2;
-			*/
-
-			///////////////////////////
-			//
 			const double delta_p = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] -
 					m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) * density*9.81;
 
 			double grad_p = std::abs((pressure[0]-pressure[1] + delta_p)/delta_x);
-
-			//const double z2 = (m_pcs->m_msh->nod_vector[nodes[0]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[1]]->getData()[2]) / 2;
-			//const double z2 = (m_pcs->m_msh->nod_vector[nodes[upwind_index]]->getData()[2] + m_pcs->m_msh->nod_vector[nodes[upwind_index]]->getData()[2]) / 2;
-			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << FluidProp->Density(values) << "\t" << values[0] << "\n"; 
-			//std::cout << z2 << "\t" << pressure[0] << "\t" << pressure[1] << "\t" << delta_p << "\t" << grad_p << "\t" << density << "\t" << T1 << "\t" << T2 << "\n"; 
 
             const double grad_p_tol = 1e-10 ;
 			if(grad_p < grad_p_tol)
@@ -4982,16 +4977,6 @@ else
 					grad_p = grad_p_tol;
 			}
 
-			////////////////////////////
-			// smoothing
-			/*const double alpha = grad_p_tol;
-			double s = 1 / ( 1+ std::exp(-(grad_p -grad_p_tol)/alpha  )  );
-			const double grad_p2 = grad_p_tol * (1-s) + grad_p * s;
-			
-std::cout << "\tGrad p " << grad_p << " corrected to " << grad_p2 << "\n";
-
-			grad_p = grad_p2;
-*/
 			if(friction_model == "LEGACY")
 			{
 				tensor[0] /= pow(grad_p, 0.5);
