@@ -119,6 +119,7 @@ namespace FiniteElement
 			//
 			void CalcSatution();                  //WW
 			//
+
 #ifdef E_NORM
 			//25.08.2008. WW
 			void CalcEnergyNorm(double &err_norm0, double &err_normn);

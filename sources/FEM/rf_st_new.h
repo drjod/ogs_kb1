@@ -178,7 +178,13 @@ public:
 	                   const std::vector<double> &, const int&); // used only in sourcetermgroup
 
 	void CalculateScalingForNode(const CNodeValue* const, long msh_node, const CFEMesh* const, const double&,
-			std::vector<scaling_type>&, std::map<int, double>&, std::map<int, double>&);
+			std::vector<double> &scaling_factor_vec,
+			std::vector<int> &scaling_group_vec,
+			std::vector<double> &scaling_value_vec,
+			std::vector<long> &scaling_node_number,
+			std::vector<long> &scaling_node_number_local
+			//std::vector<scaling_type>&, std::map<int, double>&, std::map<int, double>&
+			);
 
 	void SetNOD();
 

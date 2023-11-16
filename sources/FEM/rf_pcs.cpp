@@ -410,6 +410,7 @@ CRFProcess::CRFProcess(void) :
 	_hasConstrainedST = false;
 	is_conservative = false;
 	is_folded = false;
+	number_of_scaling_node_groups = 0;
 }
 
 
@@ -8409,11 +8410,26 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		ElementValue* gp_ele = NULL;
 		double val = 1.;
 
-		std::vector<scaling_type> scaling_vec;  // JOD 2021-11-21 to scale source terms with permeability, viscosity
-		std::map<int, double> scaling_total_source_term_vector; //  m3/s - summed up in for loop - key is scaling_nodes_group
-		std::map<int, double> scaling_vec_sum;  // key is scaling_nodes_group
+		// for scaling ST
+		std::vector<double> scaling_factor_vec;
+		std::vector<double> scaling_value_vec;
+		std::vector<int> scaling_group_vec;
+		std::vector<long> scaling_node_number_vec;
+		std::vector<long> scaling_node_number_local_vec;
+		//std::vector<scaling_type> scaling_vec;  // JOD 2021-11-21 to scale source terms with permeability, viscosity
+		//std::map<int, double> scaling_total_source_term_vector; //  m3/s - summed up in for loop - key is scaling_nodes_group
+		//std::map<int, double> scaling_vec_sum;  // key is scaling_nodes_group
 		ST_values_kept.clear();
 		Borehole_values_kept.clear();
+
+/*#if defined (USE_MPI)
+		for(int i= 0; i < number_of_scaling_node_groups; ++i)
+		{
+			scaling_vec_sum[i] = 0.;
+			scaling_total_source_term_vector[i] = 0.;
+		}
+#endif
+*/
 
 #if defined(USE_PETSC) // || defined(other parallel libs)//03~04.3012. WW
 		vector<int> st_eqs_id;
@@ -8910,7 +8926,13 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 		if (m_st->GetScalingMode() == 2)  // JOD-2021-11-04
 		{
 			m_st->CalculateScalingForNode(cnodev, msh_node, m_msh, value,
-					scaling_vec, scaling_total_source_term_vector, scaling_vec_sum);
+					scaling_factor_vec,
+					scaling_group_vec,
+					scaling_value_vec,
+					scaling_node_number_vec,
+					scaling_node_number_local_vec
+					//scaling_vec, scaling_total_source_term_vector, scaling_vec_sum
+					);
 			value = 0.;  // set bc separately below
 		}
 
@@ -9024,18 +9046,179 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 #endif
 
 		// set RHS for all nodes with scaling
-		// std::cout << "st vector: " << scaling_total_source_term_vector[0] << " " << scaling_total_source_term_vector[1] << '\n';
+		std::map<int, double> scaling_value;
+		std::map<int, double> scaling_factor_total;
+		for(int i= 0; i < number_of_scaling_node_groups; ++i)
+		{
+			scaling_value[i] = 0.;
+			scaling_factor_total[i] = 0.;
+		}
+
+#if defined (USE_MPI)
+		int max_nodes = 1000;
+		if(scaling_factor_vec.size()>max_nodes)
+			throw std::runtime_error("Scaling with MPI implemented for <= 1000 well nodes");
+
+		int size;
+		MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+		std::vector<double> mpi_scaling_factor_vec_send(max_nodes, 0.);
+		std::vector<int> mpi_scaling_group_vec_send(max_nodes, -1);
+		std::vector<long> mpi_scaling_node_number_vec_send(max_nodes, -1);
+		std::vector<double> mpi_scaling_value_vec_send(max_nodes, 0);
+
+		for(size_t i=0; i < scaling_factor_vec.size(); ++i)
+		{
+			mpi_scaling_factor_vec_send[i] = scaling_factor_vec[i];
+			mpi_scaling_group_vec_send[i] = scaling_group_vec[i];
+			mpi_scaling_node_number_vec_send[i] = scaling_node_number_vec[i];
+			mpi_scaling_value_vec_send[i] =scaling_value_vec[i];
+		}
+
+		std::vector<double> mpi_scaling_factor_vec(max_nodes*size, 0.);
+		std::vector<int> mpi_scaling_group_vec(max_nodes*size, -1);
+		std::vector<long> mpi_scaling_node_number_vec(max_nodes*size, -1);
+		std::vector<double> mpi_scaling_value_vec(max_nodes*size, 0);
+
+
+		MPI_Allgather(
+			&mpi_scaling_factor_vec_send[0],
+			max_nodes,
+		    MPI_DOUBLE,
+			&mpi_scaling_factor_vec[0],
+		    max_nodes,
+			MPI_DOUBLE,
+			MPI_COMM_WORLD);
+
+		MPI_Allgather(
+			&mpi_scaling_group_vec_send[0],
+			max_nodes,
+		    MPI_INT,
+			&mpi_scaling_group_vec[0],
+		    max_nodes,
+			MPI_INT,
+			MPI_COMM_WORLD);
+
+		MPI_Allgather(
+			&mpi_scaling_node_number_vec_send[0],
+			max_nodes,
+		    MPI_LONG,
+			&mpi_scaling_node_number_vec[0],
+		    max_nodes,
+			MPI_LONG,
+			MPI_COMM_WORLD);
+
+		MPI_Allgather(
+			&mpi_scaling_value_vec_send[0],
+			max_nodes,
+		    MPI_DOUBLE,
+			&mpi_scaling_value_vec[0],
+		    max_nodes,
+			MPI_DOUBLE,
+			MPI_COMM_WORLD);
+
+		std::vector<double> scaling_value_vec_extended;
+		std::vector<int> scaling_group_vec_extended;
+		std::vector<double> scaling_factor_vec_extended;
+		std::vector<long> scaling_node_number_vec_extended;
+
+		for(size_t i= 0; i < mpi_scaling_factor_vec.size(); ++i)
+		{
+			if(mpi_scaling_group_vec[i] != -1)
+			{
+
+				if(std::find(scaling_node_number_vec_extended.begin(),
+						scaling_node_number_vec_extended.end(),
+							mpi_scaling_node_number_vec[i]) ==	scaling_node_number_vec_extended.end())
+				{
+					scaling_group_vec_extended.push_back(mpi_scaling_group_vec[i]);
+					scaling_node_number_vec_extended.push_back(mpi_scaling_node_number_vec[i]);
+					scaling_factor_vec_extended.push_back(mpi_scaling_factor_vec[i]);
+					scaling_value_vec_extended.push_back(mpi_scaling_value_vec[i]);
+				}
+				else
+				{
+					int ndx = std::distance(scaling_node_number_vec_extended.begin(), std::find(scaling_node_number_vec_extended.begin(),
+							scaling_node_number_vec_extended.end(),
+							mpi_scaling_node_number_vec[i]))-1;
+					scaling_value_vec_extended[ndx] += mpi_scaling_value_vec[i];
+				}
+			}
+		}
+
+		for(size_t i= 0; i < scaling_factor_vec_extended.size(); ++i)
+		{
+			scaling_value[scaling_group_vec_extended[i]] += scaling_value_vec_extended[i];
+			scaling_factor_total[scaling_group_vec_extended[i]] += scaling_factor_vec_extended[i];
+		}
+#else
+		for(size_t i= 0; i < scaling_factor_vec.size(); ++i)
+		{
+			scaling_value[scaling_group_vec[i]] += scaling_value_vec[i];
+			scaling_factor_total[scaling_group_vec[i]] += scaling_factor_vec[i];
+		}
+#endif
+
+		for(size_t i= 0; i < scaling_node_number_vec.size(); ++i)
+		{
+#if defined (USE_MPI)
+			bc_eqs_index = m_msh->nod_vector[scaling_node_number_local_vec[i]]->GetEquationIndex() + shift;
+			//bc_eqs_index = scaling_node_number_local_vec[i];// + shift;
+#else
+			bc_eqs_index = m_msh->nod_vector[scaling_node_number_vec[i]]->GetEquationIndex() + shift;
+#endif
+			const double st_value = scaling_value[scaling_group_vec[i]] * scaling_factor_vec[i] / fabs(scaling_factor_total[scaling_group_vec[i]]);
+			eqs_rhs[bc_eqs_index] += st_value;
+
+			std::cout << "\t Scaled " << scaling_node_number_vec[i] <<
+							" (x: " << m_msh->nod_vector[scaling_node_number_vec[i]]->getData()[0] <<
+							", y: " << m_msh->nod_vector[scaling_node_number_vec[i]]->getData()[1] <<
+							", z: " << m_msh->nod_vector[scaling_node_number_vec[i]]->getData()[2]<<
+							"): " << st_value << '\n';
+
+
+			if(ST_values_kept.find(scaling_node_number_vec[i]) != ST_values_kept.end())
+				ST_values_kept[scaling_node_number_vec[i]] = ST_values_kept[scaling_node_number_vec[i]] + st_value;
+			else
+				ST_values_kept[scaling_node_number_vec[i]] = st_value;
+		}
+
+/*		for(int i= 0; i < number_of_scaling_node_groups; ++i)
+		{
+#if defined (USE_MPI)
+			double MPI_sending[2];
+			double MPI_receiving[2];
+			MPI_sending[0] = scaling_total_source_term_vector[i];
+			MPI_sending[1] = scaling_vec_sum[i];
+
+			int size;
+			MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+			MPI_Allreduce(
+				&MPI_sending[0],
+				&MPI_receiving[0],
+				2,
+				MPI_DOUBLE,
+				MPI_SUM,
+				MPI_COMM_WORLD);
+
+			scaling_total_source_term_vector[i] = MPI_receiving[0];
+			scaling_vec_sum[i] = MPI_receiving[1];
+#endif
+			std::cout << "\tTotal st at well " << i  << ": " << scaling_total_source_term_vector[i ] << " m³/s\n";
+		}
+
+
 
 		for (size_t i = 0; i < scaling_vec.size(); ++i)
 		{
-			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value / 
-							fabs(scaling_vec_sum[scaling_vec[i].group_number]);
-
 #if defined (USE_MPI)
 			bc_eqs_index = scaling_vec[i].node_number_local;// + shift;
 #else
 			bc_eqs_index = m_msh->nod_vector[scaling_vec[i].node_number]->GetEquationIndex() + shift;
 #endif
+			const double st_value = scaling_total_source_term_vector[scaling_vec[i].group_number] * scaling_vec[i].node_value /
+							fabs(scaling_vec_sum[scaling_vec[i].group_number]);
 			eqs_rhs[bc_eqs_index] += st_value;
 
 			if(scaling_vec[i].verbosity)
@@ -9045,14 +9228,12 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				", z: " << m_msh->nod_vector[scaling_vec[i].node_number]->getData()[2]<<
 				"): " << st_value << '\n';
 
-			if(scaling_vec[i].keep_value)
+			if(scaling_vec[i].s)
 			{
-				if(ST_values_kept.find(scaling_vec[i].node_number) != ST_values_kept.end())
-					ST_values_kept[scaling_vec[i].node_number] = ST_values_kept[scaling_vec[i].node_number] + st_value;
-				else
-					ST_values_kept[scaling_vec[i].node_number] = st_value;
+
 			}
 		}
+*/
 
 #if defined(USE_MPI)
 				// JOD 2021-11-30
@@ -9104,9 +9285,6 @@ std::valarray<double> CRFProcess::getNodeVelocityVector(const long node_id)
 				}
 			}
 		}
-
-		//for (std::map<long, double>::iterator it = ST_values_kept.begin(); it != ST_values_kept.end(); ++it) 
-    		//	std::cout << rank << ": " << it->first << ", " << it->second << std::endl;
 
 #endif
 
@@ -10710,6 +10888,7 @@ double CRFProcess::CalcIterationNODError(FiniteElement::ErrorMethod method, bool
 			logger.info<2>("Iter:", iter_nlin, "/", m_num->nls_max_iterations);
 			cout << "    PCS non-linear iteration: " << iter_nlin << "/"
          << m_num->nls_max_iterations << '\n';
+
 			nonlinear_iteration_error = Execute();
 			//
 			// ---------------------------------------------------

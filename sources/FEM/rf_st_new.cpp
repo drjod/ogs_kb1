@@ -100,6 +100,10 @@ using Math_Group::vec;
 bool global_flag_keep_values = false;  // to keep ST values and make them consistent over all processors
 #endif
 
+// to print input data only once if there are more than one contraflow instances
+bool global_flag_print_contraflow_input_data = true;
+bool global_flag_print_contraflow_pipe_data = true;
+
 int scaling_node_group_running = 0;
 
 std::vector<CSourceTerm*> st_vector;
@@ -818,22 +822,39 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		  scaling_node_group_running++;
 		  in.clear();
 
+		  CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType()));
+		  m_pcs->number_of_scaling_node_groups = scaling_node_group_running;
+
 		  continue;
 	  }
 	  //....................................................................
 	  if (line_string.find("$CONTRAFLOW_PIPES") != std::string::npos) // JOD 2019-07-30
 	  {
-		  std::cout << "CONTRAFLOW_PIPES\n";
 		 int tmp0;
-		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9, tmp10, tmp11;
+		 double tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7 = -1., tmp8, tmp9, tmp10, tmp11 = -1.;
 
-		 in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
-		 in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
-		 in.clear();
+         in.str(readNonBlankLineFromInputStream(*st_file));  // pipe
+         in >> tmp0 >> tmp1 >> tmp2 >> tmp3 >> tmp4 >> tmp5 >> tmp6 >> tmp7;
+         in.clear();
 
+         if(tmp0 != 0 && tmp0 != 1)
+         {
+        	 throw std::runtime_error("ERROR in CONTRAFLOW pipe input - BHE type not supported");
+         }
+         if(tmp2 < tmp1 || tmp4 < tmp3)
+         {
+        	 throw std::runtime_error("ERROR in CONTRAFLOW pipe input - d_o < d_i");
+         }
+         if(tmp5 < (tmp1 + tmp2))
+         {
+        	 throw std::runtime_error("ERROR in CONTRAFLOW pipe input - Pipe distance to small");
+         }
 		 in.str(readNonBlankLineFromInputStream(*st_file));  // fluid
 		 in >> tmp8 >> tmp9 >> tmp10 >> tmp11;
 		 in.clear();
+
+         if (tmp7 < 0 || tmp11 < 0)
+             throw std::runtime_error("ERROR in CONTRAFLOW pipe input - Not enought data in $CONTRAFLOW_PIPES");
 
 		 ogs_contraflow = new OGS_contraflow(tmp0, // indicator - 0: U, 1: 2U, 2: coax
 				 {	// pipe
@@ -854,6 +875,25 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		 );
 
+		 if(global_flag_print_contraflow_pipe_data)
+		 {
+			 std::cout << "\n\tRead CONTRAFLOW pipe input\n";
+			 if(tmp0 == 0)
+				 std::cout << "\t\tSingle U-BHE:\n";
+			 else if(tmp0 == 1)
+				 std::cout << "\t\t2U-BHE:\n";
+			 std::cout << "\t\t\td_0_i/o:  " << tmp1 << "  " << tmp2 << '\n';
+			 std::cout << "\t\t\td_1_i/o:  " << tmp3 << "  " << tmp4 << '\n';
+			 std::cout << "\t\t\tw:\t  " << tmp5 << '\n';
+			 std::cout << "\t\t\tlambda_0: " << tmp6 << '\n';
+			 std::cout << "\t\t\tlambda_1: " << tmp7 << '\n';
+			 std::cout << "\t\tFluid:\n";
+			 std::cout << "\t\t\tlambda:\t" << tmp8 << '\n';
+			 std::cout << "\t\t\tmu:\t" << tmp9 << '\n';
+			 std::cout << "\t\t\tC_V:\t" << tmp10 << '\n';
+			 std::cout << "\t\t\trho:\t" << tmp11 << '\n';
+		 }
+
 		 int numberOfSegments;
 		 in.str(readNonBlankLineFromInputStream(*st_file));
 		 in >> numberOfSegments;
@@ -861,20 +901,37 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 
 		 while(numberOfSegments--)  // no check if number is right
 		 {
-			  in.str(readNonBlankLineFromInputStream(*st_file));
-			  in >> tmp0 >> tmp1 >> tmp2 >> tmp3;
-			  in.clear();
+			 int tmp00;
+			 double tmp01, tmp02, tmp03 = -1.;
+
+			 in.str(readNonBlankLineFromInputStream(*st_file));
+			 in >> tmp00 >> tmp01 >> tmp02 >> tmp03;
+			 in.clear();
+
+			 if (tmp03 < 0)
+				 throw std::runtime_error("ERROR in CONTRAFLOW pipe input - not enought data in $CONTRAFLOW_PIPES segment");
+			 if(tmp02 < ( (tmp2 + tmp4) / 2 + tmp5))
+				 throw std::runtime_error("ERROR in CONTRAFLOW pipe input - diameter to small");
+
 			  //new_ogs_WellDoubletControl.wellDoubletData.parameter_list.emplace_back(
 			  ogs_contraflow->add_segment_data_group
 			  ({
-				tmp0,  // N
-				tmp1,  // L
-				tmp2,  // D
-				tmp3  // lambda_g
+				tmp00,  // N
+				tmp01,  // L
+				tmp02,  // D
+				tmp03  // lambda_g
 			  });
-		 }
-		ogs_contraflow->initialize();
 
+			  if(global_flag_print_contraflow_pipe_data)
+			  {
+				  std::cout << "\t\tSegment:\n";
+				  std::cout << "\t\t\tN:\t" << tmp00 << '\n';
+				  std::cout << "\t\t\tL:\t" << tmp01 << '\n';
+				  std::cout << "\t\t\tD:\t" << tmp02 << '\n';
+				  std::cout << "\t\t\tlambda:\t" << tmp03 << '\n';
+			  }
+		  }
+		 ogs_contraflow->initialize();
 
 		 if(CRFProcess* m_pcs = PCSGet(convertProcessTypeToString(getProcessType())))
 		 {
@@ -883,18 +940,24 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 		 else
 			 throw std::runtime_error("No PCS for WellDoubletControl");
 
-		 std::cout << "Set contraflow source term\n";
-
+		 global_flag_print_contraflow_pipe_data = false;
 		 continue;
 	  }
 	  //....................................................................
 	  if (line_string.find("$CONTRAFLOW_INPUT") != std::string::npos) // JOD 2019-07-30
 	  {
-		 std::cout << "CONTRAFLOW_INPUT\n";
+
 		  int numberOfInputSets;
 
 		  in.str(readNonBlankLineFromInputStream(*st_file));
 		  in >> numberOfInputSets;
+
+		   if(global_flag_print_contraflow_input_data)
+		   {
+			 std::cout << "\tRead CONTRAFLOW control input\n\t\tNumber of segments: " <<
+					 numberOfInputSets << "\n\t\t\ttime\t\tmode\tQ\tT_in / DT\n";
+
+		   }
 
 		  in.clear();
 		  while(numberOfInputSets--)  // no check if number is right
@@ -913,7 +976,20 @@ std::ios::pos_type CSourceTerm::Read(std::ifstream *st_file,
 				tmp2,  // Q
 				tmp3  // T_in / dT
 			  );
+
+		      if (tmp1 != 0 && tmp1 != 1)
+		        	 throw std::runtime_error("ERROR in CONTRAFLOW control input - BHE type not supported");
+
+			  if(global_flag_print_contraflow_input_data)
+			  {
+				  if(tmp1 == 0)
+					  std::cout << "\t\t\t" << tmp0 << "\tT_in\t" << tmp2 << '\t' << tmp3 << '\n';
+				  else if(tmp1 == 1)
+					  std::cout << "\t\t\t" << tmp0 << "\tDT  \t" << tmp2 << '\t' << tmp3 << '\n';
+			  }
 		  }
+
+	  	  global_flag_print_contraflow_input_data = false;
 		  continue;
 	  }
 	  //....................................................................
@@ -2849,7 +2925,10 @@ void CSourceTermGroup::SetPLY(CSourceTerm* st, int ShiftInNodeVector)
 			std::cout << "Scaling mode: " << st->scaling_mode << '\n';
 			for(size_t i=0; i < ply_nod_vector.size(); ++i)
 			{
-				std::cout << '\t' << ply_nod_vector[i] << ":\t" << ply_nod_val_vector[i] << '\n'; 
+				std::cout << '\t' << ply_nod_vector[i] << " (x: " << m_msh->nod_vector[ply_nod_vector[i]]->X()
+								 << ", y: " << m_msh->nod_vector[ply_nod_vector[i]]->Y()
+								 << ", z: " << m_msh->nod_vector[ply_nod_vector[i]]->Z()
+								 <<  "):\t" << ply_nod_val_vector[i] << '\n';
 			}
 		}
 
@@ -3368,7 +3447,15 @@ const int ShiftInNodeVector)
  	       				   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0],
  	       				   static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1],
  	       				   z);
- 	       		   st->ogs_contraflow->add_node(m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt)));
+
+ 	       		   const double max_distance = 1e-5;
+				   long msh_node = m_msh->GetNODOnPNT(static_cast<const GEOLIB::Point*>(&pnt));
+				   if (fabs(m_msh->nod_vector[msh_node]->X() - static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[0]) > max_distance ||
+					   fabs(m_msh->nod_vector[msh_node]->Y() - static_cast<const GEOLIB::Point*>(st->getGeoObj())->getData()[1]) > max_distance ||
+					   fabs(m_msh->nod_vector[msh_node]->Z() - z) > max_distance)
+					   throw std::runtime_error("ERROR in Contraflow - OGS-MSH not consistent");
+
+				   st->ogs_contraflow->add_node(msh_node);
  	       	   }
  	          }
  	  }
@@ -5354,6 +5441,7 @@ void IncorporateConnectedGeometries(double &value, CNodeValue* cnodev, CSourceTe
 			{
 				double values[3];
 				values[0] = m_pcs_heat->GetNodeValue(cnodev->msh_node_number, 1);
+				values[1] = values[0];  // for viscosity model 3
 				alpha /= FluidProp->Viscosity(&values[0]);
 			}
 			else
@@ -5774,31 +5862,51 @@ double CSourceTerm::apply_contraflow(const double &value, const double& aktuelle
 void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 		long msh_node,  // of local processor in case of MPI
 		const CFEMesh* const m_msh, const double& value,
+		std::vector<double> &scaling_factor_vec,
+		std::vector<int> &scaling_group_vec,
+		std::vector<double> &scaling_value_vec,
+		std::vector<long> &scaling_node_number_vec,
+		std::vector<long> &scaling_node_number_local_vec
 		// the following are updated
-		std::vector<scaling_type>& scaling_vec,
-		std::map<int, double>& scaling_total_source_term_vector,
-		std::map<int, double>& scaling_vec_sum)
+		//std::vector<scaling_type>& scaling_vec,
+		//std::map<int, double>& scaling_total_source_term_vector,
+		//std::map<int, double>& scaling_vec_sum
+		)
 {
 
-	scaling_type scaling;
-
-	scaling.node_number = cnodev->msh_node_number;
+	//scaling_type scaling;
+	scaling_node_number_vec.push_back(cnodev->msh_node_number);
 #if defined(USE_MPI)
-	scaling.node_number_local = msh_node;
+	scaling_node_number_local_vec.push_back(msh_node);
+	//node_number_local = msh_node;
 #else
+
 	(void)msh_node; // surpress warning
 #endif
-	scaling.group_number = GetScalingNodeGroup();
-	scaling.keep_value = keep_values;
-	scaling.verbosity = scaling_verbosity;
+	//scaling.group_number = GetScalingNodeGroup();
+	//scaling.keep_value = keep_values;
+	//scaling.verbosity = scaling_verbosity;
 
 	// calculate a scaling factor for the node
 	double scaling_factor = 0;
+
 	std::vector<size_t> elements_connected = m_msh->nod_vector[cnodev->msh_node_number]->getConnectedElementIDs();
+	int number_of_connected_aquifer_elements = 0;
 	for (size_t i = 0; i < elements_connected.size(); ++i)
 	{
 		// permeability
 		const CElem* ele = m_msh->ele_vector[elements_connected[i]];
+
+		if(get_borehole_mmpgroups().size())
+		{
+			if(std::find(get_borehole_mmpgroups().begin(), get_borehole_mmpgroups().end(), ele->GetPatchIndex()) ==
+					get_borehole_mmpgroups().end())
+			{
+				continue;
+			}
+		}
+		number_of_connected_aquifer_elements++;
+
 		const double perm = mmp_vector[ele->GetPatchIndex()]->permeability_tensor[0];  // x-direction
 		// viscosity - dependent on temperature, nothing else
 		CFluidProperties* mfp = MFPGet("LIQUID");
@@ -5820,21 +5928,26 @@ void CSourceTerm::CalculateScalingForNode(const CNodeValue* const cnodev,
 		scaling_factor += perm / visc;
 	}
 
-	scaling_factor *=  cnodev->length / elements_connected.size();
+	scaling_factor_vec.push_back(scaling_factor * cnodev->length / number_of_connected_aquifer_elements);
+	scaling_value_vec.push_back(value);
+	scaling_group_vec.push_back(GetScalingNodeGroup());
+
+	//std::cout << number_of_connected_aquifer_elements << std::endl;
+	//scaling_factor *=  cnodev->length / number_of_connected_aquifer_elements;
 
 	// store the scaling_factor, increment the sum of scalin_factor and source term value for the group (same CSourceTerm instance)
-	if(scaling_vec_sum.find(GetScalingNodeGroup()) != scaling_vec_sum.end())
-		scaling_vec_sum[GetScalingNodeGroup()] += scaling_factor;
-	else
-		scaling_vec_sum[GetScalingNodeGroup()] = scaling_factor;
+	//if(scaling_vec_sum.find(GetScalingNodeGroup()) != scaling_vec_sum.end())
+	//	scaling_vec_sum[GetScalingNodeGroup()] += scaling_factor;
+	//else
+	//	scaling_vec_sum[GetScalingNodeGroup()] = scaling_factor;
 
-	if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
-		scaling_total_source_term_vector[GetScalingNodeGroup()] += value;
-	else
-		scaling_total_source_term_vector[GetScalingNodeGroup()] = value;
+	//if(scaling_total_source_term_vector.find(GetScalingNodeGroup()) != scaling_total_source_term_vector.end())
+	//	scaling_total_source_term_vector[GetScalingNodeGroup()] += value;
+	//else
+	//	scaling_total_source_term_vector[GetScalingNodeGroup()] = value;
 
-	scaling.node_value = scaling_factor;
-	scaling_vec.push_back(scaling);
+	//scaling.node_value = scaling_factor;
+	//scaling_vec.push_back(scaling);
 }
 
 

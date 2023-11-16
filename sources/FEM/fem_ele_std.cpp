@@ -4759,7 +4759,7 @@ void CFiniteElementStd::CalcLumpedMass()
 	//----------------------------------------------------------------------
 #endif
 	//TEST OUT
-	// Mass->Write();
+	//Mass->Write();
 }
 
 ///
@@ -5189,7 +5189,9 @@ void CFiniteElementStd::CalcLaplace(const bool& ignore_material)
 #endif    
 			}
 		}
-	} //	//TEST OUTPUT
+	}
+
+	//	//TEST OUTPUT
 	//Laplace->Write();
 }
 /***************************************************************************
@@ -5225,7 +5227,7 @@ void CFiniteElementStd::CalcLaplaceMCF()
 	}
 	}
 	//TEST OUTPUT
-	// Laplace->Write();
+	 //Laplace->Write();
 }
 
 /**************************************************************************
@@ -8648,7 +8650,6 @@ void CFiniteElementStd::AssembleMixedHyperbolicParabolicEquation()
 		CalcStorage();
 		// Calc Content Matrix for  saturation changes
 		CalcContent();
-
 		// Store matrices to memory for steady state element matrices     //SB-3
 		if(pcs->Memory_Type > 0)
 		{
@@ -8766,6 +8767,7 @@ void CFiniteElementStd::AssembleMixedHyperbolicParabolicEquation()
 			NodalVal[i] = 0.0;
 		}
 		AuxMatrix1->multi(NodalVal1, NodalVal); //AuxMatrix1 times vector NodalVal1 = NodalVal
+
 		//----------------------------------------------------------------------
 		for (int i = 0; i < nnodes; i++)
 		{
@@ -9510,7 +9512,9 @@ void CFiniteElementStd::Assembly()
 		//  if(SolidProp->GetCapacityModel()==2) // Boiling model
 		//    CalNodalEnthalpy();
 		//CMCD4213
+
 		AssembleMixedHyperbolicParabolicEquation();
+
 		if(FluidProp->density_model == 14 && MediaProp->heat_diffusion_model == 1 &&
 		   cpl_pcs )
 			Assemble_RHS_HEAT_TRANSPORT();  // This include when need pressure terms n dp/dt + nv.Nabla p//AKS
@@ -12511,6 +12515,7 @@ void CFiniteElementStd::IncorporateNodeConnection(long From, long To, double fac
 
 	}
 }
+
 
 ////////////////
 

@@ -19,6 +19,7 @@
  * */
 #include "Configure.h"
 #include "logger.h"
+#include <stdexcept>
 Logger logger = Logger::get_instance();
 
 
@@ -308,21 +309,31 @@ int main ( int argc, char* argv[] )
 	logger.initialize(FilePath);
 	// ---------------------------WW
 	Problem* aproblem = new Problem(dateiname);
+
+	try
+	{
+
 #ifdef USE_PETSC
-	aproblem->setRankandSize(rank, r_size);
+		aproblem->setRankandSize(rank, r_size);
 #endif
 #if defined(USE_MPI) || defined(USE_MPI_PARPROC) || defined(USE_MPI_REGSOIL) || defined(USE_MPI_GEMS)  || defined(USE_MPI_KRC)
-	aproblem->setRankandSize(myrank, mysize);
+		aproblem->setRankandSize(myrank, mysize);
 #endif
 
-	aproblem->Euler_TimeDiscretize();
-    if(aproblem->PrintTimes())
-      if(ClockTimeVec.size()>0){
-        ClockTimeVec[0]->PrintTimes();  //CB time
-	    DestroyClockTime();
-      }
-	delete aproblem;
-	aproblem = NULL;
+		aproblem->Euler_TimeDiscretize();
+		if(aproblem->PrintTimes())
+		  if(ClockTimeVec.size()>0){
+			ClockTimeVec[0]->PrintTimes();  //CB time
+			DestroyClockTime();
+		  }
+		delete aproblem;
+		aproblem = NULL;
+	}
+	catch (const std::runtime_error& re)
+	{
+			std::cout << re.what() << std::endl;
+			std::cerr << re.what() << std::endl;
+	}
 
 #ifdef TESTTIME
 #if defined(USE_MPI)

@@ -5841,7 +5841,7 @@ void COutput::WriteContraflow(double time_current)
 		if (aktueller_zeitschritt == 0)
 		{
 			tec_file_tf << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
-			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1\" \"flux_2\" \n";
+			tec_file_tf << "VARIABLES = \"Time\" \"T_in\" \"T_out\" \"flux_1 (W)\" \"flux_2 (W)\" \n";
 		}
 		else
 		{
@@ -5878,7 +5878,7 @@ void COutput::WriteContraflow(double time_current)
 						R_0_Delta = result.resistances_vec[j].R_0_Delta;
 						R_1_Delta = result.resistances_vec[j].R_1_Delta;
 					}
-					if((int)k == N)
+					if((int)k == N-1)
 					{
 						R_0_Delta /= 2;
 						R_1_Delta /= 2;
@@ -5954,7 +5954,7 @@ Programing:
 
 void COutput::WriteContraflowPolyline(double time_current)
 {	// a_pcs???
-	std::cout << "Data output: Contraflow\n";
+	std::cout << "Data output: Contraflow ply\n";
 	m_pcs = PCSGet(getProcessType());
 	if(m_pcs == NULL)
 	{
@@ -5994,14 +5994,18 @@ void COutput::WriteContraflowPolyline(double time_current)
 
 
 		//--------------------------------------------------------------------
-		if (aktueller_zeitschritt != 0)
+		if (aktueller_zeitschritt == 0)
+		{
+			tec_file << "TITLE = \"Contraflow instance " <<  ii << "\"\n";
+		}
+		else
 		{
 
 			if(m_pcs->ogs_contraflow_vector[ii]->get_input_list().front().Q > 10e-10)
 			{
 
 				tec_file << "ZONE T=\"TIME=" << time_current << "\"\n";
-
+				tec_file << "VARIABLES = \"z (m)\" \"T_s\" \"T_in\" \"T_out\" \"flux_1 (W)\" \"flux_2 (W)\" \n";
 				// write results
 				std::vector<long> nodes_vec =  m_pcs->ogs_contraflow_vector[ii]->get_nodes_vec();
 				stru3::DVec T_s = stru3::DVec(nodes_vec.size());

@@ -706,6 +706,7 @@ private:
 	//PCH
 	std::vector<std::string> ele_val_name_vector;
 public:
+	int number_of_scaling_node_groups;
 	//std::map<long, borehole_values_type> GetBoreholeValues() { return Borehole_values_kept; }
 	double calculateNodeValueFromConnectedNodes(const std::vector<long>&, const std::vector<double>&,
 			const int&, const int&, bool&);
